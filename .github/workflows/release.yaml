@@ -1,0 +1,290 @@
+name: Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      bump:
+        description: "Version bump type"
+        required: true
+        default: "patch"
+        type: choice
+        options:
+          - patch
+          - minor
+          - major
+
+permissions:
+  contents: write
+
+jobs:
+  # --- Validate all builds before releasing ---
+  build-go:
+    name: Build Go
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          show-progress: false
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "stable"
+          cache-dependency-path: go/go.sum
+
+      - name: Build
+        working-directory: go
+        run: go build ./...
+
+  build-node:
+    name: Build Node
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          show-progress: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: npm
+          cache-dependency-path: node/sdk/package-lock.json
+
+      - name: Build SDK
+        working-directory: node/sdk
+        run: |
+          npm ci
+          npm run build
+
+  build-java:
+    name: Build Java
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          show-progress: false
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          java-version: "17"
+          distribution: "temurin"
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v5
+        with:
+          cache-read-only: true
+
+      - name: Build
+        working-directory: java
+        run: |
+          chmod +x gradlew
+          ./gradlew build --no-daemon
+
+  build-python:
+    name: Build Python
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          show-progress: false
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: python/uv.lock
+
+      - name: Build
+        working-directory: python
+        run: |
+          uv sync
+          uv build --package t0-provider-sdk
+          uv build --package t0-provider-starter
+
+  # --- Release (only after all builds pass) ---
+  release:
+    name: Create Release
+    needs: [build-go, build-node, build-java, build-python]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Generate GitHub App Token
+        id: app-token
+        uses: actions/create-github-app-token@v2
+        with:
+          app-id: ${{ vars.CI_APP_ID }}
+          private-key: ${{ secrets.CI_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: provider-sdk
+
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          token: ${{ steps.app-token.outputs.token }}
+          fetch-depth: 0
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "stable"
+          cache: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+
+      - name: Calculate version
+        id: version
+        run: |
+          # Get latest tag, default to v0.0.0 if none exists
+          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
+          CURRENT="${LATEST_TAG#v}"
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$CURRENT"
+
+          case "${{ inputs.bump }}" in
+            major)
+              MAJOR=$((MAJOR + 1))
+              MINOR=0
+              PATCH=0
+              ;;
+            minor)
+              MINOR=$((MINOR + 1))
+              PATCH=0
+              ;;
+            patch)
+              PATCH=$((PATCH + 1))
+              ;;
+          esac
+
+          VERSION="${MAJOR}.${MINOR}.${PATCH}"
+          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          echo "Release version: ${VERSION}"
+
+      # --- Update version in all language files ---
+      - name: Update TS SDK version
+        run: |
+          cd node/sdk
+          npm version ${{ steps.version.outputs.version }} --no-git-tag-version
+
+      - name: Update TS Starter version
+        run: |
+          cd node/starter
+          npm version ${{ steps.version.outputs.version }} --no-git-tag-version
+
+      - name: Update Python versions
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          sed -i "s/^version = \".*\"/version = \"${VERSION}\"/" python/sdk/pyproject.toml
+          sed -i "s/^version = \".*\"/version = \"${VERSION}\"/" python/starter/pyproject.toml
+
+      - name: Update Java version
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          sed -i "s/^version=.*/version=${VERSION}/" java/gradle.properties
+
+      # --- Update SDK version in starter templates ---
+      - name: Update TS Starter template SDK version
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          cd node/starter/template
+          jq --arg v "^${VERSION}" '.dependencies["@t-0/provider-sdk"] = $v' package.json > package.json.tmp
+          mv package.json.tmp package.json
+
+      - name: Update Go Starter template SDK version
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          cd go/starter/template
+          go mod edit -require "github.com/t-0-network/provider-sdk/go@v${VERSION}"
+
+      # --- Validate version updates ---
+      - name: Validate updated files
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          ERRORS=0
+
+          # Validate Node SDK version
+          NODE_SDK_VER=$(node -p "require('./node/sdk/package.json').version")
+          if [ "$NODE_SDK_VER" != "$VERSION" ]; then
+            echo "::error::Node SDK version mismatch: expected $VERSION, got $NODE_SDK_VER"
+            ERRORS=$((ERRORS + 1))
+          fi
+
+          # Validate Node Starter version
+          NODE_STARTER_VER=$(node -p "require('./node/starter/package.json').version")
+          if [ "$NODE_STARTER_VER" != "$VERSION" ]; then
+            echo "::error::Node Starter version mismatch: expected $VERSION, got $NODE_STARTER_VER"
+            ERRORS=$((ERRORS + 1))
+          fi
+
+          # Validate Python SDK version
+          PY_SDK_VER=$(grep '^version = ' python/sdk/pyproject.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+          if [ "$PY_SDK_VER" != "$VERSION" ]; then
+            echo "::error::Python SDK version mismatch: expected $VERSION, got $PY_SDK_VER"
+            ERRORS=$((ERRORS + 1))
+          fi
+
+          # Validate Python Starter version
+          PY_STARTER_VER=$(grep '^version = ' python/starter/pyproject.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+          if [ "$PY_STARTER_VER" != "$VERSION" ]; then
+            echo "::error::Python Starter version mismatch: expected $VERSION, got $PY_STARTER_VER"
+            ERRORS=$((ERRORS + 1))
+          fi
+
+          # Validate Java version
+          JAVA_VER=$(grep '^version=' java/gradle.properties | cut -d= -f2)
+          if [ "$JAVA_VER" != "$VERSION" ]; then
+            echo "::error::Java version mismatch: expected $VERSION, got $JAVA_VER"
+            ERRORS=$((ERRORS + 1))
+          fi
+
+          # Validate TS Starter template SDK dependency
+          TEMPLATE_SDK_VER=$(node -p "require('./node/starter/template/package.json').dependencies['@t-0/provider-sdk']")
+          if [ "$TEMPLATE_SDK_VER" != "^$VERSION" ]; then
+            echo "::error::TS Starter template SDK version mismatch: expected ^$VERSION, got $TEMPLATE_SDK_VER"
+            ERRORS=$((ERRORS + 1))
+          fi
+
+          # Validate Go Starter template SDK dependency
+          GO_TEMPLATE_VER=$(grep 'github.com/t-0-network/provider-sdk/go' go/starter/template/go.mod | awk '{print $2}')
+          if [ "$GO_TEMPLATE_VER" != "v$VERSION" ]; then
+            echo "::error::Go Starter template SDK version mismatch: expected v$VERSION, got $GO_TEMPLATE_VER"
+            ERRORS=$((ERRORS + 1))
+          fi
+
+          if [ $ERRORS -gt 0 ]; then
+            echo "::error::$ERRORS version validation(s) failed"
+            exit 1
+          fi
+          echo "All version validations passed for $VERSION"
+
+      # --- Commit and tag ---
+      - name: Commit version bump
+        uses: stefanzweifel/git-auto-commit-action@v7
+        with:
+          commit_message: "Release ${{ steps.version.outputs.version }}"
+          tagging_message: "v${{ steps.version.outputs.version }}"
+
+      - name: Create GitHub Release
+        uses: elgohr/Github-Release-Action@v5
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          title: ${{ steps.version.outputs.version }}
+          tag: v${{ steps.version.outputs.version }}
+
+      - name: Create Go module tag
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          git tag "go/v${VERSION}"
+          git push origin "go/v${VERSION}"

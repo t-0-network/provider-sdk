@@ -1,0 +1,46 @@
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Claude Code
+.claude/
+
+# Go
+go/starter/template/vendor/
+
+# Node
+node_modules/
+node/sdk/lib/
+node/starter/dist/
+node/starter/template/dist/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.venv/
+.ruff_cache/
+.pytest_cache/
+dist/
+*.egg-info/
+
+# Java
+java/build/
+java/sdk/build/
+java/starter/build/
+java/cli/build/
+java/.gradle/
+java/starter/template/.gradle/
+java/starter/template/build/
+
+# Environment
+.env
+local.env
+# Signing keys
+*.gpg
+*.gpg.public

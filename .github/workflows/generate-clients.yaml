@@ -1,0 +1,47 @@
+name: Generate Clients
+
+on:
+  pull_request:
+    types: [opened, synchronize]
+    paths:
+      - "proto/**"
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+
+    # Trigger only if the PR is opened or synchronized by T-0 CI APP (sync proto files)
+    if: github.event.pull_request.user.login == 't-0-ci[bot]'
+
+    steps:
+      - name: Generate GitHub APP Token
+        uses: actions/create-github-app-token@v2
+        id: app-token
+        with:
+          app-id: ${{ vars.CI_APP_ID }}
+          private-key: ${{ secrets.CI_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: provider-sdk
+
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          show-progress: false
+          token: ${{ steps.app-token.outputs.token }}
+          ref: ${{ github.head_ref }}
+
+      - name: Setup buf
+        uses: bufbuild/buf-setup-action@v1
+
+      # Generate Go, Node, Python from root buf.gen.yaml (all remote plugins)
+      - name: Generate clients
+        run: buf generate
+
+      - name: Commit generated files
+        uses: stefanzweifel/git-auto-commit-action@v7
+        with:
+          commit_message: "Auto-generate gRPC clients"
+          file_pattern: |
+            go/api/**
+            node/sdk/src/common/gen/**
+            python/sdk/src/t0_provider_sdk/api/**

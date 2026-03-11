@@ -1,0 +1,43 @@
+{
+  "name": "@t-0/provider-starter-ts",
+  "version": "0.4.25",
+  "description": "CLI tool to scaffold a Node.js t-0 Network integration service",
+  "main": "dist/create.js",
+  "bin": {
+    "provider-starter-ts": "./bin/cli.js"
+  },
+  "files": [
+    "bin",
+    "dist",
+    "template"
+  ],
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "npm run build",
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "release": "npm run build && npm publish --access public"
+  },
+  "keywords": [
+    "cli",
+    "scaffold",
+    "template",
+    "nodejs"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:t-0-network/provider-sdk.git"
+  },
+  "author": "New Settlement Technologies Inc.",
+  "license": "MIT",
+  "dependencies": {
+    "chalk": "^5.6.2",
+    "fs-extra": "^11.1.1",
+    "inquirer": "^13.3.0"
+  },
+  "devDependencies": {
+    "@types/fs-extra": "^11.0.4",
+    "@types/inquirer": "^8.2.10",
+    "@types/node": "^25.4.0",
+    "typescript": "^5.3.2"
+  }
+}

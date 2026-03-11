@@ -1,0 +1,17 @@
+# env file
+.env
+
+# Editor/IDE
+.idea
+*.iws
+*.iml
+*.ipr
+.vscode
+
+# NodeJS
+node_modules
+tsconfig.tsbuildinfo
+lib
+
+### Mac OS ###
+.DS_Store

@@ -1,0 +1,144 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - ".github/workflows/ci.yaml"
+      - "go/**"
+      - "node/**"
+      - "java/**"
+      - "python/**"
+      - "proto/**"
+  pull_request:
+    branches: [master]
+    paths:
+      - ".github/workflows/ci.yaml"
+      - "go/**"
+      - "node/**"
+      - "java/**"
+      - "python/**"
+      - "proto/**"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  go:
+    name: Go
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    if: ${{ github.actor != 't-0-ci[bot]' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          show-progress: false
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "stable"
+          cache-dependency-path: go/go.sum
+
+      - name: Validate Go module state
+        working-directory: go
+        run: |
+          go mod tidy
+          git diff --exit-code || (echo "go.mod diff found, please run 'go mod tidy'" && false)
+
+      - name: Run Tests
+        working-directory: go
+        run: go test -v ./...
+
+  node:
+    name: Node
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    if: ${{ github.actor != 't-0-ci[bot]' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          show-progress: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+          cache: npm
+          cache-dependency-path: node/sdk/package-lock.json
+
+      - name: Install SDK dependencies
+        working-directory: node/sdk
+        run: npm ci
+
+      - name: Build SDK
+        working-directory: node/sdk
+        run: npm run build
+
+      - name: Run SDK Tests
+        working-directory: node/sdk
+        run: npm test
+
+  java:
+    name: Java
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    if: ${{ github.actor != 't-0-ci[bot]' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          java-version: "17"
+          distribution: "temurin"
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v5
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/master' }}
+
+      - name: Build and test
+        working-directory: java
+        run: |
+          chmod +x gradlew
+          ./gradlew build --no-daemon
+
+  python:
+    name: Python
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    if: ${{ github.actor != 't-0-ci[bot]' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          show-progress: false
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: python/uv.lock
+
+      - name: Install dependencies
+        working-directory: python
+        run: uv sync --all-packages
+
+      - name: Lint
+        working-directory: python
+        run: uv run ruff check .
+
+      # TODO: re-enable once type errors are fixed
+      # - name: Type check
+      #   working-directory: python
+      #   run: uv run mypy .
+
+      - name: Run tests
+        working-directory: python
+        run: uv run pytest

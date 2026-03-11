@@ -1,0 +1,54 @@
+{
+  "name": "@t-0/provider-sdk",
+  "version": "1.0.64",
+  "description": "Provider SDK for the T-0 Network",
+  "repository": {
+    "type": "git",
+    "url": "git@github.com:t-0-network/provider-sdk.git"
+  },
+  "keywords": [],
+  "author": "New Settlement Technologies Inc.",
+  "type": "module",
+  "files": [
+    "lib/**/*"
+  ],
+  "main": "./lib/cjs/index.js",
+  "module": "./lib/esm/index.js",
+  "types": "./lib/esm/index.d.ts",
+  "exports": {
+    ".": {
+      "import": {
+        "types": "./lib/esm/index.d.ts",
+        "default": "./lib/esm/index.js"
+      },
+      "require": {
+        "types": "./lib/cjs/index.d.ts",
+        "default": "./lib/cjs/index.js"
+      }
+    }
+  },
+  "dependencies": {
+    "@bufbuild/protobuf": "^2.10.0",
+    "@connectrpc/connect": "^2.1.0",
+    "@connectrpc/connect-web": "^2.1.0",
+    "@connectrpc/connect-node": "^2.1.0",
+    "@noble/hashes": "^2.0.1",
+    "@noble/secp256k1": "^2.3.0"
+  },
+  "devDependencies": {
+    "@bufbuild/protoc-gen-es": "^2.10.0",
+    "@types/node": "^25.4.0",
+    "dotenv": "^17.2.3",
+    "tsx": "^4.20.6",
+    "typescript": "^5.9.3"
+  },
+  "scripts": {
+    "buf:generate": "buf generate",
+    "build": "npm run build:esm && npm run build:cjs && npm run build:post",
+    "build:esm": "tsc -p tsconfig.esm.json",
+    "build:cjs": "tsc -p tsconfig.cjs.json",
+    "build:post": "echo '{\"type\":\"commonjs\"}' > lib/cjs/package.json",
+    "release": "npm run buf:generate && npm run build && npm publish --access public",
+    "test": "node --import tsx --test test/**/*.test.ts"
+  }
+}

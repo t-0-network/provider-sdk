@@ -1,0 +1,45 @@
+version: v2
+managed:
+  enabled: true
+  # Go managed options
+  disable:
+    - file_option: go_package
+      module: buf.build/googleapis/googleapis
+    - file_option: go_package
+      module: buf.build/bufbuild/protovalidate
+    # Python managed options
+    - module: buf.build/googleapis/googleapis
+    - module: buf.build/bufbuild/protovalidate
+  override:
+    - file_option: go_package_prefix
+      value: github.com/t-0-network/provider-sdk/go/api
+
+plugins:
+  # TODO: Pin plugin versions for reproducible generation (append :vX.Y.Z to remote URLs)
+  # Go deps: protobuf-go v1.36.11, connect v1.19.1
+  # Node deps: @bufbuild/protobuf ^2.10.0
+  # Python deps: protobuf >=5.28, connect-python >=0.8
+
+  # --- Go ---
+  - remote: buf.build/protocolbuffers/go
+    out: go/api
+    opt: paths=source_relative
+  - remote: buf.build/connectrpc/go
+    out: go/api
+    opt: paths=source_relative
+
+  # --- Node (TypeScript) ---
+  - remote: buf.build/bufbuild/es
+    out: node/sdk/src/common/gen
+    include_imports: true
+    opt:
+      - target=ts
+      - import_extension=js
+
+  # --- Python ---
+  - remote: buf.build/protocolbuffers/python
+    out: python/sdk/src/t0_provider_sdk/api
+  - remote: buf.build/protocolbuffers/pyi
+    out: python/sdk/src/t0_provider_sdk/api
+  - remote: buf.build/connectrpc/python
+    out: python/sdk/src/t0_provider_sdk/api

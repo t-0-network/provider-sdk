@@ -1,0 +1,312 @@
+name: Publish
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  id-token: write
+  contents: write
+
+jobs:
+  # --- Build gate (all must pass before any publishing) ---
+  build-go:
+    name: Build Go
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          show-progress: false
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "stable"
+          cache-dependency-path: go/go.sum
+
+      - name: Build
+        working-directory: go
+        run: go build ./...
+
+  build-node:
+    name: Build Node
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          show-progress: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+
+      - name: Build SDK
+        working-directory: node/sdk
+        run: |
+          npm ci
+          npm run build
+
+      - name: Build Starter
+        working-directory: node/starter
+        run: |
+          npm ci
+          npm run build
+
+  build-java:
+    name: Build Java
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          show-progress: false
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          java-version: "17"
+          distribution: "temurin"
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v5
+
+      - name: Build
+        working-directory: java
+        run: |
+          chmod +x gradlew
+          ./gradlew build --no-daemon
+
+  build-python:
+    name: Build Python
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          show-progress: false
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Build
+        working-directory: python
+        run: |
+          uv sync
+          uv build --package t0-provider-sdk
+          uv build --package t0-provider-starter
+
+  # --- Publish (only after ALL builds pass) ---
+  publish-go:
+    name: Publish Go
+    needs: [build-go, build-node, build-java, build-python]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          show-progress: false
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: "stable"
+          cache-dependency-path: go/go.sum
+
+      - name: Request GOPROXY update
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          GOPROXY=proxy.golang.org go list -m "github.com/t-0-network/provider-sdk/go@v${VERSION}"
+
+  publish-node-sdk:
+    name: Publish Node SDK
+    needs: [build-go, build-node, build-java, build-python]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          show-progress: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+
+      - name: Build
+        working-directory: node/sdk
+        run: |
+          npm ci
+          npm run build
+
+      - name: Publish
+        working-directory: node/sdk
+        run: npm publish --provenance --access public
+
+  publish-node-starter:
+    name: Publish Node Starter
+    needs: [build-go, build-node, build-java, build-python]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          show-progress: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v6
+        with:
+          node-version: lts/*
+
+      - name: Build
+        working-directory: node/starter
+        run: |
+          npm ci
+          npm run build
+
+      - name: Publish
+        working-directory: node/starter
+        run: npm publish --provenance --access public
+
+  publish-python-sdk:
+    name: Publish Python SDK
+    needs: [build-go, build-node, build-java, build-python]
+    runs-on: ubuntu-latest
+    environment: pypi-sdk
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          show-progress: false
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Build
+        working-directory: python
+        run: uv build --package t0-provider-sdk
+
+      - name: Publish
+        working-directory: python
+        run: uv publish --trusted-publishing always dist/t0_provider_sdk-*
+
+  publish-python-starter:
+    name: Publish Python Starter
+    needs: [build-go, build-node, build-java, build-python]
+    runs-on: ubuntu-latest
+    environment: pypi-starter
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          show-progress: false
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.13"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Build
+        working-directory: python
+        run: uv build --package t0-provider-starter
+
+      - name: Publish
+        working-directory: python
+        run: uv publish --trusted-publishing always dist/t0_provider_starter-*
+
+  publish-java:
+    name: Publish Java
+    needs: [build-go, build-node, build-java, build-python]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          java-version: "17"
+          distribution: "temurin"
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v5
+
+      - name: Get version from tag
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Build
+        working-directory: java
+        run: |
+          chmod +x gradlew
+          ./gradlew build --no-daemon
+
+      - name: Publish to Maven Central
+        working-directory: java
+        run: ./gradlew publishAggregationToCentralPortal --no-daemon
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          MAVEN_CENTRAL_USERNAME: ${{ vars.OSSRH_USERNAME }}
+          MAVEN_CENTRAL_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
+
+      - name: Upload provider-init.jar to GitHub Release
+        working-directory: java
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          cp cli/build/libs/provider-init-${VERSION}.jar cli/build/libs/provider-init.jar
+          gh release upload "v${VERSION}" cli/build/libs/provider-init.jar --clobber
+
+  # --- Post-publish ---
+  verify-jitpack:
+    name: Verify JitPack
+    needs: [publish-java]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for JitPack availability
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          # Strip leading 'v' from tag
+          VERSION="${VERSION#v}"
+          echo "Checking JitPack for version: $VERSION"
+
+          MAX_ATTEMPTS=30
+          DELAY=20
+          URL="https://jitpack.io/com/github/t-0-network/provider-sdk/${VERSION}/provider-sdk-${VERSION}.pom"
+
+          for i in $(seq 1 $MAX_ATTEMPTS); do
+            echo "Attempt $i/$MAX_ATTEMPTS - checking $URL"
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$URL")
+
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "JitPack artifact verified!"
+              exit 0
+            fi
+
+            echo "Not available yet (HTTP $HTTP_CODE), waiting ${DELAY}s..."
+            sleep $DELAY
+          done
+
+          echo "Timeout waiting for JitPack"
+          echo "Check: https://jitpack.io/#t-0-network/provider-sdk/${VERSION}"
+          exit 1
