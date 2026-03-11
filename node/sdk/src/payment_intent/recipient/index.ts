@@ -1,0 +1,1 @@
+export * from '../../common/gen/tzero/v1/payment_intent/recipient/recipient_pb.js'

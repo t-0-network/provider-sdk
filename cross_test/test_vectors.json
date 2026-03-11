@@ -1,0 +1,25 @@
+{
+  "keys": {
+    "private_key": "6b30303de7b26bfb1222b317a52113357f8bb06de00160b4261a2fef9c8b9bd8",
+    "public_key": "044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0"
+  },
+  "keccak256": [
+    {
+      "input": "please sign me!",
+      "hash": "46d5cbf7d8477720c337b94a2fe332fe54205914619e7e4889595c3c944b646b"
+    },
+    {
+      "input": "",
+      "hash": "c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470"
+    },
+    {
+      "input": "test",
+      "hash": "9c22ff5f21f0b81b113e63f7db6da94fedef11b2119b4088b89664fb9a3cb658"
+    }
+  ],
+  "request_signing": {
+    "body": "test request body",
+    "timestamp_ms": 1706000000000,
+    "expected_hash": "49a567a359bf25d9652b24acc5567bc38c93139467c8fcf798f059ada585697e"
+  }
+}
