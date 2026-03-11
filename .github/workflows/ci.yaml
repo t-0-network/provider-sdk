@@ -25,7 +25,7 @@ concurrency:
 jobs:
   go:
     name: Go
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     if: ${{ github.actor != 't-0-ci[bot]' }}
     steps:
       - name: Checkout
@@ -51,7 +51,7 @@ jobs:
 
   node:
     name: Node
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     if: ${{ github.actor != 't-0-ci[bot]' }}
     steps:
       - name: Checkout
@@ -80,7 +80,7 @@ jobs:
 
   java:
     name: Java
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     if: ${{ github.actor != 't-0-ci[bot]' }}
     steps:
       - name: Checkout
@@ -105,7 +105,7 @@ jobs:
 
   python:
     name: Python
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     if: ${{ github.actor != 't-0-ci[bot]' }}
     steps:
       - name: Checkout
