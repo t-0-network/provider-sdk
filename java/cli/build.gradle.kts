@@ -37,11 +37,12 @@ tasks.processResources {
 // Generate version.properties with current version
 tasks.register("generateVersionProperties") {
     val outputDir = layout.buildDirectory.dir("resources/main")
+    val projectVersion = project.version.toString()
     outputs.dir(outputDir)
     doLast {
         val propsFile = outputDir.get().file("version.properties").asFile
         propsFile.parentFile.mkdirs()
-        propsFile.writeText("version=${project.version}\n")
+        propsFile.writeText("version=${projectVersion}\n")
     }
 }
 
