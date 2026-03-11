@@ -31,7 +31,7 @@ jobs:
     if: ${{ github.actor != 't-0-ci[bot]' }}
     steps:
       - name: Checkout
-        uses: useblacksmith/checkout@v6
+        uses: actions/checkout@v4
         with:
           show-progress: false
 
@@ -57,7 +57,7 @@ jobs:
     if: ${{ github.actor != 't-0-ci[bot]' }}
     steps:
       - name: Checkout
-        uses: useblacksmith/checkout@v6
+        uses: actions/checkout@v4
         with:
           show-progress: false
 
@@ -86,7 +86,7 @@ jobs:
     if: ${{ github.actor != 't-0-ci[bot]' }}
     steps:
       - name: Checkout
-        uses: useblacksmith/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Setup Java
         uses: actions/setup-java@v4
@@ -111,7 +111,7 @@ jobs:
     if: ${{ github.actor != 't-0-ci[bot]' }}
     steps:
       - name: Checkout
-        uses: useblacksmith/checkout@v6
+        uses: actions/checkout@v4
         with:
           show-progress: false
 
