@@ -29,12 +29,12 @@ jobs:
     if: ${{ github.actor != 't-0-ci[bot]' }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: useblacksmith/checkout@v6
         with:
           show-progress: false
 
       - name: Setup Go
-        uses: actions/setup-go@v6
+        uses: useblacksmith/setup-go@v6
         with:
           go-version: "stable"
           cache-dependency-path: go/go.sum
@@ -55,12 +55,12 @@ jobs:
     if: ${{ github.actor != 't-0-ci[bot]' }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: useblacksmith/checkout@v6
         with:
           show-progress: false
 
       - name: Setup Node
-        uses: actions/setup-node@v6
+        uses: useblacksmith/setup-node@v6
         with:
           node-version: lts/*
           cache: npm
@@ -84,16 +84,16 @@ jobs:
     if: ${{ github.actor != 't-0-ci[bot]' }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: useblacksmith/checkout@v6
 
       - name: Setup Java
-        uses: actions/setup-java@v4
+        uses: useblacksmith/setup-java@v4
         with:
           java-version: "17"
           distribution: "temurin"
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
+        uses: useblacksmith/setup-gradle/setup-gradle@v4
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
 
@@ -109,12 +109,12 @@ jobs:
     if: ${{ github.actor != 't-0-ci[bot]' }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: useblacksmith/checkout@v6
         with:
           show-progress: false
 
       - name: Setup Python
-        uses: actions/setup-python@v5
+        uses: useblacksmith/setup-python@v5
         with:
           python-version: "3.13"
 
