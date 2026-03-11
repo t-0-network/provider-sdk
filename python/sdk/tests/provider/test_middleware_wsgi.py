@@ -7,8 +7,6 @@ import io
 import struct
 import time
 
-import pytest
-
 from t0_provider_sdk.crypto.hash import legacy_keccak256
 from t0_provider_sdk.crypto.keys import private_key_from_hex
 from t0_provider_sdk.crypto.signer import new_signer

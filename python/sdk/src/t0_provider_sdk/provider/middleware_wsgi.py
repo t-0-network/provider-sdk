@@ -18,7 +18,8 @@ Architecture:
 from __future__ import annotations
 
 import io
-from typing import Any, Callable, Iterable
+from collections.abc import Callable, Iterable
+from typing import Any
 
 from t0_provider_sdk.provider.errors import BodyTooLargeError
 from t0_provider_sdk.provider.middleware import (

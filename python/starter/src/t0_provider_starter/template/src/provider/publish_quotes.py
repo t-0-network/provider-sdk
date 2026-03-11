@@ -111,5 +111,5 @@ async def publish_quotes(network_client: NetworkServiceClient, shutdown_event: a
         try:
             await asyncio.wait_for(shutdown_event.wait(), timeout=PUBLISH_INTERVAL_SECONDS)
             return  # shutdown requested
-        except asyncio.TimeoutError:
+        except TimeoutError:
             pass  # interval elapsed, publish again

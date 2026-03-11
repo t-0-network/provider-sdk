@@ -8,7 +8,8 @@ Go equivalent: provider/signature_error.go
 
 from __future__ import annotations
 
-from typing import Any, Awaitable, Callable
+from collections.abc import Awaitable, Callable
+from typing import Any
 
 from connectrpc.code import Code
 from connectrpc.errors import ConnectError

@@ -6,12 +6,11 @@ Go equivalent: provider-starter-go/main.go
 
 from __future__ import annotations
 
-import os
-import shutil
 from importlib import resources
 from pathlib import Path
 
 import click
+
 from t0_provider_starter.keygen import generate_keypair
 
 TEMPLATE_PLACEHOLDER = "{{PROJECT_NAME}}"

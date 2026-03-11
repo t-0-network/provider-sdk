@@ -1,6 +1,5 @@
 """Tests for signature verification."""
 
-from coincurve import PrivateKey
 
 from t0_provider_sdk.crypto.hash import legacy_keccak256
 from t0_provider_sdk.crypto.keys import private_key_from_hex, public_key_from_hex

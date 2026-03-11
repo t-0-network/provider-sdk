@@ -19,7 +19,6 @@ from pathlib import Path
 
 import pytest
 import uvicorn
-
 from connectrpc.request import RequestContext
 from t0_provider_sdk.api.tzero.v1.common.common_pb2 import Decimal
 from t0_provider_sdk.api.tzero.v1.payment.provider_connect import (
@@ -82,7 +81,7 @@ async def _async_wait_for_port(port: int, timeout: float = 10.0) -> None:
             writer.close()
             await writer.wait_closed()
             return
-        except (OSError, asyncio.TimeoutError):
+        except (TimeoutError, OSError):
             await asyncio.sleep(0.1)
     raise TimeoutError(f"Port {port} not ready after {timeout}s")
 

@@ -2,7 +2,6 @@
 
 import pytest
 from coincurve import PrivateKey, PublicKey
-
 from t0_provider_sdk.crypto.keys import (
     private_key_from_hex,
     public_key_from_bytes,

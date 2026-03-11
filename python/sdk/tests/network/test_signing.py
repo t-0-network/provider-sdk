@@ -3,14 +3,13 @@
 import struct
 
 import pyqwest
-
 from t0_provider_sdk.common.headers import (
     PUBLIC_KEY_HEADER,
     SIGNATURE_HEADER,
     SIGNATURE_TIMESTAMP_HEADER,
 )
 from t0_provider_sdk.crypto.hash import legacy_keccak256
-from t0_provider_sdk.crypto.keys import private_key_from_hex, public_key_from_bytes
+from t0_provider_sdk.crypto.keys import public_key_from_bytes
 from t0_provider_sdk.crypto.signer import new_signer_from_hex
 from t0_provider_sdk.crypto.verifier import verify_signature
 from t0_provider_sdk.network.signing import _sign_request

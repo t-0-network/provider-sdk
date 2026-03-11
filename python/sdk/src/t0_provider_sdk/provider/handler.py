@@ -8,8 +8,9 @@ any generated ConnectRPC service application class.
 
 from __future__ import annotations
 
+from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
-from typing import Any, Callable, Iterable, TypeVar
+from typing import Any, TypeVar
 
 from t0_provider_sdk.provider.interceptor import SignatureErrorInterceptor, SignatureErrorInterceptorSync
 from t0_provider_sdk.provider.middleware import (

@@ -4,14 +4,9 @@ Creates a real ASGI app with signature verification middleware,
 sends a signed request, and verifies it succeeds end-to-end.
 """
 
-import struct
-import time
 
 import pytest
-
-from t0_provider_sdk.crypto.hash import legacy_keccak256
-from t0_provider_sdk.crypto.keys import private_key_from_hex
-from t0_provider_sdk.crypto.signer import new_signer, new_signer_from_hex
+from t0_provider_sdk.crypto.signer import new_signer_from_hex
 from t0_provider_sdk.network.signing import _sign_request
 from t0_provider_sdk.provider.middleware import (
     new_verify_signature,
