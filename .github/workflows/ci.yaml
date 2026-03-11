@@ -60,7 +60,7 @@ jobs:
           show-progress: false
 
       - name: Setup Node
-        uses: useblacksmith/setup-node@v6
+        uses: useblacksmith/setup-node@v5
         with:
           node-version: lts/*
           cache: npm
@@ -87,13 +87,13 @@ jobs:
         uses: useblacksmith/checkout@v6
 
       - name: Setup Java
-        uses: useblacksmith/setup-java@v4
+        uses: useblacksmith/setup-java@v5
         with:
           java-version: "17"
           distribution: "temurin"
 
       - name: Setup Gradle
-        uses: useblacksmith/setup-gradle/setup-gradle@v4
+        uses: useblacksmith/setup-gradle/setup-gradle@v5
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
 
@@ -114,7 +114,7 @@ jobs:
           show-progress: false
 
       - name: Setup Python
-        uses: useblacksmith/setup-python@v5
+        uses: useblacksmith/setup-python@v6
         with:
           python-version: "3.13"
 
