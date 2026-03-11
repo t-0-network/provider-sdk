@@ -37,7 +37,7 @@ dependencies {
     testImplementation("org.assertj:assertj-core:3.27.6")
     testImplementation("io.grpc:grpc-testing:$grpcVersion")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
-    testRuntimeOnly("ch.qos.logback:logback-classic:1.5.25")
+    testRuntimeOnly("ch.qos.logback:logback-classic:1.5.32")
 }
 
 // Disable buf format and lint checks - proto files are synced from backend and should not be modified
