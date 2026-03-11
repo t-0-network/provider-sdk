@@ -7,7 +7,7 @@ plugins {
     id("com.gradleup.nmcp")
 }
 
-val grpcVersion = "1.78.0"
+val grpcVersion = "1.79.0"
 val protobufVersion = "4.33.4"
 val bouncyCastleVersion = "1.83"
 
