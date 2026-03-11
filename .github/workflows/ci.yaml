@@ -103,7 +103,7 @@ jobs:
         working-directory: java
         run: |
           chmod +x gradlew
-          ./gradlew check --no-daemon
+          ./gradlew build -x distTar -x distZip --no-daemon
 
   python:
     name: Python
