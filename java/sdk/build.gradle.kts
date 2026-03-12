@@ -1,6 +1,6 @@
 plugins {
     `java-library`
-    id("build.buf") version "0.10.3"
+    id("build.buf") version "0.11.0"
     id("me.champeau.jmh") version "0.7.3"
     `maven-publish`
     signing
