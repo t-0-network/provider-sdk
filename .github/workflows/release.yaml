@@ -256,7 +256,7 @@ jobs:
           fi
 
           # Validate Go Starter template SDK dependency
-          GO_TEMPLATE_VER=$(grep 'github.com/t-0-network/provider-sdk/go' go/starter/template/go.mod | awk '{print $2}')
+          GO_TEMPLATE_VER=$(grep 'github.com/t-0-network/provider-sdk/go v' go/starter/template/go.mod | awk '{print $2}')
           if [ "$GO_TEMPLATE_VER" != "v$VERSION" ]; then
             echo "::error::Go Starter template SDK version mismatch: expected v$VERSION, got $GO_TEMPLATE_VER"
             ERRORS=$((ERRORS + 1))
