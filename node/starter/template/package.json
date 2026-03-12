@@ -12,7 +12,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@t-0/provider-sdk": "^1.1.4",
+    "@t-0/provider-sdk": "^1.1.5",
     "dotenv": "^16.3.1",
     "tiny-invariant": "^1.3.3"
   },
