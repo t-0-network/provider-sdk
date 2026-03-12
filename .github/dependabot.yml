@@ -10,6 +10,16 @@ updates:
     schedule:
       interval: "weekly"
 
+  - package-ecosystem: "gomod"
+    directory: "/go/starter"
+    schedule:
+      interval: "weekly"
+
+  - package-ecosystem: "gomod"
+    directory: "/go/starter/template"
+    schedule:
+      interval: "weekly"
+
   - package-ecosystem: "npm"
     directory: "/node/sdk"
     schedule:
