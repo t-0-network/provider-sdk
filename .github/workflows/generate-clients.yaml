@@ -8,7 +8,7 @@ on:
 
 jobs:
   generate:
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
 
     # Trigger only if the PR is opened or synchronized by T-0 CI APP (sync proto files)
     if: github.event.pull_request.user.login == 't-0-ci[bot]'
