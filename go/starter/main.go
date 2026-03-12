@@ -120,6 +120,17 @@ func main() {
 		return nil
 	})
 
+	// Ensure go.sum is in sync with go.mod (the template's go.sum may reference
+	// a different SDK version than go.mod if the release workflow updated go.mod
+	// but couldn't run go mod tidy because the new version wasn't published yet).
+	tidy := exec.Command("go", "mod", "tidy")
+	tidy.Dir = dir
+	tidy.Stdout = os.Stdout
+	tidy.Stderr = os.Stderr
+	if err := tidy.Run(); err != nil {
+		log.Fatalf("go mod tidy: %v", err)
+	}
+
 	// TODO: extract into function
 	key, err := crypto.GenerateKey()
 	if err != nil {

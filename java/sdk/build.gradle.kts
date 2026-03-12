@@ -8,7 +8,7 @@ plugins {
 }
 
 val grpcVersion = "1.79.0"
-val protobufVersion = "4.33.4"
+val protobufVersion = "4.34.0"
 val bouncyCastleVersion = "1.83"
 
 dependencies {

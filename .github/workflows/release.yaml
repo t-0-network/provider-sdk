@@ -206,6 +206,13 @@ jobs:
           VERSION="${{ steps.version.outputs.version }}"
           cd go/starter/template
           go mod edit -require "github.com/t-0-network/provider-sdk/go@v${VERSION}"
+          # The new version isn't published yet, so use a local replace to run go mod tidy
+          # which updates go.sum with correct checksums for transitive dependencies.
+          # The replace itself is removed after tidy — the published SDK will have
+          # identical transitive deps since only the version tag changed.
+          go mod edit -replace "github.com/t-0-network/provider-sdk/go=../../"
+          go mod tidy
+          go mod edit -dropreplace "github.com/t-0-network/provider-sdk/go"
 
       # --- Validate version updates ---
       - name: Validate updated files
