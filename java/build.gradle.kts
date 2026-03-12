@@ -35,9 +35,9 @@ nmcpAggregation {
         username = providers.environmentVariable("MAVEN_CENTRAL_USERNAME")
         password = providers.environmentVariable("MAVEN_CENTRAL_PASSWORD")
         publicationName = "T-0 Provider SDK ${project.version}"
-        // Wait for Maven Central to validate and publish the bundle
+        // Wait for Maven Central to validate, but don't wait for full publishing
         validationTimeout = Duration.ofMinutes(30)
-        publishingTimeout = Duration.ofMinutes(30)
+        publishingTimeout = Duration.ZERO
     }
 }
 

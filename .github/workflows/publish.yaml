@@ -136,6 +136,7 @@ jobs:
   publish-node-sdk:
     name: Publish Node SDK
     needs: [build-go, build-node, build-java, build-python]
+    # Must use github-hosted runner: npm --provenance requires it (Blacksmith = "self-hosted", rejected by npm)
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -164,6 +165,7 @@ jobs:
   publish-node-starter:
     name: Publish Node Starter
     needs: [build-go, build-node, build-java, build-python]
+    # Must use github-hosted runner: npm --provenance requires it (Blacksmith = "self-hosted", rejected by npm)
     runs-on: ubuntu-latest
     permissions:
       id-token: write
@@ -246,7 +248,8 @@ jobs:
   publish-java:
     name: Publish Java
     needs: [build-go, build-node, build-java, build-python]
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    # 2vcpu is sufficient — most time is spent polling Maven Central for deployment status
+    runs-on: blacksmith-2vcpu-ubuntu-2404
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -293,7 +296,8 @@ jobs:
   verify-jitpack:
     name: Verify JitPack
     needs: [publish-java]
-    runs-on: blacksmith-4vcpu-ubuntu-2404
+    # Only polls HTTP — minimal resources needed
+    runs-on: blacksmith-2vcpu-ubuntu-2404
     steps:
       - name: Wait for JitPack availability
         env:
