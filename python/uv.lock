@@ -401,7 +401,7 @@ wheels = [
 
 [[package]]
 name = "t0-provider-sdk"
-version = "0.1.5"
+version = "1.1.6"
 source = { editable = "sdk" }
 dependencies = [
     { name = "coincurve" },
@@ -433,7 +433,7 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "t0-provider-starter"
-version = "0.1.5"
+version = "1.1.6"
 source = { editable = "starter" }
 dependencies = [
     { name = "click" },

@@ -32,8 +32,8 @@
     "@connectrpc/connect": "^2.1.1",
     "@connectrpc/connect-web": "^2.1.1",
     "@connectrpc/connect-node": "^2.1.1",
-    "@noble/hashes": "^2.0.1",
-    "@noble/secp256k1": "^2.3.0"
+    "@noble/curves": "^2.0.1",
+    "@noble/hashes": "^2.0.1"
   },
   "devDependencies": {
     "@bufbuild/protoc-gen-es": "^2.11.0",

@@ -9,7 +9,7 @@ import {
 } from "@connectrpc/connect";
 import type { Interceptor } from "@connectrpc/connect";
 import NetworkHeaders from "../common/headers.js";
-import * as secp from '@noble/secp256k1'
+import { secp256k1 } from '@noble/curves/secp256k1.js'
 import {Hash} from "@noble/hashes/utils.js";
 import type {DescService, } from "@bufbuild/protobuf";
 import type {ServiceImpl} from "@connectrpc/connect";
@@ -42,7 +42,7 @@ const createSignatureVerification: (networkPublicKey: Buffer) => Interceptor = (
     .digest();
   let signatureValid = false;
   try {
-    signatureValid = secp.verify(signature, hash, publicKey);
+    signatureValid = secp256k1.verify(signature, hash, publicKey);
   } catch (e) {
     throw new ConnectError(`${NetworkHeaders.Signature} has invalid signature or public key format: ${e}` , Code.Unauthenticated);
   }

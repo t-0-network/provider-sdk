@@ -1,6 +1,7 @@
 import fs from 'fs-extra';
 import path from 'path';
 import { execSync } from 'child_process';
+import { Command } from 'commander';
 import inquirer from 'inquirer';
 import chalk from 'chalk';
 
@@ -9,15 +10,18 @@ interface KeyPair {
   publicKey: string;
 }
 
-interface ProjectAnswers {
-  projectName: string;
+function validateProjectName(name: string): string {
+  if (!/^[a-z0-9-_]+$/.test(name)) {
+    console.error(chalk.red(
+      '\n❌ Project name can only contain lowercase letters, numbers, hyphens and underscores'
+    ));
+    process.exit(1);
+  }
+  return name;
 }
 
-async function create(): Promise<void> {
-  console.log(chalk.blue('\n🚀 Create Your Service\n'));
-
-  // Prompt for project name
-  const answers = await inquirer.prompt<ProjectAnswers>([
+async function promptProjectName(): Promise<string> {
+  const answers = await inquirer.prompt<{ projectName: string }>([
     {
       type: 'input',
       name: 'projectName',
@@ -31,35 +35,52 @@ async function create(): Promise<void> {
       }
     }
   ]);
+  return answers.projectName;
+}
 
-  const projectName = answers.projectName;
-  const projectPath = path.join(process.cwd(), projectName);
+async function create(): Promise<void> {
+  // eslint-disable-next-line @typescript-eslint/no-var-requires
+  const packageJson = require('../package.json');
 
-  // Check if directory exists
-  if (fs.existsSync(projectPath)) {
-    console.log(chalk.red(`\n❌ Directory "${projectName}" already exists!`));
-    process.exit(1);
-  }
+  const program = new Command()
+    .name('provider-starter-ts')
+    .description('Scaffold a Node.js t-0 Network integration service')
+    .version(packageJson.version)
+    .argument('[project-name]', 'Name for the new project')
+    .action(async (projectNameArg?: string) => {
+      console.log(chalk.blue('\n🚀 Create Your Service\n'));
 
-  console.log(chalk.green(`\n✨ Creating project in ${projectPath}...\n`));
+      const projectName = projectNameArg
+        ? validateProjectName(projectNameArg)
+        : await promptProjectName();
 
-  try {
-    // Create project directory
-    fs.mkdirSync(projectPath);
+      const projectPath = path.join(process.cwd(), projectName);
 
-    // Copy template files
-    const templatePath = path.join(__dirname, '../template');
-    fs.copySync(templatePath, projectPath);
+      // Check if directory exists
+      if (fs.existsSync(projectPath)) {
+        console.log(chalk.red(`\n❌ Directory "${projectName}" already exists!`));
+        process.exit(1);
+      }
 
-    // Generate key pair
-    console.log(chalk.cyan('🔐 Generating key pair...'));
-    const keys = generateKeyPair();
+      console.log(chalk.green(`\n✨ Creating project in ${projectPath}...\n`));
 
-    // Create .env file with keys
-    const envContent = `
+      try {
+        // Create project directory
+        fs.mkdirSync(projectPath);
+
+        // Copy template files
+        const templatePath = path.join(__dirname, '../template');
+        fs.copySync(templatePath, projectPath);
+
+        // Generate key pair
+        console.log(chalk.cyan('🔐 Generating key pair...'));
+        const keys = generateKeyPair();
+
+        // Create .env file with keys
+        const envContent = `
 NETWORK_PUBLIC_KEY=0x041b6acf3e830b593aaa992f2f1543dc8063197acfeecefd65135259327ef3166acaca83d62db19eb4fecb3d04e44094378839b8c13a2af26bf78fed56a4af935b
 
-# Private Key (secp256k1)    
+# Private Key (secp256k1)
 PROVIDER_PRIVATE_KEY=${keys.privateKey}
 # TODO: Step 1.2 Share this Public Key with t-0 team
 # ${keys.publicKey}
@@ -71,16 +92,16 @@ NODE_ENV=development
 # QUOTE_PUBLISHING_INTERVAL=5000
 
 `;
-    fs.writeFileSync(path.join(projectPath, '.env'), envContent);
+        fs.writeFileSync(path.join(projectPath, '.env'), envContent);
 
-    // Update package.json with project name
-    const packageJsonPath = path.join(projectPath, 'package.json');
-    let packageJson = fs.readFileSync(packageJsonPath, 'utf8');
-    packageJson = packageJson.replace('{{PROJECT_NAME}}', projectName);
-    fs.writeFileSync(packageJsonPath, packageJson);
+        // Update package.json with project name
+        const pkgJsonPath = path.join(projectPath, 'package.json');
+        let pkgJson = fs.readFileSync(pkgJsonPath, 'utf8');
+        pkgJson = pkgJson.replace('{{PROJECT_NAME}}', projectName);
+        fs.writeFileSync(pkgJsonPath, pkgJson);
 
-    // Create .gitignore
-    const gitignoreContent = `node_modules/
+        // Create .gitignore
+        const gitignoreContent = `node_modules/
 dist/
 .env
 .env.local
@@ -88,29 +109,32 @@ dist/
 *.log
 .DS_Store
 `;
-    fs.writeFileSync(path.join(projectPath, '.gitignore'), gitignoreContent);
+        fs.writeFileSync(path.join(projectPath, '.gitignore'), gitignoreContent);
 
-    // Git init
-    console.log(chalk.cyan('📦 Initializing git repository...'));
-    execSync('git init', { cwd: projectPath, stdio: 'ignore' });
+        // Git init
+        console.log(chalk.cyan('📦 Initializing git repository...'));
+        execSync('git init', { cwd: projectPath, stdio: 'ignore' });
 
-    // npm install
-    console.log(chalk.cyan('📥 Installing dependencies...'));
-    execSync('npm install', { cwd: projectPath, stdio: 'inherit' });
+        // npm install
+        console.log(chalk.cyan('📥 Installing dependencies...'));
+        execSync('npm install', { cwd: projectPath, stdio: 'inherit' });
 
-    console.log(chalk.green('\n✅ Project created successfully!\n'));
-    console.log(chalk.white(`  cd ${projectName}`));
-    console.log(chalk.white(`  npm run dev\n`));
+        console.log(chalk.green('\n✅ Project created successfully!\n'));
+        console.log(chalk.white(`  cd ${projectName}`));
+        console.log(chalk.white(`  npm run dev\n`));
 
-  } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
-    console.error(chalk.red('\n❌ Error creating project:'), errorMessage);
-    // Cleanup on error
-    if (fs.existsSync(projectPath)) {
-      //fs.removeSync(projectPath);
-    }
-    process.exit(1);
-  }
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        console.error(chalk.red('\n❌ Error creating project:'), errorMessage);
+        // Cleanup on error
+        if (fs.existsSync(projectPath)) {
+          fs.removeSync(projectPath);
+        }
+        process.exit(1);
+      }
+    });
+
+  await program.parseAsync(process.argv);
 }
 
 function generateKeyPair(): KeyPair {

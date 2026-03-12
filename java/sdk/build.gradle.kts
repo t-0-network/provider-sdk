@@ -33,6 +33,7 @@ dependencies {
     compileOnly("javax.annotation:javax.annotation-api:1.3.2")
 
     // Testing
+    testImplementation("com.google.code.gson:gson:2.12.1")
     testImplementation("org.junit.jupiter:junit-jupiter:6.0.3")
     testImplementation("org.assertj:assertj-core:3.27.7")
     testImplementation("io.grpc:grpc-testing:$grpcVersion")
