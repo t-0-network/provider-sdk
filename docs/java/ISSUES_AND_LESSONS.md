@@ -50,7 +50,7 @@ Historical issues encountered during development, extracted from git history. Or
 
 **Problem:** Publishing the CLI to Maven Central was unnecessary complexity. Users don't resolve the CLI as a Gradle dependency — they download and run the JAR directly.
 
-**Fix:** Removed CLI from Maven Central/JitPack publishing. CLI JAR is now uploaded as a GitHub Release asset by the Publish workflow. Users download via: `curl -fsSL -L https://github.com/t-0-network/provider-java/releases/latest/download/provider-init.jar -o provider-init.jar`
+**Fix:** Removed CLI from Maven Central/JitPack publishing. CLI JAR is now uploaded as a GitHub Release asset by the Publish workflow. Users download via: `curl -fsSL -L https://github.com/t-0-network/provider-sdk/releases/latest/download/provider-init.jar -o provider-init.jar`
 
 ## Maven Central Publishing — JReleaser to NMCP Migration (v1.0.19)
 

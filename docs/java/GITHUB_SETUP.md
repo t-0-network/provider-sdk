@@ -190,7 +190,7 @@ env:
 ### Verify JitPack
 
 1. Push a tag or commit to GitHub
-2. Visit https://jitpack.io/#t-0-network/provider-java
+2. Visit https://jitpack.io/#t-0-network/provider-sdk
 3. Click "Get it" on your version to trigger a build
 4. Check the build log for any issues
 
@@ -198,7 +198,7 @@ env:
 
 | Module | JitPack Coordinates |
 |--------|---------------------|
-| SDK | `com.github.t-0-network:provider-java:TAG` |
+| SDK | `com.github.t-0-network:provider-sdk:TAG` |
 
 Where `TAG` can be:
 - Release tag: `1.0.33` (no `v` prefix — tags are bare version numbers)
@@ -229,7 +229,7 @@ Where `TAG` can be:
 ### Verification
 
 - [ ] Trigger a test release to staging (don't release)
-- [ ] Verify JitPack can build: https://jitpack.io/#t-0-network/provider-java
+- [ ] Verify JitPack can build: https://jitpack.io/#t-0-network/provider-sdk
 - [ ] Test CLI generates projects with both repository options
 
 ## Workflow Reference
@@ -286,7 +286,7 @@ refusing to allow a GitHub App to create or update workflow
 
 ### JitPack Build Fails
 
-Check the build log at: `https://jitpack.io/#t-0-network/provider-java/TAG`
+Check the build log at: `https://jitpack.io/#t-0-network/provider-sdk/TAG`
 
 Common issues:
 - Missing `chmod +x gradlew` in `jitpack.yml`

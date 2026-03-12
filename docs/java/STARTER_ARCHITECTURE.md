@@ -7,7 +7,7 @@ This document describes how the project initialization system works for the T-0 
 The starter system provides a one-liner experience for developers to bootstrap new provider projects:
 
 ```bash
-curl -fsSL -L https://github.com/t-0-network/provider-java/releases/latest/download/provider-init.jar -o provider-init.jar && java -jar provider-init.jar && rm provider-init.jar
+curl -fsSL -L https://github.com/t-0-network/provider-sdk/releases/latest/download/provider-init.jar -o provider-init.jar && java -jar provider-init.jar && rm provider-init.jar
 ```
 
 ## Components
@@ -169,7 +169,7 @@ The generated project uses the SDK from JitPack (default) or Maven Central:
 ```kotlin
 // build.gradle.kts (generated) — JitPack example
 dependencies {
-    implementation("com.github.t-0-network:provider-java:1.0.33")
+    implementation("com.github.t-0-network:provider-sdk:1.0.33")
 }
 
 // Maven Central example

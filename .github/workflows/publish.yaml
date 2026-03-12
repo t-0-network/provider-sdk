@@ -132,6 +132,8 @@ jobs:
         run: |
           VERSION="${GITHUB_REF#refs/tags/v}"
           GOPROXY=proxy.golang.org go list -m "github.com/t-0-network/provider-sdk/go@v${VERSION}"
+          GOPROXY=proxy.golang.org go list -m "github.com/t-0-network/provider-sdk/go/starter@v${VERSION}"
+          GOPROXY=proxy.golang.org go list -m "github.com/t-0-network/provider-sdk/go/starter/template@v${VERSION}"
 
   publish-node-sdk:
     name: Publish Node SDK

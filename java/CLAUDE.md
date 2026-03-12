@@ -49,14 +49,16 @@ Go and Node starters are single directories because they can run from source (`g
 
 | Artifact | JitPack | Maven Central |
 |----------|---------|---------------|
-| **SDK** | `com.github.t-0-network:provider-java:<version>` | `network.t-0:provider-sdk-java:<version>` |
+| **SDK** | `com.github.t-0-network:provider-sdk:<version>` | `network.t-0:provider-sdk-java:<version>` |
 | **CLI** | N/A (GitHub Release only) | N/A (GitHub Release only) |
 
 - **JitPack is the default** — fast, builds on demand from GitHub
 - Maven Central publication can be slow (10-30 min, sometimes hours)
 - Tags use bare version numbers (`1.0.33`), NOT `v`-prefixed
-- CLI JAR is uploaded to GitHub Releases by the Publish workflow
 - JitPack builds only `:sdk:publishToMavenLocal` (see `jitpack.yml`)
+
+**Why the CLI is not published to Maven Central or JitPack:**
+The CLI (`provider-init.jar`) is a one-time scaffolding tool, not a library dependency. Users download it, run it once to generate a project, then delete it. The generated project depends on the SDK (via `build.gradle.kts`), not on the CLI. Publishing to Maven Central would add unnecessary signing, POM metadata, and review overhead for an artifact that is never resolved by Gradle/Maven as a dependency. GitHub Releases is the correct distribution channel — it provides direct download URLs, versioned assets, and `latest` redirects, which is exactly what a CLI tool needs.
 
 ### Release Process
 
@@ -69,7 +71,7 @@ Go and Node starters are single directories because they can run from source (`g
 
 ```bash
 # Download and run
-curl -fsSL -L https://github.com/t-0-network/provider-java/releases/latest/download/provider-init.jar -o provider-init.jar
+curl -fsSL -L https://github.com/t-0-network/provider-sdk/releases/latest/download/provider-init.jar -o provider-init.jar
 java -jar provider-init.jar [OPTIONS] [PROJECT_NAME]
 
 # Options: -r/--repository (jitpack|maven-central), -d/--directory, --no-color

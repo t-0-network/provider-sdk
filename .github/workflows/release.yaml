@@ -283,8 +283,10 @@ jobs:
           title: ${{ steps.version.outputs.version }}
           tag: v${{ steps.version.outputs.version }}
 
-      - name: Create Go module tag
+      - name: Create Go module tags
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           git tag "go/v${VERSION}"
-          git push origin "go/v${VERSION}"
+          git tag "go/starter/v${VERSION}"
+          git tag "go/starter/template/v${VERSION}"
+          git push origin "go/v${VERSION}" "go/starter/v${VERSION}" "go/starter/template/v${VERSION}"
