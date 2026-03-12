@@ -20,7 +20,7 @@ jobs:
   # --- Validate all builds before releasing ---
   build-go:
     name: Build Go
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -39,7 +39,7 @@ jobs:
 
   build-node:
     name: Build Node
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -61,7 +61,7 @@ jobs:
 
   build-java:
     name: Build Java
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -87,7 +87,7 @@ jobs:
 
   build-python:
     name: Build Python
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -116,7 +116,7 @@ jobs:
   release:
     name: Create Release
     needs: [build-go, build-node, build-java, build-python]
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - name: Generate GitHub App Token
         id: app-token
