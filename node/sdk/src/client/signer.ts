@@ -1,9 +1,9 @@
-import * as secp from '@noble/secp256k1'
+import { secp256k1 } from '@noble/curves/secp256k1.js'
 import {Signature} from "./client.js";
 
 export const CreateSigner = (privateKey: string | Buffer)=> {
     privateKey = parsePrivateKey(privateKey)
-    const publicKey = Buffer.from(secp.getPublicKey(privateKey, false));
+    const publicKey = Buffer.from(secp256k1.getPublicKey(privateKey, false));
 
     return async (data: Buffer): Promise<Signature> => {
         // Ensure hash is 32 bytes
@@ -12,10 +12,10 @@ export const CreateSigner = (privateKey: string | Buffer)=> {
         }
 
         // Sign the hash
-        const signature = await secp.signAsync(data, privateKey);
+        const signature = secp256k1.sign(data, privateKey);
 
         return {
-            signature: Buffer.from(signature.toBytes()),
+            signature: Buffer.from(signature),
             publicKey: publicKey,
         };
     }
@@ -32,7 +32,7 @@ const parsePrivateKey = (privateKey: string | Buffer) => {
     }
 
     // Validate private key
-    if (!secp.utils.isValidPrivateKey(privateKey)) {
+    if (!secp256k1.utils.isValidSecretKey(privateKey)) {
         throw new Error('Invalid private key');
     }
 
