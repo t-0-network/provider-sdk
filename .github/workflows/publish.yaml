@@ -1,16 +1,9 @@
-# TODO: All publish steps are currently dry-run for debugging the release process.
-#   To revert to real publishing:
-#   1. Node SDK/Starter: remove `--dry-run` from `npm publish` commands
-#   2. Python SDK/Starter: restore `uv publish --trusted-publishing always dist/...` commands
-#   3. Java: restore `./gradlew publishAggregationToCentralPortal` and JAR upload steps
-#   4. Go: restore `GOPROXY=proxy.golang.org go list -m ...` command
-#   5. Uncomment the verify-jitpack job at the bottom
 name: Publish
 
 on:
   push:
     tags:
-      - "v*"
+      - "v[0-9]+.[0-9]+.[0-9]+"
 
 permissions:
   id-token: write
@@ -20,7 +13,7 @@ jobs:
   # --- Build gate (all must pass before any publishing) ---
   build-go:
     name: Build Go
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -39,7 +32,7 @@ jobs:
 
   build-node:
     name: Build Node
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -50,6 +43,8 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: lts/*
+          cache: npm
+          cache-dependency-path: node/sdk/package-lock.json
 
       - name: Build SDK
         working-directory: node/sdk
@@ -65,7 +60,7 @@ jobs:
 
   build-java:
     name: Build Java
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -80,6 +75,8 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v5
+        with:
+          cache-read-only: true
 
       - name: Build
         working-directory: java
@@ -89,7 +86,7 @@ jobs:
 
   build-python:
     name: Build Python
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -103,6 +100,9 @@ jobs:
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+          cache-dependency-glob: python/uv.lock
 
       - name: Build
         working-directory: python
@@ -115,7 +115,7 @@ jobs:
   publish-go:
     name: Publish Go
     needs: [build-go, build-node, build-java, build-python]
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -128,15 +128,15 @@ jobs:
           go-version: "stable"
           cache-dependency-path: go/go.sum
 
-      - name: Request GOPROXY update (dry run)
+      - name: Request GOPROXY update
         run: |
           VERSION="${GITHUB_REF#refs/tags/v}"
-          echo "[DRY RUN] Would run: GOPROXY=proxy.golang.org go list -m github.com/t-0-network/provider-sdk/go@v${VERSION}"
+          GOPROXY=proxy.golang.org go list -m "github.com/t-0-network/provider-sdk/go@v${VERSION}"
 
   publish-node-sdk:
     name: Publish Node SDK
     needs: [build-go, build-node, build-java, build-python]
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -154,14 +154,14 @@ jobs:
           npm ci
           npm run build
 
-      - name: Publish (dry run)
+      - name: Publish
         working-directory: node/sdk
-        run: npm publish --provenance --access public --dry-run
+        run: npm publish --provenance --access public
 
   publish-node-starter:
     name: Publish Node Starter
     needs: [build-go, build-node, build-java, build-python]
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -179,14 +179,14 @@ jobs:
           npm ci
           npm run build
 
-      - name: Publish (dry run)
+      - name: Publish
         working-directory: node/starter
-        run: npm publish --provenance --access public --dry-run
+        run: npm publish --provenance --access public
 
   publish-python-sdk:
     name: Publish Python SDK
     needs: [build-go, build-node, build-java, build-python]
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     environment: pypi-sdk
     steps:
       - name: Checkout
@@ -206,16 +206,14 @@ jobs:
         working-directory: python
         run: uv build --package t0-provider-sdk
 
-      - name: Publish (dry run)
+      - name: Publish
         working-directory: python
-        run: |
-          echo "[DRY RUN] Would publish: dist/t0_provider_sdk-*"
-          ls -la dist/t0_provider_sdk-*
+        run: uv publish --trusted-publishing always dist/t0_provider_sdk-*
 
   publish-python-starter:
     name: Publish Python Starter
     needs: [build-go, build-node, build-java, build-python]
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     environment: pypi-starter
     steps:
       - name: Checkout
@@ -235,16 +233,14 @@ jobs:
         working-directory: python
         run: uv build --package t0-provider-starter
 
-      - name: Publish (dry run)
+      - name: Publish
         working-directory: python
-        run: |
-          echo "[DRY RUN] Would publish: dist/t0_provider_starter-*"
-          ls -la dist/t0_provider_starter-*
+        run: uv publish --trusted-publishing always dist/t0_provider_starter-*
 
   publish-java:
     name: Publish Java
     needs: [build-go, build-node, build-java, build-python]
-    runs-on: ubuntu-latest
+    runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -270,38 +266,48 @@ jobs:
           chmod +x gradlew
           ./gradlew build --no-daemon
 
-      - name: Publish to Maven Central (dry run)
+      - name: Publish to Maven Central
         working-directory: java
-        run: |
-          echo "[DRY RUN] Would run: ./gradlew publishAggregationToCentralPortal"
-          echo "[DRY RUN] Would upload provider-init.jar to GitHub Release"
-          ls -la cli/build/libs/provider-init-*.jar
+        run: ./gradlew publishAggregationToCentralPortal --no-daemon
+        env:
+          GPG_PRIVATE_KEY: ${{ secrets.GPG_PRIVATE_KEY }}
+          MAVEN_CENTRAL_USERNAME: ${{ vars.OSSRH_USERNAME }}
+          MAVEN_CENTRAL_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
 
-  # --- Post-publish (disabled during dry run) ---
-  # verify-jitpack:
-  #   name: Verify JitPack
-  #   needs: [publish-java]
-  #   runs-on: ubuntu-latest
-  #   steps:
-  #     - name: Wait for JitPack availability
-  #       env:
-  #         VERSION: ${{ github.ref_name }}
-  #       run: |
-  #         VERSION="${VERSION#v}"
-  #         echo "Checking JitPack for version: $VERSION"
-  #         MAX_ATTEMPTS=30
-  #         DELAY=20
-  #         URL="https://jitpack.io/com/github/t-0-network/provider-sdk/${VERSION}/provider-sdk-${VERSION}.pom"
-  #         for i in $(seq 1 $MAX_ATTEMPTS); do
-  #           echo "Attempt $i/$MAX_ATTEMPTS - checking $URL"
-  #           HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$URL")
-  #           if [ "$HTTP_CODE" = "200" ]; then
-  #             echo "JitPack artifact verified!"
-  #             exit 0
-  #           fi
-  #           echo "Not available yet (HTTP $HTTP_CODE), waiting ${DELAY}s..."
-  #           sleep $DELAY
-  #         done
-  #         echo "Timeout waiting for JitPack"
-  #         echo "Check: https://jitpack.io/#t-0-network/provider-sdk/${VERSION}"
-  #         exit 1
+      - name: Upload provider-init.jar to GitHub Release
+        working-directory: java
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          cp cli/build/libs/provider-init-${VERSION}.jar cli/build/libs/provider-init.jar
+          gh release upload "v${VERSION}" cli/build/libs/provider-init.jar --clobber
+
+  # --- Post-publish ---
+  verify-jitpack:
+    name: Verify JitPack
+    needs: [publish-java]
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    steps:
+      - name: Wait for JitPack availability
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          VERSION="${VERSION#v}"
+          echo "Checking JitPack for version: $VERSION"
+          MAX_ATTEMPTS=30
+          DELAY=20
+          URL="https://jitpack.io/com/github/t-0-network/provider-sdk/${VERSION}/provider-sdk-${VERSION}.pom"
+          for i in $(seq 1 $MAX_ATTEMPTS); do
+            echo "Attempt $i/$MAX_ATTEMPTS - checking $URL"
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$URL")
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "JitPack artifact verified!"
+              exit 0
+            fi
+            echo "Not available yet (HTTP $HTTP_CODE), waiting ${DELAY}s..."
+            sleep $DELAY
+          done
+          echo "Timeout waiting for JitPack"
+          echo "Check: https://jitpack.io/#t-0-network/provider-sdk/${VERSION}"
+          exit 1
