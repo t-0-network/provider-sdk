@@ -862,8 +862,8 @@ const file_tzero_v1_payment_intent_recipient_recipient_proto_rawDesc = "" +
 	"\x10RecipientService\x12\x84\x01\n" +
 	"\fConfirmPayIn\x126.tzero.v1.payment_intent.recipient.ConfirmPayInRequest\x1a7.tzero.v1.payment_intent.recipient.ConfirmPayInResponse\"\x03\x90\x02\x02\x12\x8a\x01\n" +
 	"\x0eConfirmPayment\x128.tzero.v1.payment_intent.recipient.ConfirmPaymentRequest\x1a9.tzero.v1.payment_intent.recipient.ConfirmPaymentResponse\"\x03\x90\x02\x02\x12\x99\x01\n" +
-	"\x13RejectPaymentIntent\x12=.tzero.v1.payment_intent.recipient.RejectPaymentIntentRequest\x1a>.tzero.v1.payment_intent.recipient.RejectPaymentIntentResponse\"\x03\x90\x02\x02B\xa9\x02\n" +
-	"%com.tzero.v1.payment_intent.recipientB\x0eRecipientProtoP\x01ZLgithub.com/t-0-network/provider-sdk/go/api/tzero/v1/payment_intent/recipient\xa2\x02\x04TVPR\xaa\x02 Tzero.V1.PaymentIntent.Recipient\xca\x02 Tzero\\V1\\PaymentIntent\\Recipient\xe2\x02,Tzero\\V1\\PaymentIntent\\Recipient\\GPBMetadata\xea\x02#Tzero::V1::PaymentIntent::Recipientb\x06proto3"
+	"\x13RejectPaymentIntent\x12=.tzero.v1.payment_intent.recipient.RejectPaymentIntentRequest\x1a>.tzero.v1.payment_intent.recipient.RejectPaymentIntentResponse\"\x03\x90\x02\x02B\xbc\x02\n" +
+	"%com.tzero.v1.payment_intent.recipientB\x0eRecipientProtoP\x01ZLgithub.com/t-0-network/provider-sdk/go/api/tzero/v1/payment_intent/recipient\xa2\x02\x04TVPR\xaa\x023T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.Recipient\xca\x02 Tzero\\V1\\PaymentIntent\\Recipient\xe2\x02,Tzero\\V1\\PaymentIntent\\Recipient\\GPBMetadata\xea\x02#Tzero::V1::PaymentIntent::Recipientb\x06proto3"
 
 var (
 	file_tzero_v1_payment_intent_recipient_recipient_proto_rawDescOnce sync.Once

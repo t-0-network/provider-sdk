@@ -2012,8 +2012,8 @@ const file_tzero_v1_payment_provider_proto_rawDesc = "" +
 	"\rUpdatePayment\x12&.tzero.v1.payment.UpdatePaymentRequest\x1a'.tzero.v1.payment.UpdatePaymentResponse\"\x03\x90\x02\x02\x12_\n" +
 	"\vUpdateLimit\x12$.tzero.v1.payment.UpdateLimitRequest\x1a%.tzero.v1.payment.UpdateLimitResponse\"\x03\x90\x02\x02\x12w\n" +
 	"\x13AppendLedgerEntries\x12,.tzero.v1.payment.AppendLedgerEntriesRequest\x1a-.tzero.v1.payment.AppendLedgerEntriesResponse\"\x03\x90\x02\x02\x12x\n" +
-	"\x14ApprovePaymentQuotes\x12,.tzero.v1.payment.ApprovePaymentQuoteRequest\x1a-.tzero.v1.payment.ApprovePaymentQuoteResponse\"\x03\x90\x02\x02B\xc4\x01\n" +
-	"\x14com.tzero.v1.paymentB\rProviderProtoP\x01Z;github.com/t-0-network/provider-sdk/go/api/tzero/v1/payment\xa2\x02\x03TVP\xaa\x02\x10Tzero.V1.Payment\xca\x02\x10Tzero\\V1\\Payment\xe2\x02\x1cTzero\\V1\\Payment\\GPBMetadata\xea\x02\x12Tzero::V1::Paymentb\x06proto3"
+	"\x14ApprovePaymentQuotes\x12,.tzero.v1.payment.ApprovePaymentQuoteRequest\x1a-.tzero.v1.payment.ApprovePaymentQuoteResponse\"\x03\x90\x02\x02B\xd7\x01\n" +
+	"\x14com.tzero.v1.paymentB\rProviderProtoP\x01Z;github.com/t-0-network/provider-sdk/go/api/tzero/v1/payment\xa2\x02\x03TVP\xaa\x02#T0.ProviderSdk.Api.Tzero.V1.Payment\xca\x02\x10Tzero\\V1\\Payment\xe2\x02\x1cTzero\\V1\\Payment\\GPBMetadata\xea\x02\x12Tzero::V1::Paymentb\x06proto3"
 
 var (
 	file_tzero_v1_payment_provider_proto_rawDescOnce sync.Once

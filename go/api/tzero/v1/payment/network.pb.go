@@ -2293,8 +2293,8 @@ const file_tzero_v1_payment_network_proto_rawDesc = "" +
 	"\rCreatePayment\x12&.tzero.v1.payment.CreatePaymentRequest\x1a'.tzero.v1.payment.CreatePaymentResponse\"\x03\x90\x02\x02\x12h\n" +
 	"\rConfirmPayout\x12&.tzero.v1.payment.ConfirmPayoutRequest\x1a'.tzero.v1.payment.ConfirmPayoutResponse\"\x06\x88\x02\x01\x90\x02\x02\x12h\n" +
 	"\x0eFinalizePayout\x12'.tzero.v1.payment.FinalizePayoutRequest\x1a(.tzero.v1.payment.FinalizePayoutResponse\"\x03\x90\x02\x02\x12\x80\x01\n" +
-	"\x16CompleteManualAmlCheck\x12/.tzero.v1.payment.CompleteManualAmlCheckRequest\x1a0.tzero.v1.payment.CompleteManualAmlCheckResponse\"\x03\x90\x02\x02B\xc3\x01\n" +
-	"\x14com.tzero.v1.paymentB\fNetworkProtoP\x01Z;github.com/t-0-network/provider-sdk/go/api/tzero/v1/payment\xa2\x02\x03TVP\xaa\x02\x10Tzero.V1.Payment\xca\x02\x10Tzero\\V1\\Payment\xe2\x02\x1cTzero\\V1\\Payment\\GPBMetadata\xea\x02\x12Tzero::V1::Paymentb\x06proto3"
+	"\x16CompleteManualAmlCheck\x12/.tzero.v1.payment.CompleteManualAmlCheckRequest\x1a0.tzero.v1.payment.CompleteManualAmlCheckResponse\"\x03\x90\x02\x02B\xd6\x01\n" +
+	"\x14com.tzero.v1.paymentB\fNetworkProtoP\x01Z;github.com/t-0-network/provider-sdk/go/api/tzero/v1/payment\xa2\x02\x03TVP\xaa\x02#T0.ProviderSdk.Api.Tzero.V1.Payment\xca\x02\x10Tzero\\V1\\Payment\xe2\x02\x1cTzero\\V1\\Payment\\GPBMetadata\xea\x02\x12Tzero::V1::Paymentb\x06proto3"
 
 var (
 	file_tzero_v1_payment_network_proto_rawDescOnce sync.Once

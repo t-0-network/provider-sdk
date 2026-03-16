@@ -393,8 +393,8 @@ const file_tzero_v1_common_payment_receipt_proto_rawDesc = "" +
 	"\x18transaction_reference_id\x18\n" +
 	" \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18#H\x00R\x16transactionReferenceId\x88\x01\x01B\x1b\n" +
 	"\x19_transaction_reference_idB\x10\n" +
-	"\adetails\x12\x05\xbaH\x02\b\x01B\xc4\x01\n" +
-	"\x13com.tzero.v1.commonB\x13PaymentReceiptProtoP\x01Z:github.com/t-0-network/provider-sdk/go/api/tzero/v1/common\xa2\x02\x03TVC\xaa\x02\x0fTzero.V1.Common\xca\x02\x0fTzero\\V1\\Common\xe2\x02\x1bTzero\\V1\\Common\\GPBMetadata\xea\x02\x11Tzero::V1::Commonb\x06proto3"
+	"\adetails\x12\x05\xbaH\x02\b\x01B\xd7\x01\n" +
+	"\x13com.tzero.v1.commonB\x13PaymentReceiptProtoP\x01Z:github.com/t-0-network/provider-sdk/go/api/tzero/v1/common\xa2\x02\x03TVC\xaa\x02\"T0.ProviderSdk.Api.Tzero.V1.Common\xca\x02\x0fTzero\\V1\\Common\xe2\x02\x1bTzero\\V1\\Common\\GPBMetadata\xea\x02\x11Tzero::V1::Commonb\x06proto3"
 
 var (
 	file_tzero_v1_common_payment_receipt_proto_rawDescOnce sync.Once

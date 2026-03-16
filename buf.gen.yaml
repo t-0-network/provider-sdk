@@ -13,6 +13,27 @@ managed:
   override:
     - file_option: go_package_prefix
       value: github.com/t-0-network/provider-sdk/go/api
+    - file_option: csharp_namespace
+      path: ivms101/v1/ivms
+      value: T0.ProviderSdk.Api.Ivms101.V1.Ivms
+    - file_option: csharp_namespace
+      path: tzero/v1/common
+      value: T0.ProviderSdk.Api.Tzero.V1.Common
+    - file_option: csharp_namespace
+      path: tzero/v1/payment
+      value: T0.ProviderSdk.Api.Tzero.V1.Payment
+    - file_option: csharp_namespace
+      path: tzero/v1/payment_intent
+      value: T0.ProviderSdk.Api.Tzero.V1.PaymentIntent
+    - file_option: csharp_namespace
+      path: tzero/v1/payment_intent/provider
+      value: T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.Provider
+    - file_option: csharp_namespace
+      path: tzero/v1/payment_intent/recipient
+      value: T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.Recipient
+    - file_option: csharp_namespace
+      path: buf/validate
+      value: T0.ProviderSdk.Api.Buf.Validate
 
 plugins:
   # TODO: Pin plugin versions for reproducible generation (append :vX.Y.Z to remote URLs)
@@ -43,3 +64,11 @@ plugins:
     out: python/sdk/src/t0_provider_sdk/api
   - remote: buf.build/connectrpc/python
     out: python/sdk/src/t0_provider_sdk/api
+
+  # --- C# ---
+  - remote: buf.build/protocolbuffers/csharp
+    out: csharp/sdk/T0.ProviderSdk/Api
+    opt: base_namespace=T0.ProviderSdk.Api
+  - remote: buf.build/grpc/csharp
+    out: csharp/sdk/T0.ProviderSdk/Api
+    opt: base_namespace=T0.ProviderSdk.Api
