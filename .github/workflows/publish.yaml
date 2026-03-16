@@ -316,6 +316,7 @@ jobs:
     name: Publish C# (NuGet)
     needs: [build-go, build-node, build-java, build-python, build-csharp]
     runs-on: blacksmith-4vcpu-ubuntu-2404
+    environment: nuget
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -335,11 +336,17 @@ jobs:
         working-directory: csharp
         run: dotnet pack starter/T0.ProviderStarter/T0.ProviderStarter.csproj -c Release
 
+      - name: NuGet login (OIDC → temp API key)
+        uses: NuGet/login@v1
+        id: nuget-login
+        with:
+          user: t0-network
+
       - name: Publish SDK to NuGet
-        run: dotnet nuget push csharp/sdk/T0.ProviderSdk/bin/Release/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+        run: dotnet nuget push csharp/sdk/T0.ProviderSdk/bin/Release/*.nupkg --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
 
       - name: Publish Starter to NuGet
-        run: dotnet nuget push csharp/starter/T0.ProviderStarter/bin/Release/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+        run: dotnet nuget push csharp/starter/T0.ProviderStarter/bin/Release/*.nupkg --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
 
   # --- Post-publish ---
   verify-jitpack:
