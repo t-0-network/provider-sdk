@@ -402,8 +402,8 @@ const file_tzero_v1_payment_intent_pay_in_provider_proto_rawDesc = "" +
 	" \x01(\tR\x06reasonB\b\n" +
 	"\x06result2\x97\x01\n" +
 	"\x14PayInProviderService\x12\x7f\n" +
-	"\x11GetPaymentDetails\x121.tzero.v1.payment_intent.GetPaymentDetailsRequest\x1a2.tzero.v1.payment_intent.GetPaymentDetailsResponse\"\x03\x90\x02\x02B\x80\x02\n" +
-	",network.t0.sdk.proto.tzero.v1.payment_intentB\x12PayInProviderProtoP\x01ZBgithub.com/t-0-network/provider-sdk/go/api/tzero/v1/payment_intent\xa2\x02\x03TVP\xaa\x02\x16Tzero.V1.PaymentIntent\xca\x02\x16Tzero\\V1\\PaymentIntent\xe2\x02\"Tzero\\V1\\PaymentIntent\\GPBMetadata\xea\x02\x18Tzero::V1::PaymentIntentb\x06proto3"
+	"\x11GetPaymentDetails\x121.tzero.v1.payment_intent.GetPaymentDetailsRequest\x1a2.tzero.v1.payment_intent.GetPaymentDetailsResponse\"\x03\x90\x02\x02B\xef\x01\n" +
+	"\x1bcom.tzero.v1.payment_intentB\x12PayInProviderProtoP\x01ZBgithub.com/t-0-network/provider-sdk/go/api/tzero/v1/payment_intent\xa2\x02\x03TVP\xaa\x02\x16Tzero.V1.PaymentIntent\xca\x02\x16Tzero\\V1\\PaymentIntent\xe2\x02\"Tzero\\V1\\PaymentIntent\\GPBMetadata\xea\x02\x18Tzero::V1::PaymentIntentb\x06proto3"
 
 var (
 	file_tzero_v1_payment_intent_pay_in_provider_proto_rawDescOnce sync.Once
