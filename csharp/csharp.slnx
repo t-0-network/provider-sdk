@@ -1,0 +1,9 @@
+<Solution>
+  <Folder Name="/sdk/">
+    <Project Path="sdk/T0.ProviderSdk.Tests/T0.ProviderSdk.Tests.csproj" />
+    <Project Path="sdk/T0.ProviderSdk/T0.ProviderSdk.csproj" />
+  </Folder>
+  <Folder Name="/starter/">
+    <Project Path="starter/T0.ProviderStarter/T0.ProviderStarter.csproj" />
+  </Folder>
+</Solution>

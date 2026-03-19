@@ -9,6 +9,7 @@ on:
       - "node/**"
       - "java/**"
       - "python/**"
+      - "csharp/**"
       - "proto/**"
   pull_request:
     branches: [master]
@@ -18,6 +19,7 @@ on:
       - "node/**"
       - "java/**"
       - "python/**"
+      - "csharp/**"
       - "proto/**"
 
 concurrency:
@@ -142,3 +144,26 @@ jobs:
       - name: Run tests
         working-directory: python
         run: uv run pytest
+
+  csharp:
+    name: C#
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    if: ${{ github.actor != 't-0-ci[bot]' }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          show-progress: false
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Build
+        working-directory: csharp
+        run: dotnet build
+
+      - name: Test
+        working-directory: csharp
+        run: dotnet test --no-build

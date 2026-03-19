@@ -112,10 +112,28 @@ jobs:
           uv build --package t0-provider-sdk
           uv build --package t0-provider-starter
 
+  build-csharp:
+    name: Build C#
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          show-progress: false
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Build
+        working-directory: csharp
+        run: dotnet build
+
   # --- Release (only after all builds pass) ---
   release:
     name: Create Release
-    needs: [build-go, build-node, build-java, build-python]
+    needs: [build-go, build-node, build-java, build-python, build-csharp]
     runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - name: Generate GitHub App Token
@@ -193,6 +211,12 @@ jobs:
           VERSION="${{ steps.version.outputs.version }}"
           sed -i "s/^version=.*/version=${VERSION}/" java/gradle.properties
 
+      - name: Update C# versions
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          sed -i "s|<Version>.*</Version>|<Version>${VERSION}</Version>|" csharp/sdk/T0.ProviderSdk/T0.ProviderSdk.csproj
+          sed -i "s|<Version>.*</Version>|<Version>${VERSION}</Version>|" csharp/starter/T0.ProviderStarter/T0.ProviderStarter.csproj
+
       # --- Update SDK version in starter templates ---
       - name: Update TS Starter template SDK version
         run: |
@@ -200,6 +224,11 @@ jobs:
           cd node/starter/template
           jq --arg v "^${VERSION}" '.dependencies["@t-0/provider-sdk"] = $v' package.json > package.json.tmp
           mv package.json.tmp package.json
+
+      - name: Update C# Starter template SDK version
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          sed -i "s|T0.ProviderSdk\" Version=\"[^\"]*\"|T0.ProviderSdk\" Version=\"${VERSION}\"|" csharp/starter/T0.ProviderStarter/TemplateFiles.cs
 
       - name: Update Go Starter template SDK version
         run: |
@@ -266,6 +295,20 @@ jobs:
           GO_TEMPLATE_VER=$(grep 'github.com/t-0-network/provider-sdk/go v' go/starter/template/go.mod | awk '{print $2}')
           if [ "$GO_TEMPLATE_VER" != "v$VERSION" ]; then
             echo "::error::Go Starter template SDK version mismatch: expected v$VERSION, got $GO_TEMPLATE_VER"
+            ERRORS=$((ERRORS + 1))
+          fi
+
+          # Validate C# SDK version
+          CSHARP_SDK_VER=$(grep '<Version>' csharp/sdk/T0.ProviderSdk/T0.ProviderSdk.csproj | sed 's/.*<Version>\(.*\)<\/Version>.*/\1/')
+          if [ "$CSHARP_SDK_VER" != "$VERSION" ]; then
+            echo "::error::C# SDK version mismatch: expected $VERSION, got $CSHARP_SDK_VER"
+            ERRORS=$((ERRORS + 1))
+          fi
+
+          # Validate C# Starter version
+          CSHARP_STARTER_VER=$(grep '<Version>' csharp/starter/T0.ProviderStarter/T0.ProviderStarter.csproj | sed 's/.*<Version>\(.*\)<\/Version>.*/\1/')
+          if [ "$CSHARP_STARTER_VER" != "$VERSION" ]; then
+            echo "::error::C# Starter version mismatch: expected $VERSION, got $CSHARP_STARTER_VER"
             ERRORS=$((ERRORS + 1))
           fi
 

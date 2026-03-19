@@ -499,8 +499,8 @@ const file_ivms101_v1_ivms_enum_proto_rawDesc = "" +
 	" TRANSLITERATION_METHOD_CODE_KANA\x10\n" +
 	"\x12$\n" +
 	" TRANSLITERATION_METHOD_CODE_KORE\x10\v\x12$\n" +
-	" TRANSLITERATION_METHOD_CODE_THAI\x10\fB\x90\x01\n" +
-	"\vcom.ivms101B\tEnumProtoP\x01Z:github.com/t-0-network/provider-sdk/go/api/ivms101/v1/ivms\xa2\x02\x03IXX\xaa\x02\aIvms101\xca\x02\aIvms101\xe2\x02\x13Ivms101\\GPBMetadata\xea\x02\aIvms101b\x06proto3"
+	" TRANSLITERATION_METHOD_CODE_THAI\x10\fB\xab\x01\n" +
+	"\vcom.ivms101B\tEnumProtoP\x01Z:github.com/t-0-network/provider-sdk/go/api/ivms101/v1/ivms\xa2\x02\x03IXX\xaa\x02\"T0.ProviderSdk.Api.Ivms101.V1.Ivms\xca\x02\aIvms101\xe2\x02\x13Ivms101\\GPBMetadata\xea\x02\aIvms101b\x06proto3"
 
 var (
 	file_ivms101_v1_ivms_enum_proto_rawDescOnce sync.Once

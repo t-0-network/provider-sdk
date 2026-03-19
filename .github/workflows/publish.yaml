@@ -111,10 +111,28 @@ jobs:
           uv build --package t0-provider-sdk
           uv build --package t0-provider-starter
 
+  build-csharp:
+    name: Build C#
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          show-progress: false
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Build
+        working-directory: csharp
+        run: dotnet build
+
   # --- Publish (only after ALL builds pass) ---
   publish-go:
     name: Publish Go
-    needs: [build-go, build-node, build-java, build-python]
+    needs: [build-go, build-node, build-java, build-python, build-csharp]
     runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - name: Checkout
@@ -137,7 +155,7 @@ jobs:
 
   publish-node-sdk:
     name: Publish Node SDK
-    needs: [build-go, build-node, build-java, build-python]
+    needs: [build-go, build-node, build-java, build-python, build-csharp]
     # Must use github-hosted runner: npm --provenance requires it (Blacksmith = "self-hosted", rejected by npm)
     runs-on: ubuntu-latest
     permissions:
@@ -166,7 +184,7 @@ jobs:
 
   publish-node-starter:
     name: Publish Node Starter
-    needs: [build-go, build-node, build-java, build-python]
+    needs: [build-go, build-node, build-java, build-python, build-csharp]
     # Must use github-hosted runner: npm --provenance requires it (Blacksmith = "self-hosted", rejected by npm)
     runs-on: ubuntu-latest
     permissions:
@@ -195,7 +213,7 @@ jobs:
 
   publish-python-sdk:
     name: Publish Python SDK
-    needs: [build-go, build-node, build-java, build-python]
+    needs: [build-go, build-node, build-java, build-python, build-csharp]
     runs-on: blacksmith-4vcpu-ubuntu-2404
     environment: pypi-sdk
     steps:
@@ -222,7 +240,7 @@ jobs:
 
   publish-python-starter:
     name: Publish Python Starter
-    needs: [build-go, build-node, build-java, build-python]
+    needs: [build-go, build-node, build-java, build-python, build-csharp]
     runs-on: blacksmith-4vcpu-ubuntu-2404
     environment: pypi-starter
     steps:
@@ -249,7 +267,7 @@ jobs:
 
   publish-java:
     name: Publish Java
-    needs: [build-go, build-node, build-java, build-python]
+    needs: [build-go, build-node, build-java, build-python, build-csharp]
     # 2vcpu is sufficient — most time is spent polling Maven Central for deployment status
     runs-on: blacksmith-2vcpu-ubuntu-2404
     steps:
@@ -293,6 +311,42 @@ jobs:
         run: |
           cp cli/build/libs/provider-init-${VERSION}.jar cli/build/libs/provider-init.jar
           gh release upload "v${VERSION}" cli/build/libs/provider-init.jar --clobber
+
+  publish-csharp:
+    name: Publish C# (NuGet)
+    needs: [build-go, build-node, build-java, build-python, build-csharp]
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    environment: nuget
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          show-progress: false
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Pack SDK
+        working-directory: csharp
+        run: dotnet pack sdk/T0.ProviderSdk/T0.ProviderSdk.csproj -c Release
+
+      - name: Pack Starter
+        working-directory: csharp
+        run: dotnet pack starter/T0.ProviderStarter/T0.ProviderStarter.csproj -c Release
+
+      - name: NuGet login (OIDC → temp API key)
+        uses: NuGet/login@v1
+        id: nuget-login
+        with:
+          user: t0-network
+
+      - name: Publish SDK to NuGet
+        run: dotnet nuget push csharp/sdk/T0.ProviderSdk/bin/Release/*.nupkg --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+
+      - name: Publish Starter to NuGet
+        run: dotnet nuget push csharp/starter/T0.ProviderStarter/bin/Release/*.nupkg --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
 
   # --- Post-publish ---
   verify-jitpack:

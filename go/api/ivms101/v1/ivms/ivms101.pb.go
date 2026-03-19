@@ -1140,8 +1140,8 @@ const file_ivms101_v1_ivms_ivms101_proto_rawDesc = "" +
 	"!legal_person_name_identifier_type\x18\x02 \x01(\x0e2 .ivms101.LegalPersonNameTypeCodeB\x06\xbaH\x03\xc8\x01\x01R\x1dlegalPersonNameIdentifierType\"\xcb\x01\n" +
 	"\x16LocalLegalPersonNameId\x12=\n" +
 	"\x11legal_person_name\x18\x01 \x01(\tB\x11\xbaH\x0er\f\x10\x01\x18d2\x06.*\\S.*R\x0flegalPersonName\x12r\n" +
-	"!legal_person_name_identifier_type\x18\x02 \x01(\x0e2 .ivms101.LegalPersonNameTypeCodeB\x06\xbaH\x03\xc8\x01\x01R\x1dlegalPersonNameIdentifierTypeB\x93\x01\n" +
-	"\vcom.ivms101B\fIvms101ProtoP\x01Z:github.com/t-0-network/provider-sdk/go/api/ivms101/v1/ivms\xa2\x02\x03IXX\xaa\x02\aIvms101\xca\x02\aIvms101\xe2\x02\x13Ivms101\\GPBMetadata\xea\x02\aIvms101b\x06proto3"
+	"!legal_person_name_identifier_type\x18\x02 \x01(\x0e2 .ivms101.LegalPersonNameTypeCodeB\x06\xbaH\x03\xc8\x01\x01R\x1dlegalPersonNameIdentifierTypeB\xae\x01\n" +
+	"\vcom.ivms101B\fIvms101ProtoP\x01Z:github.com/t-0-network/provider-sdk/go/api/ivms101/v1/ivms\xa2\x02\x03IXX\xaa\x02\"T0.ProviderSdk.Api.Ivms101.V1.Ivms\xca\x02\aIvms101\xe2\x02\x13Ivms101\\GPBMetadata\xea\x02\aIvms101b\x06proto3"
 
 var (
 	file_ivms101_v1_ivms_ivms101_proto_rawDescOnce sync.Once

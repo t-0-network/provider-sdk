@@ -45,3 +45,4 @@ jobs:
             go/api/**
             node/sdk/src/common/gen/**
             python/sdk/src/t0_provider_sdk/api/**
+            csharp/sdk/T0.ProviderSdk/Api/**
