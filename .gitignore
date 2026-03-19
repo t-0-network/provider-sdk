@@ -38,6 +38,14 @@ java/.gradle/
 java/starter/template/.gradle/
 java/starter/template/build/
 
+# C# / .NET
+bin/
+obj/
+*.nupkg
+# Go helper binaries (built for cross-tests)
+csharp/sdk/T0.ProviderSdk.Tests/CrossTest/go_helper/go_helper
+python/tests/cross_test/go_helper/go_helper
+
 # Environment
 .env
 local.env

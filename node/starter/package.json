@@ -1,6 +1,6 @@
 {
   "name": "@t-0/provider-starter-ts",
-  "version": "1.1.6",
+  "version": "1.1.8",
   "description": "CLI tool to scaffold a Node.js t-0 Network integration service",
   "main": "dist/create.js",
   "bin": {
@@ -31,7 +31,7 @@
   "license": "MIT",
   "dependencies": {
     "chalk": "^5.6.2",
-    "commander": "^13.1.0",
+    "commander": "^14.0.3",
     "fs-extra": "^11.3.4",
     "inquirer": "^13.3.0"
   },

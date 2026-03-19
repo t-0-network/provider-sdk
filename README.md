@@ -1,6 +1,6 @@
 # T-0 Network Provider SDK
 
-SDKs and starter templates for building payment provider integrations with the T-0 Network. Available for Go, TypeScript, Python, and Java.
+SDKs and starter templates for building payment provider integrations with the T-0 Network. Available for Go, TypeScript, Python, Java, and C#.
 
 ## Quick Start
 
@@ -37,6 +37,15 @@ curl -fsSL -L https://github.com/t-0-network/provider-sdk/releases/latest/downlo
 ```
 
 Requires Java 17+. See [Java documentation](java/README.md) for details.
+
+### C#
+
+```bash
+dotnet tool install -g T0.ProviderStarter
+t0-provider-starter my-provider
+```
+
+Requires .NET 10.0+. See [C# documentation](csharp/README.md) for details.
 
 ## What the Starter Creates
 
@@ -87,6 +96,7 @@ For direct SDK usage without the starter:
 | TypeScript | `@t-0/provider-sdk` | `npm install @t-0/provider-sdk` |
 | Python | `t0-provider-sdk` | `uv add t0-provider-sdk` |
 | Java | `network.t-0:provider-sdk-java` | See [Java docs](java/README.md#installation) |
+| C# | `T0.ProviderSdk` | `dotnet add package T0.ProviderSdk` |
 
 ## Security
 
@@ -103,11 +113,12 @@ For direct SDK usage without the starter:
 - [TypeScript Starter](node/starter/README.md) | [TypeScript SDK](node/sdk/README.md)
 - [Python Starter & SDK](python/README.md)
 - [Java Starter & SDK](java/README.md)
+- [C# Starter & SDK](csharp/README.md)
 
 ## Support
 
 - Review the `TODO` comments in the generated project code
-- Check the [T-0 Network documentation](https://t-0.network/docs)
+- Check the [T-0 Network documentation](https://docs.t-0.network/)
 - Contact the T-0 team for integration support and production onboarding
 
 ## Versioning

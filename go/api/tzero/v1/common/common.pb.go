@@ -193,8 +193,8 @@ const file_tzero_v1_common_common_proto_rawDesc = "" +
 	"Stablecoin\x12\x1a\n" +
 	"\x16STABLECOIN_UNSPECIFIED\x10\x00\x12\x13\n" +
 	"\x0fSTABLECOIN_USDT\x10\n" +
-	"B\xcd\x01\n" +
-	"$network.t0.sdk.proto.tzero.v1.commonB\vCommonProtoP\x01Z:github.com/t-0-network/provider-sdk/go/api/tzero/v1/common\xa2\x02\x03TVC\xaa\x02\x0fTzero.V1.Common\xca\x02\x0fTzero\\V1\\Common\xe2\x02\x1bTzero\\V1\\Common\\GPBMetadata\xea\x02\x11Tzero::V1::Commonb\x06proto3"
+	"B\xcf\x01\n" +
+	"\x13com.tzero.v1.commonB\vCommonProtoP\x01Z:github.com/t-0-network/provider-sdk/go/api/tzero/v1/common\xa2\x02\x03TVC\xaa\x02\"T0.ProviderSdk.Api.Tzero.V1.Common\xca\x02\x0fTzero\\V1\\Common\xe2\x02\x1bTzero\\V1\\Common\\GPBMetadata\xea\x02\x11Tzero::V1::Commonb\x06proto3"
 
 var (
 	file_tzero_v1_common_common_proto_rawDescOnce sync.Once

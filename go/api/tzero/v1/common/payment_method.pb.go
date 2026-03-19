@@ -2520,8 +2520,8 @@ const file_tzero_v1_common_payment_method_proto_rawDesc = "" +
 	"(PAYMENT_METHOD_TYPE_AFRICAN_MOBILE_MONEY\x10\xa0\x01\x12\x1e\n" +
 	"\x19PAYMENT_METHOD_TYPE_CNAPS\x10\xaa\x01\x12\x1c\n" +
 	"\x17PAYMENT_METHOD_TYPE_NIP\x10\xb4\x01:u\n" +
-	"\x13payment_method_type\x12\x1f.google.protobuf.MessageOptions\x18\xe1\xd4\x03 \x01(\x0e2\".tzero.v1.common.PaymentMethodTypeR\x11paymentMethodTypeB\xd4\x01\n" +
-	"$network.t0.sdk.proto.tzero.v1.commonB\x12PaymentMethodProtoP\x01Z:github.com/t-0-network/provider-sdk/go/api/tzero/v1/common\xa2\x02\x03TVC\xaa\x02\x0fTzero.V1.Common\xca\x02\x0fTzero\\V1\\Common\xe2\x02\x1bTzero\\V1\\Common\\GPBMetadata\xea\x02\x11Tzero::V1::Commonb\x06proto3"
+	"\x13payment_method_type\x12\x1f.google.protobuf.MessageOptions\x18\xe1\xd4\x03 \x01(\x0e2\".tzero.v1.common.PaymentMethodTypeR\x11paymentMethodTypeB\xd6\x01\n" +
+	"\x13com.tzero.v1.commonB\x12PaymentMethodProtoP\x01Z:github.com/t-0-network/provider-sdk/go/api/tzero/v1/common\xa2\x02\x03TVC\xaa\x02\"T0.ProviderSdk.Api.Tzero.V1.Common\xca\x02\x0fTzero\\V1\\Common\xe2\x02\x1bTzero\\V1\\Common\\GPBMetadata\xea\x02\x11Tzero::V1::Commonb\x06proto3"
 
 var (
 	file_tzero_v1_common_payment_method_proto_rawDescOnce sync.Once
