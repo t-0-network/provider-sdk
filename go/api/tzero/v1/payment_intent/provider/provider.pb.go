@@ -616,8 +616,8 @@ const file_tzero_v1_payment_intent_provider_provider_proto_rawDesc = "" +
 	"\x11ConfirmSettlement\x12:.tzero.v1.payment_intent.provider.ConfirmSettlementRequest\x1a;.tzero.v1.payment_intent.provider.ConfirmSettlementResponse\"\x03\x90\x02\x022\xb3\x02\n" +
 	"\x0fProviderService\x12\x97\x01\n" +
 	"\x13CreatePaymentIntent\x12<.tzero.v1.payment_intent.provider.CreatePaymentIntentRequest\x1a=.tzero.v1.payment_intent.provider.CreatePaymentIntentResponse\"\x03\x90\x02\x02\x12\x85\x01\n" +
-	"\rConfirmPayout\x126.tzero.v1.payment_intent.provider.ConfirmPayoutRequest\x1a7.tzero.v1.payment_intent.provider.ConfirmPayoutResponse\"\x03\x90\x02\x02B\xb3\x02\n" +
-	"5network.t0.sdk.proto.tzero.v1.payment_intent.providerB\rProviderProtoP\x01ZKgithub.com/t-0-network/provider-sdk/go/api/tzero/v1/payment_intent/provider\xa2\x02\x04TVPP\xaa\x02\x1fTzero.V1.PaymentIntent.Provider\xca\x02\x1fTzero\\V1\\PaymentIntent\\Provider\xe2\x02+Tzero\\V1\\PaymentIntent\\Provider\\GPBMetadata\xea\x02\"Tzero::V1::PaymentIntent::Providerb\x06proto3"
+	"\rConfirmPayout\x126.tzero.v1.payment_intent.provider.ConfirmPayoutRequest\x1a7.tzero.v1.payment_intent.provider.ConfirmPayoutResponse\"\x03\x90\x02\x02B\xb5\x02\n" +
+	"$com.tzero.v1.payment_intent.providerB\rProviderProtoP\x01ZKgithub.com/t-0-network/provider-sdk/go/api/tzero/v1/payment_intent/provider\xa2\x02\x04TVPP\xaa\x022T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.Provider\xca\x02\x1fTzero\\V1\\PaymentIntent\\Provider\xe2\x02+Tzero\\V1\\PaymentIntent\\Provider\\GPBMetadata\xea\x02\"Tzero::V1::PaymentIntent::Providerb\x06proto3"
 
 var (
 	file_tzero_v1_payment_intent_provider_provider_proto_rawDescOnce sync.Once

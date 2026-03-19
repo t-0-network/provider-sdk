@@ -7,7 +7,7 @@ plugins {
     id("com.gradleup.nmcp")
 }
 
-val grpcVersion = "1.79.0"
+val grpcVersion = "1.80.0"
 val protobufVersion = "4.34.0"
 val bouncyCastleVersion = "1.83"
 
@@ -33,7 +33,7 @@ dependencies {
     compileOnly("javax.annotation:javax.annotation-api:1.3.2")
 
     // Testing
-    testImplementation("com.google.code.gson:gson:2.12.1")
+    testImplementation("com.google.code.gson:gson:2.13.2")
     testImplementation("org.junit.jupiter:junit-jupiter:6.0.3")
     testImplementation("org.assertj:assertj-core:3.27.7")
     testImplementation("io.grpc:grpc-testing:$grpcVersion")

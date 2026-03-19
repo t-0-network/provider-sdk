@@ -25,14 +25,14 @@ _sym_db = _symbol_database.Default()
 from buf.validate import validate_pb2 as buf_dot_validate_dot_validate__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1ctzero/v1/common/common.proto\x12\x0ftzero.v1.common\x1a\x1b\x62uf/validate/validate.proto\"U\n\x07\x44\x65\x63imal\x12\x1a\n\x08unscaled\x18\n \x01(\x03R\x08unscaled\x12.\n\x08\x65xponent\x18\x14 \x01(\x05\x42\x12\xbaH\x0f\x1a\r\x18\x08(\xf8\xff\xff\xff\xff\xff\xff\xff\xff\x01R\x08\x65xponent*e\n\nBlockchain\x12\x1a\n\x16\x42LOCKCHAIN_UNSPECIFIED\x10\x00\x12\x12\n\x0e\x42LOCKCHAIN_BSC\x10\n\x12\x12\n\x0e\x42LOCKCHAIN_ETH\x10\x14\x12\x13\n\x0f\x42LOCKCHAIN_TRON\x10\x64*=\n\nStablecoin\x12\x1a\n\x16STABLECOIN_UNSPECIFIED\x10\x00\x12\x13\n\x0fSTABLECOIN_USDT\x10\nB\xcd\x01\n$network.t0.sdk.proto.tzero.v1.commonB\x0b\x43ommonProtoP\x01Z:github.com/t-0-network/provider-sdk/go/api/tzero/v1/common\xa2\x02\x03TVC\xaa\x02\x0fTzero.V1.Common\xca\x02\x0fTzero\\V1\\Common\xe2\x02\x1bTzero\\V1\\Common\\GPBMetadata\xea\x02\x11Tzero::V1::Commonb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x1ctzero/v1/common/common.proto\x12\x0ftzero.v1.common\x1a\x1b\x62uf/validate/validate.proto\"U\n\x07\x44\x65\x63imal\x12\x1a\n\x08unscaled\x18\n \x01(\x03R\x08unscaled\x12.\n\x08\x65xponent\x18\x14 \x01(\x05\x42\x12\xbaH\x0f\x1a\r\x18\x08(\xf8\xff\xff\xff\xff\xff\xff\xff\xff\x01R\x08\x65xponent*e\n\nBlockchain\x12\x1a\n\x16\x42LOCKCHAIN_UNSPECIFIED\x10\x00\x12\x12\n\x0e\x42LOCKCHAIN_BSC\x10\n\x12\x12\n\x0e\x42LOCKCHAIN_ETH\x10\x14\x12\x13\n\x0f\x42LOCKCHAIN_TRON\x10\x64*=\n\nStablecoin\x12\x1a\n\x16STABLECOIN_UNSPECIFIED\x10\x00\x12\x13\n\x0fSTABLECOIN_USDT\x10\nB\xcf\x01\n\x13\x63om.tzero.v1.commonB\x0b\x43ommonProtoP\x01Z:github.com/t-0-network/provider-sdk/go/api/tzero/v1/common\xa2\x02\x03TVC\xaa\x02\"T0.ProviderSdk.Api.Tzero.V1.Common\xca\x02\x0fTzero\\V1\\Common\xe2\x02\x1bTzero\\V1\\Common\\GPBMetadata\xea\x02\x11Tzero::V1::Commonb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'tzero.v1.common.common_pb2', _globals)
 if not _descriptor._USE_C_DESCRIPTORS:
   _globals['DESCRIPTOR']._loaded_options = None
-  _globals['DESCRIPTOR']._serialized_options = b'\n$network.t0.sdk.proto.tzero.v1.commonB\013CommonProtoP\001Z:github.com/t-0-network/provider-sdk/go/api/tzero/v1/common\242\002\003TVC\252\002\017Tzero.V1.Common\312\002\017Tzero\\V1\\Common\342\002\033Tzero\\V1\\Common\\GPBMetadata\352\002\021Tzero::V1::Common'
+  _globals['DESCRIPTOR']._serialized_options = b'\n\023com.tzero.v1.commonB\013CommonProtoP\001Z:github.com/t-0-network/provider-sdk/go/api/tzero/v1/common\242\002\003TVC\252\002\"T0.ProviderSdk.Api.Tzero.V1.Common\312\002\017Tzero\\V1\\Common\342\002\033Tzero\\V1\\Common\\GPBMetadata\352\002\021Tzero::V1::Common'
   _globals['_DECIMAL'].fields_by_name['exponent']._loaded_options = None
   _globals['_DECIMAL'].fields_by_name['exponent']._serialized_options = b'\272H\017\032\r\030\010(\370\377\377\377\377\377\377\377\377\001'
   _globals['_BLOCKCHAIN']._serialized_start=165

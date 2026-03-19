@@ -1449,8 +1449,8 @@ const file_tzero_v1_payment_intent_network_proto_rawDesc = "" +
 	"\vUpdateQuote\x12+.tzero.v1.payment_intent.UpdateQuoteRequest\x1a,.tzero.v1.payment_intent.UpdateQuoteResponse\"\x03\x90\x02\x02\x12d\n" +
 	"\bGetQuote\x12(.tzero.v1.payment_intent.GetQuoteRequest\x1a).tzero.v1.payment_intent.GetQuoteResponse\"\x03\x90\x02\x02\x12\x85\x01\n" +
 	"\x13CreatePaymentIntent\x123.tzero.v1.payment_intent.CreatePaymentIntentRequest\x1a4.tzero.v1.payment_intent.CreatePaymentIntentResponse\"\x03\x90\x02\x02\x12\x88\x01\n" +
-	"\x14ConfirmFundsReceived\x124.tzero.v1.payment_intent.ConfirmFundsReceivedRequest\x1a5.tzero.v1.payment_intent.ConfirmFundsReceivedResponse\"\x03\x90\x02\x02B\xfa\x01\n" +
-	",network.t0.sdk.proto.tzero.v1.payment_intentB\fNetworkProtoP\x01ZBgithub.com/t-0-network/provider-sdk/go/api/tzero/v1/payment_intent\xa2\x02\x03TVP\xaa\x02\x16Tzero.V1.PaymentIntent\xca\x02\x16Tzero\\V1\\PaymentIntent\xe2\x02\"Tzero\\V1\\PaymentIntent\\GPBMetadata\xea\x02\x18Tzero::V1::PaymentIntentb\x06proto3"
+	"\x14ConfirmFundsReceived\x124.tzero.v1.payment_intent.ConfirmFundsReceivedRequest\x1a5.tzero.v1.payment_intent.ConfirmFundsReceivedResponse\"\x03\x90\x02\x02B\xfc\x01\n" +
+	"\x1bcom.tzero.v1.payment_intentB\fNetworkProtoP\x01ZBgithub.com/t-0-network/provider-sdk/go/api/tzero/v1/payment_intent\xa2\x02\x03TVP\xaa\x02)T0.ProviderSdk.Api.Tzero.V1.PaymentIntent\xca\x02\x16Tzero\\V1\\PaymentIntent\xe2\x02\"Tzero\\V1\\PaymentIntent\\GPBMetadata\xea\x02\x18Tzero::V1::PaymentIntentb\x06proto3"
 
 var (
 	file_tzero_v1_payment_intent_network_proto_rawDescOnce sync.Once
