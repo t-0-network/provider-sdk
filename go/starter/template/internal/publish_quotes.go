@@ -57,29 +57,6 @@ func PublishQuotes(ctx context.Context, networkClient paymentconnect.NetworkServ
 						},
 					},
 				},
-				PayIn: []*payment.UpdateQuoteRequest_Quote{ // The quote at which you want to take local currency and settle with USDT (on-ramp)
-					{
-						Currency:      currency,
-						QuoteType:     payment.QuoteType_QUOTE_TYPE_REALTIME, // REALTIME is only supported right now
-						PaymentMethod: paymentMethod,
-						Expiration:    expiration,
-						Timestamp:     timestamp,
-						Bands: []*payment.UpdateQuoteRequest_Quote_Band{ // one or more bands are allowed
-							{
-								ClientQuoteId: uuid.NewString(),
-								MaxAmount: &common.Decimal{
-									Unscaled: 1000, // maximum amount in USD, could be 1000, 5000, 10000 or 25000
-									Exponent: 0,
-								},
-								// note that rate is always USD/XXX, so that for BRL quote should be USD/BRL
-								Rate: &common.Decimal{ //rate 0.88
-									Unscaled: 88,
-									Exponent: -2,
-								},
-							},
-						},
-					},
-				},
 			}))
 			if err != nil {
 				log.Printf("Error updating quote: %s\n", err.Error()) // handle errors appropriately

@@ -234,27 +234,6 @@ public static class TemplateFiles
                 // Combine multiple quotes into a single request.
                 client.UpdateQuote(new UpdateQuoteRequest
                 {
-                    PayIn = // Quote at which you take local currency and settle with USDT (on-ramp)
-                    {
-                        new UpdateQuoteRequest.Types.Quote
-                        {
-                            Currency = currency,
-                            QuoteType = QuoteType.Realtime, // REALTIME is the only supported type
-                            PaymentMethod = paymentMethod,
-                            Expiration = expiration,
-                            Timestamp = timestamp,
-                            Bands = // One or more bands allowed
-                            {
-                                new UpdateQuoteRequest.Types.Quote.Types.Band
-                                {
-                                    ClientQuoteId = Guid.NewGuid().ToString(),
-                                    MaxAmount = new Decimal { Unscaled = 1000, Exponent = 0 }, // max amount in USD
-                                    // Rate is always USD/XXX (e.g. for BRL: USD/BRL)
-                                    Rate = new Decimal { Unscaled = 86, Exponent = -2 } // 0.86
-                                }
-                            }
-                        }
-                    },
                     PayOut = // Quote at which you take USDT and pay out local currency (off-ramp)
                     {
                         new UpdateQuoteRequest.Types.Quote
