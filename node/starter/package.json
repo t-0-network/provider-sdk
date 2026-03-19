@@ -1,6 +1,6 @@
 {
   "name": "@t-0/provider-starter-ts",
-  "version": "1.1.7",
+  "version": "1.1.8",
   "description": "CLI tool to scaffold a Node.js t-0 Network integration service",
   "main": "dist/create.js",
   "bin": {
