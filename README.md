@@ -107,7 +107,7 @@ For direct SDK usage without the starter:
 ## Support
 
 - Review the `TODO` comments in the generated project code
-- Check the [T-0 Network documentation](https://t-0.network/docs)
+- Check the [T-0 Network documentation](https://docs.t-0.network/)
 - Contact the T-0 team for integration support and production onboarding
 
 ## Versioning
