@@ -17,20 +17,24 @@ class Person(_message.Message):
     def __init__(self, natural_person: _Optional[_Union[NaturalPerson, _Mapping]] = ..., legal_person: _Optional[_Union[LegalPerson, _Mapping]] = ...) -> None: ...
 
 class NaturalPerson(_message.Message):
-    __slots__ = ("name", "geographic_addresses", "national_identification", "customer_identification", "date_and_place_of_birth", "country_of_residence")
+    __slots__ = ("name", "geographic_addresses", "national_identification", "customer_identification", "date_and_place_of_birth", "country_of_residence", "phone", "email")
     NAME_FIELD_NUMBER: _ClassVar[int]
     GEOGRAPHIC_ADDRESSES_FIELD_NUMBER: _ClassVar[int]
     NATIONAL_IDENTIFICATION_FIELD_NUMBER: _ClassVar[int]
     CUSTOMER_IDENTIFICATION_FIELD_NUMBER: _ClassVar[int]
     DATE_AND_PLACE_OF_BIRTH_FIELD_NUMBER: _ClassVar[int]
     COUNTRY_OF_RESIDENCE_FIELD_NUMBER: _ClassVar[int]
+    PHONE_FIELD_NUMBER: _ClassVar[int]
+    EMAIL_FIELD_NUMBER: _ClassVar[int]
     name: NaturalPersonName
     geographic_addresses: _containers.RepeatedCompositeFieldContainer[Address]
     national_identification: NationalIdentification
     customer_identification: str
     date_and_place_of_birth: DateAndPlaceOfBirth
     country_of_residence: str
-    def __init__(self, name: _Optional[_Union[NaturalPersonName, _Mapping]] = ..., geographic_addresses: _Optional[_Iterable[_Union[Address, _Mapping]]] = ..., national_identification: _Optional[_Union[NationalIdentification, _Mapping]] = ..., customer_identification: _Optional[str] = ..., date_and_place_of_birth: _Optional[_Union[DateAndPlaceOfBirth, _Mapping]] = ..., country_of_residence: _Optional[str] = ...) -> None: ...
+    phone: str
+    email: str
+    def __init__(self, name: _Optional[_Union[NaturalPersonName, _Mapping]] = ..., geographic_addresses: _Optional[_Iterable[_Union[Address, _Mapping]]] = ..., national_identification: _Optional[_Union[NationalIdentification, _Mapping]] = ..., customer_identification: _Optional[str] = ..., date_and_place_of_birth: _Optional[_Union[DateAndPlaceOfBirth, _Mapping]] = ..., country_of_residence: _Optional[str] = ..., phone: _Optional[str] = ..., email: _Optional[str] = ...) -> None: ...
 
 class NaturalPersonName(_message.Message):
     __slots__ = ("name_identifiers", "local_name_identifiers", "phonetic_name_identifiers")

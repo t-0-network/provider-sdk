@@ -29,7 +29,7 @@ namespace T0.ProviderSdk.Api.Ivms101.V1.Ivms {
             "ZS5wcm90byKVAQoGUGVyc29uEj8KDm5hdHVyYWxfcGVyc29uGAEgASgLMhYu",
             "aXZtczEwMS5OYXR1cmFsUGVyc29uSABSDW5hdHVyYWxQZXJzb24SOQoMbGVn",
             "YWxfcGVyc29uGAIgASgLMhQuaXZtczEwMS5MZWdhbFBlcnNvbkgAUgtsZWdh",
-            "bFBlcnNvbkIPCgZwZXJzb24SBbpIAggBIs8DCg1OYXR1cmFsUGVyc29uEjYK",
+            "bFBlcnNvbkIPCgZwZXJzb24SBbpIAggBIuoECg1OYXR1cmFsUGVyc29uEjYK",
             "BG5hbWUYASABKAsyGi5pdm1zMTAxLk5hdHVyYWxQZXJzb25OYW1lQga6SAPI",
             "AQFSBG5hbWUSQQoUZ2VvZ3JhcGhpY19hZGRyZXNzZXMYAiADKAsyEC5pdm1z",
             "MTAxLkFkZHJlc3NSEWdlb2dyYXBoaWNBZGRyZXNzElgKF25hdGlvbmFsX2lk",
@@ -39,89 +39,93 @@ namespace T0.ProviderSdk.Api.Ivms101.V1.Ivms {
             "dG9tZXJJZGVudGlmaWNhdGlvbhJSChdkYXRlX2FuZF9wbGFjZV9vZl9iaXJ0",
             "aBgFIAEoCzIcLml2bXMxMDEuRGF0ZUFuZFBsYWNlT2ZCaXJ0aFITZGF0ZUFu",
             "ZFBsYWNlT2ZCaXJ0aBJGChRjb3VudHJ5X29mX3Jlc2lkZW5jZRgGIAEoCUIU",
-            "ukgRcg8yDV4kfF5bQS1aXXsyfSRSEmNvdW50cnlPZlJlc2lkZW5jZSKbAgoR",
-            "TmF0dXJhbFBlcnNvbk5hbWUSUAoQbmFtZV9pZGVudGlmaWVycxgBIAMoCzIc",
-            "Lml2bXMxMDEuTmF0dXJhbFBlcnNvbk5hbWVJZEIIukgFkgECCAFSDm5hbWVJ",
-            "ZGVudGlmaWVyElYKFmxvY2FsX25hbWVfaWRlbnRpZmllcnMYAiADKAsyIS5p",
-            "dm1zMTAxLkxvY2FsTmF0dXJhbFBlcnNvbk5hbWVJZFITbG9jYWxOYW1lSWRl",
-            "bnRpZmllchJcChlwaG9uZXRpY19uYW1lX2lkZW50aWZpZXJzGAMgAygLMiEu",
-            "aXZtczEwMS5Mb2NhbE5hdHVyYWxQZXJzb25OYW1lSWRSFnBob25ldGljTmFt",
-            "ZUlkZW50aWZpZXIi/gEKE05hdHVyYWxQZXJzb25OYW1lSWQSQAoScHJpbWFy",
-            "eV9pZGVudGlmaWVyGAEgASgJQhG6SA5yDBABGGQyBi4qXFMuKlIRcHJpbWFy",
-            "eUlkZW50aWZpZXISRwoUc2Vjb25kYXJ5X2lkZW50aWZpZXIYAiABKAlCFLpI",
-            "EXIPGGQyC14kfF4uKlxTLiokUhNzZWNvbmRhcnlJZGVudGlmaWVyElwKFG5h",
-            "bWVfaWRlbnRpZmllcl90eXBlGAMgASgOMiIuaXZtczEwMS5OYXR1cmFsUGVy",
-            "c29uTmFtZVR5cGVDb2RlQga6SAPIAQFSEm5hbWVJZGVudGlmaWVyVHlwZSKD",
-            "AgoYTG9jYWxOYXR1cmFsUGVyc29uTmFtZUlkEkAKEnByaW1hcnlfaWRlbnRp",
-            "ZmllchgBIAEoCUIRukgOcgwQARhkMgYuKlxTLipSEXByaW1hcnlJZGVudGlm",
-            "aWVyEkcKFHNlY29uZGFyeV9pZGVudGlmaWVyGAIgASgJQhS6SBFyDxhkMgte",
-            "JHxeLipcUy4qJFITc2Vjb25kYXJ5SWRlbnRpZmllchJcChRuYW1lX2lkZW50",
-            "aWZpZXJfdHlwZRgDIAEoDjIiLml2bXMxMDEuTmF0dXJhbFBlcnNvbk5hbWVU",
-            "eXBlQ29kZUIGukgDyAEBUhJuYW1lSWRlbnRpZmllclR5cGUilAcKB0FkZHJl",
-            "c3MSQwoMYWRkcmVzc190eXBlGAEgASgOMhguaXZtczEwMS5BZGRyZXNzVHlw",
-            "ZUNvZGVCBrpIA8gBAVILYWRkcmVzc1R5cGUSNAoKZGVwYXJ0bWVudBgCIAEo",
-            "CUIUukgRcg8YMjILXiR8Xi4qXFMuKiRSCmRlcGFydG1lbnQSOwoOc3ViX2Rl",
-            "cGFydG1lbnQYAyABKAlCFLpIEXIPGEYyC14kfF4uKlxTLiokUg1zdWJEZXBh",
-            "cnRtZW50EjUKC3N0cmVldF9uYW1lGAQgASgJQhS6SBFyDxhGMgteJHxeLipc",
-            "Uy4qJFIKc3RyZWV0TmFtZRI9Cg9idWlsZGluZ19udW1iZXIYBSABKAlCFLpI",
-            "EXIPGBAyC14kfF4uKlxTLiokUg5idWlsZGluZ051bWJlchI5Cg1idWlsZGlu",
-            "Z19uYW1lGAYgASgJQhS6SBFyDxgjMgteJHxeLipcUy4qJFIMYnVpbGRpbmdO",
-            "YW1lEioKBWZsb29yGAcgASgJQhS6SBFyDxhGMgteJHxeLipcUy4qJFIFZmxv",
-            "b3ISLwoIcG9zdF9ib3gYCCABKAlCFLpIEXIPGBAyC14kfF4uKlxTLiokUgdw",
-            "b3N0Qm94EigKBHJvb20YCSABKAlCFLpIEXIPGEYyC14kfF4uKlxTLiokUgRy",
-            "b29tEjEKCXBvc3RfY29kZRgKIAEoCUIUukgRcg8YEDILXiR8Xi4qXFMuKiRS",
-            "CHBvc3RDb2RlEjEKCXRvd25fbmFtZRgLIAEoCUIUukgRcg8YIzILXiR8Xi4q",
-            "XFMuKiRSCHRvd25OYW1lEkIKEnRvd25fbG9jYXRpb25fbmFtZRgMIAEoCUIU",
-            "ukgRcg8YIzILXiR8Xi4qXFMuKiRSEHRvd25Mb2NhdGlvbk5hbWUSOQoNZGlz",
-            "dHJpY3RfbmFtZRgNIAEoCUIUukgRcg8YIzILXiR8Xi4qXFMuKiRSDGRpc3Ry",
-            "aWN0TmFtZRJGChRjb3VudHJ5X3N1Yl9kaXZpc2lvbhgOIAEoCUIUukgRcg8Y",
-            "IzILXiR8Xi4qXFMuKiRSEmNvdW50cnlTdWJEaXZpc2lvbhI/CgxhZGRyZXNz",
-            "X2xpbmUYDyADKAlCHLpIGZIBFhAHIhJyEBj/ATILXiR8Xi4qXFMuKiRSC2Fk",
-            "ZHJlc3NMaW5lEisKB2NvdW50cnkYECABKAlCEbpIDnIMMgpeW0EtWl17Mn0k",
-            "Ugdjb3VudHJ5Ip0BChNEYXRlQW5kUGxhY2VPZkJpcnRoEk0KDWRhdGVfb2Zf",
-            "YmlydGgYASABKAlCKbpIJnIkMiJeKFswLTldezR9KS0oWzAtOV17Mn0pLShb",
-            "MC05XXsyfSkkUgtkYXRlT2ZCaXJ0aBI3Cg5wbGFjZV9vZl9iaXJ0aBgCIAEo",
-            "CUIRukgOcgwQARhGMgYuKlxTLipSDHBsYWNlT2ZCaXJ0aCLOAgoWTmF0aW9u",
-            "YWxJZGVudGlmaWNhdGlvbhJCChNuYXRpb25hbF9pZGVudGlmaWVyGAEgASgJ",
-            "QhG6SA5yDBABGCMyBi4qXFMuKlISbmF0aW9uYWxJZGVudGlmaWVyEmUKGG5h",
-            "dGlvbmFsX2lkZW50aWZpZXJfdHlwZRgCIAEoDjIjLml2bXMxMDEuTmF0aW9u",
-            "YWxJZGVudGlmaWVyVHlwZUNvZGVCBrpIA8gBAVIWbmF0aW9uYWxJZGVudGlm",
-            "aWVyVHlwZRI+ChBjb3VudHJ5X29mX2lzc3VlGAMgASgJQhS6SBFyDzINXiR8",
-            "XltBLVpdezJ9JFIOY291bnRyeU9mSXNzdWUSSQoWcmVnaXN0cmF0aW9uX2F1",
-            "dGhvcml0eRgEIAEoCUISukgPcg0yC14kfF4uKlxTLiokUhVyZWdpc3RyYXRp",
-            "b25BdXRob3JpdHki9wIKC0xlZ2FsUGVyc29uEjQKBG5hbWUYASABKAsyGC5p",
-            "dm1zMTAxLkxlZ2FsUGVyc29uTmFtZUIGukgDyAEBUgRuYW1lEksKFGdlb2dy",
-            "YXBoaWNfYWRkcmVzc2VzGAIgAygLMhAuaXZtczEwMS5BZGRyZXNzQgi6SAWS",
-            "AQIIAVIRZ2VvZ3JhcGhpY0FkZHJlc3MSPQoPY3VzdG9tZXJfbnVtYmVyGAMg",
-            "ASgJQhS6SBFyDxgyMgteJHxeLipcUy4qJFIOY3VzdG9tZXJOdW1iZXISWAoX",
-            "bmF0aW9uYWxfaWRlbnRpZmljYXRpb24YBCABKAsyHy5pdm1zMTAxLk5hdGlv",
-            "bmFsSWRlbnRpZmljYXRpb25SFm5hdGlvbmFsSWRlbnRpZmljYXRpb24STAoX",
-            "Y291bnRyeV9vZl9yZWdpc3RyYXRpb24YBSABKAlCFLpIEXIPMg1eJHxeW0Et",
-            "Wl17Mn0kUhVjb3VudHJ5T2ZSZWdpc3RyYXRpb24ikwIKD0xlZ2FsUGVyc29u",
-            "TmFtZRJOChBuYW1lX2lkZW50aWZpZXJzGAEgAygLMhouaXZtczEwMS5MZWdh",
-            "bFBlcnNvbk5hbWVJZEIIukgFkgECCAFSDm5hbWVJZGVudGlmaWVyElQKFmxv",
-            "Y2FsX25hbWVfaWRlbnRpZmllcnMYAiADKAsyHy5pdm1zMTAxLkxvY2FsTGVn",
-            "YWxQZXJzb25OYW1lSWRSE2xvY2FsTmFtZUlkZW50aWZpZXISWgoZcGhvbmV0",
-            "aWNfbmFtZV9pZGVudGlmaWVycxgDIAMoCzIfLml2bXMxMDEuTG9jYWxMZWdh",
-            "bFBlcnNvbk5hbWVJZFIWcGhvbmV0aWNOYW1lSWRlbnRpZmllciLGAQoRTGVn",
-            "YWxQZXJzb25OYW1lSWQSPQoRbGVnYWxfcGVyc29uX25hbWUYASABKAlCEbpI",
-            "DnIMEAEYZDIGLipcUy4qUg9sZWdhbFBlcnNvbk5hbWUScgohbGVnYWxfcGVy",
-            "c29uX25hbWVfaWRlbnRpZmllcl90eXBlGAIgASgOMiAuaXZtczEwMS5MZWdh",
-            "bFBlcnNvbk5hbWVUeXBlQ29kZUIGukgDyAEBUh1sZWdhbFBlcnNvbk5hbWVJ",
-            "ZGVudGlmaWVyVHlwZSLLAQoWTG9jYWxMZWdhbFBlcnNvbk5hbWVJZBI9ChFs",
-            "ZWdhbF9wZXJzb25fbmFtZRgBIAEoCUIRukgOcgwQARhkMgYuKlxTLipSD2xl",
-            "Z2FsUGVyc29uTmFtZRJyCiFsZWdhbF9wZXJzb25fbmFtZV9pZGVudGlmaWVy",
-            "X3R5cGUYAiABKA4yIC5pdm1zMTAxLkxlZ2FsUGVyc29uTmFtZVR5cGVDb2Rl",
-            "Qga6SAPIAQFSHWxlZ2FsUGVyc29uTmFtZUlkZW50aWZpZXJUeXBlQq4BCgtj",
-            "b20uaXZtczEwMUIMSXZtczEwMVByb3RvUAFaOmdpdGh1Yi5jb20vdC0wLW5l",
-            "dHdvcmsvcHJvdmlkZXItc2RrL2dvL2FwaS9pdm1zMTAxL3YxL2l2bXOiAgNJ",
-            "WFiqAiJUMC5Qcm92aWRlclNkay5BcGkuSXZtczEwMS5WMS5Jdm1zygIHSXZt",
-            "czEwMeICE0l2bXMxMDFcR1BCTWV0YWRhdGHqAgdJdm1zMTAxYgZwcm90bzM="));
+            "ukgRcg8yDV4kfF5bQS1aXXsyfSRSEmNvdW50cnlPZlJlc2lkZW5jZRIzCgVw",
+            "aG9uZRgHIAEoCUIdukgachgYFDIUXiR8XlwrP1swLTlcc1wtKCldKyRSBXBo",
+            "b25lEmQKBWVtYWlsGAggASgJQk66SEu6AUgKC3ZhbGlkX2VtYWlsEhtlbWFp",
+            "bCBtdXN0IGJlIGEgdmFsaWQgZW1haWwaHHRoaXMgPT0gJycgfHwgdGhpcy5p",
+            "c0VtYWlsKClSBWVtYWlsIpsCChFOYXR1cmFsUGVyc29uTmFtZRJQChBuYW1l",
+            "X2lkZW50aWZpZXJzGAEgAygLMhwuaXZtczEwMS5OYXR1cmFsUGVyc29uTmFt",
+            "ZUlkQgi6SAWSAQIIAVIObmFtZUlkZW50aWZpZXISVgoWbG9jYWxfbmFtZV9p",
+            "ZGVudGlmaWVycxgCIAMoCzIhLml2bXMxMDEuTG9jYWxOYXR1cmFsUGVyc29u",
+            "TmFtZUlkUhNsb2NhbE5hbWVJZGVudGlmaWVyElwKGXBob25ldGljX25hbWVf",
+            "aWRlbnRpZmllcnMYAyADKAsyIS5pdm1zMTAxLkxvY2FsTmF0dXJhbFBlcnNv",
+            "bk5hbWVJZFIWcGhvbmV0aWNOYW1lSWRlbnRpZmllciL+AQoTTmF0dXJhbFBl",
+            "cnNvbk5hbWVJZBJAChJwcmltYXJ5X2lkZW50aWZpZXIYASABKAlCEbpIDnIM",
+            "EAEYZDIGLipcUy4qUhFwcmltYXJ5SWRlbnRpZmllchJHChRzZWNvbmRhcnlf",
+            "aWRlbnRpZmllchgCIAEoCUIUukgRcg8YZDILXiR8Xi4qXFMuKiRSE3NlY29u",
+            "ZGFyeUlkZW50aWZpZXISXAoUbmFtZV9pZGVudGlmaWVyX3R5cGUYAyABKA4y",
+            "Ii5pdm1zMTAxLk5hdHVyYWxQZXJzb25OYW1lVHlwZUNvZGVCBrpIA8gBAVIS",
+            "bmFtZUlkZW50aWZpZXJUeXBlIoMCChhMb2NhbE5hdHVyYWxQZXJzb25OYW1l",
+            "SWQSQAoScHJpbWFyeV9pZGVudGlmaWVyGAEgASgJQhG6SA5yDBABGGQyBi4q",
+            "XFMuKlIRcHJpbWFyeUlkZW50aWZpZXISRwoUc2Vjb25kYXJ5X2lkZW50aWZp",
+            "ZXIYAiABKAlCFLpIEXIPGGQyC14kfF4uKlxTLiokUhNzZWNvbmRhcnlJZGVu",
+            "dGlmaWVyElwKFG5hbWVfaWRlbnRpZmllcl90eXBlGAMgASgOMiIuaXZtczEw",
+            "MS5OYXR1cmFsUGVyc29uTmFtZVR5cGVDb2RlQga6SAPIAQFSEm5hbWVJZGVu",
+            "dGlmaWVyVHlwZSKUBwoHQWRkcmVzcxJDCgxhZGRyZXNzX3R5cGUYASABKA4y",
+            "GC5pdm1zMTAxLkFkZHJlc3NUeXBlQ29kZUIGukgDyAEBUgthZGRyZXNzVHlw",
+            "ZRI0CgpkZXBhcnRtZW50GAIgASgJQhS6SBFyDxgyMgteJHxeLipcUy4qJFIK",
+            "ZGVwYXJ0bWVudBI7Cg5zdWJfZGVwYXJ0bWVudBgDIAEoCUIUukgRcg8YRjIL",
+            "XiR8Xi4qXFMuKiRSDXN1YkRlcGFydG1lbnQSNQoLc3RyZWV0X25hbWUYBCAB",
+            "KAlCFLpIEXIPGEYyC14kfF4uKlxTLiokUgpzdHJlZXROYW1lEj0KD2J1aWxk",
+            "aW5nX251bWJlchgFIAEoCUIUukgRcg8YEDILXiR8Xi4qXFMuKiRSDmJ1aWxk",
+            "aW5nTnVtYmVyEjkKDWJ1aWxkaW5nX25hbWUYBiABKAlCFLpIEXIPGCMyC14k",
+            "fF4uKlxTLiokUgxidWlsZGluZ05hbWUSKgoFZmxvb3IYByABKAlCFLpIEXIP",
+            "GEYyC14kfF4uKlxTLiokUgVmbG9vchIvCghwb3N0X2JveBgIIAEoCUIUukgR",
+            "cg8YEDILXiR8Xi4qXFMuKiRSB3Bvc3RCb3gSKAoEcm9vbRgJIAEoCUIUukgR",
+            "cg8YRjILXiR8Xi4qXFMuKiRSBHJvb20SMQoJcG9zdF9jb2RlGAogASgJQhS6",
+            "SBFyDxgQMgteJHxeLipcUy4qJFIIcG9zdENvZGUSMQoJdG93bl9uYW1lGAsg",
+            "ASgJQhS6SBFyDxgjMgteJHxeLipcUy4qJFIIdG93bk5hbWUSQgoSdG93bl9s",
+            "b2NhdGlvbl9uYW1lGAwgASgJQhS6SBFyDxgjMgteJHxeLipcUy4qJFIQdG93",
+            "bkxvY2F0aW9uTmFtZRI5Cg1kaXN0cmljdF9uYW1lGA0gASgJQhS6SBFyDxgj",
+            "MgteJHxeLipcUy4qJFIMZGlzdHJpY3ROYW1lEkYKFGNvdW50cnlfc3ViX2Rp",
+            "dmlzaW9uGA4gASgJQhS6SBFyDxgjMgteJHxeLipcUy4qJFISY291bnRyeVN1",
+            "YkRpdmlzaW9uEj8KDGFkZHJlc3NfbGluZRgPIAMoCUIcukgZkgEWEAciEnIQ",
+            "GP8BMgteJHxeLipcUy4qJFILYWRkcmVzc0xpbmUSKwoHY291bnRyeRgQIAEo",
+            "CUIRukgOcgwyCl5bQS1aXXsyfSRSB2NvdW50cnkinQEKE0RhdGVBbmRQbGFj",
+            "ZU9mQmlydGgSTQoNZGF0ZV9vZl9iaXJ0aBgBIAEoCUIpukgmciQyIl4oWzAt",
+            "OV17NH0pLShbMC05XXsyfSktKFswLTldezJ9KSRSC2RhdGVPZkJpcnRoEjcK",
+            "DnBsYWNlX29mX2JpcnRoGAIgASgJQhG6SA5yDBABGEYyBi4qXFMuKlIMcGxh",
+            "Y2VPZkJpcnRoIs4CChZOYXRpb25hbElkZW50aWZpY2F0aW9uEkIKE25hdGlv",
+            "bmFsX2lkZW50aWZpZXIYASABKAlCEbpIDnIMEAEYIzIGLipcUy4qUhJuYXRp",
+            "b25hbElkZW50aWZpZXISZQoYbmF0aW9uYWxfaWRlbnRpZmllcl90eXBlGAIg",
+            "ASgOMiMuaXZtczEwMS5OYXRpb25hbElkZW50aWZpZXJUeXBlQ29kZUIGukgD",
+            "yAEBUhZuYXRpb25hbElkZW50aWZpZXJUeXBlEj4KEGNvdW50cnlfb2ZfaXNz",
+            "dWUYAyABKAlCFLpIEXIPMg1eJHxeW0EtWl17Mn0kUg5jb3VudHJ5T2ZJc3N1",
+            "ZRJJChZyZWdpc3RyYXRpb25fYXV0aG9yaXR5GAQgASgJQhK6SA9yDTILXiR8",
+            "Xi4qXFMuKiRSFXJlZ2lzdHJhdGlvbkF1dGhvcml0eSL3AgoLTGVnYWxQZXJz",
+            "b24SNAoEbmFtZRgBIAEoCzIYLml2bXMxMDEuTGVnYWxQZXJzb25OYW1lQga6",
+            "SAPIAQFSBG5hbWUSSwoUZ2VvZ3JhcGhpY19hZGRyZXNzZXMYAiADKAsyEC5p",
+            "dm1zMTAxLkFkZHJlc3NCCLpIBZIBAggBUhFnZW9ncmFwaGljQWRkcmVzcxI9",
+            "Cg9jdXN0b21lcl9udW1iZXIYAyABKAlCFLpIEXIPGDIyC14kfF4uKlxTLiok",
+            "Ug5jdXN0b21lck51bWJlchJYChduYXRpb25hbF9pZGVudGlmaWNhdGlvbhgE",
+            "IAEoCzIfLml2bXMxMDEuTmF0aW9uYWxJZGVudGlmaWNhdGlvblIWbmF0aW9u",
+            "YWxJZGVudGlmaWNhdGlvbhJMChdjb3VudHJ5X29mX3JlZ2lzdHJhdGlvbhgF",
+            "IAEoCUIUukgRcg8yDV4kfF5bQS1aXXsyfSRSFWNvdW50cnlPZlJlZ2lzdHJh",
+            "dGlvbiKTAgoPTGVnYWxQZXJzb25OYW1lEk4KEG5hbWVfaWRlbnRpZmllcnMY",
+            "ASADKAsyGi5pdm1zMTAxLkxlZ2FsUGVyc29uTmFtZUlkQgi6SAWSAQIIAVIO",
+            "bmFtZUlkZW50aWZpZXISVAoWbG9jYWxfbmFtZV9pZGVudGlmaWVycxgCIAMo",
+            "CzIfLml2bXMxMDEuTG9jYWxMZWdhbFBlcnNvbk5hbWVJZFITbG9jYWxOYW1l",
+            "SWRlbnRpZmllchJaChlwaG9uZXRpY19uYW1lX2lkZW50aWZpZXJzGAMgAygL",
+            "Mh8uaXZtczEwMS5Mb2NhbExlZ2FsUGVyc29uTmFtZUlkUhZwaG9uZXRpY05h",
+            "bWVJZGVudGlmaWVyIsYBChFMZWdhbFBlcnNvbk5hbWVJZBI9ChFsZWdhbF9w",
+            "ZXJzb25fbmFtZRgBIAEoCUIRukgOcgwQARhkMgYuKlxTLipSD2xlZ2FsUGVy",
+            "c29uTmFtZRJyCiFsZWdhbF9wZXJzb25fbmFtZV9pZGVudGlmaWVyX3R5cGUY",
+            "AiABKA4yIC5pdm1zMTAxLkxlZ2FsUGVyc29uTmFtZVR5cGVDb2RlQga6SAPI",
+            "AQFSHWxlZ2FsUGVyc29uTmFtZUlkZW50aWZpZXJUeXBlIssBChZMb2NhbExl",
+            "Z2FsUGVyc29uTmFtZUlkEj0KEWxlZ2FsX3BlcnNvbl9uYW1lGAEgASgJQhG6",
+            "SA5yDBABGGQyBi4qXFMuKlIPbGVnYWxQZXJzb25OYW1lEnIKIWxlZ2FsX3Bl",
+            "cnNvbl9uYW1lX2lkZW50aWZpZXJfdHlwZRgCIAEoDjIgLml2bXMxMDEuTGVn",
+            "YWxQZXJzb25OYW1lVHlwZUNvZGVCBrpIA8gBAVIdbGVnYWxQZXJzb25OYW1l",
+            "SWRlbnRpZmllclR5cGVCrgEKC2NvbS5pdm1zMTAxQgxJdm1zMTAxUHJvdG9Q",
+            "AVo6Z2l0aHViLmNvbS90LTAtbmV0d29yay9wcm92aWRlci1zZGsvZ28vYXBp",
+            "L2l2bXMxMDEvdjEvaXZtc6ICA0lYWKoCIlQwLlByb3ZpZGVyU2RrLkFwaS5J",
+            "dm1zMTAxLlYxLkl2bXPKAgdJdm1zMTAx4gITSXZtczEwMVxHUEJNZXRhZGF0",
+            "YeoCB0l2bXMxMDFiBnByb3RvMw=="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { global::T0.ProviderSdk.Api.Ivms101.V1.Ivms.EnumReflection.Descriptor, global::Buf.Validate.ValidateReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(null, null, new pbr::GeneratedClrTypeInfo[] {
             new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Ivms101.V1.Ivms.Person), global::T0.ProviderSdk.Api.Ivms101.V1.Ivms.Person.Parser, new[]{ "NaturalPerson", "LegalPerson" }, new[]{ "Person" }, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Ivms101.V1.Ivms.NaturalPerson), global::T0.ProviderSdk.Api.Ivms101.V1.Ivms.NaturalPerson.Parser, new[]{ "Name", "GeographicAddresses", "NationalIdentification", "CustomerIdentification", "DateAndPlaceOfBirth", "CountryOfResidence" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Ivms101.V1.Ivms.NaturalPerson), global::T0.ProviderSdk.Api.Ivms101.V1.Ivms.NaturalPerson.Parser, new[]{ "Name", "GeographicAddresses", "NationalIdentification", "CustomerIdentification", "DateAndPlaceOfBirth", "CountryOfResidence", "Phone", "Email" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Ivms101.V1.Ivms.NaturalPersonName), global::T0.ProviderSdk.Api.Ivms101.V1.Ivms.NaturalPersonName.Parser, new[]{ "NameIdentifiers", "LocalNameIdentifiers", "PhoneticNameIdentifiers" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Ivms101.V1.Ivms.NaturalPersonNameId), global::T0.ProviderSdk.Api.Ivms101.V1.Ivms.NaturalPersonNameId.Parser, new[]{ "PrimaryIdentifier", "SecondaryIdentifier", "NameIdentifierType" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Ivms101.V1.Ivms.LocalNaturalPersonNameId), global::T0.ProviderSdk.Api.Ivms101.V1.Ivms.LocalNaturalPersonNameId.Parser, new[]{ "PrimaryIdentifier", "SecondaryIdentifier", "NameIdentifierType" }, null, null, null, null),
@@ -485,6 +489,8 @@ namespace T0.ProviderSdk.Api.Ivms101.V1.Ivms {
       customerIdentification_ = other.customerIdentification_;
       dateAndPlaceOfBirth_ = other.dateAndPlaceOfBirth_ != null ? other.dateAndPlaceOfBirth_.Clone() : null;
       countryOfResidence_ = other.countryOfResidence_;
+      phone_ = other.phone_;
+      email_ = other.email_;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -587,6 +593,36 @@ namespace T0.ProviderSdk.Api.Ivms101.V1.Ivms {
       }
     }
 
+    /// <summary>Field number for the "phone" field.</summary>
+    public const int PhoneFieldNumber = 7;
+    private string phone_ = "";
+    /// <summary>
+    /// Definition: phone number of the natural person.
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string Phone {
+      get { return phone_; }
+      set {
+        phone_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+
+    /// <summary>Field number for the "email" field.</summary>
+    public const int EmailFieldNumber = 8;
+    private string email_ = "";
+    /// <summary>
+    /// Definition: email address of the natural person.
+    /// </summary>
+    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+    public string Email {
+      get { return email_; }
+      set {
+        email_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+      }
+    }
+
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -608,6 +644,8 @@ namespace T0.ProviderSdk.Api.Ivms101.V1.Ivms {
       if (CustomerIdentification != other.CustomerIdentification) return false;
       if (!object.Equals(DateAndPlaceOfBirth, other.DateAndPlaceOfBirth)) return false;
       if (CountryOfResidence != other.CountryOfResidence) return false;
+      if (Phone != other.Phone) return false;
+      if (Email != other.Email) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -621,6 +659,8 @@ namespace T0.ProviderSdk.Api.Ivms101.V1.Ivms {
       if (CustomerIdentification.Length != 0) hash ^= CustomerIdentification.GetHashCode();
       if (dateAndPlaceOfBirth_ != null) hash ^= DateAndPlaceOfBirth.GetHashCode();
       if (CountryOfResidence.Length != 0) hash ^= CountryOfResidence.GetHashCode();
+      if (Phone.Length != 0) hash ^= Phone.GetHashCode();
+      if (Email.Length != 0) hash ^= Email.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -660,6 +700,14 @@ namespace T0.ProviderSdk.Api.Ivms101.V1.Ivms {
         output.WriteRawTag(50);
         output.WriteString(CountryOfResidence);
       }
+      if (Phone.Length != 0) {
+        output.WriteRawTag(58);
+        output.WriteString(Phone);
+      }
+      if (Email.Length != 0) {
+        output.WriteRawTag(66);
+        output.WriteString(Email);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -691,6 +739,14 @@ namespace T0.ProviderSdk.Api.Ivms101.V1.Ivms {
         output.WriteRawTag(50);
         output.WriteString(CountryOfResidence);
       }
+      if (Phone.Length != 0) {
+        output.WriteRawTag(58);
+        output.WriteString(Phone);
+      }
+      if (Email.Length != 0) {
+        output.WriteRawTag(66);
+        output.WriteString(Email);
+      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -716,6 +772,12 @@ namespace T0.ProviderSdk.Api.Ivms101.V1.Ivms {
       }
       if (CountryOfResidence.Length != 0) {
         size += 1 + pb::CodedOutputStream.ComputeStringSize(CountryOfResidence);
+      }
+      if (Phone.Length != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(Phone);
+      }
+      if (Email.Length != 0) {
+        size += 1 + pb::CodedOutputStream.ComputeStringSize(Email);
       }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
@@ -753,6 +815,12 @@ namespace T0.ProviderSdk.Api.Ivms101.V1.Ivms {
       }
       if (other.CountryOfResidence.Length != 0) {
         CountryOfResidence = other.CountryOfResidence;
+      }
+      if (other.Phone.Length != 0) {
+        Phone = other.Phone;
+      }
+      if (other.Email.Length != 0) {
+        Email = other.Email;
       }
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
@@ -806,6 +874,14 @@ namespace T0.ProviderSdk.Api.Ivms101.V1.Ivms {
             CountryOfResidence = input.ReadString();
             break;
           }
+          case 58: {
+            Phone = input.ReadString();
+            break;
+          }
+          case 66: {
+            Email = input.ReadString();
+            break;
+          }
         }
       }
     #endif
@@ -856,6 +932,14 @@ namespace T0.ProviderSdk.Api.Ivms101.V1.Ivms {
           }
           case 50: {
             CountryOfResidence = input.ReadString();
+            break;
+          }
+          case 58: {
+            Phone = input.ReadString();
+            break;
+          }
+          case 66: {
+            Email = input.ReadString();
             break;
           }
         }

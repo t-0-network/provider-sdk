@@ -160,8 +160,12 @@ type NaturalPerson struct {
 	// The value used for the field country must be present on the ISO-3166-1 alpha-2
 	// codes or the value XX.
 	CountryOfResidence string `protobuf:"bytes,6,opt,name=country_of_residence,json=countryOfResidence,proto3" json:"country_of_residence,omitempty"`
-	unknownFields      protoimpl.UnknownFields
-	sizeCache          protoimpl.SizeCache
+	// Definition: phone number of the natural person.
+	Phone string `protobuf:"bytes,7,opt,name=phone,proto3" json:"phone,omitempty"`
+	// Definition: email address of the natural person.
+	Email         string `protobuf:"bytes,8,opt,name=email,proto3" json:"email,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *NaturalPerson) Reset() {
@@ -232,6 +236,20 @@ func (x *NaturalPerson) GetDateAndPlaceOfBirth() *DateAndPlaceOfBirth {
 func (x *NaturalPerson) GetCountryOfResidence() string {
 	if x != nil {
 		return x.CountryOfResidence
+	}
+	return ""
+}
+
+func (x *NaturalPerson) GetPhone() string {
+	if x != nil {
+		return x.Phone
+	}
+	return ""
+}
+
+func (x *NaturalPerson) GetEmail() string {
+	if x != nil {
+		return x.Email
 	}
 	return ""
 }
@@ -1054,14 +1072,17 @@ const file_ivms101_v1_ivms_ivms101_proto_rawDesc = "" +
 	"\x06Person\x12?\n" +
 	"\x0enatural_person\x18\x01 \x01(\v2\x16.ivms101.NaturalPersonH\x00R\rnaturalPerson\x129\n" +
 	"\flegal_person\x18\x02 \x01(\v2\x14.ivms101.LegalPersonH\x00R\vlegalPersonB\x0f\n" +
-	"\x06person\x12\x05\xbaH\x02\b\x01\"\xcf\x03\n" +
+	"\x06person\x12\x05\xbaH\x02\b\x01\"\xea\x04\n" +
 	"\rNaturalPerson\x126\n" +
 	"\x04name\x18\x01 \x01(\v2\x1a.ivms101.NaturalPersonNameB\x06\xbaH\x03\xc8\x01\x01R\x04name\x12A\n" +
 	"\x14geographic_addresses\x18\x02 \x03(\v2\x10.ivms101.AddressR\x11geographicAddress\x12X\n" +
 	"\x17national_identification\x18\x03 \x01(\v2\x1f.ivms101.NationalIdentificationR\x16nationalIdentification\x12M\n" +
 	"\x17customer_identification\x18\x04 \x01(\tB\x14\xbaH\x11r\x0f\x1822\v^$|^.*\\S.*$R\x16customerIdentification\x12R\n" +
 	"\x17date_and_place_of_birth\x18\x05 \x01(\v2\x1c.ivms101.DateAndPlaceOfBirthR\x13dateAndPlaceOfBirth\x12F\n" +
-	"\x14country_of_residence\x18\x06 \x01(\tB\x14\xbaH\x11r\x0f2\r^$|^[A-Z]{2}$R\x12countryOfResidence\"\x9b\x02\n" +
+	"\x14country_of_residence\x18\x06 \x01(\tB\x14\xbaH\x11r\x0f2\r^$|^[A-Z]{2}$R\x12countryOfResidence\x123\n" +
+	"\x05phone\x18\a \x01(\tB\x1d\xbaH\x1ar\x18\x18\x142\x14^$|^\\+?[0-9\\s\\-()]+$R\x05phone\x12d\n" +
+	"\x05email\x18\b \x01(\tBN\xbaHK\xba\x01H\n" +
+	"\vvalid_email\x12\x1bemail must be a valid email\x1a\x1cthis == '' || this.isEmail()R\x05email\"\x9b\x02\n" +
 	"\x11NaturalPersonName\x12P\n" +
 	"\x10name_identifiers\x18\x01 \x03(\v2\x1c.ivms101.NaturalPersonNameIdB\b\xbaH\x05\x92\x01\x02\b\x01R\x0enameIdentifier\x12V\n" +
 	"\x16local_name_identifiers\x18\x02 \x03(\v2!.ivms101.LocalNaturalPersonNameIdR\x13localNameIdentifier\x12\\\n" +
