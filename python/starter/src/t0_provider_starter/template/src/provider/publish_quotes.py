@@ -2,7 +2,7 @@
 
 Go equivalent: internal/publish_quotes.go → PublishQuotes()
 
-Publishes sample PayOut (off-ramp) and PayIn (on-ramp) quotes every 5 seconds.
+Publishes sample PayOut (off-ramp) quotes every 5 seconds.
 TODO: Step 1.3 Replace this with fetching quotes from your systems and publishing them.
 We recommend publishing at least once per 5 seconds, but not more than once per second.
 """
@@ -73,29 +73,6 @@ async def publish_quotes(network_client: NetworkServiceClient, shutdown_event: a
                                     # Note: rate is always USD/XXX, so for BRL quote should be USD/BRL
                                     rate=Decimal(
                                         unscaled=86,  # rate 0.86
-                                        exponent=-2,
-                                    ),
-                                ),
-                            ],
-                        ),
-                    ],
-                    pay_in=[
-                        # The quote at which you want to take local currency and settle with USDT (on-ramp)
-                        UpdateQuoteRequest.Quote(
-                            currency=currency,
-                            quote_type=QUOTE_TYPE_REALTIME,
-                            payment_method=payment_method,
-                            expiration=expiration,
-                            timestamp=timestamp,
-                            bands=[
-                                UpdateQuoteRequest.Quote.Band(
-                                    client_quote_id=str(uuid.uuid4()),
-                                    max_amount=Decimal(
-                                        unscaled=1000,
-                                        exponent=0,
-                                    ),
-                                    rate=Decimal(
-                                        unscaled=88,  # rate 0.88
                                         exponent=-2,
                                     ),
                                 ),

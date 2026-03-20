@@ -9,6 +9,7 @@ Thumbs.db
 
 # Claude Code
 .claude/
+.claude.local.md
 
 # Go
 go/starter/template/vendor/

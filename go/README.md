@@ -143,7 +143,7 @@ _, err = networkClient.CreatePayment(ctx, connect.NewRequest(&networkproto.Creat
 - [Payout Provider Flow](examples/payout_provider_flow_test.go)
 - [Provider Service](examples/provider_service_test.go)
 - [Network Client](examples/network_client_test.go)
-- [Payment Intent Pay-in](examples/payment_intent/pay_in_flow_test.go)
+
 
 ## Development
 
