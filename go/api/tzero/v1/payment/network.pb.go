@@ -176,6 +176,10 @@ type UpdateQuoteRequest struct {
 	// *
 	// Zero or more quotes for pay-in operations, each quote must have a unique currency, and one or more bands, with the
 	// unique client_quote_id for each band.
+	//
+	// Deprecated: pay-in quotes are no longer used.
+	//
+	// Deprecated: Marked as deprecated in tzero/v1/payment/network.proto.
 	PayIn         []*UpdateQuoteRequest_Quote `protobuf:"bytes,20,rep,name=pay_in,json=payIn,proto3" json:"pay_in,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -218,6 +222,7 @@ func (x *UpdateQuoteRequest) GetPayOut() []*UpdateQuoteRequest_Quote {
 	return nil
 }
 
+// Deprecated: Marked as deprecated in tzero/v1/payment/network.proto.
 func (x *UpdateQuoteRequest) GetPayIn() []*UpdateQuoteRequest_Quote {
 	if x != nil {
 		return x.PayIn
@@ -2108,11 +2113,11 @@ var File_tzero_v1_payment_network_proto protoreflect.FileDescriptor
 
 const file_tzero_v1_payment_network_proto_rawDesc = "" +
 	"\n" +
-	"\x1etzero/v1/payment/network.proto\x12\x10tzero.v1.payment\x1a\x1ctzero/v1/common/common.proto\x1a$tzero/v1/common/payment_method.proto\x1a%tzero/v1/common/payment_receipt.proto\x1a\x1divms101/v1/ivms/ivms101.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bbuf/validate/validate.proto\"\xfb\x05\n" +
+	"\x1etzero/v1/payment/network.proto\x12\x10tzero.v1.payment\x1a\x1ctzero/v1/common/common.proto\x1a$tzero/v1/common/payment_method.proto\x1a%tzero/v1/common/payment_receipt.proto\x1a\x1divms101/v1/ivms/ivms101.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bbuf/validate/validate.proto\"\xff\x05\n" +
 	"\x12UpdateQuoteRequest\x12C\n" +
 	"\apay_out\x18\n" +
-	" \x03(\v2*.tzero.v1.payment.UpdateQuoteRequest.QuoteR\x06payOut\x12A\n" +
-	"\x06pay_in\x18\x14 \x03(\v2*.tzero.v1.payment.UpdateQuoteRequest.QuoteR\x05payIn\x1a\xdc\x04\n" +
+	" \x03(\v2*.tzero.v1.payment.UpdateQuoteRequest.QuoteR\x06payOut\x12E\n" +
+	"\x06pay_in\x18\x14 \x03(\v2*.tzero.v1.payment.UpdateQuoteRequest.QuoteB\x02\x18\x01R\x05payIn\x1a\xdc\x04\n" +
 	"\x05Quote\x120\n" +
 	"\bcurrency\x18\n" +
 	" \x01(\tB\x14\xbaH\x11r\x0f2\n" +
