@@ -33,12 +33,11 @@ describe('CreateSigner', () => {
     nodeAssert.equal(sig.publicKey.toString('hex'), vectors.keys.public_key);
   });
 
-  it('produces a 65-byte signature', async () => {
+  it('produces a 64-byte compact signature', async () => {
     const signer = CreateSigner(vectors.keys.private_key);
     const hash = Buffer.from(keccak_256(Buffer.from('test', 'utf-8')));
     const sig = await signer(hash);
-    // secp256k1 compact signature is 64 bytes; with recovery byte it's 65
-    nodeAssert.ok(sig.signature.length === 64 || sig.signature.length === 65);
+    nodeAssert.equal(sig.signature.length, 64);
   });
 
   it('rejects non-32-byte input', async () => {
@@ -54,7 +53,7 @@ describe('CreateSigner', () => {
   });
 });
 
-describe('Request signing hash', () => {
+describe('Request signing', () => {
   it('computes correct hash for body + timestamp', () => {
     const { body, timestamp_ms, expected_hash } = vectors.request_signing;
 
@@ -67,5 +66,25 @@ describe('Request signing hash', () => {
     const result = Buffer.from(hash.digest()).toString('hex');
 
     nodeAssert.equal(result, expected_hash);
+  });
+
+  it('produces signature matching cross-language test vector', async () => {
+    const { body, timestamp_ms, expected_hash, expected_signature } = vectors.request_signing;
+
+    const signer = CreateSigner(vectors.keys.private_key);
+
+    const tsBuf = Buffer.alloc(8);
+    tsBuf.writeBigUInt64LE(BigInt(timestamp_ms));
+
+    const digest = Buffer.from(
+      keccak_256.create()
+        .update(Buffer.from(body, 'utf-8'))
+        .update(tsBuf)
+        .digest()
+    );
+    nodeAssert.equal(digest.toString('hex'), expected_hash);
+
+    const sig = await signer(digest);
+    nodeAssert.equal(sig.signature.subarray(0, 64).toString('hex'), expected_signature);
   });
 });

@@ -12,7 +12,7 @@ export const CreateSigner = (privateKey: string | Buffer)=> {
         }
 
         // Sign the hash
-        const signature = secp256k1.sign(data, privateKey);
+        const signature = secp256k1.sign(data, privateKey, {prehash: false});
 
         return {
             signature: Buffer.from(signature),

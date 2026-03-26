@@ -20,6 +20,7 @@
   "request_signing": {
     "body": "test request body",
     "timestamp_ms": 1706000000000,
-    "expected_hash": "49a567a359bf25d9652b24acc5567bc38c93139467c8fcf798f059ada585697e"
+    "expected_hash": "49a567a359bf25d9652b24acc5567bc38c93139467c8fcf798f059ada585697e",
+    "expected_signature": "dc7cede55d344fb59f10fa71b4915968a9d5c3f811faf7ddd834feb3cdce106539cd605b5a2d5fe35c21f27af92d01a68a06d6e813a613dac40e90a7a7a89181"
   }
 }

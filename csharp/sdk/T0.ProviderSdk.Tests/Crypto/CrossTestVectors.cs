@@ -100,4 +100,26 @@ public class CrossTestVectors
         var valid = SignatureVerifier.Verify(signer.GetPublicKey(), digest, sig64);
         Assert.True(valid);
     }
+
+    [Fact]
+    public void RequestSignature_ShouldMatchExpected()
+    {
+        var keys = Vectors.RootElement.GetProperty("keys");
+        var rs = Vectors.RootElement.GetProperty("request_signing");
+        var privateKeyHex = keys.GetProperty("private_key").GetString()!;
+        var expectedSignature = rs.GetProperty("expected_signature").GetString()!;
+
+        var body = Encoding.UTF8.GetBytes(rs.GetProperty("body").GetString()!);
+        var timestampMs = rs.GetProperty("timestamp_ms").GetInt64();
+        var tsBytes = new byte[8];
+        BinaryPrimitives.WriteUInt64LittleEndian(tsBytes, (ulong)timestampMs);
+
+        var digest = Keccak256.Hash(body, tsBytes);
+        Assert.Equal(rs.GetProperty("expected_hash").GetString()!, HexUtils.BytesToHex(digest));
+
+        var signer = Signer.FromHex(privateKeyHex);
+        var result = signer.Sign(digest);
+        // Compare first 64 bytes (r+s) against the cross-language test vector
+        Assert.Equal(expectedSignature, HexUtils.BytesToHex(result.Signature[..64]));
+    }
 }

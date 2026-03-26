@@ -85,4 +85,30 @@ class CrossVectorTest {
                 signer.getPublicKey(), digest, result.getSignature());
         assertThat(valid).isTrue();
     }
+
+    @Test
+    void requestSignature_shouldMatchExpected() {
+        JsonObject keys = vectors.getAsJsonObject("keys");
+        JsonObject rs = vectors.getAsJsonObject("request_signing");
+        String privateKeyHex = keys.get("private_key").getAsString();
+        String expectedSignature = rs.get("expected_signature").getAsString();
+
+        byte[] body = rs.get("body").getAsString().getBytes();
+        long timestampMs = rs.get("timestamp_ms").getAsLong();
+        byte[] tsBytes = ByteBuffer.allocate(8)
+                .order(ByteOrder.LITTLE_ENDIAN)
+                .putLong(timestampMs)
+                .array();
+
+        byte[] digest = Keccak256.hash(body, tsBytes);
+        assertThat(HexUtils.bytesToHex(digest))
+                .isEqualTo(rs.get("expected_hash").getAsString());
+
+        Signer signer = Signer.fromHex(privateKeyHex);
+        SignResult result = signer.sign(digest);
+        // Compare first 64 bytes (r+s) against the cross-language test vector
+        byte[] sig64 = new byte[64];
+        System.arraycopy(result.getSignature(), 0, sig64, 0, 64);
+        assertThat(HexUtils.bytesToHex(sig64)).isEqualTo(expectedSignature);
+    }
 }

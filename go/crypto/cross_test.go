@@ -21,9 +21,10 @@ type testVectors struct {
 		Hash  string `json:"hash"`
 	} `json:"keccak256"`
 	RequestSigning struct {
-		Body         string `json:"body"`
-		TimestampMs  uint64 `json:"timestamp_ms"`
-		ExpectedHash string `json:"expected_hash"`
+		Body              string `json:"body"`
+		TimestampMs       uint64 `json:"timestamp_ms"`
+		ExpectedHash      string `json:"expected_hash"`
+		ExpectedSignature string `json:"expected_signature"`
 	} `json:"request_signing"`
 }
 
@@ -81,4 +82,23 @@ func TestCrossVectors_SignVerifyRoundTrip(t *testing.T) {
 	pubKey, err := crypto.GetPublicKeyFromBytes(pubKeyBytes)
 	require.NoError(t, err)
 	require.True(t, crypto.VerifySignature(pubKey, digest, signature))
+}
+
+func TestCrossVectors_RequestSignature(t *testing.T) {
+	v := loadVectors(t)
+	sign, err := crypto.NewSignerFromHex(v.Keys.PrivateKey)
+	require.NoError(t, err)
+
+	body := []byte(v.RequestSigning.Body)
+	tsBytes := make([]byte, 8)
+	binary.LittleEndian.PutUint64(tsBytes, v.RequestSigning.TimestampMs)
+
+	combined := append(body, tsBytes...)
+	digest := crypto.LegacyKeccak256(combined)
+	require.Equal(t, v.RequestSigning.ExpectedHash, hex.EncodeToString(digest))
+
+	signature, _, err := sign(digest)
+	require.NoError(t, err)
+	// Compare first 64 bytes (r+s) against the cross-language test vector
+	require.Equal(t, v.RequestSigning.ExpectedSignature, hex.EncodeToString(signature[:64]))
 }

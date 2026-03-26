@@ -51,3 +51,17 @@ class TestCrossVectorsSignVerifyRoundTrip:
         sig, pub_key_bytes = sign_fn(digest)
         pub_key = public_key_from_bytes(pub_key_bytes)
         assert verify_signature(pub_key, digest, sig)
+
+
+class TestCrossVectorsRequestSignature:
+    def test_signature_matches_vector(self):
+        rs = VECTORS["request_signing"]
+        body = rs["body"].encode()
+        ts_bytes = struct.pack("<Q", rs["timestamp_ms"])
+        digest = legacy_keccak256(body + ts_bytes)
+        assert digest.hex() == rs["expected_hash"]
+
+        sign_fn = new_signer_from_hex(VECTORS["keys"]["private_key"])
+        sig, _ = sign_fn(digest)
+        # Compare first 64 bytes (r+s) against the cross-language test vector
+        assert sig[:64].hex() == rs["expected_signature"]
