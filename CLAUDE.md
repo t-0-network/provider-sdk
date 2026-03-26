@@ -60,6 +60,17 @@ headers = { X-Public-Key: "0x...", X-Signature: "0x...", X-Signature-Timestamp: 
 - Signatures: 64 or 65 bytes (r + s + optional recovery id)
 - Hash: Keccak-256 (NOT NIST SHA-3)
 
+## Releasing
+
+**NEVER release manually.** Releases are handled exclusively by the `release.yaml` GitHub Actions workflow.
+
+- DO NOT run `gh workflow run release.yaml` without explicit user request
+- DO NOT create version tags manually (e.g., `git tag vX.Y.Z`) — the release workflow manages all tags
+- DO NOT push tags directly — the workflow creates and pushes `vX.Y.Z`, `go/vX.Y.Z`, etc.
+- The publish workflow (`publish.yaml`) is triggered automatically by tag push — never trigger it manually
+
+When the user asks to release, trigger it via `gh workflow run release.yaml -f bump=<type> --ref master`. Default to `patch` unless the user specifies otherwise.
+
 ## Git Workflow
 
 - NEVER commit or push without explicit user request
