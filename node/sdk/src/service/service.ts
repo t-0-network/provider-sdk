@@ -42,7 +42,7 @@ const createSignatureVerification: (networkPublicKey: Buffer) => Interceptor = (
     .digest();
   let signatureValid = false;
   try {
-    signatureValid = secp256k1.verify(signature, hash, publicKey);
+    signatureValid = secp256k1.verify(signature, hash, publicKey, {prehash: false});
   } catch (e) {
     throw new ConnectError(`${NetworkHeaders.Signature} has invalid signature or public key format: ${e}` , Code.Unauthenticated);
   }
