@@ -8,6 +8,7 @@ package payment_intent
 
 import (
 	_ "buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
+	ivms "github.com/t-0-network/provider-sdk/go/api/ivms101/v1/ivms"
 	common "github.com/t-0-network/provider-sdk/go/api/tzero/v1/common"
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
@@ -169,8 +170,12 @@ type PaymentIntentUpdateRequest_FundsReceived struct {
 	PaymentMethod common.PaymentMethodType `protobuf:"varint,40,opt,name=payment_method,json=paymentMethod,proto3,enum=tzero.v1.common.PaymentMethodType" json:"payment_method,omitempty"`
 	// Unique transaction reference identifying the pay-in transaction
 	TransactionReference string `protobuf:"bytes,50,opt,name=transaction_reference,json=transactionReference,proto3" json:"transaction_reference,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	// *
+	// Travel rule data of the pay-in provider's legal entity that received the funds.
+	// Present when the pay-in provider has registered travel rule data.
+	TravelRuleData *PaymentIntentUpdateRequest_FundsReceived_TravelRuleData `protobuf:"bytes,60,opt,name=travel_rule_data,json=travelRuleData,proto3,oneof" json:"travel_rule_data,omitempty"`
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *PaymentIntentUpdateRequest_FundsReceived) Reset() {
@@ -238,22 +243,80 @@ func (x *PaymentIntentUpdateRequest_FundsReceived) GetTransactionReference() str
 	return ""
 }
 
+func (x *PaymentIntentUpdateRequest_FundsReceived) GetTravelRuleData() *PaymentIntentUpdateRequest_FundsReceived_TravelRuleData {
+	if x != nil {
+		return x.TravelRuleData
+	}
+	return nil
+}
+
+type PaymentIntentUpdateRequest_FundsReceived_TravelRuleData struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// *
+	// IVMS101 legal person data of the originating provider's legal entity.
+	OriginatorProvider *ivms.LegalPerson `protobuf:"bytes,30,opt,name=originator_provider,json=originatorProvider,proto3,oneof" json:"originator_provider,omitempty"`
+	unknownFields      protoimpl.UnknownFields
+	sizeCache          protoimpl.SizeCache
+}
+
+func (x *PaymentIntentUpdateRequest_FundsReceived_TravelRuleData) Reset() {
+	*x = PaymentIntentUpdateRequest_FundsReceived_TravelRuleData{}
+	mi := &file_tzero_v1_payment_intent_beneficiary_proto_msgTypes[3]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PaymentIntentUpdateRequest_FundsReceived_TravelRuleData) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PaymentIntentUpdateRequest_FundsReceived_TravelRuleData) ProtoMessage() {}
+
+func (x *PaymentIntentUpdateRequest_FundsReceived_TravelRuleData) ProtoReflect() protoreflect.Message {
+	mi := &file_tzero_v1_payment_intent_beneficiary_proto_msgTypes[3]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PaymentIntentUpdateRequest_FundsReceived_TravelRuleData.ProtoReflect.Descriptor instead.
+func (*PaymentIntentUpdateRequest_FundsReceived_TravelRuleData) Descriptor() ([]byte, []int) {
+	return file_tzero_v1_payment_intent_beneficiary_proto_rawDescGZIP(), []int{0, 0, 0}
+}
+
+func (x *PaymentIntentUpdateRequest_FundsReceived_TravelRuleData) GetOriginatorProvider() *ivms.LegalPerson {
+	if x != nil {
+		return x.OriginatorProvider
+	}
+	return nil
+}
+
 var File_tzero_v1_payment_intent_beneficiary_proto protoreflect.FileDescriptor
 
 const file_tzero_v1_payment_intent_beneficiary_proto_rawDesc = "" +
 	"\n" +
-	")tzero/v1/payment_intent/beneficiary.proto\x12\x17tzero.v1.payment_intent\x1a\x1ctzero/v1/common/common.proto\x1a$tzero/v1/common/payment_method.proto\x1a\x1bbuf/validate/validate.proto\"\x8f\x04\n" +
+	")tzero/v1/payment_intent/beneficiary.proto\x12\x17tzero.v1.payment_intent\x1a\x1ctzero/v1/common/common.proto\x1a$tzero/v1/common/payment_method.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1divms101/v1/ivms/ivms101.proto\"\x9b\x06\n" +
 	"\x1aPaymentIntentUpdateRequest\x123\n" +
 	"\x11payment_intent_id\x18\n" +
 	" \x01(\x04B\a\xbaH\x042\x02 \x00R\x0fpaymentIntentId\x12j\n" +
-	"\x0efunds_received\x18\x14 \x01(\v2A.tzero.v1.payment_intent.PaymentIntentUpdateRequest.FundsReceivedH\x00R\rfundsReceived\x1a\xc5\x02\n" +
+	"\x0efunds_received\x18\x14 \x01(\v2A.tzero.v1.payment_intent.PaymentIntentUpdateRequest.FundsReceivedH\x00R\rfundsReceived\x1a\xd1\x04\n" +
 	"\rFundsReceived\x12E\n" +
 	"\x11settlement_amount\x18\n" +
 	" \x01(\v2\x18.tzero.v1.common.DecimalR\x10settlementAmount\x12,\n" +
 	"\x04rate\x18\x14 \x01(\v2\x18.tzero.v1.common.DecimalR\x04rate\x12?\n" +
 	"\x0epayment_amount\x18\x1e \x01(\v2\x18.tzero.v1.common.DecimalR\rpaymentAmount\x12I\n" +
 	"\x0epayment_method\x18( \x01(\x0e2\".tzero.v1.common.PaymentMethodTypeR\rpaymentMethod\x123\n" +
-	"\x15transaction_reference\x182 \x01(\tR\x14transactionReferenceB\b\n" +
+	"\x15transaction_reference\x182 \x01(\tR\x14transactionReference\x12\x7f\n" +
+	"\x10travel_rule_data\x18< \x01(\v2P.tzero.v1.payment_intent.PaymentIntentUpdateRequest.FundsReceived.TravelRuleDataH\x00R\x0etravelRuleData\x88\x01\x01\x1at\n" +
+	"\x0eTravelRuleData\x12J\n" +
+	"\x13originator_provider\x18\x1e \x01(\v2\x14.ivms101.LegalPersonH\x00R\x12originatorProvider\x88\x01\x01B\x16\n" +
+	"\x14_originator_providerB\x13\n" +
+	"\x11_travel_rule_dataB\b\n" +
 	"\x06update\"\x1d\n" +
 	"\x1bPaymentIntentUpdateResponse2\x9c\x01\n" +
 	"\x12BeneficiaryService\x12\x85\x01\n" +
@@ -272,27 +335,31 @@ func file_tzero_v1_payment_intent_beneficiary_proto_rawDescGZIP() []byte {
 	return file_tzero_v1_payment_intent_beneficiary_proto_rawDescData
 }
 
-var file_tzero_v1_payment_intent_beneficiary_proto_msgTypes = make([]protoimpl.MessageInfo, 3)
+var file_tzero_v1_payment_intent_beneficiary_proto_msgTypes = make([]protoimpl.MessageInfo, 4)
 var file_tzero_v1_payment_intent_beneficiary_proto_goTypes = []any{
-	(*PaymentIntentUpdateRequest)(nil),               // 0: tzero.v1.payment_intent.PaymentIntentUpdateRequest
-	(*PaymentIntentUpdateResponse)(nil),              // 1: tzero.v1.payment_intent.PaymentIntentUpdateResponse
-	(*PaymentIntentUpdateRequest_FundsReceived)(nil), // 2: tzero.v1.payment_intent.PaymentIntentUpdateRequest.FundsReceived
-	(*common.Decimal)(nil),                           // 3: tzero.v1.common.Decimal
-	(common.PaymentMethodType)(0),                    // 4: tzero.v1.common.PaymentMethodType
+	(*PaymentIntentUpdateRequest)(nil),                              // 0: tzero.v1.payment_intent.PaymentIntentUpdateRequest
+	(*PaymentIntentUpdateResponse)(nil),                             // 1: tzero.v1.payment_intent.PaymentIntentUpdateResponse
+	(*PaymentIntentUpdateRequest_FundsReceived)(nil),                // 2: tzero.v1.payment_intent.PaymentIntentUpdateRequest.FundsReceived
+	(*PaymentIntentUpdateRequest_FundsReceived_TravelRuleData)(nil), // 3: tzero.v1.payment_intent.PaymentIntentUpdateRequest.FundsReceived.TravelRuleData
+	(*common.Decimal)(nil),                                          // 4: tzero.v1.common.Decimal
+	(common.PaymentMethodType)(0),                                   // 5: tzero.v1.common.PaymentMethodType
+	(*ivms.LegalPerson)(nil),                                        // 6: ivms101.LegalPerson
 }
 var file_tzero_v1_payment_intent_beneficiary_proto_depIdxs = []int32{
 	2, // 0: tzero.v1.payment_intent.PaymentIntentUpdateRequest.funds_received:type_name -> tzero.v1.payment_intent.PaymentIntentUpdateRequest.FundsReceived
-	3, // 1: tzero.v1.payment_intent.PaymentIntentUpdateRequest.FundsReceived.settlement_amount:type_name -> tzero.v1.common.Decimal
-	3, // 2: tzero.v1.payment_intent.PaymentIntentUpdateRequest.FundsReceived.rate:type_name -> tzero.v1.common.Decimal
-	3, // 3: tzero.v1.payment_intent.PaymentIntentUpdateRequest.FundsReceived.payment_amount:type_name -> tzero.v1.common.Decimal
-	4, // 4: tzero.v1.payment_intent.PaymentIntentUpdateRequest.FundsReceived.payment_method:type_name -> tzero.v1.common.PaymentMethodType
-	0, // 5: tzero.v1.payment_intent.BeneficiaryService.PaymentIntentUpdate:input_type -> tzero.v1.payment_intent.PaymentIntentUpdateRequest
-	1, // 6: tzero.v1.payment_intent.BeneficiaryService.PaymentIntentUpdate:output_type -> tzero.v1.payment_intent.PaymentIntentUpdateResponse
-	6, // [6:7] is the sub-list for method output_type
-	5, // [5:6] is the sub-list for method input_type
-	5, // [5:5] is the sub-list for extension type_name
-	5, // [5:5] is the sub-list for extension extendee
-	0, // [0:5] is the sub-list for field type_name
+	4, // 1: tzero.v1.payment_intent.PaymentIntentUpdateRequest.FundsReceived.settlement_amount:type_name -> tzero.v1.common.Decimal
+	4, // 2: tzero.v1.payment_intent.PaymentIntentUpdateRequest.FundsReceived.rate:type_name -> tzero.v1.common.Decimal
+	4, // 3: tzero.v1.payment_intent.PaymentIntentUpdateRequest.FundsReceived.payment_amount:type_name -> tzero.v1.common.Decimal
+	5, // 4: tzero.v1.payment_intent.PaymentIntentUpdateRequest.FundsReceived.payment_method:type_name -> tzero.v1.common.PaymentMethodType
+	3, // 5: tzero.v1.payment_intent.PaymentIntentUpdateRequest.FundsReceived.travel_rule_data:type_name -> tzero.v1.payment_intent.PaymentIntentUpdateRequest.FundsReceived.TravelRuleData
+	6, // 6: tzero.v1.payment_intent.PaymentIntentUpdateRequest.FundsReceived.TravelRuleData.originator_provider:type_name -> ivms101.LegalPerson
+	0, // 7: tzero.v1.payment_intent.BeneficiaryService.PaymentIntentUpdate:input_type -> tzero.v1.payment_intent.PaymentIntentUpdateRequest
+	1, // 8: tzero.v1.payment_intent.BeneficiaryService.PaymentIntentUpdate:output_type -> tzero.v1.payment_intent.PaymentIntentUpdateResponse
+	8, // [8:9] is the sub-list for method output_type
+	7, // [7:8] is the sub-list for method input_type
+	7, // [7:7] is the sub-list for extension type_name
+	7, // [7:7] is the sub-list for extension extendee
+	0, // [0:7] is the sub-list for field type_name
 }
 
 func init() { file_tzero_v1_payment_intent_beneficiary_proto_init() }
@@ -303,13 +370,15 @@ func file_tzero_v1_payment_intent_beneficiary_proto_init() {
 	file_tzero_v1_payment_intent_beneficiary_proto_msgTypes[0].OneofWrappers = []any{
 		(*PaymentIntentUpdateRequest_FundsReceived_)(nil),
 	}
+	file_tzero_v1_payment_intent_beneficiary_proto_msgTypes[2].OneofWrappers = []any{}
+	file_tzero_v1_payment_intent_beneficiary_proto_msgTypes[3].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_tzero_v1_payment_intent_beneficiary_proto_rawDesc), len(file_tzero_v1_payment_intent_beneficiary_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   3,
+			NumMessages:   4,
 			NumExtensions: 0,
 			NumServices:   1,
 		},

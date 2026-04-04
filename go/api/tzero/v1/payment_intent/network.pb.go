@@ -84,6 +84,7 @@ const (
 	ConfirmFundsReceivedResponse_Reject_REJECT_REASON_UNSPECIFIED                ConfirmFundsReceivedResponse_Reject_Reason = 0
 	ConfirmFundsReceivedResponse_Reject_REJECT_REASON_CONFIRMATION_CODE_MISMATCH ConfirmFundsReceivedResponse_Reject_Reason = 10
 	ConfirmFundsReceivedResponse_Reject_REJECT_REASON_NO_ACTIVE_QUOTE            ConfirmFundsReceivedResponse_Reject_Reason = 20
+	ConfirmFundsReceivedResponse_Reject_REJECT_REASON_PROVIDER_NOT_ALLOWED       ConfirmFundsReceivedResponse_Reject_Reason = 30
 )
 
 // Enum value maps for ConfirmFundsReceivedResponse_Reject_Reason.
@@ -92,11 +93,13 @@ var (
 		0:  "REJECT_REASON_UNSPECIFIED",
 		10: "REJECT_REASON_CONFIRMATION_CODE_MISMATCH",
 		20: "REJECT_REASON_NO_ACTIVE_QUOTE",
+		30: "REJECT_REASON_PROVIDER_NOT_ALLOWED",
 	}
 	ConfirmFundsReceivedResponse_Reject_Reason_value = map[string]int32{
 		"REJECT_REASON_UNSPECIFIED":                0,
 		"REJECT_REASON_CONFIRMATION_CODE_MISMATCH": 10,
 		"REJECT_REASON_NO_ACTIVE_QUOTE":            20,
+		"REJECT_REASON_PROVIDER_NOT_ALLOWED":       30,
 	}
 )
 
@@ -222,9 +225,14 @@ type GetQuoteRequest struct {
 	// *
 	// Pay-in amount in the specified currency.
 	// This is the fiat amount the end-user will pay.
-	Amount        *common.Decimal `protobuf:"bytes,30,opt,name=amount,proto3" json:"amount,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Amount *common.Decimal `protobuf:"bytes,30,opt,name=amount,proto3" json:"amount,omitempty"`
+	// *
+	// Optional list of pay-in provider IDs to filter by.
+	// When specified, only quotes from these providers are returned.
+	// When empty, quotes from all providers are returned.
+	PayInProviderIds []uint32 `protobuf:"varint,40,rep,packed,name=pay_in_provider_ids,json=payInProviderIds,proto3" json:"pay_in_provider_ids,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *GetQuoteRequest) Reset() {
@@ -267,6 +275,13 @@ func (x *GetQuoteRequest) GetCurrency() string {
 func (x *GetQuoteRequest) GetAmount() *common.Decimal {
 	if x != nil {
 		return x.Amount
+	}
+	return nil
+}
+
+func (x *GetQuoteRequest) GetPayInProviderIds() []uint32 {
+	if x != nil {
+		return x.PayInProviderIds
 	}
 	return nil
 }
@@ -460,8 +475,13 @@ type CreatePaymentIntentRequest struct {
 	// Travel rule compliance data.
 	// Required for regulatory compliance under FATF guidelines.
 	TravelRuleData *CreatePaymentIntentRequest_TravelRuleData `protobuf:"bytes,40,opt,name=travel_rule_data,json=travelRuleData,proto3" json:"travel_rule_data,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// *
+	// Optional list of pay-in provider IDs to consider.
+	// When specified, only quotes from these providers will be used.
+	// When empty, all available providers are considered.
+	PayInProviderIds []uint32 `protobuf:"varint,50,rep,packed,name=pay_in_provider_ids,json=payInProviderIds,proto3" json:"pay_in_provider_ids,omitempty"`
+	unknownFields    protoimpl.UnknownFields
+	sizeCache        protoimpl.SizeCache
 }
 
 func (x *CreatePaymentIntentRequest) Reset() {
@@ -518,6 +538,13 @@ func (x *CreatePaymentIntentRequest) GetAmount() *common.Decimal {
 func (x *CreatePaymentIntentRequest) GetTravelRuleData() *CreatePaymentIntentRequest_TravelRuleData {
 	if x != nil {
 		return x.TravelRuleData
+	}
+	return nil
+}
+
+func (x *CreatePaymentIntentRequest) GetPayInProviderIds() []uint32 {
+	if x != nil {
+		return x.PayInProviderIds
 	}
 	return nil
 }
@@ -625,8 +652,13 @@ type ConfirmFundsReceivedRequest struct {
 	PaymentMethod common.PaymentMethodType `protobuf:"varint,30,opt,name=payment_method,json=paymentMethod,proto3,enum=tzero.v1.common.PaymentMethodType" json:"payment_method,omitempty"`
 	// Transaction reference
 	TransactionReference string `protobuf:"bytes,40,opt,name=transaction_reference,json=transactionReference,proto3" json:"transaction_reference,omitempty"`
-	unknownFields        protoimpl.UnknownFields
-	sizeCache            protoimpl.SizeCache
+	// *
+	// Legal entity ID of the pay-in provider that received the funds.
+	// Required when the provider has multiple registered legal entities.
+	// If the provider has a single entity, this field may be omitted.
+	OriginatorProviderLegalEntityId *uint32 `protobuf:"varint,50,opt,name=originator_provider_legal_entity_id,json=originatorProviderLegalEntityId,proto3,oneof" json:"originator_provider_legal_entity_id,omitempty"`
+	unknownFields                   protoimpl.UnknownFields
+	sizeCache                       protoimpl.SizeCache
 }
 
 func (x *ConfirmFundsReceivedRequest) Reset() {
@@ -685,6 +717,13 @@ func (x *ConfirmFundsReceivedRequest) GetTransactionReference() string {
 		return x.TransactionReference
 	}
 	return ""
+}
+
+func (x *ConfirmFundsReceivedRequest) GetOriginatorProviderLegalEntityId() uint32 {
+	if x != nil && x.OriginatorProviderLegalEntityId != nil {
+		return *x.OriginatorProviderLegalEntityId
+	}
+	return 0
 }
 
 type ConfirmFundsReceivedResponse struct {
@@ -1365,11 +1404,12 @@ const file_tzero_v1_payment_intent_network_proto_rawDesc = "" +
 	"\n" +
 	"max_amount\x18( \x01(\v2\x18.tzero.v1.common.DecimalB\x06\xbaH\x03\xc8\x01\x01R\tmaxAmount\x124\n" +
 	"\x04rate\x182 \x01(\v2\x18.tzero.v1.common.DecimalB\x06\xbaH\x03\xc8\x01\x01R\x04rate\"\x15\n" +
-	"\x13UpdateQuoteResponse\"}\n" +
+	"\x13UpdateQuoteResponse\"\xac\x01\n" +
 	"\x0fGetQuoteRequest\x120\n" +
 	"\bcurrency\x18\x14 \x01(\tB\x14\xbaH\x11r\x0f2\n" +
 	"^[A-Z]{3}$\x98\x01\x03R\bcurrency\x128\n" +
-	"\x06amount\x18\x1e \x01(\v2\x18.tzero.v1.common.DecimalB\x06\xbaH\x03\xc8\x01\x01R\x06amount\"\xf4\x04\n" +
+	"\x06amount\x18\x1e \x01(\v2\x18.tzero.v1.common.DecimalB\x06\xbaH\x03\xc8\x01\x01R\x06amount\x12-\n" +
+	"\x13pay_in_provider_ids\x18( \x03(\rR\x10payInProviderIds\"\xf4\x04\n" +
 	"\x10GetQuoteResponse\x12M\n" +
 	"\asuccess\x18\n" +
 	" \x01(\v21.tzero.v1.payment_intent.GetQuoteResponse.SuccessH\x00R\asuccess\x12a\n" +
@@ -1394,14 +1434,15 @@ const file_tzero_v1_payment_intent_network_proto_rawDesc = "" +
 	"\vprovider_id\x18\x14 \x01(\rR\n" +
 	"providerId\x12H\n" +
 	"\x0fpayment_details\x18\x1e \x01(\v2\x1f.tzero.v1.common.PaymentDetailsR\x0epaymentDetails\x12A\n" +
-	"\x0findicative_rate\x18( \x01(\v2\x18.tzero.v1.common.DecimalR\x0eindicativeRate\"\xab\x03\n" +
+	"\x0findicative_rate\x18( \x01(\v2\x18.tzero.v1.common.DecimalR\x0eindicativeRate\"\xda\x03\n" +
 	"\x1aCreatePaymentIntentRequest\x12-\n" +
 	"\x12external_reference\x18\n" +
 	" \x01(\tR\x11externalReference\x120\n" +
 	"\bcurrency\x18\x14 \x01(\tB\x14\xbaH\x11r\x0f2\n" +
 	"^[A-Z]{3}$\x98\x01\x03R\bcurrency\x128\n" +
 	"\x06amount\x18\x1e \x01(\v2\x18.tzero.v1.common.DecimalB\x06\xbaH\x03\xc8\x01\x01R\x06amount\x12l\n" +
-	"\x10travel_rule_data\x18( \x01(\v2B.tzero.v1.payment_intent.CreatePaymentIntentRequest.TravelRuleDataR\x0etravelRuleData\x1a\x83\x01\n" +
+	"\x10travel_rule_data\x18( \x01(\v2B.tzero.v1.payment_intent.CreatePaymentIntentRequest.TravelRuleDataR\x0etravelRuleData\x12-\n" +
+	"\x13pay_in_provider_ids\x182 \x03(\rR\x10payInProviderIds\x1a\x83\x01\n" +
 	"\x0eTravelRuleData\x12;\n" +
 	"\vbeneficiary\x18\n" +
 	" \x03(\v2\x0f.ivms101.PersonB\b\xbaH\x05\x92\x01\x02\b\x01R\vbeneficiary\x12*\n" +
@@ -1423,27 +1464,30 @@ const file_tzero_v1_payment_intent_network_proto_rawDesc = "" +
 	"\x1eFAILURE_REASON_QUOTE_NOT_FOUND\x10\n" +
 	"\x12\x1b\n" +
 	"\x17FAILURE_REASON_REJECTED\x10\x14B\b\n" +
-	"\x06Result\"\x8b\x02\n" +
+	"\x06Result\"\x8f\x03\n" +
 	"\x1bConfirmFundsReceivedRequest\x123\n" +
 	"\x11payment_intent_id\x18\n" +
 	" \x01(\x04B\a\xbaH\x042\x02 \x00R\x0fpaymentIntentId\x12+\n" +
 	"\x11confirmation_code\x18\x14 \x01(\tR\x10confirmationCode\x12I\n" +
 	"\x0epayment_method\x18\x1e \x01(\x0e2\".tzero.v1.common.PaymentMethodTypeR\rpaymentMethod\x12?\n" +
 	"\x15transaction_reference\x18( \x01(\tB\n" +
-	"\xbaH\ar\x05\x10\x01\x18\x80\x02R\x14transactionReference\"\xc4\x03\n" +
+	"\xbaH\ar\x05\x10\x01\x18\x80\x02R\x14transactionReference\x12Z\n" +
+	"#originator_provider_legal_entity_id\x182 \x01(\rB\a\xbaH\x04*\x02 \x00H\x00R\x1foriginatorProviderLegalEntityId\x88\x01\x01B&\n" +
+	"$_originator_provider_legal_entity_id\"\xed\x03\n" +
 	"\x1cConfirmFundsReceivedResponse\x12V\n" +
 	"\x06accept\x18\n" +
 	" \x01(\v2<.tzero.v1.payment_intent.ConfirmFundsReceivedResponse.AcceptH\x00R\x06accept\x12V\n" +
 	"\x06reject\x18\x14 \x01(\v2<.tzero.v1.payment_intent.ConfirmFundsReceivedResponse.RejectH\x00R\x06reject\x1a\b\n" +
-	"\x06Accept\x1a\xdf\x01\n" +
+	"\x06Accept\x1a\x88\x02\n" +
 	"\x06Reject\x12[\n" +
 	"\x06reason\x18\n" +
-	" \x01(\x0e2C.tzero.v1.payment_intent.ConfirmFundsReceivedResponse.Reject.ReasonR\x06reason\"x\n" +
+	" \x01(\x0e2C.tzero.v1.payment_intent.ConfirmFundsReceivedResponse.Reject.ReasonR\x06reason\"\xa0\x01\n" +
 	"\x06Reason\x12\x1d\n" +
 	"\x19REJECT_REASON_UNSPECIFIED\x10\x00\x12,\n" +
 	"(REJECT_REASON_CONFIRMATION_CODE_MISMATCH\x10\n" +
 	"\x12!\n" +
-	"\x1dREJECT_REASON_NO_ACTIVE_QUOTE\x10\x14B\b\n" +
+	"\x1dREJECT_REASON_NO_ACTIVE_QUOTE\x10\x14\x12&\n" +
+	"\"REJECT_REASON_PROVIDER_NOT_ALLOWED\x10\x1eB\b\n" +
 	"\x06Result2\xfe\x03\n" +
 	"\x14PaymentIntentService\x12m\n" +
 	"\vUpdateQuote\x12+.tzero.v1.payment_intent.UpdateQuoteRequest\x1a,.tzero.v1.payment_intent.UpdateQuoteResponse\"\x03\x90\x02\x02\x12d\n" +
@@ -1552,6 +1596,7 @@ func file_tzero_v1_payment_intent_network_proto_init() {
 		(*CreatePaymentIntentResponse_Success_)(nil),
 		(*CreatePaymentIntentResponse_Failure_)(nil),
 	}
+	file_tzero_v1_payment_intent_network_proto_msgTypes[7].OneofWrappers = []any{}
 	file_tzero_v1_payment_intent_network_proto_msgTypes[8].OneofWrappers = []any{
 		(*ConfirmFundsReceivedResponse_Accept_)(nil),
 		(*ConfirmFundsReceivedResponse_Reject_)(nil),

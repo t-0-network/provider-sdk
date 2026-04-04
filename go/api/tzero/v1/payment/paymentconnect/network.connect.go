@@ -72,6 +72,7 @@ type NetworkServiceClient interface {
 	// *
 	// Inform the network that a payout has been completed. This endpoint is called by the payout
 	// provider, specifying the payment ID and payout ID, which was provided when the payout request was made to this provider.
+	// deprecated, use the FinalizePayout rpc instead.
 	//
 	// Deprecated: do not use.
 	ConfirmPayout(context.Context, *connect.Request[payment.ConfirmPayoutRequest]) (*connect.Response[payment.ConfirmPayoutResponse], error)
@@ -201,6 +202,7 @@ type NetworkServiceHandler interface {
 	// *
 	// Inform the network that a payout has been completed. This endpoint is called by the payout
 	// provider, specifying the payment ID and payout ID, which was provided when the payout request was made to this provider.
+	// deprecated, use the FinalizePayout rpc instead.
 	//
 	// Deprecated: do not use.
 	ConfirmPayout(context.Context, *connect.Request[payment.ConfirmPayoutRequest]) (*connect.Response[payment.ConfirmPayoutResponse], error)
