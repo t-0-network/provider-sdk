@@ -53,6 +53,8 @@ func PublishQuotes(ctx context.Context, networkClient paymentconnect.NetworkServ
 									Unscaled: 86,
 									Exponent: -2,
 								},
+								// optional: set Fix to charge a fixed fee per transfer (e.g. wire fees)
+								// Fix: &common.Decimal{Unscaled: 5, Exponent: 0}, // $5 fixed charge
 							},
 						},
 					},

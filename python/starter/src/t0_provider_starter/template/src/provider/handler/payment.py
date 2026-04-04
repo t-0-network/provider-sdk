@@ -64,6 +64,7 @@ class ProviderServiceImplementation:
             ),
         )
 
+        # optional: if your provider has multiple legal entities, set beneficiary_provider_legal_entity_id
         return PayoutResponse()
 
     async def update_limit(
@@ -84,5 +85,7 @@ class ProviderServiceImplementation:
         self, request: ApprovePaymentQuoteRequest, ctx: RequestContext
     ) -> ApprovePaymentQuoteResponse:
         # TODO: this is the endpoint to have a last look at quote
-        # and approve after AML check is done
+        # and approve after AML check is done.
+        # The request includes pay_out_fix — the fixed charge in USD for this payout.
+        # Consider it alongside pay_out_rate and pay_out_amount when deciding to accept.
         return ApprovePaymentQuoteResponse()

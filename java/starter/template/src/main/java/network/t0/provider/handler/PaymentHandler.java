@@ -67,6 +67,7 @@ public class PaymentHandler extends ProviderServiceGrpc.ProviderServiceImplBase 
         // 3. Return the appropriate response
 
         // Example: Accept the payout
+        // optional: if your provider has multiple legal entities, set setBeneficiaryProviderLegalEntityId()
         responseObserver.onNext(PayoutResponse.newBuilder()
                 .setAccepted(PayoutResponse.Accepted.newBuilder().build())
                 .build());
@@ -129,7 +130,9 @@ public class PaymentHandler extends ProviderServiceGrpc.ProviderServiceImplBase 
         log.info("Received approvePaymentQuotes for payment_id={}", request.getPaymentId());
 
         // TODO: Implement "Last Look" logic
-        // Verify that the final rates and amounts are acceptable
+        // Verify that the final rates and amounts are acceptable.
+        // The request includes getPayOutFix() — the fixed charge in USD for this payout.
+        // Consider it alongside getPayOutRate() and getPayOutAmount() when deciding to accept.
 
         // Example: Accept the quotes
         responseObserver.onNext(ApprovePaymentQuoteResponse.newBuilder()

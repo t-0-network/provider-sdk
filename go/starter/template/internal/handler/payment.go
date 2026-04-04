@@ -53,6 +53,7 @@ func (s *ProviderServiceImplementation) PayOut(ctx context.Context, req *connect
 	if err != nil {
 		return nil, err
 	}
+	// optional: if your provider has multiple legal entities, set BeneficiaryProviderLegalEntityId
 	return connect.NewResponse(&payment.PayoutResponse{}), nil
 }
 
@@ -72,6 +73,8 @@ func (s *ProviderServiceImplementation) AppendLedgerEntries(
 
 func (s *ProviderServiceImplementation) ApprovePaymentQuotes(ctx context.Context, c *connect.Request[payment.ApprovePaymentQuoteRequest]) (*connect.Response[payment.ApprovePaymentQuoteResponse], error) {
 	//TODO: this is the endpoint to have a last look at quote and approve after AML check is done
+	// The request includes PayOutFix — the fixed charge in USD for this payout.
+	// Consider it alongside PayOutRate and PayOutAmount when deciding to accept.
 	return connect.NewResponse(&payment.ApprovePaymentQuoteResponse{}), nil
 }
 
