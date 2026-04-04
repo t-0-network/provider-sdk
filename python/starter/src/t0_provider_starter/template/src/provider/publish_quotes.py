@@ -75,6 +75,8 @@ async def publish_quotes(network_client: NetworkServiceClient, shutdown_event: a
                                         unscaled=86,  # rate 0.86
                                         exponent=-2,
                                     ),
+                                    # optional: set fix to charge a fixed fee per transfer (e.g. wire fees)
+                                    # fix=Decimal(unscaled=5, exponent=0),  # $5 fixed charge
                                 ),
                             ],
                         ),

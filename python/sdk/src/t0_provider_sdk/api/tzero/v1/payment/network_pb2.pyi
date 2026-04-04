@@ -27,14 +27,16 @@ class UpdateQuoteRequest(_message.Message):
     class Quote(_message.Message):
         __slots__ = ("currency", "quote_type", "payment_method", "bands", "expiration", "timestamp")
         class Band(_message.Message):
-            __slots__ = ("client_quote_id", "max_amount", "rate")
+            __slots__ = ("client_quote_id", "max_amount", "rate", "fix")
             CLIENT_QUOTE_ID_FIELD_NUMBER: _ClassVar[int]
             MAX_AMOUNT_FIELD_NUMBER: _ClassVar[int]
             RATE_FIELD_NUMBER: _ClassVar[int]
+            FIX_FIELD_NUMBER: _ClassVar[int]
             client_quote_id: str
             max_amount: _common_pb2.Decimal
             rate: _common_pb2.Decimal
-            def __init__(self, client_quote_id: _Optional[str] = ..., max_amount: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ..., rate: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ...) -> None: ...
+            fix: _common_pb2.Decimal
+            def __init__(self, client_quote_id: _Optional[str] = ..., max_amount: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ..., rate: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ..., fix: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ...) -> None: ...
         CURRENCY_FIELD_NUMBER: _ClassVar[int]
         QUOTE_TYPE_FIELD_NUMBER: _ClassVar[int]
         PAYMENT_METHOD_FIELD_NUMBER: _ClassVar[int]
@@ -73,18 +75,20 @@ class GetQuoteRequest(_message.Message):
 class GetQuoteResponse(_message.Message):
     __slots__ = ("success", "failure", "all_quotes")
     class Success(_message.Message):
-        __slots__ = ("rate", "expiration", "quote_id", "pay_out_amount", "settlement_amount")
+        __slots__ = ("rate", "expiration", "quote_id", "pay_out_amount", "settlement_amount", "fix")
         RATE_FIELD_NUMBER: _ClassVar[int]
         EXPIRATION_FIELD_NUMBER: _ClassVar[int]
         QUOTE_ID_FIELD_NUMBER: _ClassVar[int]
         PAY_OUT_AMOUNT_FIELD_NUMBER: _ClassVar[int]
         SETTLEMENT_AMOUNT_FIELD_NUMBER: _ClassVar[int]
+        FIX_FIELD_NUMBER: _ClassVar[int]
         rate: _common_pb2.Decimal
         expiration: _timestamp_pb2.Timestamp
         quote_id: QuoteId
         pay_out_amount: _common_pb2.Decimal
         settlement_amount: _common_pb2.Decimal
-        def __init__(self, rate: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ..., expiration: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., quote_id: _Optional[_Union[QuoteId, _Mapping]] = ..., pay_out_amount: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ..., settlement_amount: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ...) -> None: ...
+        fix: _common_pb2.Decimal
+        def __init__(self, rate: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ..., expiration: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., quote_id: _Optional[_Union[QuoteId, _Mapping]] = ..., pay_out_amount: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ..., settlement_amount: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ..., fix: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ...) -> None: ...
     class Failure(_message.Message):
         __slots__ = ("reason",)
         class Reason(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
@@ -97,7 +101,7 @@ class GetQuoteResponse(_message.Message):
         reason: GetQuoteResponse.Failure.Reason
         def __init__(self, reason: _Optional[_Union[GetQuoteResponse.Failure.Reason, str]] = ...) -> None: ...
     class ProviderQuote(_message.Message):
-        __slots__ = ("quote_id", "rate", "expiration", "pay_out_amount", "settlement", "executable")
+        __slots__ = ("quote_id", "rate", "expiration", "pay_out_amount", "settlement", "executable", "fix")
         class Settlement(_message.Message):
             __slots__ = ("amount", "credit_limit", "total_used", "prefunding_amount")
             AMOUNT_FIELD_NUMBER: _ClassVar[int]
@@ -115,13 +119,15 @@ class GetQuoteResponse(_message.Message):
         PAY_OUT_AMOUNT_FIELD_NUMBER: _ClassVar[int]
         SETTLEMENT_FIELD_NUMBER: _ClassVar[int]
         EXECUTABLE_FIELD_NUMBER: _ClassVar[int]
+        FIX_FIELD_NUMBER: _ClassVar[int]
         quote_id: QuoteId
         rate: _common_pb2.Decimal
         expiration: _timestamp_pb2.Timestamp
         pay_out_amount: _common_pb2.Decimal
         settlement: GetQuoteResponse.ProviderQuote.Settlement
         executable: bool
-        def __init__(self, quote_id: _Optional[_Union[QuoteId, _Mapping]] = ..., rate: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ..., expiration: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., pay_out_amount: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ..., settlement: _Optional[_Union[GetQuoteResponse.ProviderQuote.Settlement, _Mapping]] = ..., executable: _Optional[bool] = ...) -> None: ...
+        fix: _common_pb2.Decimal
+        def __init__(self, quote_id: _Optional[_Union[QuoteId, _Mapping]] = ..., rate: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ..., expiration: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., pay_out_amount: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ..., settlement: _Optional[_Union[GetQuoteResponse.ProviderQuote.Settlement, _Mapping]] = ..., executable: _Optional[bool] = ..., fix: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ...) -> None: ...
     SUCCESS_FIELD_NUMBER: _ClassVar[int]
     FAILURE_FIELD_NUMBER: _ClassVar[int]
     ALL_QUOTES_FIELD_NUMBER: _ClassVar[int]
@@ -133,12 +139,14 @@ class GetQuoteResponse(_message.Message):
 class CreatePaymentRequest(_message.Message):
     __slots__ = ("payment_client_id", "amount", "currency", "payment_details", "quote_id", "travel_rule_data")
     class TravelRuleData(_message.Message):
-        __slots__ = ("originator", "beneficiary")
+        __slots__ = ("originator", "beneficiary", "originator_provider_legal_entity_id")
         ORIGINATOR_FIELD_NUMBER: _ClassVar[int]
         BENEFICIARY_FIELD_NUMBER: _ClassVar[int]
+        ORIGINATOR_PROVIDER_LEGAL_ENTITY_ID_FIELD_NUMBER: _ClassVar[int]
         originator: _containers.RepeatedCompositeFieldContainer[_ivms101_pb2.Person]
         beneficiary: _containers.RepeatedCompositeFieldContainer[_ivms101_pb2.Person]
-        def __init__(self, originator: _Optional[_Iterable[_Union[_ivms101_pb2.Person, _Mapping]]] = ..., beneficiary: _Optional[_Iterable[_Union[_ivms101_pb2.Person, _Mapping]]] = ...) -> None: ...
+        originator_provider_legal_entity_id: int
+        def __init__(self, originator: _Optional[_Iterable[_Union[_ivms101_pb2.Person, _Mapping]]] = ..., beneficiary: _Optional[_Iterable[_Union[_ivms101_pb2.Person, _Mapping]]] = ..., originator_provider_legal_entity_id: _Optional[int] = ...) -> None: ...
     PAYMENT_CLIENT_ID_FIELD_NUMBER: _ClassVar[int]
     AMOUNT_FIELD_NUMBER: _ClassVar[int]
     CURRENCY_FIELD_NUMBER: _ClassVar[int]

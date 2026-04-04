@@ -7,6 +7,7 @@ from typing import Protocol
 
 from connectrpc.client import ConnectClient, ConnectClientSync
 from connectrpc.code import Code
+from connectrpc.compression import Compression
 from connectrpc.errors import ConnectError
 from connectrpc.interceptor import Interceptor, InterceptorSync
 from connectrpc.method import IdempotencyLevel, MethodInfo
@@ -21,7 +22,7 @@ class PayInProviderService(Protocol):
 
 
 class PayInProviderServiceASGIApplication(ConnectASGIApplication[PayInProviderService]):
-    def __init__(self, service: PayInProviderService | AsyncGenerator[PayInProviderService], *, interceptors: Iterable[Interceptor]=(), read_max_bytes: int | None = None) -> None:
+    def __init__(self, service: PayInProviderService | AsyncGenerator[PayInProviderService], *, interceptors: Iterable[Interceptor]=(), read_max_bytes: int | None = None, compressions: Iterable[Compression] | None = None) -> None:
         super().__init__(
             service=service,
             endpoints=lambda svc: {
@@ -38,6 +39,7 @@ class PayInProviderServiceASGIApplication(ConnectASGIApplication[PayInProviderSe
             },
             interceptors=interceptors,
             read_max_bytes=read_max_bytes,
+            compressions=compressions,
         )
 
     @property
@@ -74,7 +76,7 @@ class PayInProviderServiceSync(Protocol):
 
 
 class PayInProviderServiceWSGIApplication(ConnectWSGIApplication):
-    def __init__(self, service: PayInProviderServiceSync, interceptors: Iterable[InterceptorSync]=(), read_max_bytes: int | None = None) -> None:
+    def __init__(self, service: PayInProviderServiceSync, interceptors: Iterable[InterceptorSync]=(), read_max_bytes: int | None = None, compressions: Iterable[Compression] | None = None) -> None:
         super().__init__(
             endpoints={
                 "/tzero.v1.payment_intent.PayInProviderService/GetPaymentDetails": EndpointSync.unary(
@@ -90,6 +92,7 @@ class PayInProviderServiceWSGIApplication(ConnectWSGIApplication):
             },
             interceptors=interceptors,
             read_max_bytes=read_max_bytes,
+            compressions=compressions,
         )
 
     @property

@@ -65,6 +65,8 @@ public class PublishQuotes {
                                             .setUnscaled(873) // rate 0.873
                                             .setExponent(-3)
                                             .build())
+                                    // optional: set fix to charge a fixed fee per transfer (e.g. wire fees)
+                                    // .setFix(Decimal.newBuilder().setUnscaled(5).setExponent(0).build()) // $5 fixed charge
                                     .build())
                             .build())
                     .build());

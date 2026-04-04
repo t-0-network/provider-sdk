@@ -17,6 +17,8 @@ export default async function publishQuotes(networkClient: Client<typeof Network
             rate: toProtoDecimal(873, -3), // rate 0.873
             maxAmount: toProtoDecimal(25000, 0), // maximum amount in USD, could be 1000,5000,10000 or 25000
             clientQuoteId: randomUUID(),
+            // optional: set fix to charge a fixed fee per transfer (e.g. wire fees)
+            // fix: toProtoDecimal(5, 0), // $5 fixed charge
           }],
           currency: 'EUR',
           expiration: timestampFromDate(new Date(Date.now() + 30 * 1000)), // expiration time (30 seconds from now)

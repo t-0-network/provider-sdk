@@ -47,12 +47,14 @@ class UpdateQuoteResponse(_message.Message):
     def __init__(self) -> None: ...
 
 class GetQuoteRequest(_message.Message):
-    __slots__ = ("currency", "amount")
+    __slots__ = ("currency", "amount", "pay_in_provider_ids")
     CURRENCY_FIELD_NUMBER: _ClassVar[int]
     AMOUNT_FIELD_NUMBER: _ClassVar[int]
+    PAY_IN_PROVIDER_IDS_FIELD_NUMBER: _ClassVar[int]
     currency: str
     amount: _common_pb2.Decimal
-    def __init__(self, currency: _Optional[str] = ..., amount: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ...) -> None: ...
+    pay_in_provider_ids: _containers.RepeatedScalarFieldContainer[int]
+    def __init__(self, currency: _Optional[str] = ..., amount: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ..., pay_in_provider_ids: _Optional[_Iterable[int]] = ...) -> None: ...
 
 class GetQuoteResponse(_message.Message):
     __slots__ = ("success", "quote_not_found")
@@ -94,7 +96,7 @@ class PaymentIntentPayInDetails(_message.Message):
     def __init__(self, payment_method: _Optional[_Union[_payment_method_pb2.PaymentMethodType, str]] = ..., provider_id: _Optional[int] = ..., payment_details: _Optional[_Union[_payment_method_pb2.PaymentDetails, _Mapping]] = ..., indicative_rate: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ...) -> None: ...
 
 class CreatePaymentIntentRequest(_message.Message):
-    __slots__ = ("external_reference", "currency", "amount", "travel_rule_data")
+    __slots__ = ("external_reference", "currency", "amount", "travel_rule_data", "pay_in_provider_ids")
     class TravelRuleData(_message.Message):
         __slots__ = ("beneficiary", "payer")
         BENEFICIARY_FIELD_NUMBER: _ClassVar[int]
@@ -106,11 +108,13 @@ class CreatePaymentIntentRequest(_message.Message):
     CURRENCY_FIELD_NUMBER: _ClassVar[int]
     AMOUNT_FIELD_NUMBER: _ClassVar[int]
     TRAVEL_RULE_DATA_FIELD_NUMBER: _ClassVar[int]
+    PAY_IN_PROVIDER_IDS_FIELD_NUMBER: _ClassVar[int]
     external_reference: str
     currency: str
     amount: _common_pb2.Decimal
     travel_rule_data: CreatePaymentIntentRequest.TravelRuleData
-    def __init__(self, external_reference: _Optional[str] = ..., currency: _Optional[str] = ..., amount: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ..., travel_rule_data: _Optional[_Union[CreatePaymentIntentRequest.TravelRuleData, _Mapping]] = ...) -> None: ...
+    pay_in_provider_ids: _containers.RepeatedScalarFieldContainer[int]
+    def __init__(self, external_reference: _Optional[str] = ..., currency: _Optional[str] = ..., amount: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ..., travel_rule_data: _Optional[_Union[CreatePaymentIntentRequest.TravelRuleData, _Mapping]] = ..., pay_in_provider_ids: _Optional[_Iterable[int]] = ...) -> None: ...
 
 class CreatePaymentIntentResponse(_message.Message):
     __slots__ = ("success", "failure")
@@ -141,16 +145,18 @@ class CreatePaymentIntentResponse(_message.Message):
     def __init__(self, success: _Optional[_Union[CreatePaymentIntentResponse.Success, _Mapping]] = ..., failure: _Optional[_Union[CreatePaymentIntentResponse.Failure, _Mapping]] = ...) -> None: ...
 
 class ConfirmFundsReceivedRequest(_message.Message):
-    __slots__ = ("payment_intent_id", "confirmation_code", "payment_method", "transaction_reference")
+    __slots__ = ("payment_intent_id", "confirmation_code", "payment_method", "transaction_reference", "originator_provider_legal_entity_id")
     PAYMENT_INTENT_ID_FIELD_NUMBER: _ClassVar[int]
     CONFIRMATION_CODE_FIELD_NUMBER: _ClassVar[int]
     PAYMENT_METHOD_FIELD_NUMBER: _ClassVar[int]
     TRANSACTION_REFERENCE_FIELD_NUMBER: _ClassVar[int]
+    ORIGINATOR_PROVIDER_LEGAL_ENTITY_ID_FIELD_NUMBER: _ClassVar[int]
     payment_intent_id: int
     confirmation_code: str
     payment_method: _payment_method_pb2.PaymentMethodType
     transaction_reference: str
-    def __init__(self, payment_intent_id: _Optional[int] = ..., confirmation_code: _Optional[str] = ..., payment_method: _Optional[_Union[_payment_method_pb2.PaymentMethodType, str]] = ..., transaction_reference: _Optional[str] = ...) -> None: ...
+    originator_provider_legal_entity_id: int
+    def __init__(self, payment_intent_id: _Optional[int] = ..., confirmation_code: _Optional[str] = ..., payment_method: _Optional[_Union[_payment_method_pb2.PaymentMethodType, str]] = ..., transaction_reference: _Optional[str] = ..., originator_provider_legal_entity_id: _Optional[int] = ...) -> None: ...
 
 class ConfirmFundsReceivedResponse(_message.Message):
     __slots__ = ("accept", "reject")
@@ -164,9 +170,11 @@ class ConfirmFundsReceivedResponse(_message.Message):
             REJECT_REASON_UNSPECIFIED: _ClassVar[ConfirmFundsReceivedResponse.Reject.Reason]
             REJECT_REASON_CONFIRMATION_CODE_MISMATCH: _ClassVar[ConfirmFundsReceivedResponse.Reject.Reason]
             REJECT_REASON_NO_ACTIVE_QUOTE: _ClassVar[ConfirmFundsReceivedResponse.Reject.Reason]
+            REJECT_REASON_PROVIDER_NOT_ALLOWED: _ClassVar[ConfirmFundsReceivedResponse.Reject.Reason]
         REJECT_REASON_UNSPECIFIED: ConfirmFundsReceivedResponse.Reject.Reason
         REJECT_REASON_CONFIRMATION_CODE_MISMATCH: ConfirmFundsReceivedResponse.Reject.Reason
         REJECT_REASON_NO_ACTIVE_QUOTE: ConfirmFundsReceivedResponse.Reject.Reason
+        REJECT_REASON_PROVIDER_NOT_ALLOWED: ConfirmFundsReceivedResponse.Reject.Reason
         REASON_FIELD_NUMBER: _ClassVar[int]
         reason: ConfirmFundsReceivedResponse.Reject.Reason
         def __init__(self, reason: _Optional[_Union[ConfirmFundsReceivedResponse.Reject.Reason, str]] = ...) -> None: ...

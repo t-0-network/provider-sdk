@@ -41,8 +41,4 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v7
         with:
           commit_message: "Auto-generate gRPC clients"
-          file_pattern: |
-            go/api/**
-            node/sdk/src/common/gen/**
-            python/sdk/src/t0_provider_sdk/api/**
-            csharp/sdk/T0.ProviderSdk/Api/**
+          file_pattern: "go/api/** node/sdk/src/common/gen/** python/sdk/src/t0_provider_sdk/api/** csharp/sdk/T0.ProviderSdk/Api/**"

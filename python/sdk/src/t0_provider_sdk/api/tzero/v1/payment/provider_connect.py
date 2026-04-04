@@ -7,6 +7,7 @@ from typing import Protocol
 
 from connectrpc.client import ConnectClient, ConnectClientSync
 from connectrpc.code import Code
+from connectrpc.compression import Compression
 from connectrpc.errors import ConnectError
 from connectrpc.interceptor import Interceptor, InterceptorSync
 from connectrpc.method import IdempotencyLevel, MethodInfo
@@ -33,7 +34,7 @@ class ProviderService(Protocol):
 
 
 class ProviderServiceASGIApplication(ConnectASGIApplication[ProviderService]):
-    def __init__(self, service: ProviderService | AsyncGenerator[ProviderService], *, interceptors: Iterable[Interceptor]=(), read_max_bytes: int | None = None) -> None:
+    def __init__(self, service: ProviderService | AsyncGenerator[ProviderService], *, interceptors: Iterable[Interceptor]=(), read_max_bytes: int | None = None, compressions: Iterable[Compression] | None = None) -> None:
         super().__init__(
             service=service,
             endpoints=lambda svc: {
@@ -90,6 +91,7 @@ class ProviderServiceASGIApplication(ConnectASGIApplication[ProviderService]):
             },
             interceptors=interceptors,
             read_max_bytes=read_max_bytes,
+            compressions=compressions,
         )
 
     @property
@@ -214,7 +216,7 @@ class ProviderServiceSync(Protocol):
 
 
 class ProviderServiceWSGIApplication(ConnectWSGIApplication):
-    def __init__(self, service: ProviderServiceSync, interceptors: Iterable[InterceptorSync]=(), read_max_bytes: int | None = None) -> None:
+    def __init__(self, service: ProviderServiceSync, interceptors: Iterable[InterceptorSync]=(), read_max_bytes: int | None = None, compressions: Iterable[Compression] | None = None) -> None:
         super().__init__(
             endpoints={
                 "/tzero.v1.payment.ProviderService/PayOut": EndpointSync.unary(
@@ -270,6 +272,7 @@ class ProviderServiceWSGIApplication(ConnectWSGIApplication):
             },
             interceptors=interceptors,
             read_max_bytes=read_max_bytes,
+            compressions=compressions,
         )
 
     @property

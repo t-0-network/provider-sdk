@@ -27,33 +27,40 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
             "Cil0emVyby92MS9wYXltZW50X2ludGVudC9iZW5lZmljaWFyeS5wcm90bxIX",
             "dHplcm8udjEucGF5bWVudF9pbnRlbnQaHHR6ZXJvL3YxL2NvbW1vbi9jb21t",
             "b24ucHJvdG8aJHR6ZXJvL3YxL2NvbW1vbi9wYXltZW50X21ldGhvZC5wcm90",
-            "bxobYnVmL3ZhbGlkYXRlL3ZhbGlkYXRlLnByb3RvIo8EChpQYXltZW50SW50",
-            "ZW50VXBkYXRlUmVxdWVzdBIzChFwYXltZW50X2ludGVudF9pZBgKIAEoBEIH",
-            "ukgEMgIgAFIPcGF5bWVudEludGVudElkEmoKDmZ1bmRzX3JlY2VpdmVkGBQg",
-            "ASgLMkEudHplcm8udjEucGF5bWVudF9pbnRlbnQuUGF5bWVudEludGVudFVw",
-            "ZGF0ZVJlcXVlc3QuRnVuZHNSZWNlaXZlZEgAUg1mdW5kc1JlY2VpdmVkGsUC",
-            "Cg1GdW5kc1JlY2VpdmVkEkUKEXNldHRsZW1lbnRfYW1vdW50GAogASgLMhgu",
-            "dHplcm8udjEuY29tbW9uLkRlY2ltYWxSEHNldHRsZW1lbnRBbW91bnQSLAoE",
-            "cmF0ZRgUIAEoCzIYLnR6ZXJvLnYxLmNvbW1vbi5EZWNpbWFsUgRyYXRlEj8K",
-            "DnBheW1lbnRfYW1vdW50GB4gASgLMhgudHplcm8udjEuY29tbW9uLkRlY2lt",
-            "YWxSDXBheW1lbnRBbW91bnQSSQoOcGF5bWVudF9tZXRob2QYKCABKA4yIi50",
-            "emVyby52MS5jb21tb24uUGF5bWVudE1ldGhvZFR5cGVSDXBheW1lbnRNZXRo",
-            "b2QSMwoVdHJhbnNhY3Rpb25fcmVmZXJlbmNlGDIgASgJUhR0cmFuc2FjdGlv",
-            "blJlZmVyZW5jZUIICgZ1cGRhdGUiHQobUGF5bWVudEludGVudFVwZGF0ZVJl",
-            "c3BvbnNlMpwBChJCZW5lZmljaWFyeVNlcnZpY2UShQEKE1BheW1lbnRJbnRl",
-            "bnRVcGRhdGUSMy50emVyby52MS5wYXltZW50X2ludGVudC5QYXltZW50SW50",
-            "ZW50VXBkYXRlUmVxdWVzdBo0LnR6ZXJvLnYxLnBheW1lbnRfaW50ZW50LlBh",
-            "eW1lbnRJbnRlbnRVcGRhdGVSZXNwb25zZSIDkAICQoACChtjb20udHplcm8u",
-            "djEucGF5bWVudF9pbnRlbnRCEEJlbmVmaWNpYXJ5UHJvdG9QAVpCZ2l0aHVi",
-            "LmNvbS90LTAtbmV0d29yay9wcm92aWRlci1zZGsvZ28vYXBpL3R6ZXJvL3Yx",
-            "L3BheW1lbnRfaW50ZW50ogIDVFZQqgIpVDAuUHJvdmlkZXJTZGsuQXBpLlR6",
-            "ZXJvLlYxLlBheW1lbnRJbnRlbnTKAhZUemVyb1xWMVxQYXltZW50SW50ZW50",
-            "4gIiVHplcm9cVjFcUGF5bWVudEludGVudFxHUEJNZXRhZGF0YeoCGFR6ZXJv",
-            "OjpWMTo6UGF5bWVudEludGVudGIGcHJvdG8z"));
+            "bxobYnVmL3ZhbGlkYXRlL3ZhbGlkYXRlLnByb3RvGh1pdm1zMTAxL3YxL2l2",
+            "bXMvaXZtczEwMS5wcm90byKbBgoaUGF5bWVudEludGVudFVwZGF0ZVJlcXVl",
+            "c3QSMwoRcGF5bWVudF9pbnRlbnRfaWQYCiABKARCB7pIBDICIABSD3BheW1l",
+            "bnRJbnRlbnRJZBJqCg5mdW5kc19yZWNlaXZlZBgUIAEoCzJBLnR6ZXJvLnYx",
+            "LnBheW1lbnRfaW50ZW50LlBheW1lbnRJbnRlbnRVcGRhdGVSZXF1ZXN0LkZ1",
+            "bmRzUmVjZWl2ZWRIAFINZnVuZHNSZWNlaXZlZBrRBAoNRnVuZHNSZWNlaXZl",
+            "ZBJFChFzZXR0bGVtZW50X2Ftb3VudBgKIAEoCzIYLnR6ZXJvLnYxLmNvbW1v",
+            "bi5EZWNpbWFsUhBzZXR0bGVtZW50QW1vdW50EiwKBHJhdGUYFCABKAsyGC50",
+            "emVyby52MS5jb21tb24uRGVjaW1hbFIEcmF0ZRI/Cg5wYXltZW50X2Ftb3Vu",
+            "dBgeIAEoCzIYLnR6ZXJvLnYxLmNvbW1vbi5EZWNpbWFsUg1wYXltZW50QW1v",
+            "dW50EkkKDnBheW1lbnRfbWV0aG9kGCggASgOMiIudHplcm8udjEuY29tbW9u",
+            "LlBheW1lbnRNZXRob2RUeXBlUg1wYXltZW50TWV0aG9kEjMKFXRyYW5zYWN0",
+            "aW9uX3JlZmVyZW5jZRgyIAEoCVIUdHJhbnNhY3Rpb25SZWZlcmVuY2USfwoQ",
+            "dHJhdmVsX3J1bGVfZGF0YRg8IAEoCzJQLnR6ZXJvLnYxLnBheW1lbnRfaW50",
+            "ZW50LlBheW1lbnRJbnRlbnRVcGRhdGVSZXF1ZXN0LkZ1bmRzUmVjZWl2ZWQu",
+            "VHJhdmVsUnVsZURhdGFIAFIOdHJhdmVsUnVsZURhdGGIAQEadAoOVHJhdmVs",
+            "UnVsZURhdGESSgoTb3JpZ2luYXRvcl9wcm92aWRlchgeIAEoCzIULml2bXMx",
+            "MDEuTGVnYWxQZXJzb25IAFISb3JpZ2luYXRvclByb3ZpZGVyiAEBQhYKFF9v",
+            "cmlnaW5hdG9yX3Byb3ZpZGVyQhMKEV90cmF2ZWxfcnVsZV9kYXRhQggKBnVw",
+            "ZGF0ZSIdChtQYXltZW50SW50ZW50VXBkYXRlUmVzcG9uc2UynAEKEkJlbmVm",
+            "aWNpYXJ5U2VydmljZRKFAQoTUGF5bWVudEludGVudFVwZGF0ZRIzLnR6ZXJv",
+            "LnYxLnBheW1lbnRfaW50ZW50LlBheW1lbnRJbnRlbnRVcGRhdGVSZXF1ZXN0",
+            "GjQudHplcm8udjEucGF5bWVudF9pbnRlbnQuUGF5bWVudEludGVudFVwZGF0",
+            "ZVJlc3BvbnNlIgOQAgJCgAIKG2NvbS50emVyby52MS5wYXltZW50X2ludGVu",
+            "dEIQQmVuZWZpY2lhcnlQcm90b1ABWkJnaXRodWIuY29tL3QtMC1uZXR3b3Jr",
+            "L3Byb3ZpZGVyLXNkay9nby9hcGkvdHplcm8vdjEvcGF5bWVudF9pbnRlbnSi",
+            "AgNUVlCqAilUMC5Qcm92aWRlclNkay5BcGkuVHplcm8uVjEuUGF5bWVudElu",
+            "dGVudMoCFlR6ZXJvXFYxXFBheW1lbnRJbnRlbnTiAiJUemVyb1xWMVxQYXlt",
+            "ZW50SW50ZW50XEdQQk1ldGFkYXRh6gIYVHplcm86OlYxOjpQYXltZW50SW50",
+            "ZW50YgZwcm90bzM="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
-          new pbr::FileDescriptor[] { global::T0.ProviderSdk.Api.Tzero.V1.Common.CommonReflection.Descriptor, global::T0.ProviderSdk.Api.Tzero.V1.Common.PaymentMethodReflection.Descriptor, global::Buf.Validate.ValidateReflection.Descriptor, },
+          new pbr::FileDescriptor[] { global::T0.ProviderSdk.Api.Tzero.V1.Common.CommonReflection.Descriptor, global::T0.ProviderSdk.Api.Tzero.V1.Common.PaymentMethodReflection.Descriptor, global::Buf.Validate.ValidateReflection.Descriptor, global::T0.ProviderSdk.Api.Ivms101.V1.Ivms.Ivms101Reflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(null, null, new pbr::GeneratedClrTypeInfo[] {
-            new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.PaymentIntentUpdateRequest), global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.PaymentIntentUpdateRequest.Parser, new[]{ "PaymentIntentId", "FundsReceived" }, new[]{ "Update" }, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.PaymentIntentUpdateRequest.Types.FundsReceived), global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.PaymentIntentUpdateRequest.Types.FundsReceived.Parser, new[]{ "SettlementAmount", "Rate", "PaymentAmount", "PaymentMethod", "TransactionReference" }, null, null, null, null)}),
+            new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.PaymentIntentUpdateRequest), global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.PaymentIntentUpdateRequest.Parser, new[]{ "PaymentIntentId", "FundsReceived" }, new[]{ "Update" }, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.PaymentIntentUpdateRequest.Types.FundsReceived), global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.PaymentIntentUpdateRequest.Types.FundsReceived.Parser, new[]{ "SettlementAmount", "Rate", "PaymentAmount", "PaymentMethod", "TransactionReference", "TravelRuleData" }, new[]{ "TravelRuleData" }, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.PaymentIntentUpdateRequest.Types.FundsReceived.Types.TravelRuleData), global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.PaymentIntentUpdateRequest.Types.FundsReceived.Types.TravelRuleData.Parser, new[]{ "OriginatorProvider" }, new[]{ "OriginatorProvider" }, null, null, null)})}),
             new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.PaymentIntentUpdateResponse), global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.PaymentIntentUpdateResponse.Parser, null, null, null, null, null)
           }));
     }
@@ -399,6 +406,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
           paymentAmount_ = other.paymentAmount_ != null ? other.paymentAmount_.Clone() : null;
           paymentMethod_ = other.paymentMethod_;
           transactionReference_ = other.transactionReference_;
+          travelRuleData_ = other.travelRuleData_ != null ? other.travelRuleData_.Clone() : null;
           _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
         }
 
@@ -493,6 +501,23 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
           }
         }
 
+        /// <summary>Field number for the "travel_rule_data" field.</summary>
+        public const int TravelRuleDataFieldNumber = 60;
+        private global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.PaymentIntentUpdateRequest.Types.FundsReceived.Types.TravelRuleData travelRuleData_;
+        /// <summary>
+        ///*
+        /// Travel rule data of the pay-in provider's legal entity that received the funds.
+        /// Present when the pay-in provider has registered travel rule data.
+        /// </summary>
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        public global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.PaymentIntentUpdateRequest.Types.FundsReceived.Types.TravelRuleData TravelRuleData {
+          get { return travelRuleData_; }
+          set {
+            travelRuleData_ = value;
+          }
+        }
+
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
         public override bool Equals(object other) {
@@ -513,6 +538,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
           if (!object.Equals(PaymentAmount, other.PaymentAmount)) return false;
           if (PaymentMethod != other.PaymentMethod) return false;
           if (TransactionReference != other.TransactionReference) return false;
+          if (!object.Equals(TravelRuleData, other.TravelRuleData)) return false;
           return Equals(_unknownFields, other._unknownFields);
         }
 
@@ -525,6 +551,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
           if (paymentAmount_ != null) hash ^= PaymentAmount.GetHashCode();
           if (PaymentMethod != global::T0.ProviderSdk.Api.Tzero.V1.Common.PaymentMethodType.Unspecified) hash ^= PaymentMethod.GetHashCode();
           if (TransactionReference.Length != 0) hash ^= TransactionReference.GetHashCode();
+          if (travelRuleData_ != null) hash ^= TravelRuleData.GetHashCode();
           if (_unknownFields != null) {
             hash ^= _unknownFields.GetHashCode();
           }
@@ -563,6 +590,10 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
             output.WriteRawTag(146, 3);
             output.WriteString(TransactionReference);
           }
+          if (travelRuleData_ != null) {
+            output.WriteRawTag(226, 3);
+            output.WriteMessage(TravelRuleData);
+          }
           if (_unknownFields != null) {
             _unknownFields.WriteTo(output);
           }
@@ -593,6 +624,10 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
             output.WriteRawTag(146, 3);
             output.WriteString(TransactionReference);
           }
+          if (travelRuleData_ != null) {
+            output.WriteRawTag(226, 3);
+            output.WriteMessage(TravelRuleData);
+          }
           if (_unknownFields != null) {
             _unknownFields.WriteTo(ref output);
           }
@@ -617,6 +652,9 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
           }
           if (TransactionReference.Length != 0) {
             size += 2 + pb::CodedOutputStream.ComputeStringSize(TransactionReference);
+          }
+          if (travelRuleData_ != null) {
+            size += 2 + pb::CodedOutputStream.ComputeMessageSize(TravelRuleData);
           }
           if (_unknownFields != null) {
             size += _unknownFields.CalculateSize();
@@ -653,6 +691,12 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
           }
           if (other.TransactionReference.Length != 0) {
             TransactionReference = other.TransactionReference;
+          }
+          if (other.travelRuleData_ != null) {
+            if (travelRuleData_ == null) {
+              TravelRuleData = new global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.PaymentIntentUpdateRequest.Types.FundsReceived.Types.TravelRuleData();
+            }
+            TravelRuleData.MergeFrom(other.TravelRuleData);
           }
           _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
         }
@@ -700,6 +744,13 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
               }
               case 402: {
                 TransactionReference = input.ReadString();
+                break;
+              }
+              case 482: {
+                if (travelRuleData_ == null) {
+                  TravelRuleData = new global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.PaymentIntentUpdateRequest.Types.FundsReceived.Types.TravelRuleData();
+                }
+                input.ReadMessage(TravelRuleData);
                 break;
               }
             }
@@ -750,10 +801,236 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
                 TransactionReference = input.ReadString();
                 break;
               }
+              case 482: {
+                if (travelRuleData_ == null) {
+                  TravelRuleData = new global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.PaymentIntentUpdateRequest.Types.FundsReceived.Types.TravelRuleData();
+                }
+                input.ReadMessage(TravelRuleData);
+                break;
+              }
             }
           }
         }
         #endif
+
+        #region Nested types
+        /// <summary>Container for nested types declared in the FundsReceived message type.</summary>
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        public static partial class Types {
+          [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
+          public sealed partial class TravelRuleData : pb::IMessage<TravelRuleData>
+          #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+              , pb::IBufferMessage
+          #endif
+          {
+            private static readonly pb::MessageParser<TravelRuleData> _parser = new pb::MessageParser<TravelRuleData>(() => new TravelRuleData());
+            private pb::UnknownFieldSet _unknownFields;
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public static pb::MessageParser<TravelRuleData> Parser { get { return _parser; } }
+
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public static pbr::MessageDescriptor Descriptor {
+              get { return global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.PaymentIntentUpdateRequest.Types.FundsReceived.Descriptor.NestedTypes[0]; }
+            }
+
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            pbr::MessageDescriptor pb::IMessage.Descriptor {
+              get { return Descriptor; }
+            }
+
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public TravelRuleData() {
+              OnConstruction();
+            }
+
+            partial void OnConstruction();
+
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public TravelRuleData(TravelRuleData other) : this() {
+              originatorProvider_ = other.originatorProvider_ != null ? other.originatorProvider_.Clone() : null;
+              _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
+            }
+
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public TravelRuleData Clone() {
+              return new TravelRuleData(this);
+            }
+
+            /// <summary>Field number for the "originator_provider" field.</summary>
+            public const int OriginatorProviderFieldNumber = 30;
+            private global::T0.ProviderSdk.Api.Ivms101.V1.Ivms.LegalPerson originatorProvider_;
+            /// <summary>
+            ///*
+            /// IVMS101 legal person data of the originating provider's legal entity.
+            /// </summary>
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public global::T0.ProviderSdk.Api.Ivms101.V1.Ivms.LegalPerson OriginatorProvider {
+              get { return originatorProvider_; }
+              set {
+                originatorProvider_ = value;
+              }
+            }
+
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public override bool Equals(object other) {
+              return Equals(other as TravelRuleData);
+            }
+
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public bool Equals(TravelRuleData other) {
+              if (ReferenceEquals(other, null)) {
+                return false;
+              }
+              if (ReferenceEquals(other, this)) {
+                return true;
+              }
+              if (!object.Equals(OriginatorProvider, other.OriginatorProvider)) return false;
+              return Equals(_unknownFields, other._unknownFields);
+            }
+
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public override int GetHashCode() {
+              int hash = 1;
+              if (originatorProvider_ != null) hash ^= OriginatorProvider.GetHashCode();
+              if (_unknownFields != null) {
+                hash ^= _unknownFields.GetHashCode();
+              }
+              return hash;
+            }
+
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public override string ToString() {
+              return pb::JsonFormatter.ToDiagnosticString(this);
+            }
+
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public void WriteTo(pb::CodedOutputStream output) {
+            #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+              output.WriteRawMessage(this);
+            #else
+              if (originatorProvider_ != null) {
+                output.WriteRawTag(242, 1);
+                output.WriteMessage(OriginatorProvider);
+              }
+              if (_unknownFields != null) {
+                _unknownFields.WriteTo(output);
+              }
+            #endif
+            }
+
+            #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+              if (originatorProvider_ != null) {
+                output.WriteRawTag(242, 1);
+                output.WriteMessage(OriginatorProvider);
+              }
+              if (_unknownFields != null) {
+                _unknownFields.WriteTo(ref output);
+              }
+            }
+            #endif
+
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public int CalculateSize() {
+              int size = 0;
+              if (originatorProvider_ != null) {
+                size += 2 + pb::CodedOutputStream.ComputeMessageSize(OriginatorProvider);
+              }
+              if (_unknownFields != null) {
+                size += _unknownFields.CalculateSize();
+              }
+              return size;
+            }
+
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public void MergeFrom(TravelRuleData other) {
+              if (other == null) {
+                return;
+              }
+              if (other.originatorProvider_ != null) {
+                if (originatorProvider_ == null) {
+                  OriginatorProvider = new global::T0.ProviderSdk.Api.Ivms101.V1.Ivms.LegalPerson();
+                }
+                OriginatorProvider.MergeFrom(other.OriginatorProvider);
+              }
+              _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
+            }
+
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public void MergeFrom(pb::CodedInputStream input) {
+            #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+              input.ReadRawMessage(this);
+            #else
+              uint tag;
+              while ((tag = input.ReadTag()) != 0) {
+              if ((tag & 7) == 4) {
+                // Abort on any end group tag.
+                return;
+              }
+              switch(tag) {
+                  default:
+                    _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
+                    break;
+                  case 242: {
+                    if (originatorProvider_ == null) {
+                      OriginatorProvider = new global::T0.ProviderSdk.Api.Ivms101.V1.Ivms.LegalPerson();
+                    }
+                    input.ReadMessage(OriginatorProvider);
+                    break;
+                  }
+                }
+              }
+            #endif
+            }
+
+            #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+              uint tag;
+              while ((tag = input.ReadTag()) != 0) {
+              if ((tag & 7) == 4) {
+                // Abort on any end group tag.
+                return;
+              }
+              switch(tag) {
+                  default:
+                    _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+                    break;
+                  case 242: {
+                    if (originatorProvider_ == null) {
+                      OriginatorProvider = new global::T0.ProviderSdk.Api.Ivms101.V1.Ivms.LegalPerson();
+                    }
+                    input.ReadMessage(OriginatorProvider);
+                    break;
+                  }
+                }
+              }
+            }
+            #endif
+
+          }
+
+        }
+        #endregion
 
       }
 

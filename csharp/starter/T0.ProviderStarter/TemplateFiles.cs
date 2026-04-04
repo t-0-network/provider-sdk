@@ -179,6 +179,7 @@ public static class TemplateFiles
                     }
                 });
 
+                // optional: if your provider has multiple legal entities, set BeneficiaryProviderLegalEntityId
                 return new PayoutResponse { Accepted = new PayoutResponse.Types.Accepted() };
             }
 
@@ -196,7 +197,9 @@ public static class TemplateFiles
                 return Task.FromResult(new AppendLedgerEntriesResponse());
             }
 
-            // TODO: Implement "Last Look" — verify final rates and approve after AML check
+            // TODO: Implement "Last Look" — verify final rates and approve after AML check.
+            // The request includes PayOutFix — the fixed charge in USD for this payout.
+            // Consider it alongside PayOutRate and PayOutAmount when deciding to accept.
             public override Task<ApprovePaymentQuoteResponse> ApprovePaymentQuotes(
                 ApprovePaymentQuoteRequest request, ServerCallContext context)
             {
@@ -249,7 +252,9 @@ public static class TemplateFiles
                                 {
                                     ClientQuoteId = Guid.NewGuid().ToString(),
                                     MaxAmount = new Decimal { Unscaled = 1000, Exponent = 0 },
-                                    Rate = new Decimal { Unscaled = 88, Exponent = -2 } // 0.88
+                                    Rate = new Decimal { Unscaled = 88, Exponent = -2 }, // 0.88
+                                // optional: set Fix to charge a fixed fee per transfer (e.g. wire fees)
+                                // Fix = new Decimal { Unscaled = 5, Exponent = 0 } // $5 fixed charge
                                 }
                             }
                         }
