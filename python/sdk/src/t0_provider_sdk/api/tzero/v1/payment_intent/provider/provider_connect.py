@@ -7,6 +7,7 @@ from typing import Protocol
 
 from connectrpc.client import ConnectClient, ConnectClientSync
 from connectrpc.code import Code
+from connectrpc.compression import Compression
 from connectrpc.errors import ConnectError
 from connectrpc.interceptor import Interceptor, InterceptorSync
 from connectrpc.method import IdempotencyLevel, MethodInfo
@@ -27,7 +28,7 @@ class NetworkService(Protocol):
 
 
 class NetworkServiceASGIApplication(ConnectASGIApplication[NetworkService]):
-    def __init__(self, service: NetworkService | AsyncGenerator[NetworkService], *, interceptors: Iterable[Interceptor]=(), read_max_bytes: int | None = None) -> None:
+    def __init__(self, service: NetworkService | AsyncGenerator[NetworkService], *, interceptors: Iterable[Interceptor]=(), read_max_bytes: int | None = None, compressions: Iterable[Compression] | None = None) -> None:
         super().__init__(
             service=service,
             endpoints=lambda svc: {
@@ -64,6 +65,7 @@ class NetworkServiceASGIApplication(ConnectASGIApplication[NetworkService]):
             },
             interceptors=interceptors,
             read_max_bytes=read_max_bytes,
+            compressions=compressions,
         )
 
     @property
@@ -144,7 +146,7 @@ class ProviderService(Protocol):
 
 
 class ProviderServiceASGIApplication(ConnectASGIApplication[ProviderService]):
-    def __init__(self, service: ProviderService | AsyncGenerator[ProviderService], *, interceptors: Iterable[Interceptor]=(), read_max_bytes: int | None = None) -> None:
+    def __init__(self, service: ProviderService | AsyncGenerator[ProviderService], *, interceptors: Iterable[Interceptor]=(), read_max_bytes: int | None = None, compressions: Iterable[Compression] | None = None) -> None:
         super().__init__(
             service=service,
             endpoints=lambda svc: {
@@ -171,6 +173,7 @@ class ProviderServiceASGIApplication(ConnectASGIApplication[ProviderService]):
             },
             interceptors=interceptors,
             read_max_bytes=read_max_bytes,
+            compressions=compressions,
         )
 
     @property
@@ -231,7 +234,7 @@ class NetworkServiceSync(Protocol):
 
 
 class NetworkServiceWSGIApplication(ConnectWSGIApplication):
-    def __init__(self, service: NetworkServiceSync, interceptors: Iterable[InterceptorSync]=(), read_max_bytes: int | None = None) -> None:
+    def __init__(self, service: NetworkServiceSync, interceptors: Iterable[InterceptorSync]=(), read_max_bytes: int | None = None, compressions: Iterable[Compression] | None = None) -> None:
         super().__init__(
             endpoints={
                 "/tzero.v1.payment_intent.provider.NetworkService/ConfirmPayment": EndpointSync.unary(
@@ -267,6 +270,7 @@ class NetworkServiceWSGIApplication(ConnectWSGIApplication):
             },
             interceptors=interceptors,
             read_max_bytes=read_max_bytes,
+            compressions=compressions,
         )
 
     @property
@@ -344,7 +348,7 @@ class ProviderServiceSync(Protocol):
 
 
 class ProviderServiceWSGIApplication(ConnectWSGIApplication):
-    def __init__(self, service: ProviderServiceSync, interceptors: Iterable[InterceptorSync]=(), read_max_bytes: int | None = None) -> None:
+    def __init__(self, service: ProviderServiceSync, interceptors: Iterable[InterceptorSync]=(), read_max_bytes: int | None = None, compressions: Iterable[Compression] | None = None) -> None:
         super().__init__(
             endpoints={
                 "/tzero.v1.payment_intent.provider.ProviderService/CreatePaymentIntent": EndpointSync.unary(
@@ -370,6 +374,7 @@ class ProviderServiceWSGIApplication(ConnectWSGIApplication):
             },
             interceptors=interceptors,
             read_max_bytes=read_max_bytes,
+            compressions=compressions,
         )
 
     @property

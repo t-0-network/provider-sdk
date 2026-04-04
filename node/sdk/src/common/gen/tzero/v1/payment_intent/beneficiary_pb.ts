@@ -9,13 +9,15 @@ import { file_tzero_v1_common_common } from "../common/common_pb.js";
 import type { PaymentMethodType } from "../common/payment_method_pb.js";
 import { file_tzero_v1_common_payment_method } from "../common/payment_method_pb.js";
 import { file_buf_validate_validate } from "../../../buf/validate/validate_pb.js";
+import type { LegalPerson } from "../../../ivms101/v1/ivms/ivms101_pb.js";
+import { file_ivms101_v1_ivms_ivms101 } from "../../../ivms101/v1/ivms/ivms101_pb.js";
 import type { Message } from "@bufbuild/protobuf";
 
 /**
  * Describes the file tzero/v1/payment_intent/beneficiary.proto.
  */
 export const file_tzero_v1_payment_intent_beneficiary: GenFile = /*@__PURE__*/
-  fileDesc("Cil0emVyby92MS9wYXltZW50X2ludGVudC9iZW5lZmljaWFyeS5wcm90bxIXdHplcm8udjEucGF5bWVudF9pbnRlbnQiowMKGlBheW1lbnRJbnRlbnRVcGRhdGVSZXF1ZXN0EiIKEXBheW1lbnRfaW50ZW50X2lkGAogASgEQge6SAQyAiAAElsKDmZ1bmRzX3JlY2VpdmVkGBQgASgLMkEudHplcm8udjEucGF5bWVudF9pbnRlbnQuUGF5bWVudEludGVudFVwZGF0ZVJlcXVlc3QuRnVuZHNSZWNlaXZlZEgAGvkBCg1GdW5kc1JlY2VpdmVkEjMKEXNldHRsZW1lbnRfYW1vdW50GAogASgLMhgudHplcm8udjEuY29tbW9uLkRlY2ltYWwSJgoEcmF0ZRgUIAEoCzIYLnR6ZXJvLnYxLmNvbW1vbi5EZWNpbWFsEjAKDnBheW1lbnRfYW1vdW50GB4gASgLMhgudHplcm8udjEuY29tbW9uLkRlY2ltYWwSOgoOcGF5bWVudF9tZXRob2QYKCABKA4yIi50emVyby52MS5jb21tb24uUGF5bWVudE1ldGhvZFR5cGUSHQoVdHJhbnNhY3Rpb25fcmVmZXJlbmNlGDIgASgJQggKBnVwZGF0ZSIdChtQYXltZW50SW50ZW50VXBkYXRlUmVzcG9uc2UynAEKEkJlbmVmaWNpYXJ5U2VydmljZRKFAQoTUGF5bWVudEludGVudFVwZGF0ZRIzLnR6ZXJvLnYxLnBheW1lbnRfaW50ZW50LlBheW1lbnRJbnRlbnRVcGRhdGVSZXF1ZXN0GjQudHplcm8udjEucGF5bWVudF9pbnRlbnQuUGF5bWVudEludGVudFVwZGF0ZVJlc3BvbnNlIgOQAgJCgAIKG2NvbS50emVyby52MS5wYXltZW50X2ludGVudEIQQmVuZWZpY2lhcnlQcm90b1ABWkJnaXRodWIuY29tL3QtMC1uZXR3b3JrL3Byb3ZpZGVyLXNkay9nby9hcGkvdHplcm8vdjEvcGF5bWVudF9pbnRlbnSiAgNUVlCqAilUMC5Qcm92aWRlclNkay5BcGkuVHplcm8uVjEuUGF5bWVudEludGVudMoCFlR6ZXJvXFYxXFBheW1lbnRJbnRlbnTiAiJUemVyb1xWMVxQYXltZW50SW50ZW50XEdQQk1ldGFkYXRh6gIYVHplcm86OlYxOjpQYXltZW50SW50ZW50YgZwcm90bzM", [file_tzero_v1_common_common, file_tzero_v1_common_payment_method, file_buf_validate_validate]);
+  fileDesc("Cil0emVyby92MS9wYXltZW50X2ludGVudC9iZW5lZmljaWFyeS5wcm90bxIXdHplcm8udjEucGF5bWVudF9pbnRlbnQiiwUKGlBheW1lbnRJbnRlbnRVcGRhdGVSZXF1ZXN0EiIKEXBheW1lbnRfaW50ZW50X2lkGAogASgEQge6SAQyAiAAElsKDmZ1bmRzX3JlY2VpdmVkGBQgASgLMkEudHplcm8udjEucGF5bWVudF9pbnRlbnQuUGF5bWVudEludGVudFVwZGF0ZVJlcXVlc3QuRnVuZHNSZWNlaXZlZEgAGuEDCg1GdW5kc1JlY2VpdmVkEjMKEXNldHRsZW1lbnRfYW1vdW50GAogASgLMhgudHplcm8udjEuY29tbW9uLkRlY2ltYWwSJgoEcmF0ZRgUIAEoCzIYLnR6ZXJvLnYxLmNvbW1vbi5EZWNpbWFsEjAKDnBheW1lbnRfYW1vdW50GB4gASgLMhgudHplcm8udjEuY29tbW9uLkRlY2ltYWwSOgoOcGF5bWVudF9tZXRob2QYKCABKA4yIi50emVyby52MS5jb21tb24uUGF5bWVudE1ldGhvZFR5cGUSHQoVdHJhbnNhY3Rpb25fcmVmZXJlbmNlGDIgASgJEm8KEHRyYXZlbF9ydWxlX2RhdGEYPCABKAsyUC50emVyby52MS5wYXltZW50X2ludGVudC5QYXltZW50SW50ZW50VXBkYXRlUmVxdWVzdC5GdW5kc1JlY2VpdmVkLlRyYXZlbFJ1bGVEYXRhSACIAQEaYAoOVHJhdmVsUnVsZURhdGESNgoTb3JpZ2luYXRvcl9wcm92aWRlchgeIAEoCzIULml2bXMxMDEuTGVnYWxQZXJzb25IAIgBAUIWChRfb3JpZ2luYXRvcl9wcm92aWRlckITChFfdHJhdmVsX3J1bGVfZGF0YUIICgZ1cGRhdGUiHQobUGF5bWVudEludGVudFVwZGF0ZVJlc3BvbnNlMpwBChJCZW5lZmljaWFyeVNlcnZpY2UShQEKE1BheW1lbnRJbnRlbnRVcGRhdGUSMy50emVyby52MS5wYXltZW50X2ludGVudC5QYXltZW50SW50ZW50VXBkYXRlUmVxdWVzdBo0LnR6ZXJvLnYxLnBheW1lbnRfaW50ZW50LlBheW1lbnRJbnRlbnRVcGRhdGVSZXNwb25zZSIDkAICQoACChtjb20udHplcm8udjEucGF5bWVudF9pbnRlbnRCEEJlbmVmaWNpYXJ5UHJvdG9QAVpCZ2l0aHViLmNvbS90LTAtbmV0d29yay9wcm92aWRlci1zZGsvZ28vYXBpL3R6ZXJvL3YxL3BheW1lbnRfaW50ZW50ogIDVFZQqgIpVDAuUHJvdmlkZXJTZGsuQXBpLlR6ZXJvLlYxLlBheW1lbnRJbnRlbnTKAhZUemVyb1xWMVxQYXltZW50SW50ZW504gIiVHplcm9cVjFcUGF5bWVudEludGVudFxHUEJNZXRhZGF0YeoCGFR6ZXJvOjpWMTo6UGF5bWVudEludGVudGIGcHJvdG8z", [file_tzero_v1_common_common, file_tzero_v1_common_payment_method, file_buf_validate_validate, file_ivms101_v1_ivms_ivms101]);
 
 /**
  * *
@@ -110,6 +112,15 @@ export type PaymentIntentUpdateRequest_FundsReceived = Message<"tzero.v1.payment
    * @generated from field: string transaction_reference = 50;
    */
   transactionReference: string;
+
+  /**
+   * *
+   * Travel rule data of the pay-in provider's legal entity that received the funds.
+   * Present when the pay-in provider has registered travel rule data.
+   *
+   * @generated from field: optional tzero.v1.payment_intent.PaymentIntentUpdateRequest.FundsReceived.TravelRuleData travel_rule_data = 60;
+   */
+  travelRuleData?: PaymentIntentUpdateRequest_FundsReceived_TravelRuleData;
 };
 
 /**
@@ -118,6 +129,26 @@ export type PaymentIntentUpdateRequest_FundsReceived = Message<"tzero.v1.payment
  */
 export const PaymentIntentUpdateRequest_FundsReceivedSchema: GenMessage<PaymentIntentUpdateRequest_FundsReceived> = /*@__PURE__*/
   messageDesc(file_tzero_v1_payment_intent_beneficiary, 0, 0);
+
+/**
+ * @generated from message tzero.v1.payment_intent.PaymentIntentUpdateRequest.FundsReceived.TravelRuleData
+ */
+export type PaymentIntentUpdateRequest_FundsReceived_TravelRuleData = Message<"tzero.v1.payment_intent.PaymentIntentUpdateRequest.FundsReceived.TravelRuleData"> & {
+  /**
+   * *
+   * IVMS101 legal person data of the originating provider's legal entity.
+   *
+   * @generated from field: optional ivms101.LegalPerson originator_provider = 30;
+   */
+  originatorProvider?: LegalPerson;
+};
+
+/**
+ * Describes the message tzero.v1.payment_intent.PaymentIntentUpdateRequest.FundsReceived.TravelRuleData.
+ * Use `create(PaymentIntentUpdateRequest_FundsReceived_TravelRuleDataSchema)` to create a new message.
+ */
+export const PaymentIntentUpdateRequest_FundsReceived_TravelRuleDataSchema: GenMessage<PaymentIntentUpdateRequest_FundsReceived_TravelRuleData> = /*@__PURE__*/
+  messageDesc(file_tzero_v1_payment_intent_beneficiary, 0, 0, 0);
 
 /**
  * *

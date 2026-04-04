@@ -114,7 +114,7 @@ class PayoutRequest(_message.Message):
     def __init__(self, payment_id: _Optional[int] = ..., payout_id: _Optional[int] = ..., currency: _Optional[str] = ..., client_quote_id: _Optional[str] = ..., amount: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ..., payout_details: _Optional[_Union[_payment_method_pb2.PaymentDetails, _Mapping]] = ..., pay_in_provider_id: _Optional[int] = ..., travel_rule_data: _Optional[_Union[PayoutRequest.TravelRuleData, _Mapping]] = ...) -> None: ...
 
 class PayoutResponse(_message.Message):
-    __slots__ = ("accepted", "failed", "manual_aml_check")
+    __slots__ = ("beneficiary_provider_legal_entity_id", "accepted", "failed", "manual_aml_check")
     class Accepted(_message.Message):
         __slots__ = ()
         def __init__(self) -> None: ...
@@ -132,13 +132,15 @@ class PayoutResponse(_message.Message):
         reason: PayoutResponse.Failed.Reason
         details: str
         def __init__(self, reason: _Optional[_Union[PayoutResponse.Failed.Reason, str]] = ..., details: _Optional[str] = ...) -> None: ...
+    BENEFICIARY_PROVIDER_LEGAL_ENTITY_ID_FIELD_NUMBER: _ClassVar[int]
     ACCEPTED_FIELD_NUMBER: _ClassVar[int]
     FAILED_FIELD_NUMBER: _ClassVar[int]
     MANUAL_AML_CHECK_FIELD_NUMBER: _ClassVar[int]
+    beneficiary_provider_legal_entity_id: int
     accepted: PayoutResponse.Accepted
     failed: PayoutResponse.Failed
     manual_aml_check: PayoutResponse.ManualAmlCheck
-    def __init__(self, accepted: _Optional[_Union[PayoutResponse.Accepted, _Mapping]] = ..., failed: _Optional[_Union[PayoutResponse.Failed, _Mapping]] = ..., manual_aml_check: _Optional[_Union[PayoutResponse.ManualAmlCheck, _Mapping]] = ...) -> None: ...
+    def __init__(self, beneficiary_provider_legal_entity_id: _Optional[int] = ..., accepted: _Optional[_Union[PayoutResponse.Accepted, _Mapping]] = ..., failed: _Optional[_Union[PayoutResponse.Failed, _Mapping]] = ..., manual_aml_check: _Optional[_Union[PayoutResponse.ManualAmlCheck, _Mapping]] = ...) -> None: ...
 
 class UpdatePaymentRequest(_message.Message):
     __slots__ = ("payment_id", "payment_client_id", "accepted", "failed", "confirmed", "manual_aml_check")
@@ -227,18 +229,20 @@ class UpdateLimitResponse(_message.Message):
     def __init__(self) -> None: ...
 
 class ApprovePaymentQuoteRequest(_message.Message):
-    __slots__ = ("payment_id", "pay_out_quote_id", "pay_out_rate", "pay_out_amount", "settlement_amount")
+    __slots__ = ("payment_id", "pay_out_quote_id", "pay_out_rate", "pay_out_amount", "settlement_amount", "pay_out_fix")
     PAYMENT_ID_FIELD_NUMBER: _ClassVar[int]
     PAY_OUT_QUOTE_ID_FIELD_NUMBER: _ClassVar[int]
     PAY_OUT_RATE_FIELD_NUMBER: _ClassVar[int]
     PAY_OUT_AMOUNT_FIELD_NUMBER: _ClassVar[int]
     SETTLEMENT_AMOUNT_FIELD_NUMBER: _ClassVar[int]
+    PAY_OUT_FIX_FIELD_NUMBER: _ClassVar[int]
     payment_id: int
     pay_out_quote_id: int
     pay_out_rate: _common_pb2.Decimal
     pay_out_amount: _common_pb2.Decimal
     settlement_amount: _common_pb2.Decimal
-    def __init__(self, payment_id: _Optional[int] = ..., pay_out_quote_id: _Optional[int] = ..., pay_out_rate: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ..., pay_out_amount: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ..., settlement_amount: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ...) -> None: ...
+    pay_out_fix: _common_pb2.Decimal
+    def __init__(self, payment_id: _Optional[int] = ..., pay_out_quote_id: _Optional[int] = ..., pay_out_rate: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ..., pay_out_amount: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ..., settlement_amount: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ..., pay_out_fix: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ...) -> None: ...
 
 class ApprovePaymentQuoteResponse(_message.Message):
     __slots__ = ("accepted", "rejected")

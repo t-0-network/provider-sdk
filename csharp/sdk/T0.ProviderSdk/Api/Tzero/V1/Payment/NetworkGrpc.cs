@@ -183,6 +183,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
       ///*
       /// Inform the network that a payout has been completed. This endpoint is called by the payout
       /// provider, specifying the payment ID and payout ID, which was provided when the payout request was made to this provider.
+      /// deprecated, use the FinalizePayout rpc instead.
       /// </summary>
       /// <param name="request">The request received from the client.</param>
       /// <param name="context">The context of the server-side call handler being invoked.</param>
@@ -428,6 +429,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
       ///*
       /// Inform the network that a payout has been completed. This endpoint is called by the payout
       /// provider, specifying the payment ID and payout ID, which was provided when the payout request was made to this provider.
+      /// deprecated, use the FinalizePayout rpc instead.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
@@ -444,6 +446,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
       ///*
       /// Inform the network that a payout has been completed. This endpoint is called by the payout
       /// provider, specifying the payment ID and payout ID, which was provided when the payout request was made to this provider.
+      /// deprecated, use the FinalizePayout rpc instead.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="options">The options for the call.</param>
@@ -458,6 +461,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
       ///*
       /// Inform the network that a payout has been completed. This endpoint is called by the payout
       /// provider, specifying the payment ID and payout ID, which was provided when the payout request was made to this provider.
+      /// deprecated, use the FinalizePayout rpc instead.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
@@ -474,6 +478,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
       ///*
       /// Inform the network that a payout has been completed. This endpoint is called by the payout
       /// provider, specifying the payment ID and payout ID, which was provided when the payout request was made to this provider.
+      /// deprecated, use the FinalizePayout rpc instead.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="options">The options for the call.</param>

@@ -29,168 +29,175 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
             "L2NvbW1vbi9wYXltZW50X21ldGhvZC5wcm90bxoldHplcm8vdjEvY29tbW9u",
             "L3BheW1lbnRfcmVjZWlwdC5wcm90bxodaXZtczEwMS92MS9pdm1zL2l2bXMx",
             "MDEucHJvdG8aH2dvb2dsZS9wcm90b2J1Zi90aW1lc3RhbXAucHJvdG8aG2J1",
-            "Zi92YWxpZGF0ZS92YWxpZGF0ZS5wcm90byL7BQoSVXBkYXRlUXVvdGVSZXF1",
+            "Zi92YWxpZGF0ZS92YWxpZGF0ZS5wcm90byK4BgoSVXBkYXRlUXVvdGVSZXF1",
             "ZXN0EkMKB3BheV9vdXQYCiADKAsyKi50emVyby52MS5wYXltZW50LlVwZGF0",
-            "ZVF1b3RlUmVxdWVzdC5RdW90ZVIGcGF5T3V0EkEKBnBheV9pbhgUIAMoCzIq",
-            "LnR6ZXJvLnYxLnBheW1lbnQuVXBkYXRlUXVvdGVSZXF1ZXN0LlF1b3RlUgVw",
-            "YXlJbhrcBAoFUXVvdGUSMAoIY3VycmVuY3kYCiABKAlCFLpIEXIPMgpeW0Et",
-            "Wl17M30kmAEDUghjdXJyZW5jeRJCCgpxdW90ZV90eXBlGBQgASgOMhsudHpl",
-            "cm8udjEucGF5bWVudC5RdW90ZVR5cGVCBrpIA8gBAVIJcXVvdGVUeXBlElEK",
-            "DnBheW1lbnRfbWV0aG9kGBkgASgOMiIudHplcm8udjEuY29tbW9uLlBheW1l",
-            "bnRNZXRob2RUeXBlQga6SAPIAQFSDXBheW1lbnRNZXRob2QSTwoFYmFuZHMY",
-            "HiADKAsyLy50emVyby52MS5wYXltZW50LlVwZGF0ZVF1b3RlUmVxdWVzdC5R",
-            "dW90ZS5CYW5kQgi6SAWSAQIIAVIFYmFuZHMSRAoKZXhwaXJhdGlvbhg8IAEo",
-            "CzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBCCLpIBbIBAkABUgpleHBp",
-            "cmF0aW9uEkAKCXRpbWVzdGFtcBhGIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5U",
-            "aW1lc3RhbXBCBrpIA8gBAVIJdGltZXN0YW1wGrABCgRCYW5kEjEKD2NsaWVu",
-            "dF9xdW90ZV9pZBgKIAEoCUIJukgGcgQQARhAUg1jbGllbnRRdW90ZUlkEj8K",
-            "Cm1heF9hbW91bnQYKCABKAsyGC50emVyby52MS5jb21tb24uRGVjaW1hbEIG",
-            "ukgDyAEBUgltYXhBbW91bnQSNAoEcmF0ZRgyIAEoCzIYLnR6ZXJvLnYxLmNv",
-            "bW1vbi5EZWNpbWFsQga6SAPIAQFSBHJhdGUiFQoTVXBkYXRlUXVvdGVSZXNw",
-            "b25zZSKoAgoPR2V0UXVvdGVSZXF1ZXN0Ej8KBmFtb3VudBgUIAEoCzIfLnR6",
-            "ZXJvLnYxLnBheW1lbnQuUGF5bWVudEFtb3VudEIGukgDyAEBUgZhbW91bnQS",
-            "PgoQcGF5X291dF9jdXJyZW5jeRgoIAEoCUIUukgRcg8yCl5bQS1aXXszfSSY",
-            "AQNSDnBheU91dEN1cnJlbmN5ElAKDnBheV9vdXRfbWV0aG9kGDIgASgOMiIu",
-            "dHplcm8udjEuY29tbW9uLlBheW1lbnRNZXRob2RUeXBlQga6SAPIAQFSDHBh",
-            "eU91dE1ldGhvZBJCCgpxdW90ZV90eXBlGDwgASgOMhsudHplcm8udjEucGF5",
-            "bWVudC5RdW90ZVR5cGVCBrpIA8gBAVIJcXVvdGVUeXBlIqMLChBHZXRRdW90",
-            "ZVJlc3BvbnNlEkYKB3N1Y2Nlc3MYFCABKAsyKi50emVyby52MS5wYXltZW50",
-            "LkdldFF1b3RlUmVzcG9uc2UuU3VjY2Vzc0gAUgdzdWNjZXNzEkYKB2ZhaWx1",
-            "cmUYHiABKAsyKi50emVyby52MS5wYXltZW50LkdldFF1b3RlUmVzcG9uc2Uu",
-            "RmFpbHVyZUgAUgdmYWlsdXJlEk8KCmFsbF9xdW90ZXMYKCADKAsyMC50emVy",
-            "by52MS5wYXltZW50LkdldFF1b3RlUmVzcG9uc2UuUHJvdmlkZXJRdW90ZVIJ",
-            "YWxsUXVvdGVzGtoCCgdTdWNjZXNzEjQKBHJhdGUYCiABKAsyGC50emVyby52",
-            "MS5jb21tb24uRGVjaW1hbEIGukgDyAEBUgRyYXRlEkQKCmV4cGlyYXRpb24Y",
-            "FCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQgi6SAWyAQJAAVIK",
-            "ZXhwaXJhdGlvbhI8CghxdW90ZV9pZBgeIAEoCzIZLnR6ZXJvLnYxLnBheW1l",
-            "bnQuUXVvdGVJZEIGukgDyAEBUgdxdW90ZUlkEkYKDnBheV9vdXRfYW1vdW50",
-            "GCggASgLMhgudHplcm8udjEuY29tbW9uLkRlY2ltYWxCBrpIA8gBAVIMcGF5",
-            "T3V0QW1vdW50Ek0KEXNldHRsZW1lbnRfYW1vdW50GDIgASgLMhgudHplcm8u",
-            "djEuY29tbW9uLkRlY2ltYWxCBrpIA8gBAVIQc2V0dGxlbWVudEFtb3VudBqS",
-            "AQoHRmFpbHVyZRJJCgZyZWFzb24YCiABKA4yMS50emVyby52MS5wYXltZW50",
-            "LkdldFF1b3RlUmVzcG9uc2UuRmFpbHVyZS5SZWFzb25SBnJlYXNvbiI8CgZS",
-            "ZWFzb24SFgoSUkVBU09OX1VOU1BFQ0lGSUVEEAASGgoWUkVBU09OX1FVT1RF",
-            "X05PVF9GT1VORBAKGqoFCg1Qcm92aWRlclF1b3RlEjwKCHF1b3RlX2lkGAog",
-            "ASgLMhkudHplcm8udjEucGF5bWVudC5RdW90ZUlkQga6SAPIAQFSB3F1b3Rl",
-            "SWQSNAoEcmF0ZRgUIAEoCzIYLnR6ZXJvLnYxLmNvbW1vbi5EZWNpbWFsQga6",
-            "SAPIAQFSBHJhdGUSOgoKZXhwaXJhdGlvbhgeIAEoCzIaLmdvb2dsZS5wcm90",
-            "b2J1Zi5UaW1lc3RhbXBSCmV4cGlyYXRpb24SRgoOcGF5X291dF9hbW91bnQY",
-            "KCABKAsyGC50emVyby52MS5jb21tb24uRGVjaW1hbEIGukgDyAEBUgxwYXlP",
-            "dXRBbW91bnQSYwoKc2V0dGxlbWVudBgyIAEoCzI7LnR6ZXJvLnYxLnBheW1l",
-            "bnQuR2V0UXVvdGVSZXNwb25zZS5Qcm92aWRlclF1b3RlLlNldHRsZW1lbnRC",
-            "BrpIA8gBAVIKc2V0dGxlbWVudBIeCgpleGVjdXRhYmxlGDwgASgIUgpleGVj",
-            "dXRhYmxlGpsCCgpTZXR0bGVtZW50EjgKBmFtb3VudBgKIAEoCzIYLnR6ZXJv",
-            "LnYxLmNvbW1vbi5EZWNpbWFsQga6SAPIAQFSBmFtb3VudBJDCgxjcmVkaXRf",
-            "bGltaXQYFCABKAsyGC50emVyby52MS5jb21tb24uRGVjaW1hbEIGukgDyAEB",
-            "UgtjcmVkaXRMaW1pdBI/Cgp0b3RhbF91c2VkGB4gASgLMhgudHplcm8udjEu",
-            "Y29tbW9uLkRlY2ltYWxCBrpIA8gBAVIJdG90YWxVc2VkEk0KEXByZWZ1bmRp",
-            "bmdfYW1vdW50GDIgASgLMhgudHplcm8udjEuY29tbW9uLkRlY2ltYWxCBrpI",
-            "A8gBAVIQcHJlZnVuZGluZ0Ftb3VudEIPCgZyZXN1bHQSBbpIAggBIuAEChRD",
-            "cmVhdGVQYXltZW50UmVxdWVzdBI1ChFwYXltZW50X2NsaWVudF9pZBgKIAEo",
-            "CUIJukgGcgQQARhAUg9wYXltZW50Q2xpZW50SWQSPwoGYW1vdW50GB4gASgL",
-            "Mh8udHplcm8udjEucGF5bWVudC5QYXltZW50QW1vdW50Qga6SAPIAQFSBmFt",
-            "b3VudBIwCghjdXJyZW5jeRgoIAEoCUIUukgRcg8yCl5bQS1aXXszfSSYAQNS",
-            "CGN1cnJlbmN5ElAKD3BheW1lbnRfZGV0YWlscxgyIAEoCzIfLnR6ZXJvLnYx",
-            "LmNvbW1vbi5QYXltZW50RGV0YWlsc0IGukgDyAEBUg5wYXltZW50RGV0YWls",
-            "cxI5CghxdW90ZV9pZBg8IAEoCzIZLnR6ZXJvLnYxLnBheW1lbnQuUXVvdGVJ",
-            "ZEgAUgdxdW90ZUlkiAEBEmQKEHRyYXZlbF9ydWxlX2RhdGEYZCABKAsyNS50",
-            "emVyby52MS5wYXltZW50LkNyZWF0ZVBheW1lbnRSZXF1ZXN0LlRyYXZlbFJ1",
-            "bGVEYXRhSAFSDnRyYXZlbFJ1bGVEYXRhiAEBGogBCg5UcmF2ZWxSdWxlRGF0",
-            "YRI5CgpvcmlnaW5hdG9yGAogAygLMg8uaXZtczEwMS5QZXJzb25CCLpIBZIB",
-            "AggBUgpvcmlnaW5hdG9yEjsKC2JlbmVmaWNpYXJ5GBQgAygLMg8uaXZtczEw",
-            "MS5QZXJzb25CCLpIBZIBAggBUgtiZW5lZmljaWFyeUILCglfcXVvdGVfaWRC",
-            "EwoRX3RyYXZlbF9ydWxlX2RhdGEiVwoHUXVvdGVJZBIiCghxdW90ZV9pZBge",
-            "IAEoA0IHukgEIgIgAFIHcXVvdGVJZBIoCgtwcm92aWRlcl9pZBgoIAEoBUIH",
-            "ukgEGgIgAFIKcHJvdmlkZXJJZCL8BwoVQ3JlYXRlUGF5bWVudFJlc3BvbnNl",
-            "EjMKEXBheW1lbnRfY2xpZW50X2lkGAogASgJQge6SARyAhABUg9wYXltZW50",
-            "Q2xpZW50SWQSTgoIYWNjZXB0ZWQYFCABKAsyMC50emVyby52MS5wYXltZW50",
-            "LkNyZWF0ZVBheW1lbnRSZXNwb25zZS5BY2NlcHRlZEgAUghhY2NlcHRlZBJx",
-            "ChNzZXR0bGVtZW50X3JlcXVpcmVkGCMgASgLMjoudHplcm8udjEucGF5bWVu",
-            "dC5DcmVhdGVQYXltZW50UmVzcG9uc2UuU2V0dGxlbWVudFJlcXVpcmVkQgIY",
-            "AUgAUhJzZXR0bGVtZW50UmVxdWlyZWQSSwoHZmFpbHVyZRgeIAEoCzIvLnR6",
-            "ZXJvLnYxLnBheW1lbnQuQ3JlYXRlUGF5bWVudFJlc3BvbnNlLkZhaWx1cmVI",
-            "AFIHZmFpbHVyZRr/AQoIQWNjZXB0ZWQSJgoKcGF5bWVudF9pZBgKIAEoBEIH",
-            "ukgEMgIgAFIJcGF5bWVudElkEk0KEXNldHRsZW1lbnRfYW1vdW50GB4gASgL",
-            "MhgudHplcm8udjEuY29tbW9uLkRlY2ltYWxCBrpIA8gBAVIQc2V0dGxlbWVu",
-            "dEFtb3VudBJFCg1wYXlvdXRfYW1vdW50GCggASgLMhgudHplcm8udjEuY29t",
-            "bW9uLkRlY2ltYWxCBrpIA8gBAVIMcGF5b3V0QW1vdW50EjUKEnBheW91dF9w",
-            "cm92aWRlcl9pZBgyIAEoDUIHukgEKgIgAFIQcGF5b3V0UHJvdmlkZXJJZBrG",
-            "AQoSU2V0dGxlbWVudFJlcXVpcmVkEiYKCnBheW1lbnRfaWQYCiABKARCB7pI",
-            "BDICIABSCXBheW1lbnRJZBJNChFzZXR0bGVtZW50X2Ftb3VudBgUIAEoCzIY",
-            "LnR6ZXJvLnYxLmNvbW1vbi5EZWNpbWFsQga6SAPIAQFSEHNldHRsZW1lbnRB",
-            "bW91bnQSNQoScGF5b3V0X3Byb3ZpZGVyX2lkGB4gASgNQge6SAQqAiAAUhBw",
-            "YXlvdXRQcm92aWRlcklkOgIYARrBAQoHRmFpbHVyZRJOCgZyZWFzb24YCiAB",
-            "KA4yNi50emVyby52MS5wYXltZW50LkNyZWF0ZVBheW1lbnRSZXNwb25zZS5G",
-            "YWlsdXJlLlJlYXNvblIGcmVhc29uImYKBlJlYXNvbhIWChJSRUFTT05fVU5T",
-            "UEVDSUZJRUQQABIaChZSRUFTT05fUVVPVEVfTk9UX0ZPVU5EEAoSKAokUkVB",
-            "U09OX0NSRURJVF9PUl9QUkVERVBPU0lUX1JFUVVJUkVEEBRCDwoGcmVzdWx0",
-            "EgW6SAIIASK2AQoUQ29uZmlybVBheW91dFJlcXVlc3QSJgoKcGF5bWVudF9p",
-            "ZBgKIAEoBEIHukgEMgIgAFIJcGF5bWVudElkEiYKCXBheW91dF9pZBgUIAEo",
-            "BEIJGAG6SAQyAiAAUghwYXlvdXRJZBI+CgdyZWNlaXB0GB4gASgLMh8udHpl",
-            "cm8udjEuY29tbW9uLlBheW1lbnRSZWNlaXB0SABSB3JlY2VpcHSIAQE6AhgB",
-            "QgoKCF9yZWNlaXB0IhsKFUNvbmZpcm1QYXlvdXRSZXNwb25zZToCGAEiwgIK",
-            "HUNvbXBsZXRlTWFudWFsQW1sQ2hlY2tSZXF1ZXN0EiYKCnBheW1lbnRfaWQY",
-            "CiABKARCB7pIBDICIABSCXBheW1lbnRJZBJWCghhcHByb3ZlZBgeIAEoCzI4",
-            "LnR6ZXJvLnYxLnBheW1lbnQuQ29tcGxldGVNYW51YWxBbWxDaGVja1JlcXVl",
-            "c3QuQXBwcm92ZWRIAFIIYXBwcm92ZWQSVgoIcmVqZWN0ZWQYKCABKAsyOC50",
-            "emVyby52MS5wYXltZW50LkNvbXBsZXRlTWFudWFsQW1sQ2hlY2tSZXF1ZXN0",
-            "LlJlamVjdGVkSABSCHJlamVjdGVkGgoKCEFwcHJvdmVkGiwKCFJlamVjdGVk",
-            "EiAKBnJlYXNvbhgKIAEoCUIIukgFcgMYgAhSBnJlYXNvbkIPCgZyZXN1bHQS",
-            "BbpIAggBIoQECh5Db21wbGV0ZU1hbnVhbEFtbENoZWNrUmVzcG9uc2USVwoI",
-            "YXBwcm92ZWQYHiABKAsyOS50emVyby52MS5wYXltZW50LkNvbXBsZXRlTWFu",
-            "dWFsQW1sQ2hlY2tSZXNwb25zZS5BcHByb3ZlZEgAUghhcHByb3ZlZBJXCghy",
-            "ZWplY3RlZBgoIAEoCzI5LnR6ZXJvLnYxLnBheW1lbnQuQ29tcGxldGVNYW51",
-            "YWxBbWxDaGVja1Jlc3BvbnNlLlJlamVjdGVkSABSCHJlamVjdGVkGpICCghB",
-            "cHByb3ZlZBJGCg5wYXlfb3V0X2Ftb3VudBgKIAEoCzIYLnR6ZXJvLnYxLmNv",
-            "bW1vbi5EZWNpbWFsQga6SAPIAQFSDHBheU91dEFtb3VudBJNChFzZXR0bGVt",
-            "ZW50X2Ftb3VudBgUIAEoCzIYLnR6ZXJvLnYxLmNvbW1vbi5EZWNpbWFsQga6",
-            "SAPIAQFSEHNldHRsZW1lbnRBbW91bnQSMAoQcGF5X291dF9xdW90ZV9pZBge",
-            "IAEoA0IHukgEIgIgAFINcGF5T3V0UXVvdGVJZBI9ChdwYXlfb3V0X2NsaWVu",
-            "dF9xdW90ZV9pZBgoIAEoCUIHukgEcgIYQFITcGF5T3V0Q2xpZW50UXVvdGVJ",
-            "ZBoKCghSZWplY3RlZEIPCgZyZXN1bHQSBbpIAggBIqsBCg1QYXltZW50QW1v",
-            "dW50EkAKDnBheV9vdXRfYW1vdW50GBQgASgLMhgudHplcm8udjEuY29tbW9u",
-            "LkRlY2ltYWxIAFIMcGF5T3V0QW1vdW50EkcKEXNldHRsZW1lbnRfYW1vdW50",
-            "GB4gASgLMhgudHplcm8udjEuY29tbW9uLkRlY2ltYWxIAFIQc2V0dGxlbWVu",
-            "dEFtb3VudEIPCgZhbW91bnQSBbpIAggBIuQCChVGaW5hbGl6ZVBheW91dFJl",
-            "cXVlc3QSJgoKcGF5bWVudF9pZBgKIAEoBEIHukgEMgIgAFIJcGF5bWVudElk",
-            "EksKB3N1Y2Nlc3MYHiABKAsyLy50emVyby52MS5wYXltZW50LkZpbmFsaXpl",
-            "UGF5b3V0UmVxdWVzdC5TdWNjZXNzSABSB3N1Y2Nlc3MSSwoHZmFpbHVyZRgo",
-            "IAEoCzIvLnR6ZXJvLnYxLnBheW1lbnQuRmluYWxpemVQYXlvdXRSZXF1ZXN0",
-            "LkZhaWx1cmVIAFIHZmFpbHVyZRpVCgdTdWNjZXNzEj4KB3JlY2VpcHQYHiAB",
-            "KAsyHy50emVyby52MS5jb21tb24uUGF5bWVudFJlY2VpcHRIAFIHcmVjZWlw",
-            "dIgBAUIKCghfcmVjZWlwdBohCgdGYWlsdXJlEhYKBnJlYXNvbhgKIAEoCVIG",
-            "cmVhc29uQg8KBnJlc3VsdBIFukgCCAEiGAoWRmluYWxpemVQYXlvdXRSZXNw",
-            "b25zZSpACglRdW90ZVR5cGUSGgoWUVVPVEVfVFlQRV9VTlNQRUNJRklFRBAA",
-            "EhcKE1FVT1RFX1RZUEVfUkVBTFRJTUUQATKHBQoOTmV0d29ya1NlcnZpY2US",
-            "XwoLVXBkYXRlUXVvdGUSJC50emVyby52MS5wYXltZW50LlVwZGF0ZVF1b3Rl",
-            "UmVxdWVzdBolLnR6ZXJvLnYxLnBheW1lbnQuVXBkYXRlUXVvdGVSZXNwb25z",
-            "ZSIDkAICElYKCEdldFF1b3RlEiEudHplcm8udjEucGF5bWVudC5HZXRRdW90",
-            "ZVJlcXVlc3QaIi50emVyby52MS5wYXltZW50LkdldFF1b3RlUmVzcG9uc2Ui",
-            "A5ACARJlCg1DcmVhdGVQYXltZW50EiYudHplcm8udjEucGF5bWVudC5DcmVh",
-            "dGVQYXltZW50UmVxdWVzdBonLnR6ZXJvLnYxLnBheW1lbnQuQ3JlYXRlUGF5",
-            "bWVudFJlc3BvbnNlIgOQAgISaAoNQ29uZmlybVBheW91dBImLnR6ZXJvLnYx",
-            "LnBheW1lbnQuQ29uZmlybVBheW91dFJlcXVlc3QaJy50emVyby52MS5wYXlt",
-            "ZW50LkNvbmZpcm1QYXlvdXRSZXNwb25zZSIGiAIBkAICEmgKDkZpbmFsaXpl",
-            "UGF5b3V0EicudHplcm8udjEucGF5bWVudC5GaW5hbGl6ZVBheW91dFJlcXVl",
-            "c3QaKC50emVyby52MS5wYXltZW50LkZpbmFsaXplUGF5b3V0UmVzcG9uc2Ui",
-            "A5ACAhKAAQoWQ29tcGxldGVNYW51YWxBbWxDaGVjaxIvLnR6ZXJvLnYxLnBh",
-            "eW1lbnQuQ29tcGxldGVNYW51YWxBbWxDaGVja1JlcXVlc3QaMC50emVyby52",
-            "MS5wYXltZW50LkNvbXBsZXRlTWFudWFsQW1sQ2hlY2tSZXNwb25zZSIDkAIC",
-            "QtYBChRjb20udHplcm8udjEucGF5bWVudEIMTmV0d29ya1Byb3RvUAFaO2dp",
-            "dGh1Yi5jb20vdC0wLW5ldHdvcmsvcHJvdmlkZXItc2RrL2dvL2FwaS90emVy",
-            "by92MS9wYXltZW50ogIDVFZQqgIjVDAuUHJvdmlkZXJTZGsuQXBpLlR6ZXJv",
-            "LlYxLlBheW1lbnTKAhBUemVyb1xWMVxQYXltZW504gIcVHplcm9cVjFcUGF5",
-            "bWVudFxHUEJNZXRhZGF0YeoCElR6ZXJvOjpWMTo6UGF5bWVudGIGcHJvdG8z"));
+            "ZVF1b3RlUmVxdWVzdC5RdW90ZVIGcGF5T3V0EkUKBnBheV9pbhgUIAMoCzIq",
+            "LnR6ZXJvLnYxLnBheW1lbnQuVXBkYXRlUXVvdGVSZXF1ZXN0LlF1b3RlQgIY",
+            "AVIFcGF5SW4alQUKBVF1b3RlEjAKCGN1cnJlbmN5GAogASgJQhS6SBFyDzIK",
+            "XltBLVpdezN9JJgBA1IIY3VycmVuY3kSQgoKcXVvdGVfdHlwZRgUIAEoDjIb",
+            "LnR6ZXJvLnYxLnBheW1lbnQuUXVvdGVUeXBlQga6SAPIAQFSCXF1b3RlVHlw",
+            "ZRJRCg5wYXltZW50X21ldGhvZBgZIAEoDjIiLnR6ZXJvLnYxLmNvbW1vbi5Q",
+            "YXltZW50TWV0aG9kVHlwZUIGukgDyAEBUg1wYXltZW50TWV0aG9kEk8KBWJh",
+            "bmRzGB4gAygLMi8udHplcm8udjEucGF5bWVudC5VcGRhdGVRdW90ZVJlcXVl",
+            "c3QuUXVvdGUuQmFuZEIIukgFkgECCAFSBWJhbmRzEkQKCmV4cGlyYXRpb24Y",
+            "PCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQgi6SAWyAQJAAVIK",
+            "ZXhwaXJhdGlvbhJACgl0aW1lc3RhbXAYRiABKAsyGi5nb29nbGUucHJvdG9i",
+            "dWYuVGltZXN0YW1wQga6SAPIAQFSCXRpbWVzdGFtcBrpAQoEQmFuZBIxCg9j",
+            "bGllbnRfcXVvdGVfaWQYCiABKAlCCbpIBnIEEAEYQFINY2xpZW50UXVvdGVJ",
+            "ZBI/CgptYXhfYW1vdW50GCggASgLMhgudHplcm8udjEuY29tbW9uLkRlY2lt",
+            "YWxCBrpIA8gBAVIJbWF4QW1vdW50EjQKBHJhdGUYMiABKAsyGC50emVyby52",
+            "MS5jb21tb24uRGVjaW1hbEIGukgDyAEBUgRyYXRlEi8KA2ZpeBg8IAEoCzIY",
+            "LnR6ZXJvLnYxLmNvbW1vbi5EZWNpbWFsSABSA2ZpeIgBAUIGCgRfZml4IhUK",
+            "E1VwZGF0ZVF1b3RlUmVzcG9uc2UiqAIKD0dldFF1b3RlUmVxdWVzdBI/CgZh",
+            "bW91bnQYFCABKAsyHy50emVyby52MS5wYXltZW50LlBheW1lbnRBbW91bnRC",
+            "BrpIA8gBAVIGYW1vdW50Ej4KEHBheV9vdXRfY3VycmVuY3kYKCABKAlCFLpI",
+            "EXIPMgpeW0EtWl17M30kmAEDUg5wYXlPdXRDdXJyZW5jeRJQCg5wYXlfb3V0",
+            "X21ldGhvZBgyIAEoDjIiLnR6ZXJvLnYxLmNvbW1vbi5QYXltZW50TWV0aG9k",
+            "VHlwZUIGukgDyAEBUgxwYXlPdXRNZXRob2QSQgoKcXVvdGVfdHlwZRg8IAEo",
+            "DjIbLnR6ZXJvLnYxLnBheW1lbnQuUXVvdGVUeXBlQga6SAPIAQFSCXF1b3Rl",
+            "VHlwZSL7CwoQR2V0UXVvdGVSZXNwb25zZRJGCgdzdWNjZXNzGBQgASgLMiou",
+            "dHplcm8udjEucGF5bWVudC5HZXRRdW90ZVJlc3BvbnNlLlN1Y2Nlc3NIAFIH",
+            "c3VjY2VzcxJGCgdmYWlsdXJlGB4gASgLMioudHplcm8udjEucGF5bWVudC5H",
+            "ZXRRdW90ZVJlc3BvbnNlLkZhaWx1cmVIAFIHZmFpbHVyZRJPCgphbGxfcXVv",
+            "dGVzGCggAygLMjAudHplcm8udjEucGF5bWVudC5HZXRRdW90ZVJlc3BvbnNl",
+            "LlByb3ZpZGVyUXVvdGVSCWFsbFF1b3RlcxqGAwoHU3VjY2VzcxI0CgRyYXRl",
+            "GAogASgLMhgudHplcm8udjEuY29tbW9uLkRlY2ltYWxCBrpIA8gBAVIEcmF0",
+            "ZRJECgpleHBpcmF0aW9uGBQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVz",
+            "dGFtcEIIukgFsgECQAFSCmV4cGlyYXRpb24SPAoIcXVvdGVfaWQYHiABKAsy",
+            "GS50emVyby52MS5wYXltZW50LlF1b3RlSWRCBrpIA8gBAVIHcXVvdGVJZBJG",
+            "Cg5wYXlfb3V0X2Ftb3VudBgoIAEoCzIYLnR6ZXJvLnYxLmNvbW1vbi5EZWNp",
+            "bWFsQga6SAPIAQFSDHBheU91dEFtb3VudBJNChFzZXR0bGVtZW50X2Ftb3Vu",
+            "dBgyIAEoCzIYLnR6ZXJvLnYxLmNvbW1vbi5EZWNpbWFsQga6SAPIAQFSEHNl",
+            "dHRsZW1lbnRBbW91bnQSKgoDZml4GDwgASgLMhgudHplcm8udjEuY29tbW9u",
+            "LkRlY2ltYWxSA2ZpeBqSAQoHRmFpbHVyZRJJCgZyZWFzb24YCiABKA4yMS50",
+            "emVyby52MS5wYXltZW50LkdldFF1b3RlUmVzcG9uc2UuRmFpbHVyZS5SZWFz",
+            "b25SBnJlYXNvbiI8CgZSZWFzb24SFgoSUkVBU09OX1VOU1BFQ0lGSUVEEAAS",
+            "GgoWUkVBU09OX1FVT1RFX05PVF9GT1VORBAKGtYFCg1Qcm92aWRlclF1b3Rl",
+            "EjwKCHF1b3RlX2lkGAogASgLMhkudHplcm8udjEucGF5bWVudC5RdW90ZUlk",
+            "Qga6SAPIAQFSB3F1b3RlSWQSNAoEcmF0ZRgUIAEoCzIYLnR6ZXJvLnYxLmNv",
+            "bW1vbi5EZWNpbWFsQga6SAPIAQFSBHJhdGUSOgoKZXhwaXJhdGlvbhgeIAEo",
+            "CzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBSCmV4cGlyYXRpb24SRgoO",
+            "cGF5X291dF9hbW91bnQYKCABKAsyGC50emVyby52MS5jb21tb24uRGVjaW1h",
+            "bEIGukgDyAEBUgxwYXlPdXRBbW91bnQSYwoKc2V0dGxlbWVudBgyIAEoCzI7",
+            "LnR6ZXJvLnYxLnBheW1lbnQuR2V0UXVvdGVSZXNwb25zZS5Qcm92aWRlclF1",
+            "b3RlLlNldHRsZW1lbnRCBrpIA8gBAVIKc2V0dGxlbWVudBIeCgpleGVjdXRh",
+            "YmxlGDwgASgIUgpleGVjdXRhYmxlEioKA2ZpeBhGIAEoCzIYLnR6ZXJvLnYx",
+            "LmNvbW1vbi5EZWNpbWFsUgNmaXgamwIKClNldHRsZW1lbnQSOAoGYW1vdW50",
+            "GAogASgLMhgudHplcm8udjEuY29tbW9uLkRlY2ltYWxCBrpIA8gBAVIGYW1v",
+            "dW50EkMKDGNyZWRpdF9saW1pdBgUIAEoCzIYLnR6ZXJvLnYxLmNvbW1vbi5E",
+            "ZWNpbWFsQga6SAPIAQFSC2NyZWRpdExpbWl0Ej8KCnRvdGFsX3VzZWQYHiAB",
+            "KAsyGC50emVyby52MS5jb21tb24uRGVjaW1hbEIGukgDyAEBUgl0b3RhbFVz",
+            "ZWQSTQoRcHJlZnVuZGluZ19hbW91bnQYMiABKAsyGC50emVyby52MS5jb21t",
+            "b24uRGVjaW1hbEIGukgDyAEBUhBwcmVmdW5kaW5nQW1vdW50Qg8KBnJlc3Vs",
+            "dBIFukgCCAEi5AUKFENyZWF0ZVBheW1lbnRSZXF1ZXN0EjUKEXBheW1lbnRf",
+            "Y2xpZW50X2lkGAogASgJQgm6SAZyBBABGEBSD3BheW1lbnRDbGllbnRJZBI/",
+            "CgZhbW91bnQYHiABKAsyHy50emVyby52MS5wYXltZW50LlBheW1lbnRBbW91",
+            "bnRCBrpIA8gBAVIGYW1vdW50EjAKCGN1cnJlbmN5GCggASgJQhS6SBFyDzIK",
+            "XltBLVpdezN9JJgBA1IIY3VycmVuY3kSUAoPcGF5bWVudF9kZXRhaWxzGDIg",
+            "ASgLMh8udHplcm8udjEuY29tbW9uLlBheW1lbnREZXRhaWxzQga6SAPIAQFS",
+            "DnBheW1lbnREZXRhaWxzEjkKCHF1b3RlX2lkGDwgASgLMhkudHplcm8udjEu",
+            "cGF5bWVudC5RdW90ZUlkSABSB3F1b3RlSWSIAQESZAoQdHJhdmVsX3J1bGVf",
+            "ZGF0YRhkIAEoCzI1LnR6ZXJvLnYxLnBheW1lbnQuQ3JlYXRlUGF5bWVudFJl",
+            "cXVlc3QuVHJhdmVsUnVsZURhdGFIAVIOdHJhdmVsUnVsZURhdGGIAQEajAIK",
+            "DlRyYXZlbFJ1bGVEYXRhEjkKCm9yaWdpbmF0b3IYCiADKAsyDy5pdm1zMTAx",
+            "LlBlcnNvbkIIukgFkgECCAFSCm9yaWdpbmF0b3ISOwoLYmVuZWZpY2lhcnkY",
+            "FCADKAsyDy5pdm1zMTAxLlBlcnNvbkIIukgFkgECCAFSC2JlbmVmaWNpYXJ5",
+            "EloKI29yaWdpbmF0b3JfcHJvdmlkZXJfbGVnYWxfZW50aXR5X2lkGB4gASgN",
+            "Qge6SAQqAiAASABSH29yaWdpbmF0b3JQcm92aWRlckxlZ2FsRW50aXR5SWSI",
+            "AQFCJgokX29yaWdpbmF0b3JfcHJvdmlkZXJfbGVnYWxfZW50aXR5X2lkQgsK",
+            "CV9xdW90ZV9pZEITChFfdHJhdmVsX3J1bGVfZGF0YSJXCgdRdW90ZUlkEiIK",
+            "CHF1b3RlX2lkGB4gASgDQge6SAQiAiAAUgdxdW90ZUlkEigKC3Byb3ZpZGVy",
+            "X2lkGCggASgFQge6SAQaAiAAUgpwcm92aWRlcklkIvwHChVDcmVhdGVQYXlt",
+            "ZW50UmVzcG9uc2USMwoRcGF5bWVudF9jbGllbnRfaWQYCiABKAlCB7pIBHIC",
+            "EAFSD3BheW1lbnRDbGllbnRJZBJOCghhY2NlcHRlZBgUIAEoCzIwLnR6ZXJv",
+            "LnYxLnBheW1lbnQuQ3JlYXRlUGF5bWVudFJlc3BvbnNlLkFjY2VwdGVkSABS",
+            "CGFjY2VwdGVkEnEKE3NldHRsZW1lbnRfcmVxdWlyZWQYIyABKAsyOi50emVy",
+            "by52MS5wYXltZW50LkNyZWF0ZVBheW1lbnRSZXNwb25zZS5TZXR0bGVtZW50",
+            "UmVxdWlyZWRCAhgBSABSEnNldHRsZW1lbnRSZXF1aXJlZBJLCgdmYWlsdXJl",
+            "GB4gASgLMi8udHplcm8udjEucGF5bWVudC5DcmVhdGVQYXltZW50UmVzcG9u",
+            "c2UuRmFpbHVyZUgAUgdmYWlsdXJlGv8BCghBY2NlcHRlZBImCgpwYXltZW50",
+            "X2lkGAogASgEQge6SAQyAiAAUglwYXltZW50SWQSTQoRc2V0dGxlbWVudF9h",
+            "bW91bnQYHiABKAsyGC50emVyby52MS5jb21tb24uRGVjaW1hbEIGukgDyAEB",
+            "UhBzZXR0bGVtZW50QW1vdW50EkUKDXBheW91dF9hbW91bnQYKCABKAsyGC50",
+            "emVyby52MS5jb21tb24uRGVjaW1hbEIGukgDyAEBUgxwYXlvdXRBbW91bnQS",
+            "NQoScGF5b3V0X3Byb3ZpZGVyX2lkGDIgASgNQge6SAQqAiAAUhBwYXlvdXRQ",
+            "cm92aWRlcklkGsYBChJTZXR0bGVtZW50UmVxdWlyZWQSJgoKcGF5bWVudF9p",
+            "ZBgKIAEoBEIHukgEMgIgAFIJcGF5bWVudElkEk0KEXNldHRsZW1lbnRfYW1v",
+            "dW50GBQgASgLMhgudHplcm8udjEuY29tbW9uLkRlY2ltYWxCBrpIA8gBAVIQ",
+            "c2V0dGxlbWVudEFtb3VudBI1ChJwYXlvdXRfcHJvdmlkZXJfaWQYHiABKA1C",
+            "B7pIBCoCIABSEHBheW91dFByb3ZpZGVySWQ6AhgBGsEBCgdGYWlsdXJlEk4K",
+            "BnJlYXNvbhgKIAEoDjI2LnR6ZXJvLnYxLnBheW1lbnQuQ3JlYXRlUGF5bWVu",
+            "dFJlc3BvbnNlLkZhaWx1cmUuUmVhc29uUgZyZWFzb24iZgoGUmVhc29uEhYK",
+            "ElJFQVNPTl9VTlNQRUNJRklFRBAAEhoKFlJFQVNPTl9RVU9URV9OT1RfRk9V",
+            "TkQQChIoCiRSRUFTT05fQ1JFRElUX09SX1BSRURFUE9TSVRfUkVRVUlSRUQQ",
+            "FEIPCgZyZXN1bHQSBbpIAggBIrYBChRDb25maXJtUGF5b3V0UmVxdWVzdBIm",
+            "CgpwYXltZW50X2lkGAogASgEQge6SAQyAiAAUglwYXltZW50SWQSJgoJcGF5",
+            "b3V0X2lkGBQgASgEQgkYAbpIBDICIABSCHBheW91dElkEj4KB3JlY2VpcHQY",
+            "HiABKAsyHy50emVyby52MS5jb21tb24uUGF5bWVudFJlY2VpcHRIAFIHcmVj",
+            "ZWlwdIgBAToCGAFCCgoIX3JlY2VpcHQiGwoVQ29uZmlybVBheW91dFJlc3Bv",
+            "bnNlOgIYASLCAgodQ29tcGxldGVNYW51YWxBbWxDaGVja1JlcXVlc3QSJgoK",
+            "cGF5bWVudF9pZBgKIAEoBEIHukgEMgIgAFIJcGF5bWVudElkElYKCGFwcHJv",
+            "dmVkGB4gASgLMjgudHplcm8udjEucGF5bWVudC5Db21wbGV0ZU1hbnVhbEFt",
+            "bENoZWNrUmVxdWVzdC5BcHByb3ZlZEgAUghhcHByb3ZlZBJWCghyZWplY3Rl",
+            "ZBgoIAEoCzI4LnR6ZXJvLnYxLnBheW1lbnQuQ29tcGxldGVNYW51YWxBbWxD",
+            "aGVja1JlcXVlc3QuUmVqZWN0ZWRIAFIIcmVqZWN0ZWQaCgoIQXBwcm92ZWQa",
+            "LAoIUmVqZWN0ZWQSIAoGcmVhc29uGAogASgJQgi6SAVyAxiACFIGcmVhc29u",
+            "Qg8KBnJlc3VsdBIFukgCCAEihAQKHkNvbXBsZXRlTWFudWFsQW1sQ2hlY2tS",
+            "ZXNwb25zZRJXCghhcHByb3ZlZBgeIAEoCzI5LnR6ZXJvLnYxLnBheW1lbnQu",
+            "Q29tcGxldGVNYW51YWxBbWxDaGVja1Jlc3BvbnNlLkFwcHJvdmVkSABSCGFw",
+            "cHJvdmVkElcKCHJlamVjdGVkGCggASgLMjkudHplcm8udjEucGF5bWVudC5D",
+            "b21wbGV0ZU1hbnVhbEFtbENoZWNrUmVzcG9uc2UuUmVqZWN0ZWRIAFIIcmVq",
+            "ZWN0ZWQakgIKCEFwcHJvdmVkEkYKDnBheV9vdXRfYW1vdW50GAogASgLMhgu",
+            "dHplcm8udjEuY29tbW9uLkRlY2ltYWxCBrpIA8gBAVIMcGF5T3V0QW1vdW50",
+            "Ek0KEXNldHRsZW1lbnRfYW1vdW50GBQgASgLMhgudHplcm8udjEuY29tbW9u",
+            "LkRlY2ltYWxCBrpIA8gBAVIQc2V0dGxlbWVudEFtb3VudBIwChBwYXlfb3V0",
+            "X3F1b3RlX2lkGB4gASgDQge6SAQiAiAAUg1wYXlPdXRRdW90ZUlkEj0KF3Bh",
+            "eV9vdXRfY2xpZW50X3F1b3RlX2lkGCggASgJQge6SARyAhhAUhNwYXlPdXRD",
+            "bGllbnRRdW90ZUlkGgoKCFJlamVjdGVkQg8KBnJlc3VsdBIFukgCCAEiqwEK",
+            "DVBheW1lbnRBbW91bnQSQAoOcGF5X291dF9hbW91bnQYFCABKAsyGC50emVy",
+            "by52MS5jb21tb24uRGVjaW1hbEgAUgxwYXlPdXRBbW91bnQSRwoRc2V0dGxl",
+            "bWVudF9hbW91bnQYHiABKAsyGC50emVyby52MS5jb21tb24uRGVjaW1hbEgA",
+            "UhBzZXR0bGVtZW50QW1vdW50Qg8KBmFtb3VudBIFukgCCAEi5AIKFUZpbmFs",
+            "aXplUGF5b3V0UmVxdWVzdBImCgpwYXltZW50X2lkGAogASgEQge6SAQyAiAA",
+            "UglwYXltZW50SWQSSwoHc3VjY2VzcxgeIAEoCzIvLnR6ZXJvLnYxLnBheW1l",
+            "bnQuRmluYWxpemVQYXlvdXRSZXF1ZXN0LlN1Y2Nlc3NIAFIHc3VjY2VzcxJL",
+            "CgdmYWlsdXJlGCggASgLMi8udHplcm8udjEucGF5bWVudC5GaW5hbGl6ZVBh",
+            "eW91dFJlcXVlc3QuRmFpbHVyZUgAUgdmYWlsdXJlGlUKB1N1Y2Nlc3MSPgoH",
+            "cmVjZWlwdBgeIAEoCzIfLnR6ZXJvLnYxLmNvbW1vbi5QYXltZW50UmVjZWlw",
+            "dEgAUgdyZWNlaXB0iAEBQgoKCF9yZWNlaXB0GiEKB0ZhaWx1cmUSFgoGcmVh",
+            "c29uGAogASgJUgZyZWFzb25CDwoGcmVzdWx0EgW6SAIIASIYChZGaW5hbGl6",
+            "ZVBheW91dFJlc3BvbnNlKkAKCVF1b3RlVHlwZRIaChZRVU9URV9UWVBFX1VO",
+            "U1BFQ0lGSUVEEAASFwoTUVVPVEVfVFlQRV9SRUFMVElNRRABMocFCg5OZXR3",
+            "b3JrU2VydmljZRJfCgtVcGRhdGVRdW90ZRIkLnR6ZXJvLnYxLnBheW1lbnQu",
+            "VXBkYXRlUXVvdGVSZXF1ZXN0GiUudHplcm8udjEucGF5bWVudC5VcGRhdGVR",
+            "dW90ZVJlc3BvbnNlIgOQAgISVgoIR2V0UXVvdGUSIS50emVyby52MS5wYXlt",
+            "ZW50LkdldFF1b3RlUmVxdWVzdBoiLnR6ZXJvLnYxLnBheW1lbnQuR2V0UXVv",
+            "dGVSZXNwb25zZSIDkAIBEmUKDUNyZWF0ZVBheW1lbnQSJi50emVyby52MS5w",
+            "YXltZW50LkNyZWF0ZVBheW1lbnRSZXF1ZXN0GicudHplcm8udjEucGF5bWVu",
+            "dC5DcmVhdGVQYXltZW50UmVzcG9uc2UiA5ACAhJoCg1Db25maXJtUGF5b3V0",
+            "EiYudHplcm8udjEucGF5bWVudC5Db25maXJtUGF5b3V0UmVxdWVzdBonLnR6",
+            "ZXJvLnYxLnBheW1lbnQuQ29uZmlybVBheW91dFJlc3BvbnNlIgaIAgGQAgIS",
+            "aAoORmluYWxpemVQYXlvdXQSJy50emVyby52MS5wYXltZW50LkZpbmFsaXpl",
+            "UGF5b3V0UmVxdWVzdBooLnR6ZXJvLnYxLnBheW1lbnQuRmluYWxpemVQYXlv",
+            "dXRSZXNwb25zZSIDkAICEoABChZDb21wbGV0ZU1hbnVhbEFtbENoZWNrEi8u",
+            "dHplcm8udjEucGF5bWVudC5Db21wbGV0ZU1hbnVhbEFtbENoZWNrUmVxdWVz",
+            "dBowLnR6ZXJvLnYxLnBheW1lbnQuQ29tcGxldGVNYW51YWxBbWxDaGVja1Jl",
+            "c3BvbnNlIgOQAgJC1gEKFGNvbS50emVyby52MS5wYXltZW50QgxOZXR3b3Jr",
+            "UHJvdG9QAVo7Z2l0aHViLmNvbS90LTAtbmV0d29yay9wcm92aWRlci1zZGsv",
+            "Z28vYXBpL3R6ZXJvL3YxL3BheW1lbnSiAgNUVlCqAiNUMC5Qcm92aWRlclNk",
+            "ay5BcGkuVHplcm8uVjEuUGF5bWVudMoCEFR6ZXJvXFYxXFBheW1lbnTiAhxU",
+            "emVyb1xWMVxQYXltZW50XEdQQk1ldGFkYXRh6gISVHplcm86OlYxOjpQYXlt",
+            "ZW50YgZwcm90bzM="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { global::T0.ProviderSdk.Api.Tzero.V1.Common.CommonReflection.Descriptor, global::T0.ProviderSdk.Api.Tzero.V1.Common.PaymentMethodReflection.Descriptor, global::T0.ProviderSdk.Api.Tzero.V1.Common.PaymentReceiptReflection.Descriptor, global::T0.ProviderSdk.Api.Ivms101.V1.Ivms.Ivms101Reflection.Descriptor, global::Google.Protobuf.WellKnownTypes.TimestampReflection.Descriptor, global::Buf.Validate.ValidateReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(new[] {typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.QuoteType), }, null, new pbr::GeneratedClrTypeInfo[] {
-            new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.UpdateQuoteRequest), global::T0.ProviderSdk.Api.Tzero.V1.Payment.UpdateQuoteRequest.Parser, new[]{ "PayOut", "PayIn" }, null, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.UpdateQuoteRequest.Types.Quote), global::T0.ProviderSdk.Api.Tzero.V1.Payment.UpdateQuoteRequest.Types.Quote.Parser, new[]{ "Currency", "QuoteType", "PaymentMethod", "Bands", "Expiration", "Timestamp" }, null, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.UpdateQuoteRequest.Types.Quote.Types.Band), global::T0.ProviderSdk.Api.Tzero.V1.Payment.UpdateQuoteRequest.Types.Quote.Types.Band.Parser, new[]{ "ClientQuoteId", "MaxAmount", "Rate" }, null, null, null, null)})}),
+            new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.UpdateQuoteRequest), global::T0.ProviderSdk.Api.Tzero.V1.Payment.UpdateQuoteRequest.Parser, new[]{ "PayOut", "PayIn" }, null, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.UpdateQuoteRequest.Types.Quote), global::T0.ProviderSdk.Api.Tzero.V1.Payment.UpdateQuoteRequest.Types.Quote.Parser, new[]{ "Currency", "QuoteType", "PaymentMethod", "Bands", "Expiration", "Timestamp" }, null, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.UpdateQuoteRequest.Types.Quote.Types.Band), global::T0.ProviderSdk.Api.Tzero.V1.Payment.UpdateQuoteRequest.Types.Quote.Types.Band.Parser, new[]{ "ClientQuoteId", "MaxAmount", "Rate", "Fix" }, new[]{ "Fix" }, null, null, null)})}),
             new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.UpdateQuoteResponse), global::T0.ProviderSdk.Api.Tzero.V1.Payment.UpdateQuoteResponse.Parser, null, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.GetQuoteRequest), global::T0.ProviderSdk.Api.Tzero.V1.Payment.GetQuoteRequest.Parser, new[]{ "Amount", "PayOutCurrency", "PayOutMethod", "QuoteType" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.GetQuoteResponse), global::T0.ProviderSdk.Api.Tzero.V1.Payment.GetQuoteResponse.Parser, new[]{ "Success", "Failure", "AllQuotes" }, new[]{ "Result" }, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.GetQuoteResponse.Types.Success), global::T0.ProviderSdk.Api.Tzero.V1.Payment.GetQuoteResponse.Types.Success.Parser, new[]{ "Rate", "Expiration", "QuoteId", "PayOutAmount", "SettlementAmount" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.GetQuoteResponse), global::T0.ProviderSdk.Api.Tzero.V1.Payment.GetQuoteResponse.Parser, new[]{ "Success", "Failure", "AllQuotes" }, new[]{ "Result" }, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.GetQuoteResponse.Types.Success), global::T0.ProviderSdk.Api.Tzero.V1.Payment.GetQuoteResponse.Types.Success.Parser, new[]{ "Rate", "Expiration", "QuoteId", "PayOutAmount", "SettlementAmount", "Fix" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.GetQuoteResponse.Types.Failure), global::T0.ProviderSdk.Api.Tzero.V1.Payment.GetQuoteResponse.Types.Failure.Parser, new[]{ "Reason" }, null, new[]{ typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.GetQuoteResponse.Types.Failure.Types.Reason) }, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.GetQuoteResponse.Types.ProviderQuote), global::T0.ProviderSdk.Api.Tzero.V1.Payment.GetQuoteResponse.Types.ProviderQuote.Parser, new[]{ "QuoteId", "Rate", "Expiration", "PayOutAmount", "Settlement", "Executable" }, null, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.GetQuoteResponse.Types.ProviderQuote.Types.Settlement), global::T0.ProviderSdk.Api.Tzero.V1.Payment.GetQuoteResponse.Types.ProviderQuote.Types.Settlement.Parser, new[]{ "Amount", "CreditLimit", "TotalUsed", "PrefundingAmount" }, null, null, null, null)})}),
-            new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.CreatePaymentRequest), global::T0.ProviderSdk.Api.Tzero.V1.Payment.CreatePaymentRequest.Parser, new[]{ "PaymentClientId", "Amount", "Currency", "PaymentDetails", "QuoteId", "TravelRuleData" }, new[]{ "QuoteId", "TravelRuleData" }, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.CreatePaymentRequest.Types.TravelRuleData), global::T0.ProviderSdk.Api.Tzero.V1.Payment.CreatePaymentRequest.Types.TravelRuleData.Parser, new[]{ "Originator", "Beneficiary" }, null, null, null, null)}),
+            new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.GetQuoteResponse.Types.ProviderQuote), global::T0.ProviderSdk.Api.Tzero.V1.Payment.GetQuoteResponse.Types.ProviderQuote.Parser, new[]{ "QuoteId", "Rate", "Expiration", "PayOutAmount", "Settlement", "Executable", "Fix" }, null, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.GetQuoteResponse.Types.ProviderQuote.Types.Settlement), global::T0.ProviderSdk.Api.Tzero.V1.Payment.GetQuoteResponse.Types.ProviderQuote.Types.Settlement.Parser, new[]{ "Amount", "CreditLimit", "TotalUsed", "PrefundingAmount" }, null, null, null, null)})}),
+            new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.CreatePaymentRequest), global::T0.ProviderSdk.Api.Tzero.V1.Payment.CreatePaymentRequest.Parser, new[]{ "PaymentClientId", "Amount", "Currency", "PaymentDetails", "QuoteId", "TravelRuleData" }, new[]{ "QuoteId", "TravelRuleData" }, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.CreatePaymentRequest.Types.TravelRuleData), global::T0.ProviderSdk.Api.Tzero.V1.Payment.CreatePaymentRequest.Types.TravelRuleData.Parser, new[]{ "Originator", "Beneficiary", "OriginatorProviderLegalEntityId" }, new[]{ "OriginatorProviderLegalEntityId" }, null, null, null)}),
             new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.QuoteId), global::T0.ProviderSdk.Api.Tzero.V1.Payment.QuoteId.Parser, new[]{ "QuoteId_", "ProviderId" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.CreatePaymentResponse), global::T0.ProviderSdk.Api.Tzero.V1.Payment.CreatePaymentResponse.Parser, new[]{ "PaymentClientId", "Accepted", "SettlementRequired", "Failure" }, new[]{ "Result" }, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.CreatePaymentResponse.Types.Accepted), global::T0.ProviderSdk.Api.Tzero.V1.Payment.CreatePaymentResponse.Types.Accepted.Parser, new[]{ "PaymentId", "SettlementAmount", "PayoutAmount", "PayoutProviderId" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.CreatePaymentResponse.Types.SettlementRequired), global::T0.ProviderSdk.Api.Tzero.V1.Payment.CreatePaymentResponse.Types.SettlementRequired.Parser, new[]{ "PaymentId", "SettlementAmount", "PayoutProviderId" }, null, null, null, null),
@@ -297,7 +304,10 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
     ///*
     /// Zero or more quotes for pay-in operations, each quote must have a unique currency, and one or more bands, with the
     /// unique client_quote_id for each band.
+    ///
+    /// Deprecated: pay-in quotes are no longer used.
     /// </summary>
+    [global::System.ObsoleteAttribute]
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public pbc::RepeatedField<global::T0.ProviderSdk.Api.Tzero.V1.Payment.UpdateQuoteRequest.Types.Quote> PayIn {
@@ -898,6 +908,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
               clientQuoteId_ = other.clientQuoteId_;
               maxAmount_ = other.maxAmount_ != null ? other.maxAmount_.Clone() : null;
               rate_ = other.rate_ != null ? other.rate_.Clone() : null;
+              fix_ = other.fix_ != null ? other.fix_.Clone() : null;
               _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
             }
 
@@ -952,6 +963,25 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
               }
             }
 
+            /// <summary>Field number for the "fix" field.</summary>
+            public const int FixFieldNumber = 60;
+            private global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal fix_;
+            /// <summary>
+            ///*
+            /// Fixed charge in USD applied per transfer on top of the exchange rate.
+            /// This covers payment method costs (e.g. wire transfer fees).
+            /// Added to the settlement amount: settlement = (amount / rate) + fix.
+            /// Defaults to 0 when absent — no fixed charge applied.
+            /// </summary>
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal Fix {
+              get { return fix_; }
+              set {
+                fix_ = value;
+              }
+            }
+
             [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
             [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
             public override bool Equals(object other) {
@@ -970,6 +1000,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
               if (ClientQuoteId != other.ClientQuoteId) return false;
               if (!object.Equals(MaxAmount, other.MaxAmount)) return false;
               if (!object.Equals(Rate, other.Rate)) return false;
+              if (!object.Equals(Fix, other.Fix)) return false;
               return Equals(_unknownFields, other._unknownFields);
             }
 
@@ -980,6 +1011,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
               if (ClientQuoteId.Length != 0) hash ^= ClientQuoteId.GetHashCode();
               if (maxAmount_ != null) hash ^= MaxAmount.GetHashCode();
               if (rate_ != null) hash ^= Rate.GetHashCode();
+              if (fix_ != null) hash ^= Fix.GetHashCode();
               if (_unknownFields != null) {
                 hash ^= _unknownFields.GetHashCode();
               }
@@ -1010,6 +1042,10 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
                 output.WriteRawTag(146, 3);
                 output.WriteMessage(Rate);
               }
+              if (fix_ != null) {
+                output.WriteRawTag(226, 3);
+                output.WriteMessage(Fix);
+              }
               if (_unknownFields != null) {
                 _unknownFields.WriteTo(output);
               }
@@ -1032,6 +1068,10 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
                 output.WriteRawTag(146, 3);
                 output.WriteMessage(Rate);
               }
+              if (fix_ != null) {
+                output.WriteRawTag(226, 3);
+                output.WriteMessage(Fix);
+              }
               if (_unknownFields != null) {
                 _unknownFields.WriteTo(ref output);
               }
@@ -1050,6 +1090,9 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
               }
               if (rate_ != null) {
                 size += 2 + pb::CodedOutputStream.ComputeMessageSize(Rate);
+              }
+              if (fix_ != null) {
+                size += 2 + pb::CodedOutputStream.ComputeMessageSize(Fix);
               }
               if (_unknownFields != null) {
                 size += _unknownFields.CalculateSize();
@@ -1077,6 +1120,12 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
                   Rate = new global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal();
                 }
                 Rate.MergeFrom(other.Rate);
+              }
+              if (other.fix_ != null) {
+                if (fix_ == null) {
+                  Fix = new global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal();
+                }
+                Fix.MergeFrom(other.Fix);
               }
               _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
             }
@@ -1115,6 +1164,13 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
                     input.ReadMessage(Rate);
                     break;
                   }
+                  case 482: {
+                    if (fix_ == null) {
+                      Fix = new global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal();
+                    }
+                    input.ReadMessage(Fix);
+                    break;
+                  }
                 }
               }
             #endif
@@ -1150,6 +1206,13 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
                       Rate = new global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal();
                     }
                     input.ReadMessage(Rate);
+                    break;
+                  }
+                  case 482: {
+                    if (fix_ == null) {
+                      Fix = new global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal();
+                    }
+                    input.ReadMessage(Fix);
                     break;
                   }
                 }
@@ -2040,6 +2103,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
           quoteId_ = other.quoteId_ != null ? other.quoteId_.Clone() : null;
           payOutAmount_ = other.payOutAmount_ != null ? other.payOutAmount_.Clone() : null;
           settlementAmount_ = other.settlementAmount_ != null ? other.settlementAmount_.Clone() : null;
+          fix_ = other.fix_ != null ? other.fix_.Clone() : null;
           _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
         }
 
@@ -2124,6 +2188,23 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
           }
         }
 
+        /// <summary>Field number for the "fix" field.</summary>
+        public const int FixFieldNumber = 60;
+        private global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal fix_;
+        /// <summary>
+        ///*
+        /// Fixed charge in USD included in settlement_amount.
+        /// settlement_amount = (pay_out_amount / rate) + fix.
+        /// </summary>
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        public global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal Fix {
+          get { return fix_; }
+          set {
+            fix_ = value;
+          }
+        }
+
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
         public override bool Equals(object other) {
@@ -2144,6 +2225,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
           if (!object.Equals(QuoteId, other.QuoteId)) return false;
           if (!object.Equals(PayOutAmount, other.PayOutAmount)) return false;
           if (!object.Equals(SettlementAmount, other.SettlementAmount)) return false;
+          if (!object.Equals(Fix, other.Fix)) return false;
           return Equals(_unknownFields, other._unknownFields);
         }
 
@@ -2156,6 +2238,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
           if (quoteId_ != null) hash ^= QuoteId.GetHashCode();
           if (payOutAmount_ != null) hash ^= PayOutAmount.GetHashCode();
           if (settlementAmount_ != null) hash ^= SettlementAmount.GetHashCode();
+          if (fix_ != null) hash ^= Fix.GetHashCode();
           if (_unknownFields != null) {
             hash ^= _unknownFields.GetHashCode();
           }
@@ -2194,6 +2277,10 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
             output.WriteRawTag(146, 3);
             output.WriteMessage(SettlementAmount);
           }
+          if (fix_ != null) {
+            output.WriteRawTag(226, 3);
+            output.WriteMessage(Fix);
+          }
           if (_unknownFields != null) {
             _unknownFields.WriteTo(output);
           }
@@ -2224,6 +2311,10 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
             output.WriteRawTag(146, 3);
             output.WriteMessage(SettlementAmount);
           }
+          if (fix_ != null) {
+            output.WriteRawTag(226, 3);
+            output.WriteMessage(Fix);
+          }
           if (_unknownFields != null) {
             _unknownFields.WriteTo(ref output);
           }
@@ -2248,6 +2339,9 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
           }
           if (settlementAmount_ != null) {
             size += 2 + pb::CodedOutputStream.ComputeMessageSize(SettlementAmount);
+          }
+          if (fix_ != null) {
+            size += 2 + pb::CodedOutputStream.ComputeMessageSize(Fix);
           }
           if (_unknownFields != null) {
             size += _unknownFields.CalculateSize();
@@ -2290,6 +2384,12 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
               SettlementAmount = new global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal();
             }
             SettlementAmount.MergeFrom(other.SettlementAmount);
+          }
+          if (other.fix_ != null) {
+            if (fix_ == null) {
+              Fix = new global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal();
+            }
+            Fix.MergeFrom(other.Fix);
           }
           _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
         }
@@ -2345,6 +2445,13 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
                 input.ReadMessage(SettlementAmount);
                 break;
               }
+              case 482: {
+                if (fix_ == null) {
+                  Fix = new global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal();
+                }
+                input.ReadMessage(Fix);
+                break;
+              }
             }
           }
         #endif
@@ -2397,6 +2504,13 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
                   SettlementAmount = new global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal();
                 }
                 input.ReadMessage(SettlementAmount);
+                break;
+              }
+              case 482: {
+                if (fix_ == null) {
+                  Fix = new global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal();
+                }
+                input.ReadMessage(Fix);
                 break;
               }
             }
@@ -2666,6 +2780,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
           payOutAmount_ = other.payOutAmount_ != null ? other.payOutAmount_.Clone() : null;
           settlement_ = other.settlement_ != null ? other.settlement_.Clone() : null;
           executable_ = other.executable_;
+          fix_ = other.fix_ != null ? other.fix_.Clone() : null;
           _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
         }
 
@@ -2765,6 +2880,21 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
           }
         }
 
+        /// <summary>Field number for the "fix" field.</summary>
+        public const int FixFieldNumber = 70;
+        private global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal fix_;
+        /// <summary>
+        ///* Fixed charge in USD per transfer for this provider's quote. 
+        /// </summary>
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        public global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal Fix {
+          get { return fix_; }
+          set {
+            fix_ = value;
+          }
+        }
+
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
         public override bool Equals(object other) {
@@ -2786,6 +2916,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
           if (!object.Equals(PayOutAmount, other.PayOutAmount)) return false;
           if (!object.Equals(Settlement, other.Settlement)) return false;
           if (Executable != other.Executable) return false;
+          if (!object.Equals(Fix, other.Fix)) return false;
           return Equals(_unknownFields, other._unknownFields);
         }
 
@@ -2799,6 +2930,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
           if (payOutAmount_ != null) hash ^= PayOutAmount.GetHashCode();
           if (settlement_ != null) hash ^= Settlement.GetHashCode();
           if (Executable != false) hash ^= Executable.GetHashCode();
+          if (fix_ != null) hash ^= Fix.GetHashCode();
           if (_unknownFields != null) {
             hash ^= _unknownFields.GetHashCode();
           }
@@ -2841,6 +2973,10 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
             output.WriteRawTag(224, 3);
             output.WriteBool(Executable);
           }
+          if (fix_ != null) {
+            output.WriteRawTag(178, 4);
+            output.WriteMessage(Fix);
+          }
           if (_unknownFields != null) {
             _unknownFields.WriteTo(output);
           }
@@ -2875,6 +3011,10 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
             output.WriteRawTag(224, 3);
             output.WriteBool(Executable);
           }
+          if (fix_ != null) {
+            output.WriteRawTag(178, 4);
+            output.WriteMessage(Fix);
+          }
           if (_unknownFields != null) {
             _unknownFields.WriteTo(ref output);
           }
@@ -2902,6 +3042,9 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
           }
           if (Executable != false) {
             size += 2 + 1;
+          }
+          if (fix_ != null) {
+            size += 2 + pb::CodedOutputStream.ComputeMessageSize(Fix);
           }
           if (_unknownFields != null) {
             size += _unknownFields.CalculateSize();
@@ -2947,6 +3090,12 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
           }
           if (other.Executable != false) {
             Executable = other.Executable;
+          }
+          if (other.fix_ != null) {
+            if (fix_ == null) {
+              Fix = new global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal();
+            }
+            Fix.MergeFrom(other.Fix);
           }
           _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
         }
@@ -3006,6 +3155,13 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
                 Executable = input.ReadBool();
                 break;
               }
+              case 562: {
+                if (fix_ == null) {
+                  Fix = new global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal();
+                }
+                input.ReadMessage(Fix);
+                break;
+              }
             }
           }
         #endif
@@ -3062,6 +3218,13 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
               }
               case 480: {
                 Executable = input.ReadBool();
+                break;
+              }
+              case 562: {
+                if (fix_ == null) {
+                  Fix = new global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal();
+                }
+                input.ReadMessage(Fix);
                 break;
               }
             }
@@ -3894,6 +4057,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
       {
         private static readonly pb::MessageParser<TravelRuleData> _parser = new pb::MessageParser<TravelRuleData>(() => new TravelRuleData());
         private pb::UnknownFieldSet _unknownFields;
+        private int _hasBits0;
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
         public static pb::MessageParser<TravelRuleData> Parser { get { return _parser; } }
@@ -3921,8 +4085,10 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
         public TravelRuleData(TravelRuleData other) : this() {
+          _hasBits0 = other._hasBits0;
           originator_ = other.originator_.Clone();
           beneficiary_ = other.beneficiary_.Clone();
+          originatorProviderLegalEntityId_ = other.originatorProviderLegalEntityId_;
           _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
         }
 
@@ -3963,6 +4129,39 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
           get { return beneficiary_; }
         }
 
+        /// <summary>Field number for the "originator_provider_legal_entity_id" field.</summary>
+        public const int OriginatorProviderLegalEntityIdFieldNumber = 30;
+        private readonly static uint OriginatorProviderLegalEntityIdDefaultValue = 0;
+
+        private uint originatorProviderLegalEntityId_;
+        /// <summary>
+        ///*
+        /// Legal entity ID of the originating provider.
+        /// Required when the provider has multiple registered legal entities.
+        /// If the provider has a single entity, this field may be omitted.
+        /// </summary>
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        public uint OriginatorProviderLegalEntityId {
+          get { if ((_hasBits0 & 1) != 0) { return originatorProviderLegalEntityId_; } else { return OriginatorProviderLegalEntityIdDefaultValue; } }
+          set {
+            _hasBits0 |= 1;
+            originatorProviderLegalEntityId_ = value;
+          }
+        }
+        /// <summary>Gets whether the "originator_provider_legal_entity_id" field is set</summary>
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        public bool HasOriginatorProviderLegalEntityId {
+          get { return (_hasBits0 & 1) != 0; }
+        }
+        /// <summary>Clears the value of the "originator_provider_legal_entity_id" field</summary>
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        public void ClearOriginatorProviderLegalEntityId() {
+          _hasBits0 &= ~1;
+        }
+
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
         public override bool Equals(object other) {
@@ -3980,6 +4179,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
           }
           if(!originator_.Equals(other.originator_)) return false;
           if(!beneficiary_.Equals(other.beneficiary_)) return false;
+          if (OriginatorProviderLegalEntityId != other.OriginatorProviderLegalEntityId) return false;
           return Equals(_unknownFields, other._unknownFields);
         }
 
@@ -3989,6 +4189,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
           int hash = 1;
           hash ^= originator_.GetHashCode();
           hash ^= beneficiary_.GetHashCode();
+          if (HasOriginatorProviderLegalEntityId) hash ^= OriginatorProviderLegalEntityId.GetHashCode();
           if (_unknownFields != null) {
             hash ^= _unknownFields.GetHashCode();
           }
@@ -4009,6 +4210,10 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
         #else
           originator_.WriteTo(output, _repeated_originator_codec);
           beneficiary_.WriteTo(output, _repeated_beneficiary_codec);
+          if (HasOriginatorProviderLegalEntityId) {
+            output.WriteRawTag(240, 1);
+            output.WriteUInt32(OriginatorProviderLegalEntityId);
+          }
           if (_unknownFields != null) {
             _unknownFields.WriteTo(output);
           }
@@ -4021,6 +4226,10 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
         void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
           originator_.WriteTo(ref output, _repeated_originator_codec);
           beneficiary_.WriteTo(ref output, _repeated_beneficiary_codec);
+          if (HasOriginatorProviderLegalEntityId) {
+            output.WriteRawTag(240, 1);
+            output.WriteUInt32(OriginatorProviderLegalEntityId);
+          }
           if (_unknownFields != null) {
             _unknownFields.WriteTo(ref output);
           }
@@ -4033,6 +4242,9 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
           int size = 0;
           size += originator_.CalculateSize(_repeated_originator_codec);
           size += beneficiary_.CalculateSize(_repeated_beneficiary_codec);
+          if (HasOriginatorProviderLegalEntityId) {
+            size += 2 + pb::CodedOutputStream.ComputeUInt32Size(OriginatorProviderLegalEntityId);
+          }
           if (_unknownFields != null) {
             size += _unknownFields.CalculateSize();
           }
@@ -4047,6 +4259,9 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
           }
           originator_.Add(other.originator_);
           beneficiary_.Add(other.beneficiary_);
+          if (other.HasOriginatorProviderLegalEntityId) {
+            OriginatorProviderLegalEntityId = other.OriginatorProviderLegalEntityId;
+          }
           _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
         }
 
@@ -4074,6 +4289,10 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
                 beneficiary_.AddEntriesFrom(input, _repeated_beneficiary_codec);
                 break;
               }
+              case 240: {
+                OriginatorProviderLegalEntityId = input.ReadUInt32();
+                break;
+              }
             }
           }
         #endif
@@ -4099,6 +4318,10 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
               }
               case 162: {
                 beneficiary_.AddEntriesFrom(ref input, _repeated_beneficiary_codec);
+                break;
+              }
+              case 240: {
+                OriginatorProviderLegalEntityId = input.ReadUInt32();
                 break;
               }
             }
