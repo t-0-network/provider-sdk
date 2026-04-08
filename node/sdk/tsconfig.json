@@ -12,11 +12,11 @@
     "isolatedModules": false,
     "incremental": true,
     "rootDir": "./src",
-    "baseUrl": "./src",
     "outDir": "./lib",
     "declaration": true,
     "declarationMap": false,
-    "allowJs": true
+    "allowJs": true,
+    "types": ["node"]
   },
   "include": [
     "src/**/*.ts"

@@ -3,7 +3,7 @@ module github.com/t-0-network/provider-sdk/go/starter
 go 1.25.0
 
 require (
-	github.com/ethereum/go-ethereum v1.17.1
+	github.com/ethereum/go-ethereum v1.17.2
 	github.com/joho/godotenv v1.5.1
 	golang.org/x/mod v0.34.0
 )
