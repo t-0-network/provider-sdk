@@ -173,7 +173,7 @@ type PaymentIntentUpdateRequest_FundsReceived struct {
 	// *
 	// Travel rule data of the pay-in provider's legal entity that received the funds.
 	// Present when the pay-in provider has registered travel rule data.
-	TravelRuleData *PaymentIntentUpdateRequest_FundsReceived_TravelRuleData `protobuf:"bytes,60,opt,name=travel_rule_data,json=travelRuleData,proto3,oneof" json:"travel_rule_data,omitempty"`
+	TravelRuleData *PaymentIntentUpdateRequest_FundsReceived_TravelRuleData `protobuf:"bytes,60,opt,name=travel_rule_data,json=travelRuleData,proto3" json:"travel_rule_data,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -254,7 +254,7 @@ type PaymentIntentUpdateRequest_FundsReceived_TravelRuleData struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// *
 	// IVMS101 legal person data of the originating provider's legal entity.
-	OriginatorProvider *ivms.LegalPerson `protobuf:"bytes,30,opt,name=originator_provider,json=originatorProvider,proto3,oneof" json:"originator_provider,omitempty"`
+	OriginatorProvider *ivms.LegalPerson `protobuf:"bytes,30,opt,name=originator_provider,json=originatorProvider,proto3" json:"originator_provider,omitempty"`
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
 }
@@ -300,23 +300,21 @@ var File_tzero_v1_payment_intent_beneficiary_proto protoreflect.FileDescriptor
 
 const file_tzero_v1_payment_intent_beneficiary_proto_rawDesc = "" +
 	"\n" +
-	")tzero/v1/payment_intent/beneficiary.proto\x12\x17tzero.v1.payment_intent\x1a\x1ctzero/v1/common/common.proto\x1a$tzero/v1/common/payment_method.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1divms101/v1/ivms/ivms101.proto\"\x9b\x06\n" +
+	")tzero/v1/payment_intent/beneficiary.proto\x12\x17tzero.v1.payment_intent\x1a\x1ctzero/v1/common/common.proto\x1a$tzero/v1/common/payment_method.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1divms101/v1/ivms/ivms101.proto\"\xf5\x05\n" +
 	"\x1aPaymentIntentUpdateRequest\x123\n" +
 	"\x11payment_intent_id\x18\n" +
 	" \x01(\x04B\a\xbaH\x042\x02 \x00R\x0fpaymentIntentId\x12j\n" +
-	"\x0efunds_received\x18\x14 \x01(\v2A.tzero.v1.payment_intent.PaymentIntentUpdateRequest.FundsReceivedH\x00R\rfundsReceived\x1a\xd1\x04\n" +
+	"\x0efunds_received\x18\x14 \x01(\v2A.tzero.v1.payment_intent.PaymentIntentUpdateRequest.FundsReceivedH\x00R\rfundsReceived\x1a\xab\x04\n" +
 	"\rFundsReceived\x12E\n" +
 	"\x11settlement_amount\x18\n" +
 	" \x01(\v2\x18.tzero.v1.common.DecimalR\x10settlementAmount\x12,\n" +
 	"\x04rate\x18\x14 \x01(\v2\x18.tzero.v1.common.DecimalR\x04rate\x12?\n" +
 	"\x0epayment_amount\x18\x1e \x01(\v2\x18.tzero.v1.common.DecimalR\rpaymentAmount\x12I\n" +
 	"\x0epayment_method\x18( \x01(\x0e2\".tzero.v1.common.PaymentMethodTypeR\rpaymentMethod\x123\n" +
-	"\x15transaction_reference\x182 \x01(\tR\x14transactionReference\x12\x7f\n" +
-	"\x10travel_rule_data\x18< \x01(\v2P.tzero.v1.payment_intent.PaymentIntentUpdateRequest.FundsReceived.TravelRuleDataH\x00R\x0etravelRuleData\x88\x01\x01\x1at\n" +
-	"\x0eTravelRuleData\x12J\n" +
-	"\x13originator_provider\x18\x1e \x01(\v2\x14.ivms101.LegalPersonH\x00R\x12originatorProvider\x88\x01\x01B\x16\n" +
-	"\x14_originator_providerB\x13\n" +
-	"\x11_travel_rule_dataB\b\n" +
+	"\x15transaction_reference\x182 \x01(\tR\x14transactionReference\x12\x82\x01\n" +
+	"\x10travel_rule_data\x18< \x01(\v2P.tzero.v1.payment_intent.PaymentIntentUpdateRequest.FundsReceived.TravelRuleDataB\x06\xbaH\x03\xc8\x01\x01R\x0etravelRuleData\x1a_\n" +
+	"\x0eTravelRuleData\x12M\n" +
+	"\x13originator_provider\x18\x1e \x01(\v2\x14.ivms101.LegalPersonB\x06\xbaH\x03\xc8\x01\x01R\x12originatorProviderB\b\n" +
 	"\x06update\"\x1d\n" +
 	"\x1bPaymentIntentUpdateResponse2\x9c\x01\n" +
 	"\x12BeneficiaryService\x12\x85\x01\n" +
@@ -370,8 +368,6 @@ func file_tzero_v1_payment_intent_beneficiary_proto_init() {
 	file_tzero_v1_payment_intent_beneficiary_proto_msgTypes[0].OneofWrappers = []any{
 		(*PaymentIntentUpdateRequest_FundsReceived_)(nil),
 	}
-	file_tzero_v1_payment_intent_beneficiary_proto_msgTypes[2].OneofWrappers = []any{}
-	file_tzero_v1_payment_intent_beneficiary_proto_msgTypes[3].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
