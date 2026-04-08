@@ -302,7 +302,7 @@ type PayoutRequest struct {
 	// *
 	// Pay-in provider id which initiated the pay out.
 	PayInProviderId uint32                        `protobuf:"varint,80,opt,name=pay_in_provider_id,json=payInProviderId,proto3" json:"pay_in_provider_id,omitempty"`
-	TravelRuleData  *PayoutRequest_TravelRuleData `protobuf:"bytes,200,opt,name=travel_rule_data,json=travelRuleData,proto3,oneof" json:"travel_rule_data,omitempty"`
+	TravelRuleData  *PayoutRequest_TravelRuleData `protobuf:"bytes,200,opt,name=travel_rule_data,json=travelRuleData,proto3" json:"travel_rule_data,omitempty"`
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -1475,7 +1475,7 @@ func (x *PayoutResponse_Failed) GetDetails() string {
 type UpdatePaymentRequest_Accepted struct {
 	state          protoimpl.MessageState                        `protogen:"open.v1"`
 	PayoutAmount   *common.Decimal                               `protobuf:"bytes,10,opt,name=payout_amount,json=payoutAmount,proto3" json:"payout_amount,omitempty"` // amount in currency of the payout
-	TravelRuleData *UpdatePaymentRequest_Accepted_TravelRuleData `protobuf:"bytes,20,opt,name=travel_rule_data,json=travelRuleData,proto3,oneof" json:"travel_rule_data,omitempty"`
+	TravelRuleData *UpdatePaymentRequest_Accepted_TravelRuleData `protobuf:"bytes,20,opt,name=travel_rule_data,json=travelRuleData,proto3" json:"travel_rule_data,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
 }
@@ -1668,7 +1668,7 @@ func (*UpdatePaymentRequest_ManualAmlCheck) Descriptor() ([]byte, []int) {
 
 type UpdatePaymentRequest_Accepted_TravelRuleData struct {
 	state               protoimpl.MessageState `protogen:"open.v1"`
-	BeneficiaryProvider *ivms.Person           `protobuf:"bytes,10,opt,name=beneficiary_provider,json=beneficiaryProvider,proto3,oneof" json:"beneficiary_provider,omitempty"`
+	BeneficiaryProvider *ivms.Person           `protobuf:"bytes,10,opt,name=beneficiary_provider,json=beneficiaryProvider,proto3" json:"beneficiary_provider,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
 }
@@ -1924,7 +1924,7 @@ const file_tzero_v1_payment_provider_proto_rawDesc = "" +
 	"\x1bACCOUNT_TYPE_SETTLEMENT_OUT\x10Z\x12\"\n" +
 	"\x1eACCOUNT_TYPE_PAYMENT_INTENT_IN\x10d\x12#\n" +
 	"\x1fACCOUNT_TYPE_PAYMENT_INTENT_OUT\x10n\"\x1d\n" +
-	"\x1bAppendLedgerEntriesResponse\"\xb1\x05\n" +
+	"\x1bAppendLedgerEntriesResponse\"\x9f\x05\n" +
 	"\rPayoutRequest\x12\x1d\n" +
 	"\n" +
 	"payment_id\x18\n" +
@@ -1934,8 +1934,8 @@ const file_tzero_v1_payment_provider_proto_rawDesc = "" +
 	"\x0fclient_quote_id\x18( \x01(\tR\rclientQuoteId\x120\n" +
 	"\x06amount\x182 \x01(\v2\x18.tzero.v1.common.DecimalR\x06amount\x12K\n" +
 	"\x0epayout_details\x18< \x01(\v2\x1f.tzero.v1.common.PaymentDetailsH\x00R\rpayoutDetails\x88\x01\x01\x12+\n" +
-	"\x12pay_in_provider_id\x18P \x01(\rR\x0fpayInProviderId\x12^\n" +
-	"\x10travel_rule_data\x18\xc8\x01 \x01(\v2..tzero.v1.payment.PayoutRequest.TravelRuleDataH\x01R\x0etravelRuleData\x88\x01\x01\x1a\xe7\x01\n" +
+	"\x12pay_in_provider_id\x18P \x01(\rR\x0fpayInProviderId\x12a\n" +
+	"\x10travel_rule_data\x18\xc8\x01 \x01(\v2..tzero.v1.payment.PayoutRequest.TravelRuleDataB\x06\xbaH\x03\xc8\x01\x01R\x0etravelRuleData\x1a\xe7\x01\n" +
 	"\x0eTravelRuleData\x129\n" +
 	"\n" +
 	"originator\x18\n" +
@@ -1944,8 +1944,7 @@ const file_tzero_v1_payment_provider_proto_rawDesc = "" +
 	"\vbeneficiary\x18\x14 \x03(\v2\x0f.ivms101.PersonB\b\xbaH\x05\x92\x01\x02\b\x01R\vbeneficiary\x12E\n" +
 	"\x13originator_provider\x18\x1e \x01(\v2\x0f.ivms101.PersonH\x00R\x12originatorProvider\x88\x01\x01B\x16\n" +
 	"\x14_originator_providerB\x11\n" +
-	"\x0f_payout_detailsB\x13\n" +
-	"\x11_travel_rule_data\"\xc8\x04\n" +
+	"\x0f_payout_details\"\xc8\x04\n" +
 	"\x0ePayoutResponse\x12\\\n" +
 	"$beneficiary_provider_legal_entity_id\x18\n" +
 	" \x01(\rB\a\xbaH\x04*\x02 \x00H\x01R beneficiaryProviderLegalEntityId\x88\x01\x01\x12G\n" +
@@ -1964,7 +1963,7 @@ const file_tzero_v1_payment_provider_proto_rawDesc = "" +
 	"\n" +
 	"\b_detailsB\b\n" +
 	"\x06resultB'\n" +
-	"%_beneficiary_provider_legal_entity_id\"\xf8\t\n" +
+	"%_beneficiary_provider_legal_entity_id\"\xd0\t\n" +
 	"\x14UpdatePaymentRequest\x12\x1d\n" +
 	"\n" +
 	"payment_id\x18\x05 \x01(\x04R\tpaymentId\x12*\n" +
@@ -1973,16 +1972,14 @@ const file_tzero_v1_payment_provider_proto_rawDesc = "" +
 	"\baccepted\x18\x14 \x01(\v2/.tzero.v1.payment.UpdatePaymentRequest.AcceptedH\x00R\baccepted\x12G\n" +
 	"\x06failed\x18\x1e \x01(\v2-.tzero.v1.payment.UpdatePaymentRequest.FailedH\x00R\x06failed\x12P\n" +
 	"\tconfirmed\x18( \x01(\v20.tzero.v1.payment.UpdatePaymentRequest.ConfirmedH\x00R\tconfirmed\x12a\n" +
-	"\x10manual_aml_check\x182 \x01(\v25.tzero.v1.payment.UpdatePaymentRequest.ManualAmlCheckH\x00R\x0emanualAmlCheck\x1a\xc1\x02\n" +
+	"\x10manual_aml_check\x182 \x01(\v25.tzero.v1.payment.UpdatePaymentRequest.ManualAmlCheckH\x00R\x0emanualAmlCheck\x1a\x99\x02\n" +
 	"\bAccepted\x12=\n" +
 	"\rpayout_amount\x18\n" +
-	" \x01(\v2\x18.tzero.v1.common.DecimalR\fpayoutAmount\x12m\n" +
-	"\x10travel_rule_data\x18\x14 \x01(\v2>.tzero.v1.payment.UpdatePaymentRequest.Accepted.TravelRuleDataH\x00R\x0etravelRuleData\x88\x01\x01\x1ar\n" +
-	"\x0eTravelRuleData\x12G\n" +
+	" \x01(\v2\x18.tzero.v1.common.DecimalR\fpayoutAmount\x12p\n" +
+	"\x10travel_rule_data\x18\x14 \x01(\v2>.tzero.v1.payment.UpdatePaymentRequest.Accepted.TravelRuleDataB\x06\xbaH\x03\xc8\x01\x01R\x0etravelRuleData\x1a\\\n" +
+	"\x0eTravelRuleData\x12J\n" +
 	"\x14beneficiary_provider\x18\n" +
-	" \x01(\v2\x0f.ivms101.PersonH\x00R\x13beneficiaryProvider\x88\x01\x01B\x17\n" +
-	"\x15_beneficiary_providerB\x13\n" +
-	"\x11_travel_rule_data\x1a\xd1\x02\n" +
+	" \x01(\v2\x0f.ivms101.PersonB\x06\xbaH\x03\xc8\x01\x01R\x13beneficiaryProvider\x1a\xd1\x02\n" +
 	"\x06Failed\x12L\n" +
 	"\x06reason\x18\n" +
 	" \x01(\x0e24.tzero.v1.payment.UpdatePaymentRequest.Failed.ReasonR\x06reason\x12\x1d\n" +
@@ -2179,10 +2176,8 @@ func file_tzero_v1_payment_provider_proto_init() {
 	}
 	file_tzero_v1_payment_provider_proto_msgTypes[15].OneofWrappers = []any{}
 	file_tzero_v1_payment_provider_proto_msgTypes[18].OneofWrappers = []any{}
-	file_tzero_v1_payment_provider_proto_msgTypes[19].OneofWrappers = []any{}
 	file_tzero_v1_payment_provider_proto_msgTypes[20].OneofWrappers = []any{}
 	file_tzero_v1_payment_provider_proto_msgTypes[21].OneofWrappers = []any{}
-	file_tzero_v1_payment_provider_proto_msgTypes[23].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{

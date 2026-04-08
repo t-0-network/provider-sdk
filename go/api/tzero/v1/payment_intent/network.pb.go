@@ -1434,14 +1434,14 @@ const file_tzero_v1_payment_intent_network_proto_rawDesc = "" +
 	"\vprovider_id\x18\x14 \x01(\rR\n" +
 	"providerId\x12H\n" +
 	"\x0fpayment_details\x18\x1e \x01(\v2\x1f.tzero.v1.common.PaymentDetailsR\x0epaymentDetails\x12A\n" +
-	"\x0findicative_rate\x18( \x01(\v2\x18.tzero.v1.common.DecimalR\x0eindicativeRate\"\xda\x03\n" +
+	"\x0findicative_rate\x18( \x01(\v2\x18.tzero.v1.common.DecimalR\x0eindicativeRate\"\xe2\x03\n" +
 	"\x1aCreatePaymentIntentRequest\x12-\n" +
 	"\x12external_reference\x18\n" +
 	" \x01(\tR\x11externalReference\x120\n" +
 	"\bcurrency\x18\x14 \x01(\tB\x14\xbaH\x11r\x0f2\n" +
 	"^[A-Z]{3}$\x98\x01\x03R\bcurrency\x128\n" +
-	"\x06amount\x18\x1e \x01(\v2\x18.tzero.v1.common.DecimalB\x06\xbaH\x03\xc8\x01\x01R\x06amount\x12l\n" +
-	"\x10travel_rule_data\x18( \x01(\v2B.tzero.v1.payment_intent.CreatePaymentIntentRequest.TravelRuleDataR\x0etravelRuleData\x12-\n" +
+	"\x06amount\x18\x1e \x01(\v2\x18.tzero.v1.common.DecimalB\x06\xbaH\x03\xc8\x01\x01R\x06amount\x12t\n" +
+	"\x10travel_rule_data\x18( \x01(\v2B.tzero.v1.payment_intent.CreatePaymentIntentRequest.TravelRuleDataB\x06\xbaH\x03\xc8\x01\x01R\x0etravelRuleData\x12-\n" +
 	"\x13pay_in_provider_ids\x182 \x03(\rR\x10payInProviderIds\x1a\x83\x01\n" +
 	"\x0eTravelRuleData\x12;\n" +
 	"\vbeneficiary\x18\n" +

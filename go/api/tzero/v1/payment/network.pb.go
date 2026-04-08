@@ -437,12 +437,12 @@ func (*GetQuoteResponse_Failure_) isGetQuoteResponse_Result() {}
 
 type CreatePaymentRequest struct {
 	state           protoimpl.MessageState               `protogen:"open.v1"`
-	PaymentClientId string                               `protobuf:"bytes,10,opt,name=payment_client_id,json=paymentClientId,proto3" json:"payment_client_id,omitempty"`     // unique client generated id for this payment
-	Amount          *PaymentAmount                       `protobuf:"bytes,30,opt,name=amount,proto3" json:"amount,omitempty"`                                                // payment amount - should be either pay-out amount or settlement amount
-	Currency        string                               `protobuf:"bytes,40,opt,name=currency,proto3" json:"currency,omitempty"`                                            // pay-out currency
-	PaymentDetails  *common.PaymentDetails               `protobuf:"bytes,50,opt,name=payment_details,json=paymentDetails,proto3" json:"payment_details,omitempty"`          // pay-out payment details
-	QuoteId         *QuoteId                             `protobuf:"bytes,60,opt,name=quote_id,json=quoteId,proto3,oneof" json:"quote_id,omitempty"`                         // if specified, must be a valid quoteId that was previously returned by the GetPayoutQuote method otherwise last available quote will be used
-	TravelRuleData  *CreatePaymentRequest_TravelRuleData `protobuf:"bytes,100,opt,name=travel_rule_data,json=travelRuleData,proto3,oneof" json:"travel_rule_data,omitempty"` // travel rule data
+	PaymentClientId string                               `protobuf:"bytes,10,opt,name=payment_client_id,json=paymentClientId,proto3" json:"payment_client_id,omitempty"` // unique client generated id for this payment
+	Amount          *PaymentAmount                       `protobuf:"bytes,30,opt,name=amount,proto3" json:"amount,omitempty"`                                            // payment amount - should be either pay-out amount or settlement amount
+	Currency        string                               `protobuf:"bytes,40,opt,name=currency,proto3" json:"currency,omitempty"`                                        // pay-out currency
+	PaymentDetails  *common.PaymentDetails               `protobuf:"bytes,50,opt,name=payment_details,json=paymentDetails,proto3" json:"payment_details,omitempty"`      // pay-out payment details
+	QuoteId         *QuoteId                             `protobuf:"bytes,60,opt,name=quote_id,json=quoteId,proto3,oneof" json:"quote_id,omitempty"`                     // if specified, must be a valid quoteId that was previously returned by the GetPayoutQuote method otherwise last available quote will be used
+	TravelRuleData  *CreatePaymentRequest_TravelRuleData `protobuf:"bytes,100,opt,name=travel_rule_data,json=travelRuleData,proto3" json:"travel_rule_data,omitempty"`   // travel rule data
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }
@@ -2236,7 +2236,7 @@ const file_tzero_v1_payment_network_proto_rawDesc = "" +
 	"\n" +
 	"total_used\x18\x1e \x01(\v2\x18.tzero.v1.common.DecimalB\x06\xbaH\x03\xc8\x01\x01R\ttotalUsed\x12M\n" +
 	"\x11prefunding_amount\x182 \x01(\v2\x18.tzero.v1.common.DecimalB\x06\xbaH\x03\xc8\x01\x01R\x10prefundingAmountB\x0f\n" +
-	"\x06result\x12\x05\xbaH\x02\b\x01\"\xe4\x05\n" +
+	"\x06result\x12\x05\xbaH\x02\b\x01\"\xd2\x05\n" +
 	"\x14CreatePaymentRequest\x125\n" +
 	"\x11payment_client_id\x18\n" +
 	" \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18@R\x0fpaymentClientId\x12?\n" +
@@ -2244,8 +2244,8 @@ const file_tzero_v1_payment_network_proto_rawDesc = "" +
 	"\bcurrency\x18( \x01(\tB\x14\xbaH\x11r\x0f2\n" +
 	"^[A-Z]{3}$\x98\x01\x03R\bcurrency\x12P\n" +
 	"\x0fpayment_details\x182 \x01(\v2\x1f.tzero.v1.common.PaymentDetailsB\x06\xbaH\x03\xc8\x01\x01R\x0epaymentDetails\x129\n" +
-	"\bquote_id\x18< \x01(\v2\x19.tzero.v1.payment.QuoteIdH\x00R\aquoteId\x88\x01\x01\x12d\n" +
-	"\x10travel_rule_data\x18d \x01(\v25.tzero.v1.payment.CreatePaymentRequest.TravelRuleDataH\x01R\x0etravelRuleData\x88\x01\x01\x1a\x8c\x02\n" +
+	"\bquote_id\x18< \x01(\v2\x19.tzero.v1.payment.QuoteIdH\x00R\aquoteId\x88\x01\x01\x12g\n" +
+	"\x10travel_rule_data\x18d \x01(\v25.tzero.v1.payment.CreatePaymentRequest.TravelRuleDataB\x06\xbaH\x03\xc8\x01\x01R\x0etravelRuleData\x1a\x8c\x02\n" +
 	"\x0eTravelRuleData\x129\n" +
 	"\n" +
 	"originator\x18\n" +
@@ -2254,8 +2254,7 @@ const file_tzero_v1_payment_network_proto_rawDesc = "" +
 	"\vbeneficiary\x18\x14 \x03(\v2\x0f.ivms101.PersonB\b\xbaH\x05\x92\x01\x02\b\x01R\vbeneficiary\x12Z\n" +
 	"#originator_provider_legal_entity_id\x18\x1e \x01(\rB\a\xbaH\x04*\x02 \x00H\x00R\x1foriginatorProviderLegalEntityId\x88\x01\x01B&\n" +
 	"$_originator_provider_legal_entity_idB\v\n" +
-	"\t_quote_idB\x13\n" +
-	"\x11_travel_rule_data\"W\n" +
+	"\t_quote_id\"W\n" +
 	"\aQuoteId\x12\"\n" +
 	"\bquote_id\x18\x1e \x01(\x03B\a\xbaH\x04\"\x02 \x00R\aquoteId\x12(\n" +
 	"\vprovider_id\x18( \x01(\x05B\a\xbaH\x04\x1a\x02 \x00R\n" +
