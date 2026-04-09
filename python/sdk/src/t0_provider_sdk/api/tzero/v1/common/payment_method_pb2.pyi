@@ -28,6 +28,7 @@ class PaymentMethodType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     PAYMENT_METHOD_TYPE_AFRICAN_MOBILE_MONEY: _ClassVar[PaymentMethodType]
     PAYMENT_METHOD_TYPE_CNAPS: _ClassVar[PaymentMethodType]
     PAYMENT_METHOD_TYPE_NIP: _ClassVar[PaymentMethodType]
+    PAYMENT_METHOD_TYPE_RTP: _ClassVar[PaymentMethodType]
 PAYMENT_METHOD_TYPE_UNSPECIFIED: PaymentMethodType
 PAYMENT_METHOD_TYPE_SEPA: PaymentMethodType
 PAYMENT_METHOD_TYPE_SWIFT: PaymentMethodType
@@ -45,11 +46,12 @@ PAYMENT_METHOD_TYPE_PIX: PaymentMethodType
 PAYMENT_METHOD_TYPE_AFRICAN_MOBILE_MONEY: PaymentMethodType
 PAYMENT_METHOD_TYPE_CNAPS: PaymentMethodType
 PAYMENT_METHOD_TYPE_NIP: PaymentMethodType
+PAYMENT_METHOD_TYPE_RTP: PaymentMethodType
 PAYMENT_METHOD_TYPE_FIELD_NUMBER: _ClassVar[int]
 payment_method_type: _descriptor.FieldDescriptor
 
 class PaymentDetails(_message.Message):
-    __slots__ = ("sepa", "swift", "ach", "domestic_wire", "fps", "mpesa", "gcash", "indian_bank_transfer", "pesonet", "instapay", "pakistan_bank_transfer", "pakistan_mobile_wallet", "pix", "african_mobile_money", "naps", "nip")
+    __slots__ = ("sepa", "swift", "ach", "domestic_wire", "fps", "mpesa", "gcash", "indian_bank_transfer", "pesonet", "instapay", "pakistan_bank_transfer", "pakistan_mobile_wallet", "pix", "african_mobile_money", "naps", "nip", "rtp")
     class Sepa(_message.Message):
         __slots__ = ("iban", "beneficiary_name", "payment_reference")
         IBAN_FIELD_NUMBER: _ClassVar[int]
@@ -177,7 +179,7 @@ class PaymentDetails(_message.Message):
         intermediary_bank: PaymentDetails.Swift.IntermediaryBank
         def __init__(self, swift_code: _Optional[str] = ..., account_number: _Optional[str] = ..., beneficiary_name: _Optional[str] = ..., beneficiary_address: _Optional[str] = ..., payment_reference: _Optional[str] = ..., bank_name: _Optional[str] = ..., bank_country: _Optional[str] = ..., account_currency: _Optional[str] = ..., intermediary_bank: _Optional[_Union[PaymentDetails.Swift.IntermediaryBank, _Mapping]] = ...) -> None: ...
     class Ach(_message.Message):
-        __slots__ = ("routing_number", "account_number", "account_holder_name", "account_type")
+        __slots__ = ("routing_number", "account_number", "account_holder_name", "account_type", "payment_reference")
         class AchAccountType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
             __slots__ = ()
             ACH_ACCOUNT_TYPE_UNSPECIFIED: _ClassVar[PaymentDetails.Ach.AchAccountType]
@@ -190,11 +192,13 @@ class PaymentDetails(_message.Message):
         ACCOUNT_NUMBER_FIELD_NUMBER: _ClassVar[int]
         ACCOUNT_HOLDER_NAME_FIELD_NUMBER: _ClassVar[int]
         ACCOUNT_TYPE_FIELD_NUMBER: _ClassVar[int]
+        PAYMENT_REFERENCE_FIELD_NUMBER: _ClassVar[int]
         routing_number: str
         account_number: str
         account_holder_name: str
         account_type: PaymentDetails.Ach.AchAccountType
-        def __init__(self, routing_number: _Optional[str] = ..., account_number: _Optional[str] = ..., account_holder_name: _Optional[str] = ..., account_type: _Optional[_Union[PaymentDetails.Ach.AchAccountType, str]] = ...) -> None: ...
+        payment_reference: str
+        def __init__(self, routing_number: _Optional[str] = ..., account_number: _Optional[str] = ..., account_holder_name: _Optional[str] = ..., account_type: _Optional[_Union[PaymentDetails.Ach.AchAccountType, str]] = ..., payment_reference: _Optional[str] = ...) -> None: ...
     class DomesticWire(_message.Message):
         __slots__ = ("bank_name", "bank_address", "routing_number", "account_number", "beneficiary_name", "beneficiary_address", "wire_reference")
         BANK_NAME_FIELD_NUMBER: _ClassVar[int]
@@ -302,7 +306,7 @@ class PaymentDetails(_message.Message):
         payment_reference: str
         def __init__(self, key_type: _Optional[_Union[PaymentDetails.Pix.KeyType, str]] = ..., key_value: _Optional[str] = ..., beneficiary_name: _Optional[str] = ..., beneficiary_tax_id: _Optional[str] = ..., payment_reference: _Optional[str] = ...) -> None: ...
     class Cnaps(_message.Message):
-        __slots__ = ("account_number", "cnaps_code", "beneficiary_name_local", "beneficiary_name", "business", "person")
+        __slots__ = ("account_number", "cnaps_code", "beneficiary_name_local", "beneficiary_name", "business", "person", "payment_reference")
         class Business(_message.Message):
             __slots__ = ("license_number",)
             LICENSE_NUMBER_FIELD_NUMBER: _ClassVar[int]
@@ -319,13 +323,15 @@ class PaymentDetails(_message.Message):
         BENEFICIARY_NAME_FIELD_NUMBER: _ClassVar[int]
         BUSINESS_FIELD_NUMBER: _ClassVar[int]
         PERSON_FIELD_NUMBER: _ClassVar[int]
+        PAYMENT_REFERENCE_FIELD_NUMBER: _ClassVar[int]
         account_number: str
         cnaps_code: str
         beneficiary_name_local: str
         beneficiary_name: str
         business: PaymentDetails.Cnaps.Business
         person: PaymentDetails.Cnaps.Person
-        def __init__(self, account_number: _Optional[str] = ..., cnaps_code: _Optional[str] = ..., beneficiary_name_local: _Optional[str] = ..., beneficiary_name: _Optional[str] = ..., business: _Optional[_Union[PaymentDetails.Cnaps.Business, _Mapping]] = ..., person: _Optional[_Union[PaymentDetails.Cnaps.Person, _Mapping]] = ...) -> None: ...
+        payment_reference: str
+        def __init__(self, account_number: _Optional[str] = ..., cnaps_code: _Optional[str] = ..., beneficiary_name_local: _Optional[str] = ..., beneficiary_name: _Optional[str] = ..., business: _Optional[_Union[PaymentDetails.Cnaps.Business, _Mapping]] = ..., person: _Optional[_Union[PaymentDetails.Cnaps.Person, _Mapping]] = ..., payment_reference: _Optional[str] = ...) -> None: ...
     class Nip(_message.Message):
         __slots__ = ("bank_code", "account_number", "beneficiary_name", "payment_reference")
         BANK_CODE_FIELD_NUMBER: _ClassVar[int]
@@ -337,6 +343,27 @@ class PaymentDetails(_message.Message):
         beneficiary_name: str
         payment_reference: str
         def __init__(self, bank_code: _Optional[str] = ..., account_number: _Optional[str] = ..., beneficiary_name: _Optional[str] = ..., payment_reference: _Optional[str] = ...) -> None: ...
+    class Rtp(_message.Message):
+        __slots__ = ("routing_number", "account_number", "account_type", "bank_name", "payment_reference")
+        class RtpAccountType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+            __slots__ = ()
+            RTP_ACCOUNT_TYPE_UNSPECIFIED: _ClassVar[PaymentDetails.Rtp.RtpAccountType]
+            RTP_ACCOUNT_TYPE_CHECKING: _ClassVar[PaymentDetails.Rtp.RtpAccountType]
+            RTP_ACCOUNT_TYPE_SAVINGS: _ClassVar[PaymentDetails.Rtp.RtpAccountType]
+        RTP_ACCOUNT_TYPE_UNSPECIFIED: PaymentDetails.Rtp.RtpAccountType
+        RTP_ACCOUNT_TYPE_CHECKING: PaymentDetails.Rtp.RtpAccountType
+        RTP_ACCOUNT_TYPE_SAVINGS: PaymentDetails.Rtp.RtpAccountType
+        ROUTING_NUMBER_FIELD_NUMBER: _ClassVar[int]
+        ACCOUNT_NUMBER_FIELD_NUMBER: _ClassVar[int]
+        ACCOUNT_TYPE_FIELD_NUMBER: _ClassVar[int]
+        BANK_NAME_FIELD_NUMBER: _ClassVar[int]
+        PAYMENT_REFERENCE_FIELD_NUMBER: _ClassVar[int]
+        routing_number: str
+        account_number: str
+        account_type: PaymentDetails.Rtp.RtpAccountType
+        bank_name: str
+        payment_reference: str
+        def __init__(self, routing_number: _Optional[str] = ..., account_number: _Optional[str] = ..., account_type: _Optional[_Union[PaymentDetails.Rtp.RtpAccountType, str]] = ..., bank_name: _Optional[str] = ..., payment_reference: _Optional[str] = ...) -> None: ...
     SEPA_FIELD_NUMBER: _ClassVar[int]
     SWIFT_FIELD_NUMBER: _ClassVar[int]
     ACH_FIELD_NUMBER: _ClassVar[int]
@@ -353,6 +380,7 @@ class PaymentDetails(_message.Message):
     AFRICAN_MOBILE_MONEY_FIELD_NUMBER: _ClassVar[int]
     NAPS_FIELD_NUMBER: _ClassVar[int]
     NIP_FIELD_NUMBER: _ClassVar[int]
+    RTP_FIELD_NUMBER: _ClassVar[int]
     sepa: PaymentDetails.Sepa
     swift: PaymentDetails.Swift
     ach: PaymentDetails.Ach
@@ -369,4 +397,5 @@ class PaymentDetails(_message.Message):
     african_mobile_money: PaymentDetails.AfricanMobileMoney
     naps: PaymentDetails.Cnaps
     nip: PaymentDetails.Nip
-    def __init__(self, sepa: _Optional[_Union[PaymentDetails.Sepa, _Mapping]] = ..., swift: _Optional[_Union[PaymentDetails.Swift, _Mapping]] = ..., ach: _Optional[_Union[PaymentDetails.Ach, _Mapping]] = ..., domestic_wire: _Optional[_Union[PaymentDetails.DomesticWire, _Mapping]] = ..., fps: _Optional[_Union[PaymentDetails.Fps, _Mapping]] = ..., mpesa: _Optional[_Union[PaymentDetails.MPesa, _Mapping]] = ..., gcash: _Optional[_Union[PaymentDetails.GCash, _Mapping]] = ..., indian_bank_transfer: _Optional[_Union[PaymentDetails.IndianBankTransfer, _Mapping]] = ..., pesonet: _Optional[_Union[PaymentDetails.Pesonet, _Mapping]] = ..., instapay: _Optional[_Union[PaymentDetails.Instapay, _Mapping]] = ..., pakistan_bank_transfer: _Optional[_Union[PaymentDetails.PakistanBankTransfer, _Mapping]] = ..., pakistan_mobile_wallet: _Optional[_Union[PaymentDetails.PakistanMobileWallet, _Mapping]] = ..., pix: _Optional[_Union[PaymentDetails.Pix, _Mapping]] = ..., african_mobile_money: _Optional[_Union[PaymentDetails.AfricanMobileMoney, _Mapping]] = ..., naps: _Optional[_Union[PaymentDetails.Cnaps, _Mapping]] = ..., nip: _Optional[_Union[PaymentDetails.Nip, _Mapping]] = ...) -> None: ...
+    rtp: PaymentDetails.Rtp
+    def __init__(self, sepa: _Optional[_Union[PaymentDetails.Sepa, _Mapping]] = ..., swift: _Optional[_Union[PaymentDetails.Swift, _Mapping]] = ..., ach: _Optional[_Union[PaymentDetails.Ach, _Mapping]] = ..., domestic_wire: _Optional[_Union[PaymentDetails.DomesticWire, _Mapping]] = ..., fps: _Optional[_Union[PaymentDetails.Fps, _Mapping]] = ..., mpesa: _Optional[_Union[PaymentDetails.MPesa, _Mapping]] = ..., gcash: _Optional[_Union[PaymentDetails.GCash, _Mapping]] = ..., indian_bank_transfer: _Optional[_Union[PaymentDetails.IndianBankTransfer, _Mapping]] = ..., pesonet: _Optional[_Union[PaymentDetails.Pesonet, _Mapping]] = ..., instapay: _Optional[_Union[PaymentDetails.Instapay, _Mapping]] = ..., pakistan_bank_transfer: _Optional[_Union[PaymentDetails.PakistanBankTransfer, _Mapping]] = ..., pakistan_mobile_wallet: _Optional[_Union[PaymentDetails.PakistanMobileWallet, _Mapping]] = ..., pix: _Optional[_Union[PaymentDetails.Pix, _Mapping]] = ..., african_mobile_money: _Optional[_Union[PaymentDetails.AfricanMobileMoney, _Mapping]] = ..., naps: _Optional[_Union[PaymentDetails.Cnaps, _Mapping]] = ..., nip: _Optional[_Union[PaymentDetails.Nip, _Mapping]] = ..., rtp: _Optional[_Union[PaymentDetails.Rtp, _Mapping]] = ...) -> None: ...
