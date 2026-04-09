@@ -300,7 +300,7 @@ var File_tzero_v1_payment_intent_beneficiary_proto protoreflect.FileDescriptor
 
 const file_tzero_v1_payment_intent_beneficiary_proto_rawDesc = "" +
 	"\n" +
-	")tzero/v1/payment_intent/beneficiary.proto\x12\x17tzero.v1.payment_intent\x1a\x1ctzero/v1/common/common.proto\x1a$tzero/v1/common/payment_method.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1divms101/v1/ivms/ivms101.proto\"\xf5\x05\n" +
+	")tzero/v1/payment_intent/beneficiary.proto\x12\x17tzero.v1.payment_intent\x1a\x1ctzero/v1/common/common.proto\x1a$tzero/v1/common/payment_method.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1divms101/v1/ivms/ivms101.proto\"\xfc\x05\n" +
 	"\x1aPaymentIntentUpdateRequest\x123\n" +
 	"\x11payment_intent_id\x18\n" +
 	" \x01(\x04B\a\xbaH\x042\x02 \x00R\x0fpaymentIntentId\x12j\n" +
@@ -314,8 +314,8 @@ const file_tzero_v1_payment_intent_beneficiary_proto_rawDesc = "" +
 	"\x15transaction_reference\x182 \x01(\tR\x14transactionReference\x12\x82\x01\n" +
 	"\x10travel_rule_data\x18< \x01(\v2P.tzero.v1.payment_intent.PaymentIntentUpdateRequest.FundsReceived.TravelRuleDataB\x06\xbaH\x03\xc8\x01\x01R\x0etravelRuleData\x1a_\n" +
 	"\x0eTravelRuleData\x12M\n" +
-	"\x13originator_provider\x18\x1e \x01(\v2\x14.ivms101.LegalPersonB\x06\xbaH\x03\xc8\x01\x01R\x12originatorProviderB\b\n" +
-	"\x06update\"\x1d\n" +
+	"\x13originator_provider\x18\x1e \x01(\v2\x14.ivms101.LegalPersonB\x06\xbaH\x03\xc8\x01\x01R\x12originatorProviderB\x0f\n" +
+	"\x06update\x12\x05\xbaH\x02\b\x01\"\x1d\n" +
 	"\x1bPaymentIntentUpdateResponse2\x9c\x01\n" +
 	"\x12BeneficiaryService\x12\x85\x01\n" +
 	"\x13PaymentIntentUpdate\x123.tzero.v1.payment_intent.PaymentIntentUpdateRequest\x1a4.tzero.v1.payment_intent.PaymentIntentUpdateResponse\"\x03\x90\x02\x02B\x80\x02\n" +

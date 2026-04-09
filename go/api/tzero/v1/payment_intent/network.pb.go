@@ -292,7 +292,7 @@ type GetQuoteResponse struct {
 	//
 	//	*GetQuoteResponse_Success_
 	//	*GetQuoteResponse_QuoteNotFound_
-	Result        isGetQuoteResponse_Result `protobuf_oneof:"Result"`
+	Result        isGetQuoteResponse_Result `protobuf_oneof:"result"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -555,7 +555,7 @@ type CreatePaymentIntentResponse struct {
 	//
 	//	*CreatePaymentIntentResponse_Success_
 	//	*CreatePaymentIntentResponse_Failure_
-	Result        isCreatePaymentIntentResponse_Result `protobuf_oneof:"Result"`
+	Result        isCreatePaymentIntentResponse_Result `protobuf_oneof:"result"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -732,7 +732,7 @@ type ConfirmFundsReceivedResponse struct {
 	//
 	//	*ConfirmFundsReceivedResponse_Accept_
 	//	*ConfirmFundsReceivedResponse_Reject_
-	Result        isConfirmFundsReceivedResponse_Result `protobuf_oneof:"Result"`
+	Result        isConfirmFundsReceivedResponse_Result `protobuf_oneof:"result"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1409,7 +1409,7 @@ const file_tzero_v1_payment_intent_network_proto_rawDesc = "" +
 	"\bcurrency\x18\x14 \x01(\tB\x14\xbaH\x11r\x0f2\n" +
 	"^[A-Z]{3}$\x98\x01\x03R\bcurrency\x128\n" +
 	"\x06amount\x18\x1e \x01(\v2\x18.tzero.v1.common.DecimalB\x06\xbaH\x03\xc8\x01\x01R\x06amount\x12-\n" +
-	"\x13pay_in_provider_ids\x18( \x03(\rR\x10payInProviderIds\"\xf4\x04\n" +
+	"\x13pay_in_provider_ids\x18( \x03(\rR\x10payInProviderIds\"\xfb\x04\n" +
 	"\x10GetQuoteResponse\x12M\n" +
 	"\asuccess\x18\n" +
 	" \x01(\v21.tzero.v1.payment_intent.GetQuoteResponse.SuccessH\x00R\asuccess\x12a\n" +
@@ -1426,8 +1426,8 @@ const file_tzero_v1_payment_intent_network_proto_rawDesc = "" +
 	"\vprovider_id\x18\x14 \x01(\rR\n" +
 	"providerId\x12A\n" +
 	"\x0findicative_rate\x18\x1e \x01(\v2\x18.tzero.v1.common.DecimalR\x0eindicativeRate\x1a\x0f\n" +
-	"\rQuoteNotFoundB\b\n" +
-	"\x06Result\"\x94\x02\n" +
+	"\rQuoteNotFoundB\x0f\n" +
+	"\x06result\x12\x05\xbaH\x02\b\x01\"\x94\x02\n" +
 	"\x19PaymentIntentPayInDetails\x12I\n" +
 	"\x0epayment_method\x18\n" +
 	" \x01(\x0e2\".tzero.v1.common.PaymentMethodTypeR\rpaymentMethod\x12\x1f\n" +
@@ -1447,7 +1447,7 @@ const file_tzero_v1_payment_intent_network_proto_rawDesc = "" +
 	"\vbeneficiary\x18\n" +
 	" \x03(\v2\x0f.ivms101.PersonB\b\xbaH\x05\x92\x01\x02\b\x01R\vbeneficiary\x12*\n" +
 	"\x05payer\x18( \x01(\v2\x0f.ivms101.PersonH\x00R\x05payer\x88\x01\x01B\b\n" +
-	"\x06_payer\"\xca\x04\n" +
+	"\x06_payer\"\xd1\x04\n" +
 	"\x1bCreatePaymentIntentResponse\x12X\n" +
 	"\asuccess\x18\n" +
 	" \x01(\v2<.tzero.v1.payment_intent.CreatePaymentIntentResponse.SuccessH\x00R\asuccess\x12X\n" +
@@ -1463,8 +1463,8 @@ const file_tzero_v1_payment_intent_network_proto_rawDesc = "" +
 	"\x1aFAILURE_REASON_UNSPECIFIED\x10\x00\x12\"\n" +
 	"\x1eFAILURE_REASON_QUOTE_NOT_FOUND\x10\n" +
 	"\x12\x1b\n" +
-	"\x17FAILURE_REASON_REJECTED\x10\x14B\b\n" +
-	"\x06Result\"\x8f\x03\n" +
+	"\x17FAILURE_REASON_REJECTED\x10\x14B\x0f\n" +
+	"\x06result\x12\x05\xbaH\x02\b\x01\"\x8f\x03\n" +
 	"\x1bConfirmFundsReceivedRequest\x123\n" +
 	"\x11payment_intent_id\x18\n" +
 	" \x01(\x04B\a\xbaH\x042\x02 \x00R\x0fpaymentIntentId\x12+\n" +
@@ -1473,7 +1473,7 @@ const file_tzero_v1_payment_intent_network_proto_rawDesc = "" +
 	"\x15transaction_reference\x18( \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\x80\x02R\x14transactionReference\x12Z\n" +
 	"#originator_provider_legal_entity_id\x182 \x01(\rB\a\xbaH\x04*\x02 \x00H\x00R\x1foriginatorProviderLegalEntityId\x88\x01\x01B&\n" +
-	"$_originator_provider_legal_entity_id\"\xed\x03\n" +
+	"$_originator_provider_legal_entity_id\"\xf4\x03\n" +
 	"\x1cConfirmFundsReceivedResponse\x12V\n" +
 	"\x06accept\x18\n" +
 	" \x01(\v2<.tzero.v1.payment_intent.ConfirmFundsReceivedResponse.AcceptH\x00R\x06accept\x12V\n" +
@@ -1487,8 +1487,8 @@ const file_tzero_v1_payment_intent_network_proto_rawDesc = "" +
 	"(REJECT_REASON_CONFIRMATION_CODE_MISMATCH\x10\n" +
 	"\x12!\n" +
 	"\x1dREJECT_REASON_NO_ACTIVE_QUOTE\x10\x14\x12&\n" +
-	"\"REJECT_REASON_PROVIDER_NOT_ALLOWED\x10\x1eB\b\n" +
-	"\x06Result2\xfe\x03\n" +
+	"\"REJECT_REASON_PROVIDER_NOT_ALLOWED\x10\x1eB\x0f\n" +
+	"\x06result\x12\x05\xbaH\x02\b\x012\xfe\x03\n" +
 	"\x14PaymentIntentService\x12m\n" +
 	"\vUpdateQuote\x12+.tzero.v1.payment_intent.UpdateQuoteRequest\x1a,.tzero.v1.payment_intent.UpdateQuoteResponse\"\x03\x90\x02\x02\x12d\n" +
 	"\bGetQuote\x12(.tzero.v1.payment_intent.GetQuoteRequest\x1a).tzero.v1.payment_intent.GetQuoteResponse\"\x03\x90\x02\x02\x12\x85\x01\n" +
