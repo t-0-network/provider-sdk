@@ -9,9 +9,10 @@ authors = [
 ]
 dependencies = [
     "connect-python>=0.9",
-    "protobuf>=7.34",
+    "protobuf>=7.34.1",
     "coincurve>=21.0",
     "pycryptodome>=3.23",
+    "protovalidate>=0.3",
 ]
 
 [project.urls]

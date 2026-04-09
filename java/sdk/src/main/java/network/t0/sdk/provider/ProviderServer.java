@@ -285,6 +285,8 @@ public final class ProviderServer implements Closeable {
         private Server buildGrpcServer() {
             SignatureVerificationInterceptor verificationInterceptor =
                     new SignatureVerificationInterceptor(networkPublicKey);
+            ResponseValidationInterceptor validationInterceptor =
+                    new ResponseValidationInterceptor();
 
             NettyServerBuilder builder = NettyServerBuilder.forPort(port)
                     .maxInboundMessageSize(maxInboundMessageSize)
@@ -295,7 +297,7 @@ public final class ProviderServer implements Closeable {
                 ServerServiceDefinition originalDefinition = service.bindService();
                 ServerServiceDefinition withInputStream = ServerInterceptors.useInputStreamMessages(originalDefinition);
                 ServerServiceDefinition interceptedDefinition =
-                        ServerInterceptors.intercept(withInputStream, verificationInterceptor);
+                        ServerInterceptors.intercept(withInputStream, verificationInterceptor, validationInterceptor);
                 builder.addService(interceptedDefinition);
             }
 
