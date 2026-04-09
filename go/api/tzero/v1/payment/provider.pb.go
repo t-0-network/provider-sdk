@@ -1944,7 +1944,7 @@ const file_tzero_v1_payment_provider_proto_rawDesc = "" +
 	"\vbeneficiary\x18\x14 \x03(\v2\x0f.ivms101.PersonB\b\xbaH\x05\x92\x01\x02\b\x01R\vbeneficiary\x12E\n" +
 	"\x13originator_provider\x18\x1e \x01(\v2\x0f.ivms101.PersonH\x00R\x12originatorProvider\x88\x01\x01B\x16\n" +
 	"\x14_originator_providerB\x11\n" +
-	"\x0f_payout_details\"\xc8\x04\n" +
+	"\x0f_payout_details\"\xcf\x04\n" +
 	"\x0ePayoutResponse\x12\\\n" +
 	"$beneficiary_provider_legal_entity_id\x18\n" +
 	" \x01(\rB\a\xbaH\x04*\x02 \x00H\x01R beneficiaryProviderLegalEntityId\x88\x01\x01\x12G\n" +
@@ -1961,9 +1961,9 @@ const file_tzero_v1_payment_provider_proto_rawDesc = "" +
 	"\x06Reason\x12\x16\n" +
 	"\x12REASON_UNSPECIFIED\x10\x00B\n" +
 	"\n" +
-	"\b_detailsB\b\n" +
-	"\x06resultB'\n" +
-	"%_beneficiary_provider_legal_entity_id\"\xd0\t\n" +
+	"\b_detailsB\x0f\n" +
+	"\x06result\x12\x05\xbaH\x02\b\x01B'\n" +
+	"%_beneficiary_provider_legal_entity_id\"\xd7\t\n" +
 	"\x14UpdatePaymentRequest\x12\x1d\n" +
 	"\n" +
 	"payment_id\x18\x05 \x01(\x04R\tpaymentId\x12*\n" +
@@ -1998,8 +1998,8 @@ const file_tzero_v1_payment_provider_proto_rawDesc = "" +
 	"\areceipt\x18\x14 \x01(\v2\x1f.tzero.v1.common.PaymentReceiptH\x00R\areceipt\x88\x01\x01B\n" +
 	"\n" +
 	"\b_receipt\x1a\x10\n" +
-	"\x0eManualAmlCheckB\b\n" +
-	"\x06result\"\x17\n" +
+	"\x0eManualAmlCheckB\x0f\n" +
+	"\x06result\x12\x05\xbaH\x02\b\x01\"\x17\n" +
 	"\x15UpdatePaymentResponse\"\x8e\x03\n" +
 	"\x12UpdateLimitRequest\x12B\n" +
 	"\x06limits\x18\n" +
@@ -2022,7 +2022,7 @@ const file_tzero_v1_payment_provider_proto_rawDesc = "" +
 	"payOutRate\x12>\n" +
 	"\x0epay_out_amount\x18( \x01(\v2\x18.tzero.v1.common.DecimalR\fpayOutAmount\x12E\n" +
 	"\x11settlement_amount\x182 \x01(\v2\x18.tzero.v1.common.DecimalR\x10settlementAmount\x128\n" +
-	"\vpay_out_fix\x18< \x01(\v2\x18.tzero.v1.common.DecimalR\tpayOutFix\"\xeb\x01\n" +
+	"\vpay_out_fix\x18< \x01(\v2\x18.tzero.v1.common.DecimalR\tpayOutFix\"\xf2\x01\n" +
 	"\x1bApprovePaymentQuoteResponse\x12T\n" +
 	"\baccepted\x18\n" +
 	" \x01(\v26.tzero.v1.payment.ApprovePaymentQuoteResponse.AcceptedH\x00R\baccepted\x12T\n" +
@@ -2030,8 +2030,8 @@ const file_tzero_v1_payment_provider_proto_rawDesc = "" +
 	"\n" +
 	"\bAccepted\x1a\n" +
 	"\n" +
-	"\bRejectedB\b\n" +
-	"\x06result2\x9e\x04\n" +
+	"\bRejectedB\x0f\n" +
+	"\x06result\x12\x05\xbaH\x02\b\x012\x9e\x04\n" +
 	"\x0fProviderService\x12P\n" +
 	"\x06PayOut\x12\x1f.tzero.v1.payment.PayoutRequest\x1a .tzero.v1.payment.PayoutResponse\"\x03\x90\x02\x02\x12e\n" +
 	"\rUpdatePayment\x12&.tzero.v1.payment.UpdatePaymentRequest\x1a'.tzero.v1.payment.UpdatePaymentResponse\"\x03\x90\x02\x02\x12_\n" +

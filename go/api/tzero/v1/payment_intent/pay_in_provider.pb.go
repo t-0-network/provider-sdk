@@ -389,7 +389,7 @@ const file_tzero_v1_payment_intent_pay_in_provider_proto_rawDesc = "" +
 	"\vbeneficiary\x18\x14 \x03(\v2\x0f.ivms101.PersonB\b\xbaH\x05\x92\x01\x02\b\x01R\vbeneficiary\x12O\n" +
 	"\x14beneficiary_provider\x18\x1e \x01(\v2\x14.ivms101.LegalPersonB\x06\xbaH\x03\xc8\x01\x01R\x13beneficiaryProvider\x12*\n" +
 	"\x05payer\x18( \x01(\v2\x0f.ivms101.PersonH\x00R\x05payer\x88\x01\x01B\b\n" +
-	"\x06_payer\"\xd5\x02\n" +
+	"\x06_payer\"\xdc\x02\n" +
 	"\x19GetPaymentDetailsResponse\x12V\n" +
 	"\adetails\x18\n" +
 	" \x01(\v2:.tzero.v1.payment_intent.GetPaymentDetailsResponse.DetailsH\x00R\adetails\x12\\\n" +
@@ -399,8 +399,8 @@ const file_tzero_v1_payment_intent_pay_in_provider_proto_rawDesc = "" +
 	" \x03(\v2\x1f.tzero.v1.common.PaymentDetailsR\x0epaymentDetails\x1a#\n" +
 	"\tRejection\x12\x16\n" +
 	"\x06reason\x18\n" +
-	" \x01(\tR\x06reasonB\b\n" +
-	"\x06result2\x97\x01\n" +
+	" \x01(\tR\x06reasonB\x0f\n" +
+	"\x06result\x12\x05\xbaH\x02\b\x012\x97\x01\n" +
 	"\x14PayInProviderService\x12\x7f\n" +
 	"\x11GetPaymentDetails\x121.tzero.v1.payment_intent.GetPaymentDetailsRequest\x1a2.tzero.v1.payment_intent.GetPaymentDetailsResponse\"\x03\x90\x02\x02B\x82\x02\n" +
 	"\x1bcom.tzero.v1.payment_intentB\x12PayInProviderProtoP\x01ZBgithub.com/t-0-network/provider-sdk/go/api/tzero/v1/payment_intent\xa2\x02\x03TVP\xaa\x02)T0.ProviderSdk.Api.Tzero.V1.PaymentIntent\xca\x02\x16Tzero\\V1\\PaymentIntent\xe2\x02\"Tzero\\V1\\PaymentIntent\\GPBMetadata\xea\x02\x18Tzero::V1::PaymentIntentb\x06proto3"
