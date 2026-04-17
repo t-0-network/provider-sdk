@@ -2,11 +2,16 @@ package network.t0.provider;
 
 import io.github.cdimascio.dotenv.Dotenv;
 import network.t0.provider.handler.PaymentHandler;
+import network.t0.provider.handler.PaymentIntentBeneficiaryHandler;
+import network.t0.provider.handler.PaymentIntentPayInHandler;
+import network.t0.provider.internal.GetPaymentIntentQuote;
 import network.t0.provider.internal.GetQuote;
+import network.t0.provider.internal.PublishPaymentIntentQuotes;
 import network.t0.provider.internal.PublishQuotes;
 import network.t0.sdk.crypto.Signer;
 import network.t0.sdk.network.BlockingNetworkClient;
 import network.t0.sdk.proto.tzero.v1.payment.NetworkServiceGrpc;
+import network.t0.sdk.proto.tzero.v1.payment_intent.PaymentIntentServiceGrpc;
 import network.t0.sdk.provider.ProviderServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -49,7 +54,10 @@ public class Main {
         var networkClient = BlockingNetworkClient.create(
                 config.tzeroEndpoint(), signer, NetworkServiceGrpc::newBlockingStub);
 
-        ProviderServer server = startProviderServer(config, networkClient);
+        var paymentIntentClient = BlockingNetworkClient.create(
+                config.tzeroEndpoint(), signer, PaymentIntentServiceGrpc::newBlockingStub);
+
+        ProviderServer server = startProviderServer(config, networkClient, paymentIntentClient);
 
         // Step 1.1 is done. You successfully initialised starter template
 
@@ -57,7 +65,7 @@ public class Main {
 
         // TODO: Step 1.3 Replace publishQuotes with your own quote publishing logic
 
-        ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
+        ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2);
         scheduler.scheduleAtFixedRate(
                 () -> PublishQuotes.publish(networkClient.stub()),
                 0, config.quotePublishingIntervalMs(), TimeUnit.MILLISECONDS);
@@ -65,7 +73,25 @@ public class Main {
         // TODO: Step 1.4 Verify that quotes for target currency are successfully received
         GetQuote.fetch(networkClient.stub());
 
-        waitForShutdown(server, scheduler, networkClient);
+        // ──────────────────────────────────────────────────────────────
+        // Payment Intent Flow — Phase 3
+        //
+        // Implement the role that applies to you. See the README for details.
+        // ──────────────────────────────────────────────────────────────
+
+        // Phase 3A — Pay-In Provider role. Comment out if you are only a beneficiary.
+        // TODO: Step 3A.1 Replace with your own pay-in quote publishing logic
+        scheduler.scheduleAtFixedRate(
+                () -> PublishPaymentIntentQuotes.publish(paymentIntentClient.stub()),
+                0, config.quotePublishingIntervalMs(), TimeUnit.MILLISECONDS);
+
+        // Phase 3B — Beneficiary Provider role. Comment out if you are only a pay-in provider.
+        // TODO: Step 3B.1 Check that indicative quotes are being returned
+        GetPaymentIntentQuote.fetch(paymentIntentClient.stub());
+        // TODO: Step 3B.2 Create a payment intent for a real end-user when they want to pay
+        // CreatePaymentIntent.create(paymentIntentClient.stub());
+
+        waitForShutdown(server, scheduler, networkClient, paymentIntentClient);
 
         // TODO: Step 2.2 Deploy your integration and provide t-0 team with the base URL
         // TODO: Step 2.3 Test payment submission (see SubmitPayment.java)
@@ -100,12 +126,19 @@ public class Main {
 
     private static ProviderServer startProviderServer(
             Config config,
-            BlockingNetworkClient<NetworkServiceGrpc.NetworkServiceBlockingStub> networkClient) {
+            BlockingNetworkClient<NetworkServiceGrpc.NetworkServiceBlockingStub> networkClient,
+            BlockingNetworkClient<PaymentIntentServiceGrpc.PaymentIntentServiceBlockingStub> paymentIntentClient) {
         try {
-            PaymentHandler handler = new PaymentHandler(networkClient.stub());
+            PaymentHandler paymentHandler = new PaymentHandler(networkClient.stub());
+            PaymentIntentPayInHandler payInHandler = new PaymentIntentPayInHandler(paymentIntentClient.stub());
+            PaymentIntentBeneficiaryHandler beneficiaryHandler = new PaymentIntentBeneficiaryHandler();
 
             ProviderServer server = ProviderServer.create(config.port(), config.networkPublicKey())
-                    .withService(handler)
+                    .withService(paymentHandler)
+                    // Phase 3A — Pay-In Provider role. Remove if you are only a beneficiary.
+                    .withService(payInHandler)
+                    // Phase 3B — Beneficiary Provider role. Remove if you are only a pay-in provider.
+                    .withService(beneficiaryHandler)
                     .start();
 
             log.info("Step 1.1: Provider server initialized on port {}", server.getPort());
@@ -120,16 +153,19 @@ public class Main {
     private static void waitForShutdown(
             ProviderServer server,
             ScheduledExecutorService scheduler,
-            BlockingNetworkClient<NetworkServiceGrpc.NetworkServiceBlockingStub> networkClient) {
+            BlockingNetworkClient<NetworkServiceGrpc.NetworkServiceBlockingStub> networkClient,
+            BlockingNetworkClient<PaymentIntentServiceGrpc.PaymentIntentServiceBlockingStub> paymentIntentClient) {
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             log.info("Shutting down...");
             scheduler.shutdown();
             server.shutdown();
             networkClient.shutdown();
+            paymentIntentClient.shutdown();
             try {
                 scheduler.awaitTermination(10, TimeUnit.SECONDS);
                 server.awaitTermination(10, TimeUnit.SECONDS);
                 networkClient.awaitTermination(10, TimeUnit.SECONDS);
+                paymentIntentClient.awaitTermination(10, TimeUnit.SECONDS);
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }

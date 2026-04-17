@@ -4,6 +4,9 @@ import {
   createService,
   NetworkService,
   nodeAdapter,
+  PaymentIntentBeneficiary,
+  PaymentIntentNetwork,
+  PaymentIntentPayInProvider,
   ProviderService,
   signatureValidation,
 } from "@t-0/provider-sdk";
@@ -14,6 +17,12 @@ import CreateProviderService from "./service";
 import getQuote from "./get_quote";
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import submitPayment from "./submit_payment";
+import CreatePayInProviderService from "./payment_intent_pay_in_service";
+import CreateBeneficiaryService from "./payment_intent_beneficiary_service";
+import publishPaymentIntentQuotes from "./publish_payment_intent_quotes";
+import getPaymentIntentQuote from "./get_payment_intent_quote";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import createPaymentIntent from "./create_payment_intent";
 
 dotenv.config();
 
@@ -32,14 +41,22 @@ async function main() {
   console.log(`📡 Port: ${port}`);
   console.log(`🔑 Network Public Key: ${networkPublicKeyHex}`);
   const networkClient = createClient(privateKeyHex!, endpoint, NetworkService);
+  const paymentIntentClient = createClient(privateKeyHex!, endpoint, PaymentIntentNetwork.PaymentIntentService);
 
   await publishQuotes(networkClient, quotePublishingInterval)
+
+  // Phase 3A — Pay-In Provider role. Comment out if you are only a beneficiary.
+  await publishPaymentIntentQuotes(paymentIntentClient, quotePublishingInterval)
 
   const server = http.createServer(
     signatureValidation(
       nodeAdapter(
         createService(networkPublicKeyHex!, (r) => {
           r.service(ProviderService, CreateProviderService(networkClient));
+          // Phase 3A — Pay-In Provider role. Remove if you are only a beneficiary.
+          r.service(PaymentIntentPayInProvider.PayInProviderService, CreatePayInProviderService(paymentIntentClient));
+          // Phase 3B — Beneficiary Provider role. Remove if you are only a pay-in provider.
+          r.service(PaymentIntentBeneficiary.BeneficiaryService, CreateBeneficiaryService());
         })))
   ).listen(port);
   console.log("✅ Service ready and is listening at", server.address());
@@ -59,10 +76,21 @@ async function main() {
   // await submitPayment(networkClient)
 
   // TODO: Step 2.5 ask t-0 team to submit a payment which would trigger your payOut endpoint
+
+  // ──────────────────────────────────────────────────────────────
+  // Payment Intent Flow — Phase 3
+  //
+  // Implement the role that applies to you. See the README for details.
+  // ──────────────────────────────────────────────────────────────
+
+  // Phase 3B — Beneficiary Provider role. Comment out if you are only a pay-in provider.
+  // TODO: Step 3B.1 check that indicative quotes are returned
+  await getPaymentIntentQuote(paymentIntentClient)
+  // TODO: Step 3B.2 create a payment intent for a real end-user when they want to pay
+  // await createPaymentIntent(paymentIntentClient)
 }
 
 main().catch((error) => {
   console.error('❌ Error starting service:', error);
   process.exit(1);
 });
-

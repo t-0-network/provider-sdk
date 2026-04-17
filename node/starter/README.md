@@ -15,19 +15,25 @@ The CLI will prompt for a project name, then create a ready-to-run project with 
 ```
 your-project-name/
 ├── src/
-│   ├── index.ts              # Entry point
-│   ├── service.ts            # Provider service implementation
-│   ├── publish_quotes.ts     # Quote publishing logic
-│   ├── get_quote.ts          # Quote retrieval logic
-│   ├── submit_payment.ts     # Payment submission logic
-│   └── lib.ts                # Utility functions
-├── Dockerfile                # Docker configuration
-├── .env                      # Environment variables (with generated keys)
-├── .env.example              # Example environment file
-├── .eslintrc.json            # ESLint configuration
-├── .gitignore                # Git ignore rules
-├── package.json              # Project dependencies
-└── tsconfig.json             # TypeScript configuration
+│   ├── index.ts                                  # Entry point
+│   ├── service.ts                                # Phase 2: ProviderService handlers
+│   ├── payment_intent_pay_in_service.ts          # Phase 3A: PayInProviderService handler
+│   ├── payment_intent_beneficiary_service.ts     # Phase 3B: BeneficiaryService handler
+│   ├── publish_quotes.ts                         # Phase 1: payout quote publishing
+│   ├── get_quote.ts                              # Phase 1: quote retrieval
+│   ├── publish_payment_intent_quotes.ts          # Phase 3A: pay-in quote publishing
+│   ├── get_payment_intent_quote.ts               # Phase 3B: indicative quote retrieval
+│   ├── create_payment_intent.ts                  # Phase 3B: create a payment intent
+│   ├── confirm_funds_received.ts                 # Phase 3A: confirm funds received
+│   ├── submit_payment.ts                         # Phase 2: payment submission
+│   └── lib.ts                                    # Utility functions
+├── Dockerfile                                    # Docker configuration
+├── .env                                          # Environment variables (with generated keys)
+├── .env.example                                  # Example environment file
+├── .eslintrc.json                                # ESLint configuration
+├── .gitignore                                    # Git ignore rules
+├── package.json                                  # Project dependencies
+└── tsconfig.json                                 # TypeScript configuration
 ```
 
 ## Key Files to Modify
@@ -63,6 +69,26 @@ your-project-name/
 3. Implement `payOut` handler in `src/service.ts`.
 4. Test payment submission by uncommenting the `submitPayment` call in `src/index.ts`.
 5. Coordinate with the T-0 team to test end-to-end payment flows.
+
+### Phase 3: Payment Intent Flow
+
+The payment intent flow is independent of Phase 2. It is an asynchronous pay-in flow where an end-user pays a pay-in provider in fiat (bank transfer, mobile money, etc.) and a beneficiary provider receives settlement on the crypto side. Quotes are indicative until funds are received, settlement happens periodically, and a confirmation code links the end-user's payment back to a specific payment intent.
+
+Implement **one** of the two sub-phases below depending on your role. If you participate on both sides, implement both.
+
+**Phase 3A -- Pay-In Provider role** (skip if you're a beneficiary):
+
+1. **Step 3A.1** Replace the sample pay-in quote publishing in `src/publish_payment_intent_quotes.ts` with your own.
+2. **Step 3A.2** Implement `getPaymentDetails` in `src/payment_intent_pay_in_service.ts` -- return bank account / mobile money details plus a payment reference the end-user will include in their transfer.
+3. **Step 3A.3** When you detect the end-user's fiat payment, call `confirmFundsReceived` (see `src/confirm_funds_received.ts`).
+
+**Phase 3B -- Beneficiary Provider role** (skip if you're pay-in):
+
+1. **Step 3B.1** Verify indicative quotes are returned (`src/get_payment_intent_quote.ts`).
+2. **Step 3B.2** Create payment intents for your end-users via `createPaymentIntent` (see `src/create_payment_intent.ts`).
+3. **Step 3B.3** Implement `paymentIntentUpdate` in `src/payment_intent_beneficiary_service.ts` to receive notifications when funds are received.
+
+If you only play one role, delete the files for the other role and remove the corresponding `r.service(...)` registration in `src/index.ts`.
 
 ## Available Commands
 

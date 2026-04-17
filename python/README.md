@@ -31,20 +31,28 @@ t0-provider-starter <project_name> [-d <directory>]
 
 ```
 my_provider/
-├── pyproject.toml              # Project metadata, depends on t0-provider-sdk
-├── Dockerfile                  # Multi-stage build with python:3.13-slim
-├── .env.example                # Template environment file
-├── .env                        # Generated with your private key (git-ignored)
+├── pyproject.toml                              # Project metadata, depends on t0-provider-sdk
+├── Dockerfile                                  # Multi-stage build with python:3.13-slim
+├── .env.example                                # Template environment file
+├── .env                                        # Generated with your private key (git-ignored)
 └── src/provider/
     ├── __init__.py
-    ├── main.py                 # Entry point: server, quote publishing, quote retrieval
-    ├── config.py               # Environment variable loading and validation
-    ├── publish_quotes.py       # Sample quote publishing loop
-    ├── get_quote.py            # Sample quote retrieval
+    ├── main.py                                 # Entry point: server, quote tasks, handlers
+    ├── config.py                               # Environment variable loading and validation
+    ├── publish_quotes.py                       # Phase 1: payout quote publishing
+    ├── get_quote.py                            # Phase 1: quote retrieval
+    ├── publish_payment_intent_quotes.py        # Phase 3A: pay-in quote publishing
+    ├── get_payment_intent_quote.py             # Phase 3B: indicative quote retrieval
+    ├── create_payment_intent.py                # Phase 3B: create a payment intent
+    ├── confirm_funds_received.py               # Phase 3A: confirm funds received
     └── handler/
         ├── __init__.py
-        ├── payment.py          # ProviderServiceImplementation (async, 5 RPC methods)
-        └── payment_sync.py     # ProviderServiceSyncImplementation (sync/WSGI variant)
+        ├── payment.py                          # Phase 2: ProviderService (async)
+        ├── payment_sync.py                     # Phase 2: ProviderService (sync/WSGI)
+        ├── payment_intent_pay_in.py            # Phase 3A: PayInProviderService (async)
+        ├── payment_intent_pay_in_sync.py       # Phase 3A: PayInProviderService (sync/WSGI)
+        ├── payment_intent_beneficiary.py       # Phase 3B: BeneficiaryService (async)
+        └── payment_intent_beneficiary_sync.py  # Phase 3B: BeneficiaryService (sync/WSGI)
 ```
 
 ## Key Files to Modify
@@ -85,6 +93,26 @@ Additional optional methods in `src/provider/handler/payment.py`:
 - `update_limit` -- handle notifications about limit changes
 - `append_ledger_entries` -- handle notifications about ledger transactions
 - `approve_payment_quotes` -- approve quotes after AML check
+
+### Phase 3: Payment Intent Flow
+
+The payment intent flow is independent of Phase 2. It is an asynchronous pay-in flow where an end-user pays a pay-in provider in fiat (bank transfer, mobile money, etc.) and a beneficiary provider receives settlement on the crypto side. Quotes are indicative until funds are received, settlement happens periodically, and a confirmation code links the end-user's payment back to a specific payment intent.
+
+Implement **one** of the two sub-phases below depending on your role. If you participate on both sides, implement both.
+
+**Phase 3A -- Pay-In Provider role** (skip if you're a beneficiary):
+
+1. **Step 3A.1** Replace the sample pay-in quote publishing in `src/provider/publish_payment_intent_quotes.py` with your own.
+2. **Step 3A.2** Implement `get_payment_details` in `src/provider/handler/payment_intent_pay_in.py` -- return bank account / mobile money details plus a payment reference the end-user will include in their transfer.
+3. **Step 3A.3** When you detect the end-user's fiat payment, call `confirm_funds_received` (see `src/provider/confirm_funds_received.py`).
+
+**Phase 3B -- Beneficiary Provider role** (skip if you're pay-in):
+
+1. **Step 3B.1** Verify indicative quotes are returned (`src/provider/get_payment_intent_quote.py`).
+2. **Step 3B.2** Create payment intents for your end-users via `create_payment_intent` (see `src/provider/create_payment_intent.py`).
+3. **Step 3B.3** Implement `payment_intent_update` in `src/provider/handler/payment_intent_beneficiary.py` to receive notifications when funds are received.
+
+If you only play one role, delete the files for the other role and remove the corresponding `handler(...)` registration in `src/provider/main.py`. Sync (WSGI) variants of both handlers are provided (`*_sync.py`) for use with the WSGI setup described below.
 
 ## Installation
 

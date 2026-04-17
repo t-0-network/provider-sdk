@@ -43,18 +43,44 @@ Follow these steps in order to complete your integration:
 4. **Step 2.4** Implement `payOut` in `PaymentHandler.java`
 5. **Step 2.5** Ask T-0 team to submit a test payment
 
+### Step 3: Payment Intent Flow
+
+The payment intent flow is independent of Step 2. It is an asynchronous pay-in flow where an end-user pays a pay-in provider in fiat (bank transfer, mobile money, etc.) and a beneficiary provider receives settlement on the crypto side. Quotes are indicative until funds are received, settlement happens periodically, and a confirmation code links the end-user's payment back to a specific payment intent.
+
+Implement **one** of the two sub-phases below depending on your role. If you participate on both sides, implement both.
+
+**Phase 3A -- Pay-In Provider role** (skip if you're a beneficiary):
+
+1. **Step 3A.1** Replace the sample pay-in quote publishing in `internal/PublishPaymentIntentQuotes.java` with your own.
+2. **Step 3A.2** Implement `getPaymentDetails` in `handler/PaymentIntentPayInHandler.java` -- return bank account / mobile money details plus a payment reference the end-user will include in their transfer.
+3. **Step 3A.3** When you detect the end-user's fiat payment, call `confirmFundsReceived` (see `internal/ConfirmFundsReceived.java`).
+
+**Phase 3B -- Beneficiary Provider role** (skip if you're pay-in):
+
+1. **Step 3B.1** Verify indicative quotes are returned (`internal/GetPaymentIntentQuote.java`).
+2. **Step 3B.2** Create payment intents for your end-users via `CreatePaymentIntent.create(...)` (see `internal/CreatePaymentIntent.java`).
+3. **Step 3B.3** Implement `paymentIntentUpdate` in `handler/PaymentIntentBeneficiaryHandler.java` to receive notifications when funds are received.
+
+If you only play one role, delete the files for the other role and remove the corresponding `.withService(...)` call in `Main.java`.
+
 ## Project Structure
 
 ```
 src/main/java/network/t0/provider/
-├── Main.java                    # Entry point with integration steps
-├── Config.java                  # Configuration record
+├── Main.java                                # Entry point with integration steps
+├── Config.java                              # Configuration record
 ├── handler/
-│   └── PaymentHandler.java      # ProviderService implementation
+│   ├── PaymentHandler.java                  # Phase 2: ProviderService handler
+│   ├── PaymentIntentPayInHandler.java       # Phase 3A: PayInProviderService handler
+│   └── PaymentIntentBeneficiaryHandler.java # Phase 3B: BeneficiaryService handler
 └── internal/
-    ├── PublishQuotes.java       # Quote publishing logic
-    ├── GetQuote.java            # Quote fetching for testing
-    └── SubmitPayment.java       # Payment submission for testing
+    ├── PublishQuotes.java                   # Phase 1: payout quote publishing
+    ├── GetQuote.java                        # Phase 1: quote retrieval
+    ├── SubmitPayment.java                   # Phase 2: payment submission
+    ├── PublishPaymentIntentQuotes.java      # Phase 3A: pay-in quote publishing
+    ├── GetPaymentIntentQuote.java           # Phase 3B: indicative quote retrieval
+    ├── CreatePaymentIntent.java             # Phase 3B: create a payment intent
+    └── ConfirmFundsReceived.java            # Phase 3A: confirm funds received
 ```
 
 ## Key Classes

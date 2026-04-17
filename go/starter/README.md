@@ -15,20 +15,24 @@ This creates a ready-to-run project with a secp256k1 keypair, environment config
 ```
 my-provider/
 ├── cmd/
-│   └── main.go              # Entry point
+│   └── main.go                                # Entry point
 ├── internal/
 │   ├── handler/
-│   │   ├── provider.go      # Provider service implementation
-│   │   └── payment.go       # Payment handler implementation
-│   ├── get_quote.go         # Quote retrieval logic
-│   ├── publish_quotes.go    # Quote publishing logic
-│   └── service.go           # Service utilities
-├── .env                     # Environment variables (with generated keys)
-├── .env.example             # Example environment file
-├── .gitignore               # Git ignore rules
-├── Dockerfile               # Docker configuration
-├── go.mod                   # Go module definition
-└── go.sum                   # Go dependencies checksums
+│   │   ├── payment.go                         # Phase 2: ProviderService handler
+│   │   ├── payment_intent_pay_in.go           # Phase 3A: PayInProviderService handler
+│   │   └── payment_intent_beneficiary.go      # Phase 3B: BeneficiaryService handler
+│   ├── get_quote.go                           # Phase 1: quote retrieval
+│   ├── publish_quotes.go                      # Phase 1: payout quote publishing
+│   ├── publish_payment_intent_quotes.go       # Phase 3A: pay-in quote publishing
+│   ├── get_payment_intent_quote.go            # Phase 3B: indicative quote retrieval
+│   ├── create_payment_intent.go               # Phase 3B: create a payment intent
+│   └── confirm_funds_received.go              # Phase 3A: confirm funds received
+├── .env                                       # Environment variables (with generated keys)
+├── .env.example                               # Example environment file
+├── .gitignore                                 # Git ignore rules
+├── Dockerfile                                 # Docker configuration
+├── go.mod                                     # Go module definition
+└── go.sum                                     # Go dependencies checksums
 ```
 
 ## Key Files to Modify
@@ -63,6 +67,26 @@ my-provider/
 2. Deploy your service and share the base URL with the T-0 team.
 3. Implement `PayOut` handler in `internal/handler/payment.go`.
 4. Coordinate with the T-0 team to test end-to-end payment flows.
+
+### Phase 3: Payment Intent Flow
+
+The payment intent flow is independent of Phase 2. It is an asynchronous pay-in flow where an end-user pays a pay-in provider in fiat (bank transfer, mobile money, etc.) and a beneficiary provider receives settlement on the crypto side. Quotes are indicative until funds are received, settlement happens periodically, and a confirmation code links the end-user's payment back to a specific payment intent.
+
+Implement **one** of the two sub-phases below depending on your role. If you participate on both sides, implement both.
+
+**Phase 3A -- Pay-In Provider role** (skip if you're a beneficiary):
+
+1. **Step 3A.1** Replace the sample pay-in quote publishing in `internal/publish_payment_intent_quotes.go` with your own.
+2. **Step 3A.2** Implement `GetPaymentDetails` in `internal/handler/payment_intent_pay_in.go` -- return bank account / mobile money details plus a payment reference the end-user will include in their transfer.
+3. **Step 3A.3** When you detect the end-user's fiat payment, call `ConfirmFundsReceived` (see `internal/confirm_funds_received.go`).
+
+**Phase 3B -- Beneficiary Provider role** (skip if you're pay-in):
+
+1. **Step 3B.1** Verify indicative quotes are returned (`internal/get_payment_intent_quote.go`).
+2. **Step 3B.2** Create payment intents for your end-users via `CreatePaymentIntent` (see `internal/create_payment_intent.go`).
+3. **Step 3B.3** Implement `PaymentIntentUpdate` in `internal/handler/payment_intent_beneficiary.go` to receive notifications when funds are received.
+
+If you only play one role, delete the files for the other role and remove the corresponding handler registration in `cmd/main.go`.
 
 ## Available Commands
 
