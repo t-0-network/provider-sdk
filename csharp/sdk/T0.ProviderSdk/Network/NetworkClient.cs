@@ -1,3 +1,4 @@
+using Grpc.Core.Interceptors;
 using Grpc.Net.Client;
 using T0.ProviderSdk.Crypto;
 using PaymentApi = T0.ProviderSdk.Api.Tzero.V1.Payment;
@@ -61,7 +62,7 @@ public static class NetworkClient
     }
 
     /// <summary>
-    /// Creates a Payment NetworkService client with auto-signing transport.
+    /// Creates a Payment NetworkService client with auto-signing transport and request validation.
     /// </summary>
     public static PaymentApi.NetworkService.NetworkServiceClient CreateNetworkServiceClient(
         string baseUrl,
@@ -69,11 +70,12 @@ public static class NetworkClient
         TimeProvider? timeProvider = null)
     {
         var channel = Create(new NetworkClientOptions { BaseUrl = baseUrl }, signer, timeProvider);
-        return new PaymentApi.NetworkService.NetworkServiceClient(channel);
+        var invoker = channel.Intercept(new RequestValidationInterceptor());
+        return new PaymentApi.NetworkService.NetworkServiceClient(invoker);
     }
 
     /// <summary>
-    /// Creates a PaymentIntent NetworkService client with auto-signing transport.
+    /// Creates a PaymentIntent NetworkService client with auto-signing transport and request validation.
     /// </summary>
     public static PaymentIntentApi.NetworkService.NetworkServiceClient CreatePaymentIntentNetworkServiceClient(
         string baseUrl,
@@ -81,6 +83,7 @@ public static class NetworkClient
         TimeProvider? timeProvider = null)
     {
         var channel = Create(new NetworkClientOptions { BaseUrl = baseUrl }, signer, timeProvider);
-        return new PaymentIntentApi.NetworkService.NetworkServiceClient(channel);
+        var invoker = channel.Intercept(new RequestValidationInterceptor());
+        return new PaymentIntentApi.NetworkService.NetworkServiceClient(invoker);
     }
 }

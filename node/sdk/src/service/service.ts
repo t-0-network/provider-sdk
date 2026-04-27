@@ -13,6 +13,7 @@ import { secp256k1 } from '@noble/curves/secp256k1.js'
 import {Hash} from "@noble/hashes/utils.js";
 import type {DescService, } from "@bufbuild/protobuf";
 import type {ServiceImpl} from "@connectrpc/connect";
+import {createValidationInterceptor} from "./validate_response.js";
 
 export const REQUEST_VALIDITY_MILLIS = 60_000;
 
@@ -68,7 +69,7 @@ export const createService = (
     routes: (router: ConnectRouter)=> {
       registerRoutes(router)
     },
-    interceptors: [createSignatureVerification(networkPublicKey)],
+    interceptors: [createSignatureVerification(networkPublicKey), createValidationInterceptor()],
     grpcWeb: false,
     contextValues: (req: any) => {
       return createContextValues().set(kHash, (req as any).hasher as Hash<Hash<any>>)

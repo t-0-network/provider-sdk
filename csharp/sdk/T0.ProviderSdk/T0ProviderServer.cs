@@ -1,3 +1,4 @@
+using Grpc.Core.Interceptors;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.Extensions.DependencyInjection;
@@ -27,7 +28,10 @@ public sealed class T0ProviderServer
         _config = config;
         _builder = WebApplication.CreateBuilder(args ?? []);
         _builder.WebHost.UseUrls($"http://0.0.0.0:{config.Port}");
-        _builder.Services.AddGrpc();
+        _builder.Services.AddGrpc(options =>
+        {
+            options.Interceptors.Add<ValidationInterceptor>();
+        });
         _builder.Services.AddSingleton<ISigner>(signer);
         _builder.Services.AddSingleton(signer);
     }

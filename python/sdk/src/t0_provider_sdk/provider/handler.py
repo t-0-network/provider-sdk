@@ -23,6 +23,7 @@ from t0_provider_sdk.provider.middleware_wsgi import (
     WSGIApp,
     signature_verification_middleware_wsgi,
 )
+from t0_provider_sdk.provider.validate_response import ValidationInterceptor, ValidationInterceptorSync
 
 T = TypeVar("T")
 
@@ -97,7 +98,7 @@ def new_asgi_app(
         An ASGI application with signature verification middleware.
     """
     default_options = _HandlerOptions(
-        interceptors=[SignatureErrorInterceptor()],
+        interceptors=[SignatureErrorInterceptor(), ValidationInterceptor()],
     )
 
     # Build all service handlers
@@ -167,7 +168,7 @@ def new_wsgi_app(
         A WSGI application with signature verification middleware.
     """
     default_options = _HandlerOptions(
-        interceptors=[SignatureErrorInterceptorSync()],
+        interceptors=[SignatureErrorInterceptorSync(), ValidationInterceptorSync()],
     )
 
     # Build all service handlers

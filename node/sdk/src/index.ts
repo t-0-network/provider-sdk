@@ -1,5 +1,6 @@
 export * from "./client/client.js"
 export * from "./service/service.js"
+export * from "./service/validate_response.js"
 export * from "./service/node.js"
 
 export { connectNodeAdapter as nodeAdapter} from "@connectrpc/connect-node";

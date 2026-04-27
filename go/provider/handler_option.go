@@ -18,7 +18,7 @@ func newDefaultHandlerOptions(verifySignatureFn VerifySignature) (providerHandle
 	return providerHandlerOptions{
 		verifySignatureMaxBodySize: defaultMaxBodySize,
 		connectHandlerOptions: []connect.HandlerOption{
-			connect.WithInterceptors(signatureErrorInterceptor()),
+			connect.WithInterceptors(signatureErrorInterceptor(), newValidationInterceptor()),
 		},
 		verifySignatureFn: verifySignatureFn,
 	}, nil

@@ -24,6 +24,7 @@
     <PackageReference Include="Google.Protobuf" Version="3.34.0" />
     <PackageReference Include="Grpc.AspNetCore" Version="2.76.0" />
     <PackageReference Include="Grpc.Net.Client" Version="2.76.0" />
+    <PackageReference Include="ProtoValidate" Version="1.0.0" />
   </ItemGroup>
 
 </Project>
