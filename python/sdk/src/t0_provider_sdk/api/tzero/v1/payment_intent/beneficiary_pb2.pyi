@@ -12,7 +12,7 @@ DESCRIPTOR: _descriptor.FileDescriptor
 class PaymentIntentUpdateRequest(_message.Message):
     __slots__ = ("payment_intent_id", "funds_received")
     class FundsReceived(_message.Message):
-        __slots__ = ("settlement_amount", "rate", "payment_amount", "payment_method", "transaction_reference", "travel_rule_data")
+        __slots__ = ("settlement_amount", "rate", "payment_amount", "payment_method", "transaction_reference", "travel_rule_data", "fix")
         class TravelRuleData(_message.Message):
             __slots__ = ("originator_provider",)
             ORIGINATOR_PROVIDER_FIELD_NUMBER: _ClassVar[int]
@@ -24,13 +24,15 @@ class PaymentIntentUpdateRequest(_message.Message):
         PAYMENT_METHOD_FIELD_NUMBER: _ClassVar[int]
         TRANSACTION_REFERENCE_FIELD_NUMBER: _ClassVar[int]
         TRAVEL_RULE_DATA_FIELD_NUMBER: _ClassVar[int]
+        FIX_FIELD_NUMBER: _ClassVar[int]
         settlement_amount: _common_pb2.Decimal
         rate: _common_pb2.Decimal
         payment_amount: _common_pb2.Decimal
         payment_method: _payment_method_pb2.PaymentMethodType
         transaction_reference: str
         travel_rule_data: PaymentIntentUpdateRequest.FundsReceived.TravelRuleData
-        def __init__(self, settlement_amount: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ..., rate: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ..., payment_amount: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ..., payment_method: _Optional[_Union[_payment_method_pb2.PaymentMethodType, str]] = ..., transaction_reference: _Optional[str] = ..., travel_rule_data: _Optional[_Union[PaymentIntentUpdateRequest.FundsReceived.TravelRuleData, _Mapping]] = ...) -> None: ...
+        fix: _common_pb2.Decimal
+        def __init__(self, settlement_amount: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ..., rate: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ..., payment_amount: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ..., payment_method: _Optional[_Union[_payment_method_pb2.PaymentMethodType, str]] = ..., transaction_reference: _Optional[str] = ..., travel_rule_data: _Optional[_Union[PaymentIntentUpdateRequest.FundsReceived.TravelRuleData, _Mapping]] = ..., fix: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ...) -> None: ...
     PAYMENT_INTENT_ID_FIELD_NUMBER: _ClassVar[int]
     FUNDS_RECEIVED_FIELD_NUMBER: _ClassVar[int]
     payment_intent_id: int

@@ -19,14 +19,16 @@ class UpdateQuoteRequest(_message.Message):
     class Quote(_message.Message):
         __slots__ = ("currency", "payment_method", "bands", "expiration", "timestamp")
         class Band(_message.Message):
-            __slots__ = ("client_quote_id", "max_amount", "rate")
+            __slots__ = ("client_quote_id", "max_amount", "rate", "fix")
             CLIENT_QUOTE_ID_FIELD_NUMBER: _ClassVar[int]
             MAX_AMOUNT_FIELD_NUMBER: _ClassVar[int]
             RATE_FIELD_NUMBER: _ClassVar[int]
+            FIX_FIELD_NUMBER: _ClassVar[int]
             client_quote_id: str
             max_amount: _common_pb2.Decimal
             rate: _common_pb2.Decimal
-            def __init__(self, client_quote_id: _Optional[str] = ..., max_amount: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ..., rate: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ...) -> None: ...
+            fix: _common_pb2.Decimal
+            def __init__(self, client_quote_id: _Optional[str] = ..., max_amount: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ..., rate: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ..., fix: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ...) -> None: ...
         CURRENCY_FIELD_NUMBER: _ClassVar[int]
         PAYMENT_METHOD_FIELD_NUMBER: _ClassVar[int]
         BANDS_FIELD_NUMBER: _ClassVar[int]
@@ -61,14 +63,16 @@ class GetQuoteResponse(_message.Message):
     class Success(_message.Message):
         __slots__ = ("best_quotes", "all_quotes")
         class IndicativeQuote(_message.Message):
-            __slots__ = ("payment_method", "provider_id", "indicative_rate")
+            __slots__ = ("payment_method", "provider_id", "indicative_rate", "indicative_fix")
             PAYMENT_METHOD_FIELD_NUMBER: _ClassVar[int]
             PROVIDER_ID_FIELD_NUMBER: _ClassVar[int]
             INDICATIVE_RATE_FIELD_NUMBER: _ClassVar[int]
+            INDICATIVE_FIX_FIELD_NUMBER: _ClassVar[int]
             payment_method: _payment_method_pb2.PaymentMethodType
             provider_id: int
             indicative_rate: _common_pb2.Decimal
-            def __init__(self, payment_method: _Optional[_Union[_payment_method_pb2.PaymentMethodType, str]] = ..., provider_id: _Optional[int] = ..., indicative_rate: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ...) -> None: ...
+            indicative_fix: _common_pb2.Decimal
+            def __init__(self, payment_method: _Optional[_Union[_payment_method_pb2.PaymentMethodType, str]] = ..., provider_id: _Optional[int] = ..., indicative_rate: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ..., indicative_fix: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ...) -> None: ...
         BEST_QUOTES_FIELD_NUMBER: _ClassVar[int]
         ALL_QUOTES_FIELD_NUMBER: _ClassVar[int]
         best_quotes: _containers.RepeatedCompositeFieldContainer[GetQuoteResponse.Success.IndicativeQuote]
@@ -84,16 +88,18 @@ class GetQuoteResponse(_message.Message):
     def __init__(self, success: _Optional[_Union[GetQuoteResponse.Success, _Mapping]] = ..., quote_not_found: _Optional[_Union[GetQuoteResponse.QuoteNotFound, _Mapping]] = ...) -> None: ...
 
 class PaymentIntentPayInDetails(_message.Message):
-    __slots__ = ("payment_method", "provider_id", "payment_details", "indicative_rate")
+    __slots__ = ("payment_method", "provider_id", "payment_details", "indicative_rate", "indicative_fix")
     PAYMENT_METHOD_FIELD_NUMBER: _ClassVar[int]
     PROVIDER_ID_FIELD_NUMBER: _ClassVar[int]
     PAYMENT_DETAILS_FIELD_NUMBER: _ClassVar[int]
     INDICATIVE_RATE_FIELD_NUMBER: _ClassVar[int]
+    INDICATIVE_FIX_FIELD_NUMBER: _ClassVar[int]
     payment_method: _payment_method_pb2.PaymentMethodType
     provider_id: int
     payment_details: _payment_method_pb2.PaymentDetails
     indicative_rate: _common_pb2.Decimal
-    def __init__(self, payment_method: _Optional[_Union[_payment_method_pb2.PaymentMethodType, str]] = ..., provider_id: _Optional[int] = ..., payment_details: _Optional[_Union[_payment_method_pb2.PaymentDetails, _Mapping]] = ..., indicative_rate: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ...) -> None: ...
+    indicative_fix: _common_pb2.Decimal
+    def __init__(self, payment_method: _Optional[_Union[_payment_method_pb2.PaymentMethodType, str]] = ..., provider_id: _Optional[int] = ..., payment_details: _Optional[_Union[_payment_method_pb2.PaymentDetails, _Mapping]] = ..., indicative_rate: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ..., indicative_fix: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ...) -> None: ...
 
 class CreatePaymentIntentRequest(_message.Message):
     __slots__ = ("external_reference", "currency", "amount", "travel_rule_data", "pay_in_provider_ids")
@@ -171,10 +177,12 @@ class ConfirmFundsReceivedResponse(_message.Message):
             REJECT_REASON_CONFIRMATION_CODE_MISMATCH: _ClassVar[ConfirmFundsReceivedResponse.Reject.Reason]
             REJECT_REASON_NO_ACTIVE_QUOTE: _ClassVar[ConfirmFundsReceivedResponse.Reject.Reason]
             REJECT_REASON_PROVIDER_NOT_ALLOWED: _ClassVar[ConfirmFundsReceivedResponse.Reject.Reason]
+            REJECT_REASON_AMOUNT_TOO_SMALL: _ClassVar[ConfirmFundsReceivedResponse.Reject.Reason]
         REJECT_REASON_UNSPECIFIED: ConfirmFundsReceivedResponse.Reject.Reason
         REJECT_REASON_CONFIRMATION_CODE_MISMATCH: ConfirmFundsReceivedResponse.Reject.Reason
         REJECT_REASON_NO_ACTIVE_QUOTE: ConfirmFundsReceivedResponse.Reject.Reason
         REJECT_REASON_PROVIDER_NOT_ALLOWED: ConfirmFundsReceivedResponse.Reject.Reason
+        REJECT_REASON_AMOUNT_TOO_SMALL: ConfirmFundsReceivedResponse.Reject.Reason
         REASON_FIELD_NUMBER: _ClassVar[int]
         reason: ConfirmFundsReceivedResponse.Reject.Reason
         def __init__(self, reason: _Optional[_Union[ConfirmFundsReceivedResponse.Reject.Reason, str]] = ...) -> None: ...

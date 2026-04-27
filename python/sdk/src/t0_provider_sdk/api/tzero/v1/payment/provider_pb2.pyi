@@ -165,11 +165,15 @@ class UpdatePaymentRequest(_message.Message):
             REASON_QUOTE_REJECTED_AFTER_AML_APPROVAL: _ClassVar[UpdatePaymentRequest.Failed.Reason]
             REASON_AML_RISK_CHECK_FAILED: _ClassVar[UpdatePaymentRequest.Failed.Reason]
             REASON_CREDIT_LIMIT_EXCEEDED_AFTER_AML_APPROVAL: _ClassVar[UpdatePaymentRequest.Failed.Reason]
+            REASON_REJECTED_BY_BENEFICIARY: _ClassVar[UpdatePaymentRequest.Failed.Reason]
+            REASON_FINALIZE_FAILURE: _ClassVar[UpdatePaymentRequest.Failed.Reason]
         REASON_UNSPECIFIED: UpdatePaymentRequest.Failed.Reason
         REASON_NO_QUOTE_AFTER_AML_APPROVAL: UpdatePaymentRequest.Failed.Reason
         REASON_QUOTE_REJECTED_AFTER_AML_APPROVAL: UpdatePaymentRequest.Failed.Reason
         REASON_AML_RISK_CHECK_FAILED: UpdatePaymentRequest.Failed.Reason
         REASON_CREDIT_LIMIT_EXCEEDED_AFTER_AML_APPROVAL: UpdatePaymentRequest.Failed.Reason
+        REASON_REJECTED_BY_BENEFICIARY: UpdatePaymentRequest.Failed.Reason
+        REASON_FINALIZE_FAILURE: UpdatePaymentRequest.Failed.Reason
         REASON_FIELD_NUMBER: _ClassVar[int]
         DETAILS_FIELD_NUMBER: _ClassVar[int]
         reason: UpdatePaymentRequest.Failed.Reason

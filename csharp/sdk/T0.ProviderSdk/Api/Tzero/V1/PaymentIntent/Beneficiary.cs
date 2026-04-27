@@ -28,11 +28,11 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
             "dHplcm8udjEucGF5bWVudF9pbnRlbnQaHHR6ZXJvL3YxL2NvbW1vbi9jb21t",
             "b24ucHJvdG8aJHR6ZXJvL3YxL2NvbW1vbi9wYXltZW50X21ldGhvZC5wcm90",
             "bxobYnVmL3ZhbGlkYXRlL3ZhbGlkYXRlLnByb3RvGh1pdm1zMTAxL3YxL2l2",
-            "bXMvaXZtczEwMS5wcm90byL8BQoaUGF5bWVudEludGVudFVwZGF0ZVJlcXVl",
+            "bXMvaXZtczEwMS5wcm90byLeBgoaUGF5bWVudEludGVudFVwZGF0ZVJlcXVl",
             "c3QSMwoRcGF5bWVudF9pbnRlbnRfaWQYCiABKARCB7pIBDICIABSD3BheW1l",
             "bnRJbnRlbnRJZBJqCg5mdW5kc19yZWNlaXZlZBgUIAEoCzJBLnR6ZXJvLnYx",
             "LnBheW1lbnRfaW50ZW50LlBheW1lbnRJbnRlbnRVcGRhdGVSZXF1ZXN0LkZ1",
-            "bmRzUmVjZWl2ZWRIAFINZnVuZHNSZWNlaXZlZBqrBAoNRnVuZHNSZWNlaXZl",
+            "bmRzUmVjZWl2ZWRIAFINZnVuZHNSZWNlaXZlZBqNBQoNRnVuZHNSZWNlaXZl",
             "ZBJFChFzZXR0bGVtZW50X2Ftb3VudBgKIAEoCzIYLnR6ZXJvLnYxLmNvbW1v",
             "bi5EZWNpbWFsUhBzZXR0bGVtZW50QW1vdW50EiwKBHJhdGUYFCABKAsyGC50",
             "emVyby52MS5jb21tb24uRGVjaW1hbFIEcmF0ZRI/Cg5wYXltZW50X2Ftb3Vu",
@@ -42,24 +42,26 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
             "aW9uX3JlZmVyZW5jZRgyIAEoCVIUdHJhbnNhY3Rpb25SZWZlcmVuY2USggEK",
             "EHRyYXZlbF9ydWxlX2RhdGEYPCABKAsyUC50emVyby52MS5wYXltZW50X2lu",
             "dGVudC5QYXltZW50SW50ZW50VXBkYXRlUmVxdWVzdC5GdW5kc1JlY2VpdmVk",
-            "LlRyYXZlbFJ1bGVEYXRhQga6SAPIAQFSDnRyYXZlbFJ1bGVEYXRhGl8KDlRy",
-            "YXZlbFJ1bGVEYXRhEk0KE29yaWdpbmF0b3JfcHJvdmlkZXIYHiABKAsyFC5p",
-            "dm1zMTAxLkxlZ2FsUGVyc29uQga6SAPIAQFSEm9yaWdpbmF0b3JQcm92aWRl",
-            "ckIPCgZ1cGRhdGUSBbpIAggBIh0KG1BheW1lbnRJbnRlbnRVcGRhdGVSZXNw",
-            "b25zZTKcAQoSQmVuZWZpY2lhcnlTZXJ2aWNlEoUBChNQYXltZW50SW50ZW50",
-            "VXBkYXRlEjMudHplcm8udjEucGF5bWVudF9pbnRlbnQuUGF5bWVudEludGVu",
-            "dFVwZGF0ZVJlcXVlc3QaNC50emVyby52MS5wYXltZW50X2ludGVudC5QYXlt",
-            "ZW50SW50ZW50VXBkYXRlUmVzcG9uc2UiA5ACAkKAAgobY29tLnR6ZXJvLnYx",
-            "LnBheW1lbnRfaW50ZW50QhBCZW5lZmljaWFyeVByb3RvUAFaQmdpdGh1Yi5j",
-            "b20vdC0wLW5ldHdvcmsvcHJvdmlkZXItc2RrL2dvL2FwaS90emVyby92MS9w",
-            "YXltZW50X2ludGVudKICA1RWUKoCKVQwLlByb3ZpZGVyU2RrLkFwaS5UemVy",
-            "by5WMS5QYXltZW50SW50ZW50ygIWVHplcm9cVjFcUGF5bWVudEludGVudOIC",
-            "IlR6ZXJvXFYxXFBheW1lbnRJbnRlbnRcR1BCTWV0YWRhdGHqAhhUemVybzo6",
-            "VjE6OlBheW1lbnRJbnRlbnRiBnByb3RvMw=="));
+            "LlRyYXZlbFJ1bGVEYXRhQga6SAPIAQFSDnRyYXZlbFJ1bGVEYXRhEmAKA2Zp",
+            "eBhGIAEoCzIYLnR6ZXJvLnYxLmNvbW1vbi5EZWNpbWFsQjS6SDG6AS4SGGZp",
+            "eCBtdXN0IGJlIG5vbi1uZWdhdGl2ZRoSdGhpcy51bnNjYWxlZCA+PSAwUgNm",
+            "aXgaXwoOVHJhdmVsUnVsZURhdGESTQoTb3JpZ2luYXRvcl9wcm92aWRlchge",
+            "IAEoCzIULml2bXMxMDEuTGVnYWxQZXJzb25CBrpIA8gBAVISb3JpZ2luYXRv",
+            "clByb3ZpZGVyQg8KBnVwZGF0ZRIFukgCCAEiHQobUGF5bWVudEludGVudFVw",
+            "ZGF0ZVJlc3BvbnNlMpwBChJCZW5lZmljaWFyeVNlcnZpY2UShQEKE1BheW1l",
+            "bnRJbnRlbnRVcGRhdGUSMy50emVyby52MS5wYXltZW50X2ludGVudC5QYXlt",
+            "ZW50SW50ZW50VXBkYXRlUmVxdWVzdBo0LnR6ZXJvLnYxLnBheW1lbnRfaW50",
+            "ZW50LlBheW1lbnRJbnRlbnRVcGRhdGVSZXNwb25zZSIDkAICQoACChtjb20u",
+            "dHplcm8udjEucGF5bWVudF9pbnRlbnRCEEJlbmVmaWNpYXJ5UHJvdG9QAVpC",
+            "Z2l0aHViLmNvbS90LTAtbmV0d29yay9wcm92aWRlci1zZGsvZ28vYXBpL3R6",
+            "ZXJvL3YxL3BheW1lbnRfaW50ZW50ogIDVFZQqgIpVDAuUHJvdmlkZXJTZGsu",
+            "QXBpLlR6ZXJvLlYxLlBheW1lbnRJbnRlbnTKAhZUemVyb1xWMVxQYXltZW50",
+            "SW50ZW504gIiVHplcm9cVjFcUGF5bWVudEludGVudFxHUEJNZXRhZGF0YeoC",
+            "GFR6ZXJvOjpWMTo6UGF5bWVudEludGVudGIGcHJvdG8z"));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { global::T0.ProviderSdk.Api.Tzero.V1.Common.CommonReflection.Descriptor, global::T0.ProviderSdk.Api.Tzero.V1.Common.PaymentMethodReflection.Descriptor, global::Buf.Validate.ValidateReflection.Descriptor, global::T0.ProviderSdk.Api.Ivms101.V1.Ivms.Ivms101Reflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(null, null, new pbr::GeneratedClrTypeInfo[] {
-            new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.PaymentIntentUpdateRequest), global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.PaymentIntentUpdateRequest.Parser, new[]{ "PaymentIntentId", "FundsReceived" }, new[]{ "Update" }, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.PaymentIntentUpdateRequest.Types.FundsReceived), global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.PaymentIntentUpdateRequest.Types.FundsReceived.Parser, new[]{ "SettlementAmount", "Rate", "PaymentAmount", "PaymentMethod", "TransactionReference", "TravelRuleData" }, null, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.PaymentIntentUpdateRequest.Types.FundsReceived.Types.TravelRuleData), global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.PaymentIntentUpdateRequest.Types.FundsReceived.Types.TravelRuleData.Parser, new[]{ "OriginatorProvider" }, null, null, null, null)})}),
+            new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.PaymentIntentUpdateRequest), global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.PaymentIntentUpdateRequest.Parser, new[]{ "PaymentIntentId", "FundsReceived" }, new[]{ "Update" }, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.PaymentIntentUpdateRequest.Types.FundsReceived), global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.PaymentIntentUpdateRequest.Types.FundsReceived.Parser, new[]{ "SettlementAmount", "Rate", "PaymentAmount", "PaymentMethod", "TransactionReference", "TravelRuleData", "Fix" }, null, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.PaymentIntentUpdateRequest.Types.FundsReceived.Types.TravelRuleData), global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.PaymentIntentUpdateRequest.Types.FundsReceived.Types.TravelRuleData.Parser, new[]{ "OriginatorProvider" }, null, null, null, null)})}),
             new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.PaymentIntentUpdateResponse), global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.PaymentIntentUpdateResponse.Parser, null, null, null, null, null)
           }));
     }
@@ -406,6 +408,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
           paymentMethod_ = other.paymentMethod_;
           transactionReference_ = other.transactionReference_;
           travelRuleData_ = other.travelRuleData_ != null ? other.travelRuleData_.Clone() : null;
+          fix_ = other.fix_ != null ? other.fix_.Clone() : null;
           _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
         }
 
@@ -421,7 +424,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
         /// <summary>
         ///*
         /// The settlement amount credited to your balance.
-        /// This is calculated as: source_amount / rate
+        /// This is calculated as: (source_amount / rate) - fix
         ///
         /// Note: Fees are NOT deducted from this amount. Fees are tracked
         /// separately and settled in periodic fee settlements.
@@ -517,6 +520,24 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
           }
         }
 
+        /// <summary>Field number for the "fix" field.</summary>
+        public const int FixFieldNumber = 70;
+        private global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal fix_;
+        /// <summary>
+        ///*
+        /// Flat USD surcharge retained by the pay-in provider per transfer.
+        /// Already subtracted from settlement_amount. Surface to beneficiaries that
+        /// need to audit the settlement math: settlement = (payment_amount / rate) - fix.
+        /// </summary>
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        public global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal Fix {
+          get { return fix_; }
+          set {
+            fix_ = value;
+          }
+        }
+
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
         public override bool Equals(object other) {
@@ -538,6 +559,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
           if (PaymentMethod != other.PaymentMethod) return false;
           if (TransactionReference != other.TransactionReference) return false;
           if (!object.Equals(TravelRuleData, other.TravelRuleData)) return false;
+          if (!object.Equals(Fix, other.Fix)) return false;
           return Equals(_unknownFields, other._unknownFields);
         }
 
@@ -551,6 +573,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
           if (PaymentMethod != global::T0.ProviderSdk.Api.Tzero.V1.Common.PaymentMethodType.Unspecified) hash ^= PaymentMethod.GetHashCode();
           if (TransactionReference.Length != 0) hash ^= TransactionReference.GetHashCode();
           if (travelRuleData_ != null) hash ^= TravelRuleData.GetHashCode();
+          if (fix_ != null) hash ^= Fix.GetHashCode();
           if (_unknownFields != null) {
             hash ^= _unknownFields.GetHashCode();
           }
@@ -593,6 +616,10 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
             output.WriteRawTag(226, 3);
             output.WriteMessage(TravelRuleData);
           }
+          if (fix_ != null) {
+            output.WriteRawTag(178, 4);
+            output.WriteMessage(Fix);
+          }
           if (_unknownFields != null) {
             _unknownFields.WriteTo(output);
           }
@@ -627,6 +654,10 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
             output.WriteRawTag(226, 3);
             output.WriteMessage(TravelRuleData);
           }
+          if (fix_ != null) {
+            output.WriteRawTag(178, 4);
+            output.WriteMessage(Fix);
+          }
           if (_unknownFields != null) {
             _unknownFields.WriteTo(ref output);
           }
@@ -654,6 +685,9 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
           }
           if (travelRuleData_ != null) {
             size += 2 + pb::CodedOutputStream.ComputeMessageSize(TravelRuleData);
+          }
+          if (fix_ != null) {
+            size += 2 + pb::CodedOutputStream.ComputeMessageSize(Fix);
           }
           if (_unknownFields != null) {
             size += _unknownFields.CalculateSize();
@@ -696,6 +730,12 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
               TravelRuleData = new global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.PaymentIntentUpdateRequest.Types.FundsReceived.Types.TravelRuleData();
             }
             TravelRuleData.MergeFrom(other.TravelRuleData);
+          }
+          if (other.fix_ != null) {
+            if (fix_ == null) {
+              Fix = new global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal();
+            }
+            Fix.MergeFrom(other.Fix);
           }
           _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
         }
@@ -752,6 +792,13 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
                 input.ReadMessage(TravelRuleData);
                 break;
               }
+              case 562: {
+                if (fix_ == null) {
+                  Fix = new global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal();
+                }
+                input.ReadMessage(Fix);
+                break;
+              }
             }
           }
         #endif
@@ -805,6 +852,13 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
                   TravelRuleData = new global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.PaymentIntentUpdateRequest.Types.FundsReceived.Types.TravelRuleData();
                 }
                 input.ReadMessage(TravelRuleData);
+                break;
+              }
+              case 562: {
+                if (fix_ == null) {
+                  Fix = new global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal();
+                }
+                input.ReadMessage(Fix);
                 break;
               }
             }

@@ -52,6 +52,20 @@ const (
 	PaymentMethodType_PAYMENT_METHOD_TYPE_NIP PaymentMethodType = 180
 	// RTP - Real-Time Payments (USA)
 	PaymentMethodType_PAYMENT_METHOD_TYPE_RTP PaymentMethodType = 190
+	// Chilean domestic bank transfer (CLP)
+	PaymentMethodType_PAYMENT_METHOD_TYPE_CHILEAN_BANK_TRANSFER PaymentMethodType = 200
+	// Peruvian domestic bank transfer (PEN, USD-PE)
+	PaymentMethodType_PAYMENT_METHOD_TYPE_PERU_BANK_TRANSFER PaymentMethodType = 210
+	// Argentinian domestic bank transfer via CBU/CVU (ARS)
+	PaymentMethodType_PAYMENT_METHOD_TYPE_ARGENTINIAN_BANK_TRANSFER PaymentMethodType = 220
+	// Mexican domestic bank transfer via SPEI/CLABE (MXN)
+	PaymentMethodType_PAYMENT_METHOD_TYPE_MEXICAN_BANK_TRANSFER PaymentMethodType = 230
+	// Colombian ACH bank transfer (COP)
+	PaymentMethodType_PAYMENT_METHOD_TYPE_COLOMBIAN_ACH PaymentMethodType = 240
+	// Colombian Bre-B high-speed payment rail (COP)
+	PaymentMethodType_PAYMENT_METHOD_TYPE_COLOMBIAN_BREB PaymentMethodType = 250
+	// GIP - Ghana Interbank Payment (GhIPSS)
+	PaymentMethodType_PAYMENT_METHOD_TYPE_GIP PaymentMethodType = 260
 )
 
 // Enum value maps for PaymentMethodType.
@@ -75,26 +89,40 @@ var (
 		170: "PAYMENT_METHOD_TYPE_CNAPS",
 		180: "PAYMENT_METHOD_TYPE_NIP",
 		190: "PAYMENT_METHOD_TYPE_RTP",
+		200: "PAYMENT_METHOD_TYPE_CHILEAN_BANK_TRANSFER",
+		210: "PAYMENT_METHOD_TYPE_PERU_BANK_TRANSFER",
+		220: "PAYMENT_METHOD_TYPE_ARGENTINIAN_BANK_TRANSFER",
+		230: "PAYMENT_METHOD_TYPE_MEXICAN_BANK_TRANSFER",
+		240: "PAYMENT_METHOD_TYPE_COLOMBIAN_ACH",
+		250: "PAYMENT_METHOD_TYPE_COLOMBIAN_BREB",
+		260: "PAYMENT_METHOD_TYPE_GIP",
 	}
 	PaymentMethodType_value = map[string]int32{
-		"PAYMENT_METHOD_TYPE_UNSPECIFIED":            0,
-		"PAYMENT_METHOD_TYPE_SEPA":                   10,
-		"PAYMENT_METHOD_TYPE_SWIFT":                  20,
-		"PAYMENT_METHOD_TYPE_ACH":                    50,
-		"PAYMENT_METHOD_TYPE_DOMESTIC_WIRE":          60,
-		"PAYMENT_METHOD_TYPE_FPS":                    70,
-		"PAYMENT_METHOD_TYPE_M_PESA":                 80,
-		"PAYMENT_METHOD_TYPE_G_CASH":                 90,
-		"PAYMENT_METHOD_TYPE_INDIAN_BANK_TRANSFER":   100,
-		"PAYMENT_METHOD_TYPE_PESONET":                110,
-		"PAYMENT_METHOD_TYPE_INSTAPAY":               120,
-		"PAYMENT_METHOD_TYPE_PAKISTAN_BANK_TRANSFER": 130,
-		"PAYMENT_METHOD_TYPE_PAKISTAN_MOBILE_WALLET": 140,
-		"PAYMENT_METHOD_TYPE_PIX":                    150,
-		"PAYMENT_METHOD_TYPE_AFRICAN_MOBILE_MONEY":   160,
-		"PAYMENT_METHOD_TYPE_CNAPS":                  170,
-		"PAYMENT_METHOD_TYPE_NIP":                    180,
-		"PAYMENT_METHOD_TYPE_RTP":                    190,
+		"PAYMENT_METHOD_TYPE_UNSPECIFIED":               0,
+		"PAYMENT_METHOD_TYPE_SEPA":                      10,
+		"PAYMENT_METHOD_TYPE_SWIFT":                     20,
+		"PAYMENT_METHOD_TYPE_ACH":                       50,
+		"PAYMENT_METHOD_TYPE_DOMESTIC_WIRE":             60,
+		"PAYMENT_METHOD_TYPE_FPS":                       70,
+		"PAYMENT_METHOD_TYPE_M_PESA":                    80,
+		"PAYMENT_METHOD_TYPE_G_CASH":                    90,
+		"PAYMENT_METHOD_TYPE_INDIAN_BANK_TRANSFER":      100,
+		"PAYMENT_METHOD_TYPE_PESONET":                   110,
+		"PAYMENT_METHOD_TYPE_INSTAPAY":                  120,
+		"PAYMENT_METHOD_TYPE_PAKISTAN_BANK_TRANSFER":    130,
+		"PAYMENT_METHOD_TYPE_PAKISTAN_MOBILE_WALLET":    140,
+		"PAYMENT_METHOD_TYPE_PIX":                       150,
+		"PAYMENT_METHOD_TYPE_AFRICAN_MOBILE_MONEY":      160,
+		"PAYMENT_METHOD_TYPE_CNAPS":                     170,
+		"PAYMENT_METHOD_TYPE_NIP":                       180,
+		"PAYMENT_METHOD_TYPE_RTP":                       190,
+		"PAYMENT_METHOD_TYPE_CHILEAN_BANK_TRANSFER":     200,
+		"PAYMENT_METHOD_TYPE_PERU_BANK_TRANSFER":        210,
+		"PAYMENT_METHOD_TYPE_ARGENTINIAN_BANK_TRANSFER": 220,
+		"PAYMENT_METHOD_TYPE_MEXICAN_BANK_TRANSFER":     230,
+		"PAYMENT_METHOD_TYPE_COLOMBIAN_ACH":             240,
+		"PAYMENT_METHOD_TYPE_COLOMBIAN_BREB":            250,
+		"PAYMENT_METHOD_TYPE_GIP":                       260,
 	}
 )
 
@@ -411,6 +439,393 @@ func (PaymentDetails_Rtp_RtpAccountType) EnumDescriptor() ([]byte, []int) {
 	return file_tzero_v1_common_payment_method_proto_rawDescGZIP(), []int{0, 16, 0}
 }
 
+type PaymentDetails_ChileanBankTransfer_AccountType int32
+
+const (
+	PaymentDetails_ChileanBankTransfer_ACCOUNT_TYPE_UNSPECIFIED PaymentDetails_ChileanBankTransfer_AccountType = 0
+	// Cuenta Corriente
+	PaymentDetails_ChileanBankTransfer_ACCOUNT_TYPE_CHECKING PaymentDetails_ChileanBankTransfer_AccountType = 10
+	// Cuenta Vista / Cuenta RUT
+	PaymentDetails_ChileanBankTransfer_ACCOUNT_TYPE_VISTA PaymentDetails_ChileanBankTransfer_AccountType = 20
+	// Cuenta de Ahorro
+	PaymentDetails_ChileanBankTransfer_ACCOUNT_TYPE_SAVINGS PaymentDetails_ChileanBankTransfer_AccountType = 40
+)
+
+// Enum value maps for PaymentDetails_ChileanBankTransfer_AccountType.
+var (
+	PaymentDetails_ChileanBankTransfer_AccountType_name = map[int32]string{
+		0:  "ACCOUNT_TYPE_UNSPECIFIED",
+		10: "ACCOUNT_TYPE_CHECKING",
+		20: "ACCOUNT_TYPE_VISTA",
+		40: "ACCOUNT_TYPE_SAVINGS",
+	}
+	PaymentDetails_ChileanBankTransfer_AccountType_value = map[string]int32{
+		"ACCOUNT_TYPE_UNSPECIFIED": 0,
+		"ACCOUNT_TYPE_CHECKING":    10,
+		"ACCOUNT_TYPE_VISTA":       20,
+		"ACCOUNT_TYPE_SAVINGS":     40,
+	}
+)
+
+func (x PaymentDetails_ChileanBankTransfer_AccountType) Enum() *PaymentDetails_ChileanBankTransfer_AccountType {
+	p := new(PaymentDetails_ChileanBankTransfer_AccountType)
+	*p = x
+	return p
+}
+
+func (x PaymentDetails_ChileanBankTransfer_AccountType) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (PaymentDetails_ChileanBankTransfer_AccountType) Descriptor() protoreflect.EnumDescriptor {
+	return file_tzero_v1_common_payment_method_proto_enumTypes[6].Descriptor()
+}
+
+func (PaymentDetails_ChileanBankTransfer_AccountType) Type() protoreflect.EnumType {
+	return &file_tzero_v1_common_payment_method_proto_enumTypes[6]
+}
+
+func (x PaymentDetails_ChileanBankTransfer_AccountType) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use PaymentDetails_ChileanBankTransfer_AccountType.Descriptor instead.
+func (PaymentDetails_ChileanBankTransfer_AccountType) EnumDescriptor() ([]byte, []int) {
+	return file_tzero_v1_common_payment_method_proto_rawDescGZIP(), []int{0, 17, 0}
+}
+
+type PaymentDetails_PeruBankTransfer_DocumentType int32
+
+const (
+	PaymentDetails_PeruBankTransfer_DOCUMENT_TYPE_UNSPECIFIED PaymentDetails_PeruBankTransfer_DocumentType = 0
+	// DNI - Documento Nacional de Identidad (max 8 digits)
+	PaymentDetails_PeruBankTransfer_DOCUMENT_TYPE_DNI PaymentDetails_PeruBankTransfer_DocumentType = 10
+	// CE - Carnet de Extranjeria (foreigner ID)
+	PaymentDetails_PeruBankTransfer_DOCUMENT_TYPE_CE PaymentDetails_PeruBankTransfer_DocumentType = 20
+	// RUC - Registro Unico de Contribuyentes (business tax ID)
+	PaymentDetails_PeruBankTransfer_DOCUMENT_TYPE_RUC PaymentDetails_PeruBankTransfer_DocumentType = 30
+)
+
+// Enum value maps for PaymentDetails_PeruBankTransfer_DocumentType.
+var (
+	PaymentDetails_PeruBankTransfer_DocumentType_name = map[int32]string{
+		0:  "DOCUMENT_TYPE_UNSPECIFIED",
+		10: "DOCUMENT_TYPE_DNI",
+		20: "DOCUMENT_TYPE_CE",
+		30: "DOCUMENT_TYPE_RUC",
+	}
+	PaymentDetails_PeruBankTransfer_DocumentType_value = map[string]int32{
+		"DOCUMENT_TYPE_UNSPECIFIED": 0,
+		"DOCUMENT_TYPE_DNI":         10,
+		"DOCUMENT_TYPE_CE":          20,
+		"DOCUMENT_TYPE_RUC":         30,
+	}
+)
+
+func (x PaymentDetails_PeruBankTransfer_DocumentType) Enum() *PaymentDetails_PeruBankTransfer_DocumentType {
+	p := new(PaymentDetails_PeruBankTransfer_DocumentType)
+	*p = x
+	return p
+}
+
+func (x PaymentDetails_PeruBankTransfer_DocumentType) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (PaymentDetails_PeruBankTransfer_DocumentType) Descriptor() protoreflect.EnumDescriptor {
+	return file_tzero_v1_common_payment_method_proto_enumTypes[7].Descriptor()
+}
+
+func (PaymentDetails_PeruBankTransfer_DocumentType) Type() protoreflect.EnumType {
+	return &file_tzero_v1_common_payment_method_proto_enumTypes[7]
+}
+
+func (x PaymentDetails_PeruBankTransfer_DocumentType) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use PaymentDetails_PeruBankTransfer_DocumentType.Descriptor instead.
+func (PaymentDetails_PeruBankTransfer_DocumentType) EnumDescriptor() ([]byte, []int) {
+	return file_tzero_v1_common_payment_method_proto_rawDescGZIP(), []int{0, 18, 0}
+}
+
+type PaymentDetails_PeruBankTransfer_AccountType int32
+
+const (
+	PaymentDetails_PeruBankTransfer_ACCOUNT_TYPE_UNSPECIFIED PaymentDetails_PeruBankTransfer_AccountType = 0
+	PaymentDetails_PeruBankTransfer_ACCOUNT_TYPE_CHECKING    PaymentDetails_PeruBankTransfer_AccountType = 10
+	PaymentDetails_PeruBankTransfer_ACCOUNT_TYPE_SAVINGS     PaymentDetails_PeruBankTransfer_AccountType = 20
+)
+
+// Enum value maps for PaymentDetails_PeruBankTransfer_AccountType.
+var (
+	PaymentDetails_PeruBankTransfer_AccountType_name = map[int32]string{
+		0:  "ACCOUNT_TYPE_UNSPECIFIED",
+		10: "ACCOUNT_TYPE_CHECKING",
+		20: "ACCOUNT_TYPE_SAVINGS",
+	}
+	PaymentDetails_PeruBankTransfer_AccountType_value = map[string]int32{
+		"ACCOUNT_TYPE_UNSPECIFIED": 0,
+		"ACCOUNT_TYPE_CHECKING":    10,
+		"ACCOUNT_TYPE_SAVINGS":     20,
+	}
+)
+
+func (x PaymentDetails_PeruBankTransfer_AccountType) Enum() *PaymentDetails_PeruBankTransfer_AccountType {
+	p := new(PaymentDetails_PeruBankTransfer_AccountType)
+	*p = x
+	return p
+}
+
+func (x PaymentDetails_PeruBankTransfer_AccountType) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (PaymentDetails_PeruBankTransfer_AccountType) Descriptor() protoreflect.EnumDescriptor {
+	return file_tzero_v1_common_payment_method_proto_enumTypes[8].Descriptor()
+}
+
+func (PaymentDetails_PeruBankTransfer_AccountType) Type() protoreflect.EnumType {
+	return &file_tzero_v1_common_payment_method_proto_enumTypes[8]
+}
+
+func (x PaymentDetails_PeruBankTransfer_AccountType) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use PaymentDetails_PeruBankTransfer_AccountType.Descriptor instead.
+func (PaymentDetails_PeruBankTransfer_AccountType) EnumDescriptor() ([]byte, []int) {
+	return file_tzero_v1_common_payment_method_proto_rawDescGZIP(), []int{0, 18, 1}
+}
+
+type PaymentDetails_ColombianAch_DocumentType int32
+
+const (
+	PaymentDetails_ColombianAch_DOCUMENT_TYPE_UNSPECIFIED PaymentDetails_ColombianAch_DocumentType = 0
+	// CC - Cedula de Ciudadania
+	PaymentDetails_ColombianAch_DOCUMENT_TYPE_CC PaymentDetails_ColombianAch_DocumentType = 10
+	// CE - Cedula de Extranjeria
+	PaymentDetails_ColombianAch_DOCUMENT_TYPE_CE PaymentDetails_ColombianAch_DocumentType = 20
+	// NIT - Numero de Identificacion Tributaria (business tax ID)
+	PaymentDetails_ColombianAch_DOCUMENT_TYPE_NIT PaymentDetails_ColombianAch_DocumentType = 30
+	// TI - Tarjeta de Identidad
+	PaymentDetails_ColombianAch_DOCUMENT_TYPE_TI PaymentDetails_ColombianAch_DocumentType = 40
+	// PP - Pasaporte
+	PaymentDetails_ColombianAch_DOCUMENT_TYPE_PP PaymentDetails_ColombianAch_DocumentType = 50
+)
+
+// Enum value maps for PaymentDetails_ColombianAch_DocumentType.
+var (
+	PaymentDetails_ColombianAch_DocumentType_name = map[int32]string{
+		0:  "DOCUMENT_TYPE_UNSPECIFIED",
+		10: "DOCUMENT_TYPE_CC",
+		20: "DOCUMENT_TYPE_CE",
+		30: "DOCUMENT_TYPE_NIT",
+		40: "DOCUMENT_TYPE_TI",
+		50: "DOCUMENT_TYPE_PP",
+	}
+	PaymentDetails_ColombianAch_DocumentType_value = map[string]int32{
+		"DOCUMENT_TYPE_UNSPECIFIED": 0,
+		"DOCUMENT_TYPE_CC":          10,
+		"DOCUMENT_TYPE_CE":          20,
+		"DOCUMENT_TYPE_NIT":         30,
+		"DOCUMENT_TYPE_TI":          40,
+		"DOCUMENT_TYPE_PP":          50,
+	}
+)
+
+func (x PaymentDetails_ColombianAch_DocumentType) Enum() *PaymentDetails_ColombianAch_DocumentType {
+	p := new(PaymentDetails_ColombianAch_DocumentType)
+	*p = x
+	return p
+}
+
+func (x PaymentDetails_ColombianAch_DocumentType) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (PaymentDetails_ColombianAch_DocumentType) Descriptor() protoreflect.EnumDescriptor {
+	return file_tzero_v1_common_payment_method_proto_enumTypes[9].Descriptor()
+}
+
+func (PaymentDetails_ColombianAch_DocumentType) Type() protoreflect.EnumType {
+	return &file_tzero_v1_common_payment_method_proto_enumTypes[9]
+}
+
+func (x PaymentDetails_ColombianAch_DocumentType) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use PaymentDetails_ColombianAch_DocumentType.Descriptor instead.
+func (PaymentDetails_ColombianAch_DocumentType) EnumDescriptor() ([]byte, []int) {
+	return file_tzero_v1_common_payment_method_proto_rawDescGZIP(), []int{0, 21, 0}
+}
+
+type PaymentDetails_ColombianAch_AccountType int32
+
+const (
+	PaymentDetails_ColombianAch_ACCOUNT_TYPE_UNSPECIFIED PaymentDetails_ColombianAch_AccountType = 0
+	// Cuenta de Ahorros
+	PaymentDetails_ColombianAch_ACCOUNT_TYPE_SAVINGS PaymentDetails_ColombianAch_AccountType = 10
+	// Cuenta Corriente
+	PaymentDetails_ColombianAch_ACCOUNT_TYPE_CHECKING PaymentDetails_ColombianAch_AccountType = 20
+)
+
+// Enum value maps for PaymentDetails_ColombianAch_AccountType.
+var (
+	PaymentDetails_ColombianAch_AccountType_name = map[int32]string{
+		0:  "ACCOUNT_TYPE_UNSPECIFIED",
+		10: "ACCOUNT_TYPE_SAVINGS",
+		20: "ACCOUNT_TYPE_CHECKING",
+	}
+	PaymentDetails_ColombianAch_AccountType_value = map[string]int32{
+		"ACCOUNT_TYPE_UNSPECIFIED": 0,
+		"ACCOUNT_TYPE_SAVINGS":     10,
+		"ACCOUNT_TYPE_CHECKING":    20,
+	}
+)
+
+func (x PaymentDetails_ColombianAch_AccountType) Enum() *PaymentDetails_ColombianAch_AccountType {
+	p := new(PaymentDetails_ColombianAch_AccountType)
+	*p = x
+	return p
+}
+
+func (x PaymentDetails_ColombianAch_AccountType) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (PaymentDetails_ColombianAch_AccountType) Descriptor() protoreflect.EnumDescriptor {
+	return file_tzero_v1_common_payment_method_proto_enumTypes[10].Descriptor()
+}
+
+func (PaymentDetails_ColombianAch_AccountType) Type() protoreflect.EnumType {
+	return &file_tzero_v1_common_payment_method_proto_enumTypes[10]
+}
+
+func (x PaymentDetails_ColombianAch_AccountType) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use PaymentDetails_ColombianAch_AccountType.Descriptor instead.
+func (PaymentDetails_ColombianAch_AccountType) EnumDescriptor() ([]byte, []int) {
+	return file_tzero_v1_common_payment_method_proto_rawDescGZIP(), []int{0, 21, 1}
+}
+
+type PaymentDetails_ColombianBreb_DocumentType int32
+
+const (
+	PaymentDetails_ColombianBreb_DOCUMENT_TYPE_UNSPECIFIED PaymentDetails_ColombianBreb_DocumentType = 0
+	// CC - Cedula de Ciudadania
+	PaymentDetails_ColombianBreb_DOCUMENT_TYPE_CC PaymentDetails_ColombianBreb_DocumentType = 10
+	// CE - Cedula de Extranjeria
+	PaymentDetails_ColombianBreb_DOCUMENT_TYPE_CE PaymentDetails_ColombianBreb_DocumentType = 20
+	// NIT - Numero de Identificacion Tributaria (business tax ID)
+	PaymentDetails_ColombianBreb_DOCUMENT_TYPE_NIT PaymentDetails_ColombianBreb_DocumentType = 30
+	// TI - Tarjeta de Identidad
+	PaymentDetails_ColombianBreb_DOCUMENT_TYPE_TI PaymentDetails_ColombianBreb_DocumentType = 40
+	// PP - Pasaporte
+	PaymentDetails_ColombianBreb_DOCUMENT_TYPE_PP PaymentDetails_ColombianBreb_DocumentType = 50
+)
+
+// Enum value maps for PaymentDetails_ColombianBreb_DocumentType.
+var (
+	PaymentDetails_ColombianBreb_DocumentType_name = map[int32]string{
+		0:  "DOCUMENT_TYPE_UNSPECIFIED",
+		10: "DOCUMENT_TYPE_CC",
+		20: "DOCUMENT_TYPE_CE",
+		30: "DOCUMENT_TYPE_NIT",
+		40: "DOCUMENT_TYPE_TI",
+		50: "DOCUMENT_TYPE_PP",
+	}
+	PaymentDetails_ColombianBreb_DocumentType_value = map[string]int32{
+		"DOCUMENT_TYPE_UNSPECIFIED": 0,
+		"DOCUMENT_TYPE_CC":          10,
+		"DOCUMENT_TYPE_CE":          20,
+		"DOCUMENT_TYPE_NIT":         30,
+		"DOCUMENT_TYPE_TI":          40,
+		"DOCUMENT_TYPE_PP":          50,
+	}
+)
+
+func (x PaymentDetails_ColombianBreb_DocumentType) Enum() *PaymentDetails_ColombianBreb_DocumentType {
+	p := new(PaymentDetails_ColombianBreb_DocumentType)
+	*p = x
+	return p
+}
+
+func (x PaymentDetails_ColombianBreb_DocumentType) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (PaymentDetails_ColombianBreb_DocumentType) Descriptor() protoreflect.EnumDescriptor {
+	return file_tzero_v1_common_payment_method_proto_enumTypes[11].Descriptor()
+}
+
+func (PaymentDetails_ColombianBreb_DocumentType) Type() protoreflect.EnumType {
+	return &file_tzero_v1_common_payment_method_proto_enumTypes[11]
+}
+
+func (x PaymentDetails_ColombianBreb_DocumentType) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use PaymentDetails_ColombianBreb_DocumentType.Descriptor instead.
+func (PaymentDetails_ColombianBreb_DocumentType) EnumDescriptor() ([]byte, []int) {
+	return file_tzero_v1_common_payment_method_proto_rawDescGZIP(), []int{0, 22, 0}
+}
+
+type PaymentDetails_ColombianBreb_AccountType int32
+
+const (
+	PaymentDetails_ColombianBreb_ACCOUNT_TYPE_UNSPECIFIED PaymentDetails_ColombianBreb_AccountType = 0
+	// Cuenta de Ahorros
+	PaymentDetails_ColombianBreb_ACCOUNT_TYPE_SAVINGS PaymentDetails_ColombianBreb_AccountType = 10
+	// Cuenta Corriente
+	PaymentDetails_ColombianBreb_ACCOUNT_TYPE_CHECKING PaymentDetails_ColombianBreb_AccountType = 20
+)
+
+// Enum value maps for PaymentDetails_ColombianBreb_AccountType.
+var (
+	PaymentDetails_ColombianBreb_AccountType_name = map[int32]string{
+		0:  "ACCOUNT_TYPE_UNSPECIFIED",
+		10: "ACCOUNT_TYPE_SAVINGS",
+		20: "ACCOUNT_TYPE_CHECKING",
+	}
+	PaymentDetails_ColombianBreb_AccountType_value = map[string]int32{
+		"ACCOUNT_TYPE_UNSPECIFIED": 0,
+		"ACCOUNT_TYPE_SAVINGS":     10,
+		"ACCOUNT_TYPE_CHECKING":    20,
+	}
+)
+
+func (x PaymentDetails_ColombianBreb_AccountType) Enum() *PaymentDetails_ColombianBreb_AccountType {
+	p := new(PaymentDetails_ColombianBreb_AccountType)
+	*p = x
+	return p
+}
+
+func (x PaymentDetails_ColombianBreb_AccountType) String() string {
+	return protoimpl.X.EnumStringOf(x.Descriptor(), protoreflect.EnumNumber(x))
+}
+
+func (PaymentDetails_ColombianBreb_AccountType) Descriptor() protoreflect.EnumDescriptor {
+	return file_tzero_v1_common_payment_method_proto_enumTypes[12].Descriptor()
+}
+
+func (PaymentDetails_ColombianBreb_AccountType) Type() protoreflect.EnumType {
+	return &file_tzero_v1_common_payment_method_proto_enumTypes[12]
+}
+
+func (x PaymentDetails_ColombianBreb_AccountType) Number() protoreflect.EnumNumber {
+	return protoreflect.EnumNumber(x)
+}
+
+// Deprecated: Use PaymentDetails_ColombianBreb_AccountType.Descriptor instead.
+func (PaymentDetails_ColombianBreb_AccountType) EnumDescriptor() ([]byte, []int) {
+	return file_tzero_v1_common_payment_method_proto_rawDescGZIP(), []int{0, 22, 1}
+}
+
 type PaymentDetails struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Types that are valid to be assigned to Details:
@@ -432,6 +847,13 @@ type PaymentDetails struct {
 	//	*PaymentDetails_Naps
 	//	*PaymentDetails_Nip_
 	//	*PaymentDetails_Rtp_
+	//	*PaymentDetails_ChileanBankTransfer_
+	//	*PaymentDetails_PeruBankTransfer_
+	//	*PaymentDetails_ArgentinianBankTransfer_
+	//	*PaymentDetails_MexicanBankTransfer_
+	//	*PaymentDetails_ColombianAch_
+	//	*PaymentDetails_ColombianBreb_
+	//	*PaymentDetails_Gip_
 	Details       isPaymentDetails_Details `protobuf_oneof:"details"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -628,6 +1050,69 @@ func (x *PaymentDetails) GetRtp() *PaymentDetails_Rtp {
 	return nil
 }
 
+func (x *PaymentDetails) GetChileanBankTransfer() *PaymentDetails_ChileanBankTransfer {
+	if x != nil {
+		if x, ok := x.Details.(*PaymentDetails_ChileanBankTransfer_); ok {
+			return x.ChileanBankTransfer
+		}
+	}
+	return nil
+}
+
+func (x *PaymentDetails) GetPeruBankTransfer() *PaymentDetails_PeruBankTransfer {
+	if x != nil {
+		if x, ok := x.Details.(*PaymentDetails_PeruBankTransfer_); ok {
+			return x.PeruBankTransfer
+		}
+	}
+	return nil
+}
+
+func (x *PaymentDetails) GetArgentinianBankTransfer() *PaymentDetails_ArgentinianBankTransfer {
+	if x != nil {
+		if x, ok := x.Details.(*PaymentDetails_ArgentinianBankTransfer_); ok {
+			return x.ArgentinianBankTransfer
+		}
+	}
+	return nil
+}
+
+func (x *PaymentDetails) GetMexicanBankTransfer() *PaymentDetails_MexicanBankTransfer {
+	if x != nil {
+		if x, ok := x.Details.(*PaymentDetails_MexicanBankTransfer_); ok {
+			return x.MexicanBankTransfer
+		}
+	}
+	return nil
+}
+
+func (x *PaymentDetails) GetColombianAch() *PaymentDetails_ColombianAch {
+	if x != nil {
+		if x, ok := x.Details.(*PaymentDetails_ColombianAch_); ok {
+			return x.ColombianAch
+		}
+	}
+	return nil
+}
+
+func (x *PaymentDetails) GetColombianBreb() *PaymentDetails_ColombianBreb {
+	if x != nil {
+		if x, ok := x.Details.(*PaymentDetails_ColombianBreb_); ok {
+			return x.ColombianBreb
+		}
+	}
+	return nil
+}
+
+func (x *PaymentDetails) GetGip() *PaymentDetails_Gip {
+	if x != nil {
+		if x, ok := x.Details.(*PaymentDetails_Gip_); ok {
+			return x.Gip
+		}
+	}
+	return nil
+}
+
 type isPaymentDetails_Details interface {
 	isPaymentDetails_Details()
 }
@@ -733,6 +1218,48 @@ type PaymentDetails_Rtp_ struct {
 	Rtp *PaymentDetails_Rtp `protobuf:"bytes,190,opt,name=rtp,proto3,oneof"`
 }
 
+type PaymentDetails_ChileanBankTransfer_ struct {
+	// Chilean domestic bank transfer
+	// Chile
+	ChileanBankTransfer *PaymentDetails_ChileanBankTransfer `protobuf:"bytes,200,opt,name=chilean_bank_transfer,json=chileanBankTransfer,proto3,oneof"`
+}
+
+type PaymentDetails_PeruBankTransfer_ struct {
+	// Peruvian domestic bank transfer
+	// Peru
+	PeruBankTransfer *PaymentDetails_PeruBankTransfer `protobuf:"bytes,210,opt,name=peru_bank_transfer,json=peruBankTransfer,proto3,oneof"`
+}
+
+type PaymentDetails_ArgentinianBankTransfer_ struct {
+	// Argentinian domestic bank transfer via CBU/CVU
+	// Argentina
+	ArgentinianBankTransfer *PaymentDetails_ArgentinianBankTransfer `protobuf:"bytes,220,opt,name=argentinian_bank_transfer,json=argentinianBankTransfer,proto3,oneof"`
+}
+
+type PaymentDetails_MexicanBankTransfer_ struct {
+	// Mexican domestic bank transfer via SPEI/CLABE
+	// Mexico
+	MexicanBankTransfer *PaymentDetails_MexicanBankTransfer `protobuf:"bytes,230,opt,name=mexican_bank_transfer,json=mexicanBankTransfer,proto3,oneof"`
+}
+
+type PaymentDetails_ColombianAch_ struct {
+	// Colombian ACH bank transfer
+	// Colombia
+	ColombianAch *PaymentDetails_ColombianAch `protobuf:"bytes,240,opt,name=colombian_ach,json=colombianAch,proto3,oneof"`
+}
+
+type PaymentDetails_ColombianBreb_ struct {
+	// Colombian Bre-B high-speed payment rail
+	// Colombia
+	ColombianBreb *PaymentDetails_ColombianBreb `protobuf:"bytes,250,opt,name=colombian_breb,json=colombianBreb,proto3,oneof"`
+}
+
+type PaymentDetails_Gip_ struct {
+	// GIP - Ghana Interbank Payment (GhIPSS)
+	// Ghana
+	Gip *PaymentDetails_Gip `protobuf:"bytes,260,opt,name=gip,proto3,oneof"`
+}
+
 func (*PaymentDetails_Sepa_) isPaymentDetails_Details() {}
 
 func (*PaymentDetails_Swift_) isPaymentDetails_Details() {}
@@ -766,6 +1293,20 @@ func (*PaymentDetails_Naps) isPaymentDetails_Details() {}
 func (*PaymentDetails_Nip_) isPaymentDetails_Details() {}
 
 func (*PaymentDetails_Rtp_) isPaymentDetails_Details() {}
+
+func (*PaymentDetails_ChileanBankTransfer_) isPaymentDetails_Details() {}
+
+func (*PaymentDetails_PeruBankTransfer_) isPaymentDetails_Details() {}
+
+func (*PaymentDetails_ArgentinianBankTransfer_) isPaymentDetails_Details() {}
+
+func (*PaymentDetails_MexicanBankTransfer_) isPaymentDetails_Details() {}
+
+func (*PaymentDetails_ColombianAch_) isPaymentDetails_Details() {}
+
+func (*PaymentDetails_ColombianBreb_) isPaymentDetails_Details() {}
+
+func (*PaymentDetails_Gip_) isPaymentDetails_Details() {}
 
 type PaymentDetails_Sepa struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
@@ -2174,6 +2715,542 @@ func (x *PaymentDetails_Rtp) GetPaymentReference() string {
 	return ""
 }
 
+// Chilean domestic bank transfer
+// Uses RUT (national taxpayer ID) as the beneficiary identifier.
+type PaymentDetails_ChileanBankTransfer struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// RUT of the beneficiary - 7-9 digits + check digit (K or 0-9).
+	// Example: "12345678-9", "1234567-K".
+	DocumentNumber string `protobuf:"bytes,10,opt,name=document_number,json=documentNumber,proto3" json:"document_number,omitempty"`
+	// Beneficiary full name (max 45 chars; provider truncates if longer).
+	BeneficiaryName string `protobuf:"bytes,20,opt,name=beneficiary_name,json=beneficiaryName,proto3" json:"beneficiary_name,omitempty"`
+	// Destination bank code - 3 digits (e.g. "012" for BCI).
+	BankCode string `protobuf:"bytes,30,opt,name=bank_code,json=bankCode,proto3" json:"bank_code,omitempty"`
+	// Destination account number - up to 18 digits (zero-padded by the provider if needed).
+	AccountNumber string `protobuf:"bytes,40,opt,name=account_number,json=accountNumber,proto3" json:"account_number,omitempty"`
+	// Account type. Optional - required by some provider fallbacks (e.g. Itau),
+	// ignored by others (e.g. BCI).
+	AccountType   *PaymentDetails_ChileanBankTransfer_AccountType `protobuf:"varint,50,opt,name=account_type,json=accountType,proto3,enum=tzero.v1.common.PaymentDetails_ChileanBankTransfer_AccountType,oneof" json:"account_type,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PaymentDetails_ChileanBankTransfer) Reset() {
+	*x = PaymentDetails_ChileanBankTransfer{}
+	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[18]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PaymentDetails_ChileanBankTransfer) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PaymentDetails_ChileanBankTransfer) ProtoMessage() {}
+
+func (x *PaymentDetails_ChileanBankTransfer) ProtoReflect() protoreflect.Message {
+	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[18]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PaymentDetails_ChileanBankTransfer.ProtoReflect.Descriptor instead.
+func (*PaymentDetails_ChileanBankTransfer) Descriptor() ([]byte, []int) {
+	return file_tzero_v1_common_payment_method_proto_rawDescGZIP(), []int{0, 17}
+}
+
+func (x *PaymentDetails_ChileanBankTransfer) GetDocumentNumber() string {
+	if x != nil {
+		return x.DocumentNumber
+	}
+	return ""
+}
+
+func (x *PaymentDetails_ChileanBankTransfer) GetBeneficiaryName() string {
+	if x != nil {
+		return x.BeneficiaryName
+	}
+	return ""
+}
+
+func (x *PaymentDetails_ChileanBankTransfer) GetBankCode() string {
+	if x != nil {
+		return x.BankCode
+	}
+	return ""
+}
+
+func (x *PaymentDetails_ChileanBankTransfer) GetAccountNumber() string {
+	if x != nil {
+		return x.AccountNumber
+	}
+	return ""
+}
+
+func (x *PaymentDetails_ChileanBankTransfer) GetAccountType() PaymentDetails_ChileanBankTransfer_AccountType {
+	if x != nil && x.AccountType != nil {
+		return *x.AccountType
+	}
+	return PaymentDetails_ChileanBankTransfer_ACCOUNT_TYPE_UNSPECIFIED
+}
+
+// Peruvian domestic bank transfer (PEN, USD-PE)
+type PaymentDetails_PeruBankTransfer struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Document number of the beneficiary.
+	// Per document_type: DNI up to 8 digits; CE and RUC may be longer.
+	DocumentNumber string `protobuf:"bytes,10,opt,name=document_number,json=documentNumber,proto3" json:"document_number,omitempty"`
+	// Document type. Optional - defaults to DNI on the provider side if unset.
+	DocumentType *PaymentDetails_PeruBankTransfer_DocumentType `protobuf:"varint,20,opt,name=document_type,json=documentType,proto3,enum=tzero.v1.common.PaymentDetails_PeruBankTransfer_DocumentType,oneof" json:"document_type,omitempty"`
+	// Destination bank code (mapped to provider-specific bank codes internally).
+	BankCode string `protobuf:"bytes,30,opt,name=bank_code,json=bankCode,proto3" json:"bank_code,omitempty"`
+	// Destination account number.
+	AccountNumber string                                      `protobuf:"bytes,40,opt,name=account_number,json=accountNumber,proto3" json:"account_number,omitempty"`
+	AccountType   PaymentDetails_PeruBankTransfer_AccountType `protobuf:"varint,50,opt,name=account_type,json=accountType,proto3,enum=tzero.v1.common.PaymentDetails_PeruBankTransfer_AccountType" json:"account_type,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PaymentDetails_PeruBankTransfer) Reset() {
+	*x = PaymentDetails_PeruBankTransfer{}
+	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[19]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PaymentDetails_PeruBankTransfer) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PaymentDetails_PeruBankTransfer) ProtoMessage() {}
+
+func (x *PaymentDetails_PeruBankTransfer) ProtoReflect() protoreflect.Message {
+	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[19]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PaymentDetails_PeruBankTransfer.ProtoReflect.Descriptor instead.
+func (*PaymentDetails_PeruBankTransfer) Descriptor() ([]byte, []int) {
+	return file_tzero_v1_common_payment_method_proto_rawDescGZIP(), []int{0, 18}
+}
+
+func (x *PaymentDetails_PeruBankTransfer) GetDocumentNumber() string {
+	if x != nil {
+		return x.DocumentNumber
+	}
+	return ""
+}
+
+func (x *PaymentDetails_PeruBankTransfer) GetDocumentType() PaymentDetails_PeruBankTransfer_DocumentType {
+	if x != nil && x.DocumentType != nil {
+		return *x.DocumentType
+	}
+	return PaymentDetails_PeruBankTransfer_DOCUMENT_TYPE_UNSPECIFIED
+}
+
+func (x *PaymentDetails_PeruBankTransfer) GetBankCode() string {
+	if x != nil {
+		return x.BankCode
+	}
+	return ""
+}
+
+func (x *PaymentDetails_PeruBankTransfer) GetAccountNumber() string {
+	if x != nil {
+		return x.AccountNumber
+	}
+	return ""
+}
+
+func (x *PaymentDetails_PeruBankTransfer) GetAccountType() PaymentDetails_PeruBankTransfer_AccountType {
+	if x != nil {
+		return x.AccountType
+	}
+	return PaymentDetails_PeruBankTransfer_ACCOUNT_TYPE_UNSPECIFIED
+}
+
+// Argentinian domestic bank transfer via CBU or CVU.
+// CUIT/CUIL of the beneficiary is carried in Travel Rule Data, not here.
+type PaymentDetails_ArgentinianBankTransfer struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// CBU (traditional bank account) or CVU (virtual account, starts with "000"),
+	// exactly 22 digits.
+	AccountNumber string `protobuf:"bytes,10,opt,name=account_number,json=accountNumber,proto3" json:"account_number,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PaymentDetails_ArgentinianBankTransfer) Reset() {
+	*x = PaymentDetails_ArgentinianBankTransfer{}
+	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[20]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PaymentDetails_ArgentinianBankTransfer) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PaymentDetails_ArgentinianBankTransfer) ProtoMessage() {}
+
+func (x *PaymentDetails_ArgentinianBankTransfer) ProtoReflect() protoreflect.Message {
+	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[20]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PaymentDetails_ArgentinianBankTransfer.ProtoReflect.Descriptor instead.
+func (*PaymentDetails_ArgentinianBankTransfer) Descriptor() ([]byte, []int) {
+	return file_tzero_v1_common_payment_method_proto_rawDescGZIP(), []int{0, 19}
+}
+
+func (x *PaymentDetails_ArgentinianBankTransfer) GetAccountNumber() string {
+	if x != nil {
+		return x.AccountNumber
+	}
+	return ""
+}
+
+// Mexican domestic bank transfer via SPEI using a CLABE account number.
+// RFC of the beneficiary is carried in Travel Rule Data, not here.
+type PaymentDetails_MexicanBankTransfer struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Beneficiary full name.
+	BeneficiaryName string `protobuf:"bytes,10,opt,name=beneficiary_name,json=beneficiaryName,proto3" json:"beneficiary_name,omitempty"`
+	// Bank institution code.
+	BankCode string `protobuf:"bytes,20,opt,name=bank_code,json=bankCode,proto3" json:"bank_code,omitempty"`
+	// CLABE (Clave Bancaria Estandarizada) - exactly 18 digits.
+	// Format: 3 digits bank code + 3 digits plaza code + 11 digits account + 1 check digit.
+	AccountNumber string `protobuf:"bytes,30,opt,name=account_number,json=accountNumber,proto3" json:"account_number,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PaymentDetails_MexicanBankTransfer) Reset() {
+	*x = PaymentDetails_MexicanBankTransfer{}
+	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PaymentDetails_MexicanBankTransfer) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PaymentDetails_MexicanBankTransfer) ProtoMessage() {}
+
+func (x *PaymentDetails_MexicanBankTransfer) ProtoReflect() protoreflect.Message {
+	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PaymentDetails_MexicanBankTransfer.ProtoReflect.Descriptor instead.
+func (*PaymentDetails_MexicanBankTransfer) Descriptor() ([]byte, []int) {
+	return file_tzero_v1_common_payment_method_proto_rawDescGZIP(), []int{0, 20}
+}
+
+func (x *PaymentDetails_MexicanBankTransfer) GetBeneficiaryName() string {
+	if x != nil {
+		return x.BeneficiaryName
+	}
+	return ""
+}
+
+func (x *PaymentDetails_MexicanBankTransfer) GetBankCode() string {
+	if x != nil {
+		return x.BankCode
+	}
+	return ""
+}
+
+func (x *PaymentDetails_MexicanBankTransfer) GetAccountNumber() string {
+	if x != nil {
+		return x.AccountNumber
+	}
+	return ""
+}
+
+// Colombian ACH (Automated Clearing House) bank transfer.
+type PaymentDetails_ColombianAch struct {
+	state           protoimpl.MessageState                   `protogen:"open.v1"`
+	DocumentNumber  string                                   `protobuf:"bytes,10,opt,name=document_number,json=documentNumber,proto3" json:"document_number,omitempty"`
+	DocumentType    PaymentDetails_ColombianAch_DocumentType `protobuf:"varint,20,opt,name=document_type,json=documentType,proto3,enum=tzero.v1.common.PaymentDetails_ColombianAch_DocumentType" json:"document_type,omitempty"`
+	BankCode        string                                   `protobuf:"bytes,30,opt,name=bank_code,json=bankCode,proto3" json:"bank_code,omitempty"`
+	AccountNumber   string                                   `protobuf:"bytes,40,opt,name=account_number,json=accountNumber,proto3" json:"account_number,omitempty"`
+	AccountType     PaymentDetails_ColombianAch_AccountType  `protobuf:"varint,50,opt,name=account_type,json=accountType,proto3,enum=tzero.v1.common.PaymentDetails_ColombianAch_AccountType" json:"account_type,omitempty"`
+	BeneficiaryName string                                   `protobuf:"bytes,60,opt,name=beneficiary_name,json=beneficiaryName,proto3" json:"beneficiary_name,omitempty"`
+	// Beneficiary phone number. Optional - required only for Row provider;
+	// Mono/Cobre use a default when omitted.
+	PhoneNumber   *string `protobuf:"bytes,70,opt,name=phone_number,json=phoneNumber,proto3,oneof" json:"phone_number,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PaymentDetails_ColombianAch) Reset() {
+	*x = PaymentDetails_ColombianAch{}
+	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[22]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PaymentDetails_ColombianAch) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PaymentDetails_ColombianAch) ProtoMessage() {}
+
+func (x *PaymentDetails_ColombianAch) ProtoReflect() protoreflect.Message {
+	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[22]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PaymentDetails_ColombianAch.ProtoReflect.Descriptor instead.
+func (*PaymentDetails_ColombianAch) Descriptor() ([]byte, []int) {
+	return file_tzero_v1_common_payment_method_proto_rawDescGZIP(), []int{0, 21}
+}
+
+func (x *PaymentDetails_ColombianAch) GetDocumentNumber() string {
+	if x != nil {
+		return x.DocumentNumber
+	}
+	return ""
+}
+
+func (x *PaymentDetails_ColombianAch) GetDocumentType() PaymentDetails_ColombianAch_DocumentType {
+	if x != nil {
+		return x.DocumentType
+	}
+	return PaymentDetails_ColombianAch_DOCUMENT_TYPE_UNSPECIFIED
+}
+
+func (x *PaymentDetails_ColombianAch) GetBankCode() string {
+	if x != nil {
+		return x.BankCode
+	}
+	return ""
+}
+
+func (x *PaymentDetails_ColombianAch) GetAccountNumber() string {
+	if x != nil {
+		return x.AccountNumber
+	}
+	return ""
+}
+
+func (x *PaymentDetails_ColombianAch) GetAccountType() PaymentDetails_ColombianAch_AccountType {
+	if x != nil {
+		return x.AccountType
+	}
+	return PaymentDetails_ColombianAch_ACCOUNT_TYPE_UNSPECIFIED
+}
+
+func (x *PaymentDetails_ColombianAch) GetBeneficiaryName() string {
+	if x != nil {
+		return x.BeneficiaryName
+	}
+	return ""
+}
+
+func (x *PaymentDetails_ColombianAch) GetPhoneNumber() string {
+	if x != nil && x.PhoneNumber != nil {
+		return *x.PhoneNumber
+	}
+	return ""
+}
+
+// Colombian Bre-B high-speed payment rail from Banco de la Republica.
+// Same fields as ColombianAch except no phone_number.
+type PaymentDetails_ColombianBreb struct {
+	state           protoimpl.MessageState                    `protogen:"open.v1"`
+	DocumentNumber  string                                    `protobuf:"bytes,10,opt,name=document_number,json=documentNumber,proto3" json:"document_number,omitempty"`
+	DocumentType    PaymentDetails_ColombianBreb_DocumentType `protobuf:"varint,20,opt,name=document_type,json=documentType,proto3,enum=tzero.v1.common.PaymentDetails_ColombianBreb_DocumentType" json:"document_type,omitempty"`
+	BankCode        string                                    `protobuf:"bytes,30,opt,name=bank_code,json=bankCode,proto3" json:"bank_code,omitempty"`
+	AccountNumber   string                                    `protobuf:"bytes,40,opt,name=account_number,json=accountNumber,proto3" json:"account_number,omitempty"`
+	AccountType     PaymentDetails_ColombianBreb_AccountType  `protobuf:"varint,50,opt,name=account_type,json=accountType,proto3,enum=tzero.v1.common.PaymentDetails_ColombianBreb_AccountType" json:"account_type,omitempty"`
+	BeneficiaryName string                                    `protobuf:"bytes,60,opt,name=beneficiary_name,json=beneficiaryName,proto3" json:"beneficiary_name,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
+}
+
+func (x *PaymentDetails_ColombianBreb) Reset() {
+	*x = PaymentDetails_ColombianBreb{}
+	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[23]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PaymentDetails_ColombianBreb) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PaymentDetails_ColombianBreb) ProtoMessage() {}
+
+func (x *PaymentDetails_ColombianBreb) ProtoReflect() protoreflect.Message {
+	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[23]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PaymentDetails_ColombianBreb.ProtoReflect.Descriptor instead.
+func (*PaymentDetails_ColombianBreb) Descriptor() ([]byte, []int) {
+	return file_tzero_v1_common_payment_method_proto_rawDescGZIP(), []int{0, 22}
+}
+
+func (x *PaymentDetails_ColombianBreb) GetDocumentNumber() string {
+	if x != nil {
+		return x.DocumentNumber
+	}
+	return ""
+}
+
+func (x *PaymentDetails_ColombianBreb) GetDocumentType() PaymentDetails_ColombianBreb_DocumentType {
+	if x != nil {
+		return x.DocumentType
+	}
+	return PaymentDetails_ColombianBreb_DOCUMENT_TYPE_UNSPECIFIED
+}
+
+func (x *PaymentDetails_ColombianBreb) GetBankCode() string {
+	if x != nil {
+		return x.BankCode
+	}
+	return ""
+}
+
+func (x *PaymentDetails_ColombianBreb) GetAccountNumber() string {
+	if x != nil {
+		return x.AccountNumber
+	}
+	return ""
+}
+
+func (x *PaymentDetails_ColombianBreb) GetAccountType() PaymentDetails_ColombianBreb_AccountType {
+	if x != nil {
+		return x.AccountType
+	}
+	return PaymentDetails_ColombianBreb_ACCOUNT_TYPE_UNSPECIFIED
+}
+
+func (x *PaymentDetails_ColombianBreb) GetBeneficiaryName() string {
+	if x != nil {
+		return x.BeneficiaryName
+	}
+	return ""
+}
+
+// GIP - Ghana Interbank Payment operated by GhIPSS.
+// Domestic bank transfers using a bank sort code and account number.
+type PaymentDetails_Gip struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Destination bank sort code (6 numeric digits assigned by GhIPSS).
+	SortCode string `protobuf:"bytes,10,opt,name=sort_code,json=sortCode,proto3" json:"sort_code,omitempty"`
+	// Destination account number.
+	AccountNumber string `protobuf:"bytes,20,opt,name=account_number,json=accountNumber,proto3" json:"account_number,omitempty"`
+	// Name registered on the destination account.
+	AccountName string `protobuf:"bytes,30,opt,name=account_name,json=accountName,proto3" json:"account_name,omitempty"`
+	// Payment reference/description (optional).
+	Reference     string `protobuf:"bytes,40,opt,name=reference,proto3" json:"reference,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PaymentDetails_Gip) Reset() {
+	*x = PaymentDetails_Gip{}
+	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[24]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PaymentDetails_Gip) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PaymentDetails_Gip) ProtoMessage() {}
+
+func (x *PaymentDetails_Gip) ProtoReflect() protoreflect.Message {
+	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[24]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PaymentDetails_Gip.ProtoReflect.Descriptor instead.
+func (*PaymentDetails_Gip) Descriptor() ([]byte, []int) {
+	return file_tzero_v1_common_payment_method_proto_rawDescGZIP(), []int{0, 23}
+}
+
+func (x *PaymentDetails_Gip) GetSortCode() string {
+	if x != nil {
+		return x.SortCode
+	}
+	return ""
+}
+
+func (x *PaymentDetails_Gip) GetAccountNumber() string {
+	if x != nil {
+		return x.AccountNumber
+	}
+	return ""
+}
+
+func (x *PaymentDetails_Gip) GetAccountName() string {
+	if x != nil {
+		return x.AccountName
+	}
+	return ""
+}
+
+func (x *PaymentDetails_Gip) GetReference() string {
+	if x != nil {
+		return x.Reference
+	}
+	return ""
+}
+
 type PaymentDetails_IndianBankTransfer_AccountIFSC struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Beneficiary bank account number
@@ -2186,7 +3263,7 @@ type PaymentDetails_IndianBankTransfer_AccountIFSC struct {
 
 func (x *PaymentDetails_IndianBankTransfer_AccountIFSC) Reset() {
 	*x = PaymentDetails_IndianBankTransfer_AccountIFSC{}
-	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[18]
+	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[25]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2198,7 +3275,7 @@ func (x *PaymentDetails_IndianBankTransfer_AccountIFSC) String() string {
 func (*PaymentDetails_IndianBankTransfer_AccountIFSC) ProtoMessage() {}
 
 func (x *PaymentDetails_IndianBankTransfer_AccountIFSC) ProtoReflect() protoreflect.Message {
-	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[18]
+	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[25]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2241,7 +3318,7 @@ type PaymentDetails_IndianBankTransfer_IMPS struct {
 
 func (x *PaymentDetails_IndianBankTransfer_IMPS) Reset() {
 	*x = PaymentDetails_IndianBankTransfer_IMPS{}
-	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[19]
+	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[26]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2253,7 +3330,7 @@ func (x *PaymentDetails_IndianBankTransfer_IMPS) String() string {
 func (*PaymentDetails_IndianBankTransfer_IMPS) ProtoMessage() {}
 
 func (x *PaymentDetails_IndianBankTransfer_IMPS) ProtoReflect() protoreflect.Message {
-	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[19]
+	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[26]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2295,7 +3372,7 @@ type PaymentDetails_Swift_IntermediaryBank struct {
 
 func (x *PaymentDetails_Swift_IntermediaryBank) Reset() {
 	*x = PaymentDetails_Swift_IntermediaryBank{}
-	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[20]
+	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[27]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2307,7 +3384,7 @@ func (x *PaymentDetails_Swift_IntermediaryBank) String() string {
 func (*PaymentDetails_Swift_IntermediaryBank) ProtoMessage() {}
 
 func (x *PaymentDetails_Swift_IntermediaryBank) ProtoReflect() protoreflect.Message {
-	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[20]
+	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[27]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2354,7 +3431,7 @@ type PaymentDetails_Cnaps_Business struct {
 
 func (x *PaymentDetails_Cnaps_Business) Reset() {
 	*x = PaymentDetails_Cnaps_Business{}
-	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[21]
+	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[28]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2366,7 +3443,7 @@ func (x *PaymentDetails_Cnaps_Business) String() string {
 func (*PaymentDetails_Cnaps_Business) ProtoMessage() {}
 
 func (x *PaymentDetails_Cnaps_Business) ProtoReflect() protoreflect.Message {
-	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[21]
+	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[28]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2399,7 +3476,7 @@ type PaymentDetails_Cnaps_Person struct {
 
 func (x *PaymentDetails_Cnaps_Person) Reset() {
 	*x = PaymentDetails_Cnaps_Person{}
-	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[22]
+	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[29]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -2411,7 +3488,7 @@ func (x *PaymentDetails_Cnaps_Person) String() string {
 func (*PaymentDetails_Cnaps_Person) ProtoMessage() {}
 
 func (x *PaymentDetails_Cnaps_Person) ProtoReflect() protoreflect.Message {
-	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[22]
+	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[29]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -2455,7 +3532,7 @@ var File_tzero_v1_common_payment_method_proto protoreflect.FileDescriptor
 
 const file_tzero_v1_common_payment_method_proto_rawDesc = "" +
 	"\n" +
-	"$tzero/v1/common/payment_method.proto\x12\x0ftzero.v1.common\x1a\x1ctzero/v1/common/common.proto\x1a\x1bbuf/validate/validate.proto\x1a google/protobuf/descriptor.proto\"\x92B\n" +
+	"$tzero/v1/common/payment_method.proto\x12\x0ftzero.v1.common\x1a\x1ctzero/v1/common/common.proto\x1a\x1bbuf/validate/validate.proto\x1a google/protobuf/descriptor.proto\"\xdc_\n" +
 	"\x0ePaymentDetails\x12:\n" +
 	"\x04sepa\x18\n" +
 	" \x01(\v2$.tzero.v1.common.PaymentDetails.SepaH\x00R\x04sepa\x12=\n" +
@@ -2474,7 +3551,14 @@ const file_tzero_v1_common_payment_method_proto_rawDesc = "" +
 	"\x14african_mobile_money\x18\xa0\x01 \x01(\v22.tzero.v1.common.PaymentDetails.AfricanMobileMoneyH\x00R\x12africanMobileMoney\x12<\n" +
 	"\x04naps\x18\xaa\x01 \x01(\v2%.tzero.v1.common.PaymentDetails.CnapsH\x00R\x04naps\x128\n" +
 	"\x03nip\x18\xb4\x01 \x01(\v2#.tzero.v1.common.PaymentDetails.NipH\x00R\x03nip\x128\n" +
-	"\x03rtp\x18\xbe\x01 \x01(\v2#.tzero.v1.common.PaymentDetails.RtpH\x00R\x03rtp\x1a\xb5\x01\n" +
+	"\x03rtp\x18\xbe\x01 \x01(\v2#.tzero.v1.common.PaymentDetails.RtpH\x00R\x03rtp\x12j\n" +
+	"\x15chilean_bank_transfer\x18\xc8\x01 \x01(\v23.tzero.v1.common.PaymentDetails.ChileanBankTransferH\x00R\x13chileanBankTransfer\x12a\n" +
+	"\x12peru_bank_transfer\x18\xd2\x01 \x01(\v20.tzero.v1.common.PaymentDetails.PeruBankTransferH\x00R\x10peruBankTransfer\x12v\n" +
+	"\x19argentinian_bank_transfer\x18\xdc\x01 \x01(\v27.tzero.v1.common.PaymentDetails.ArgentinianBankTransferH\x00R\x17argentinianBankTransfer\x12j\n" +
+	"\x15mexican_bank_transfer\x18\xe6\x01 \x01(\v23.tzero.v1.common.PaymentDetails.MexicanBankTransferH\x00R\x13mexicanBankTransfer\x12T\n" +
+	"\rcolombian_ach\x18\xf0\x01 \x01(\v2,.tzero.v1.common.PaymentDetails.ColombianAchH\x00R\fcolombianAch\x12W\n" +
+	"\x0ecolombian_breb\x18\xfa\x01 \x01(\v2-.tzero.v1.common.PaymentDetails.ColombianBrebH\x00R\rcolombianBreb\x128\n" +
+	"\x03gip\x18\x84\x02 \x01(\v2#.tzero.v1.common.PaymentDetails.GipH\x00R\x03gip\x1a\xb5\x01\n" +
 	"\x04Sepa\x12:\n" +
 	"\x04iban\x18\x14 \x01(\tB&\xbaH#r!\x10\x0f\x18\"2\x1b^[A-Z]{2}[0-9]{2}[A-Z0-9]+$R\x04iban\x124\n" +
 	"\x10beneficiary_name\x18\x1e \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18FR\x0fbeneficiaryName\x125\n" +
@@ -2685,8 +3769,109 @@ const file_tzero_v1_common_payment_method_proto_rawDesc = "" +
 	"\x1cRTP_ACCOUNT_TYPE_UNSPECIFIED\x10\x00\x12\x1d\n" +
 	"\x19RTP_ACCOUNT_TYPE_CHECKING\x10\n" +
 	"\x12\x1c\n" +
-	"\x18RTP_ACCOUNT_TYPE_SAVINGS\x10\x14:\x05\x88\xa6\x1d\xbe\x01B\x10\n" +
-	"\adetails\x12\x05\xbaH\x02\b\x01*\x96\x05\n" +
+	"\x18RTP_ACCOUNT_TYPE_SAVINGS\x10\x14:\x05\x88\xa6\x1d\xbe\x01\x1a\x8f\x04\n" +
+	"\x13ChileanBankTransfer\x12H\n" +
+	"\x0fdocument_number\x18\n" +
+	" \x01(\tB\x1f\xbaH\x1cr\x1a\x10\t\x18\v2\x14^[0-9]{7,9}-[0-9Kk]$R\x0edocumentNumber\x124\n" +
+	"\x10beneficiary_name\x18\x14 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18-R\x0fbeneficiaryName\x122\n" +
+	"\tbank_code\x18\x1e \x01(\tB\x15\xbaH\x12r\x10\x10\x03\x18\x032\n" +
+	"^[0-9]{3}$R\bbankCode\x12?\n" +
+	"\x0eaccount_number\x18( \x01(\tB\x18\xbaH\x15r\x13\x10\x01\x18\x122\r^[0-9]{1,18}$R\raccountNumber\x12q\n" +
+	"\faccount_type\x182 \x01(\x0e2?.tzero.v1.common.PaymentDetails.ChileanBankTransfer.AccountTypeB\b\xbaH\x05\x82\x01\x02 \x00H\x00R\vaccountType\x88\x01\x01\"x\n" +
+	"\vAccountType\x12\x1c\n" +
+	"\x18ACCOUNT_TYPE_UNSPECIFIED\x10\x00\x12\x19\n" +
+	"\x15ACCOUNT_TYPE_CHECKING\x10\n" +
+	"\x12\x16\n" +
+	"\x12ACCOUNT_TYPE_VISTA\x10\x14\x12\x18\n" +
+	"\x14ACCOUNT_TYPE_SAVINGS\x10(:\x05\x88\xa6\x1d\xc8\x01B\x0f\n" +
+	"\r_account_type\x1a\xf6\x04\n" +
+	"\x10PeruBankTransfer\x12<\n" +
+	"\x0fdocument_number\x18\n" +
+	" \x01(\tB\x13\xbaH\x10r\x0e\x10\x01\x18\x142\b^[0-9]+$R\x0edocumentNumber\x12q\n" +
+	"\rdocument_type\x18\x14 \x01(\x0e2=.tzero.v1.common.PaymentDetails.PeruBankTransfer.DocumentTypeB\b\xbaH\x05\x82\x01\x02 \x00H\x00R\fdocumentType\x88\x01\x01\x12&\n" +
+	"\tbank_code\x18\x1e \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18\n" +
+	"R\bbankCode\x120\n" +
+	"\x0eaccount_number\x18( \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18\x1eR\raccountNumber\x12i\n" +
+	"\faccount_type\x182 \x01(\x0e2<.tzero.v1.common.PaymentDetails.PeruBankTransfer.AccountTypeB\b\xbaH\x05\x82\x01\x02 \x00R\vaccountType\"q\n" +
+	"\fDocumentType\x12\x1d\n" +
+	"\x19DOCUMENT_TYPE_UNSPECIFIED\x10\x00\x12\x15\n" +
+	"\x11DOCUMENT_TYPE_DNI\x10\n" +
+	"\x12\x14\n" +
+	"\x10DOCUMENT_TYPE_CE\x10\x14\x12\x15\n" +
+	"\x11DOCUMENT_TYPE_RUC\x10\x1e\"`\n" +
+	"\vAccountType\x12\x1c\n" +
+	"\x18ACCOUNT_TYPE_UNSPECIFIED\x10\x00\x12\x19\n" +
+	"\x15ACCOUNT_TYPE_CHECKING\x10\n" +
+	"\x12\x18\n" +
+	"\x14ACCOUNT_TYPE_SAVINGS\x10\x14:\x05\x88\xa6\x1d\xd2\x01B\x10\n" +
+	"\x0e_document_type\x1a_\n" +
+	"\x17ArgentinianBankTransfer\x12=\n" +
+	"\x0eaccount_number\x18\n" +
+	" \x01(\tB\x16\xbaH\x13r\x11\x10\x16\x18\x162\v^[0-9]{22}$R\raccountNumber:\x05\x88\xa6\x1d\xdc\x01\x1a\xba\x01\n" +
+	"\x13MexicanBankTransfer\x125\n" +
+	"\x10beneficiary_name\x18\n" +
+	" \x01(\tB\n" +
+	"\xbaH\ar\x05\x10\x01\x18\x8c\x01R\x0fbeneficiaryName\x12&\n" +
+	"\tbank_code\x18\x14 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18\n" +
+	"R\bbankCode\x12=\n" +
+	"\x0eaccount_number\x18\x1e \x01(\tB\x16\xbaH\x13r\x11\x10\x12\x18\x122\v^[0-9]{18}$R\raccountNumber:\x05\x88\xa6\x1d\xe6\x01\x1a\xfa\x05\n" +
+	"\fColombianAch\x122\n" +
+	"\x0fdocument_number\x18\n" +
+	" \x01(\tB\t\xbaH\x06r\x04\x10\x05\x18\x0fR\x0edocumentNumber\x12h\n" +
+	"\rdocument_type\x18\x14 \x01(\x0e29.tzero.v1.common.PaymentDetails.ColombianAch.DocumentTypeB\b\xbaH\x05\x82\x01\x02 \x00R\fdocumentType\x12&\n" +
+	"\tbank_code\x18\x1e \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18\n" +
+	"R\bbankCode\x120\n" +
+	"\x0eaccount_number\x18( \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18\x1eR\raccountNumber\x12e\n" +
+	"\faccount_type\x182 \x01(\x0e28.tzero.v1.common.PaymentDetails.ColombianAch.AccountTypeB\b\xbaH\x05\x82\x01\x02 \x00R\vaccountType\x125\n" +
+	"\x10beneficiary_name\x18< \x01(\tB\n" +
+	"\xbaH\ar\x05\x10\x01\x18\x8c\x01R\x0fbeneficiaryName\x12;\n" +
+	"\fphone_number\x18F \x01(\tB\x13\xbaH\x10r\x0e\x10\a\x18\x142\b^[0-9]+$H\x00R\vphoneNumber\x88\x01\x01\"\x9c\x01\n" +
+	"\fDocumentType\x12\x1d\n" +
+	"\x19DOCUMENT_TYPE_UNSPECIFIED\x10\x00\x12\x14\n" +
+	"\x10DOCUMENT_TYPE_CC\x10\n" +
+	"\x12\x14\n" +
+	"\x10DOCUMENT_TYPE_CE\x10\x14\x12\x15\n" +
+	"\x11DOCUMENT_TYPE_NIT\x10\x1e\x12\x14\n" +
+	"\x10DOCUMENT_TYPE_TI\x10(\x12\x14\n" +
+	"\x10DOCUMENT_TYPE_PP\x102\"`\n" +
+	"\vAccountType\x12\x1c\n" +
+	"\x18ACCOUNT_TYPE_UNSPECIFIED\x10\x00\x12\x18\n" +
+	"\x14ACCOUNT_TYPE_SAVINGS\x10\n" +
+	"\x12\x19\n" +
+	"\x15ACCOUNT_TYPE_CHECKING\x10\x14:\x05\x88\xa6\x1d\xf0\x01B\x0f\n" +
+	"\r_phone_number\x1a\xaf\x05\n" +
+	"\rColombianBreb\x122\n" +
+	"\x0fdocument_number\x18\n" +
+	" \x01(\tB\t\xbaH\x06r\x04\x10\x05\x18\x0fR\x0edocumentNumber\x12i\n" +
+	"\rdocument_type\x18\x14 \x01(\x0e2:.tzero.v1.common.PaymentDetails.ColombianBreb.DocumentTypeB\b\xbaH\x05\x82\x01\x02 \x00R\fdocumentType\x12&\n" +
+	"\tbank_code\x18\x1e \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18\n" +
+	"R\bbankCode\x120\n" +
+	"\x0eaccount_number\x18( \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18\x1eR\raccountNumber\x12f\n" +
+	"\faccount_type\x182 \x01(\x0e29.tzero.v1.common.PaymentDetails.ColombianBreb.AccountTypeB\b\xbaH\x05\x82\x01\x02 \x00R\vaccountType\x125\n" +
+	"\x10beneficiary_name\x18< \x01(\tB\n" +
+	"\xbaH\ar\x05\x10\x01\x18\x8c\x01R\x0fbeneficiaryName\"\x9c\x01\n" +
+	"\fDocumentType\x12\x1d\n" +
+	"\x19DOCUMENT_TYPE_UNSPECIFIED\x10\x00\x12\x14\n" +
+	"\x10DOCUMENT_TYPE_CC\x10\n" +
+	"\x12\x14\n" +
+	"\x10DOCUMENT_TYPE_CE\x10\x14\x12\x15\n" +
+	"\x11DOCUMENT_TYPE_NIT\x10\x1e\x12\x14\n" +
+	"\x10DOCUMENT_TYPE_TI\x10(\x12\x14\n" +
+	"\x10DOCUMENT_TYPE_PP\x102\"`\n" +
+	"\vAccountType\x12\x1c\n" +
+	"\x18ACCOUNT_TYPE_UNSPECIFIED\x10\x00\x12\x18\n" +
+	"\x14ACCOUNT_TYPE_SAVINGS\x10\n" +
+	"\x12\x19\n" +
+	"\x15ACCOUNT_TYPE_CHECKING\x10\x14:\x05\x88\xa6\x1d\xfa\x01\x1a\xd3\x01\n" +
+	"\x03Gip\x122\n" +
+	"\tsort_code\x18\n" +
+	" \x01(\tB\x15\xbaH\x12r\x10\x10\x06\x18\x062\n" +
+	"^[0-9]{6}$R\bsortCode\x12:\n" +
+	"\x0eaccount_number\x18\x14 \x01(\tB\x13\xbaH\x10r\x0e\x10\x01\x18\x142\b^[0-9]+$R\raccountNumber\x12-\n" +
+	"\faccount_name\x18\x1e \x01(\tB\n" +
+	"\xbaH\ar\x05\x10\x01\x18\x8c\x01R\vaccountName\x12&\n" +
+	"\treference\x18( \x01(\tB\b\xbaH\x05r\x03\x18\x8c\x01R\treference:\x05\x88\xa6\x1d\x84\x02B\x10\n" +
+	"\adetails\x12\x05\xbaH\x02\b\x01*\xc6\a\n" +
 	"\x11PaymentMethodType\x12#\n" +
 	"\x1fPAYMENT_METHOD_TYPE_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18PAYMENT_METHOD_TYPE_SEPA\x10\n" +
@@ -2706,7 +3891,14 @@ const file_tzero_v1_common_payment_method_proto_rawDesc = "" +
 	"(PAYMENT_METHOD_TYPE_AFRICAN_MOBILE_MONEY\x10\xa0\x01\x12\x1e\n" +
 	"\x19PAYMENT_METHOD_TYPE_CNAPS\x10\xaa\x01\x12\x1c\n" +
 	"\x17PAYMENT_METHOD_TYPE_NIP\x10\xb4\x01\x12\x1c\n" +
-	"\x17PAYMENT_METHOD_TYPE_RTP\x10\xbe\x01:u\n" +
+	"\x17PAYMENT_METHOD_TYPE_RTP\x10\xbe\x01\x12.\n" +
+	")PAYMENT_METHOD_TYPE_CHILEAN_BANK_TRANSFER\x10\xc8\x01\x12+\n" +
+	"&PAYMENT_METHOD_TYPE_PERU_BANK_TRANSFER\x10\xd2\x01\x122\n" +
+	"-PAYMENT_METHOD_TYPE_ARGENTINIAN_BANK_TRANSFER\x10\xdc\x01\x12.\n" +
+	")PAYMENT_METHOD_TYPE_MEXICAN_BANK_TRANSFER\x10\xe6\x01\x12&\n" +
+	"!PAYMENT_METHOD_TYPE_COLOMBIAN_ACH\x10\xf0\x01\x12'\n" +
+	"\"PAYMENT_METHOD_TYPE_COLOMBIAN_BREB\x10\xfa\x01\x12\x1c\n" +
+	"\x17PAYMENT_METHOD_TYPE_GIP\x10\x84\x02:u\n" +
 	"\x13payment_method_type\x12\x1f.google.protobuf.MessageOptions\x18\xe1\xd4\x03 \x01(\x0e2\".tzero.v1.common.PaymentMethodTypeR\x11paymentMethodTypeB\xd6\x01\n" +
 	"\x13com.tzero.v1.commonB\x12PaymentMethodProtoP\x01Z:github.com/t-0-network/provider-sdk/go/api/tzero/v1/common\xa2\x02\x03TVC\xaa\x02\"T0.ProviderSdk.Api.Tzero.V1.Common\xca\x02\x0fTzero\\V1\\Common\xe2\x02\x1bTzero\\V1\\Common\\GPBMetadata\xea\x02\x11Tzero::V1::Commonb\x06proto3"
 
@@ -2722,8 +3914,8 @@ func file_tzero_v1_common_payment_method_proto_rawDescGZIP() []byte {
 	return file_tzero_v1_common_payment_method_proto_rawDescData
 }
 
-var file_tzero_v1_common_payment_method_proto_enumTypes = make([]protoimpl.EnumInfo, 6)
-var file_tzero_v1_common_payment_method_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
+var file_tzero_v1_common_payment_method_proto_enumTypes = make([]protoimpl.EnumInfo, 13)
+var file_tzero_v1_common_payment_method_proto_msgTypes = make([]protoimpl.MessageInfo, 30)
 var file_tzero_v1_common_payment_method_proto_goTypes = []any{
 	(PaymentMethodType)(0),                                          // 0: tzero.v1.common.PaymentMethodType
 	(PaymentDetails_AfricanMobileMoney_Network)(0),                  // 1: tzero.v1.common.PaymentDetails.AfricanMobileMoney.Network
@@ -2731,66 +3923,94 @@ var file_tzero_v1_common_payment_method_proto_goTypes = []any{
 	(PaymentDetails_PakistanMobileWallet_PakistanWalletProvider)(0), // 3: tzero.v1.common.PaymentDetails.PakistanMobileWallet.PakistanWalletProvider
 	(PaymentDetails_Pix_KeyType)(0),                                 // 4: tzero.v1.common.PaymentDetails.Pix.KeyType
 	(PaymentDetails_Rtp_RtpAccountType)(0),                          // 5: tzero.v1.common.PaymentDetails.Rtp.RtpAccountType
-	(*PaymentDetails)(nil),                                          // 6: tzero.v1.common.PaymentDetails
-	(*PaymentDetails_Sepa)(nil),                                     // 7: tzero.v1.common.PaymentDetails.Sepa
-	(*PaymentDetails_Fps)(nil),                                      // 8: tzero.v1.common.PaymentDetails.Fps
-	(*PaymentDetails_MPesa)(nil),                                    // 9: tzero.v1.common.PaymentDetails.MPesa
-	(*PaymentDetails_AfricanMobileMoney)(nil),                       // 10: tzero.v1.common.PaymentDetails.AfricanMobileMoney
-	(*PaymentDetails_GCash)(nil),                                    // 11: tzero.v1.common.PaymentDetails.GCash
-	(*PaymentDetails_IndianBankTransfer)(nil),                       // 12: tzero.v1.common.PaymentDetails.IndianBankTransfer
-	(*PaymentDetails_Swift)(nil),                                    // 13: tzero.v1.common.PaymentDetails.Swift
-	(*PaymentDetails_Ach)(nil),                                      // 14: tzero.v1.common.PaymentDetails.Ach
-	(*PaymentDetails_DomesticWire)(nil),                             // 15: tzero.v1.common.PaymentDetails.DomesticWire
-	(*PaymentDetails_Pesonet)(nil),                                  // 16: tzero.v1.common.PaymentDetails.Pesonet
-	(*PaymentDetails_Instapay)(nil),                                 // 17: tzero.v1.common.PaymentDetails.Instapay
-	(*PaymentDetails_PakistanBankTransfer)(nil),                     // 18: tzero.v1.common.PaymentDetails.PakistanBankTransfer
-	(*PaymentDetails_PakistanMobileWallet)(nil),                     // 19: tzero.v1.common.PaymentDetails.PakistanMobileWallet
-	(*PaymentDetails_Pix)(nil),                                      // 20: tzero.v1.common.PaymentDetails.Pix
-	(*PaymentDetails_Cnaps)(nil),                                    // 21: tzero.v1.common.PaymentDetails.Cnaps
-	(*PaymentDetails_Nip)(nil),                                      // 22: tzero.v1.common.PaymentDetails.Nip
-	(*PaymentDetails_Rtp)(nil),                                      // 23: tzero.v1.common.PaymentDetails.Rtp
-	(*PaymentDetails_IndianBankTransfer_AccountIFSC)(nil),           // 24: tzero.v1.common.PaymentDetails.IndianBankTransfer.AccountIFSC
-	(*PaymentDetails_IndianBankTransfer_IMPS)(nil),                  // 25: tzero.v1.common.PaymentDetails.IndianBankTransfer.IMPS
-	(*PaymentDetails_Swift_IntermediaryBank)(nil),                   // 26: tzero.v1.common.PaymentDetails.Swift.IntermediaryBank
-	(*PaymentDetails_Cnaps_Business)(nil),                           // 27: tzero.v1.common.PaymentDetails.Cnaps.Business
-	(*PaymentDetails_Cnaps_Person)(nil),                             // 28: tzero.v1.common.PaymentDetails.Cnaps.Person
-	(*descriptorpb.MessageOptions)(nil),                             // 29: google.protobuf.MessageOptions
+	(PaymentDetails_ChileanBankTransfer_AccountType)(0),             // 6: tzero.v1.common.PaymentDetails.ChileanBankTransfer.AccountType
+	(PaymentDetails_PeruBankTransfer_DocumentType)(0),               // 7: tzero.v1.common.PaymentDetails.PeruBankTransfer.DocumentType
+	(PaymentDetails_PeruBankTransfer_AccountType)(0),                // 8: tzero.v1.common.PaymentDetails.PeruBankTransfer.AccountType
+	(PaymentDetails_ColombianAch_DocumentType)(0),                   // 9: tzero.v1.common.PaymentDetails.ColombianAch.DocumentType
+	(PaymentDetails_ColombianAch_AccountType)(0),                    // 10: tzero.v1.common.PaymentDetails.ColombianAch.AccountType
+	(PaymentDetails_ColombianBreb_DocumentType)(0),                  // 11: tzero.v1.common.PaymentDetails.ColombianBreb.DocumentType
+	(PaymentDetails_ColombianBreb_AccountType)(0),                   // 12: tzero.v1.common.PaymentDetails.ColombianBreb.AccountType
+	(*PaymentDetails)(nil),                                          // 13: tzero.v1.common.PaymentDetails
+	(*PaymentDetails_Sepa)(nil),                                     // 14: tzero.v1.common.PaymentDetails.Sepa
+	(*PaymentDetails_Fps)(nil),                                      // 15: tzero.v1.common.PaymentDetails.Fps
+	(*PaymentDetails_MPesa)(nil),                                    // 16: tzero.v1.common.PaymentDetails.MPesa
+	(*PaymentDetails_AfricanMobileMoney)(nil),                       // 17: tzero.v1.common.PaymentDetails.AfricanMobileMoney
+	(*PaymentDetails_GCash)(nil),                                    // 18: tzero.v1.common.PaymentDetails.GCash
+	(*PaymentDetails_IndianBankTransfer)(nil),                       // 19: tzero.v1.common.PaymentDetails.IndianBankTransfer
+	(*PaymentDetails_Swift)(nil),                                    // 20: tzero.v1.common.PaymentDetails.Swift
+	(*PaymentDetails_Ach)(nil),                                      // 21: tzero.v1.common.PaymentDetails.Ach
+	(*PaymentDetails_DomesticWire)(nil),                             // 22: tzero.v1.common.PaymentDetails.DomesticWire
+	(*PaymentDetails_Pesonet)(nil),                                  // 23: tzero.v1.common.PaymentDetails.Pesonet
+	(*PaymentDetails_Instapay)(nil),                                 // 24: tzero.v1.common.PaymentDetails.Instapay
+	(*PaymentDetails_PakistanBankTransfer)(nil),                     // 25: tzero.v1.common.PaymentDetails.PakistanBankTransfer
+	(*PaymentDetails_PakistanMobileWallet)(nil),                     // 26: tzero.v1.common.PaymentDetails.PakistanMobileWallet
+	(*PaymentDetails_Pix)(nil),                                      // 27: tzero.v1.common.PaymentDetails.Pix
+	(*PaymentDetails_Cnaps)(nil),                                    // 28: tzero.v1.common.PaymentDetails.Cnaps
+	(*PaymentDetails_Nip)(nil),                                      // 29: tzero.v1.common.PaymentDetails.Nip
+	(*PaymentDetails_Rtp)(nil),                                      // 30: tzero.v1.common.PaymentDetails.Rtp
+	(*PaymentDetails_ChileanBankTransfer)(nil),                      // 31: tzero.v1.common.PaymentDetails.ChileanBankTransfer
+	(*PaymentDetails_PeruBankTransfer)(nil),                         // 32: tzero.v1.common.PaymentDetails.PeruBankTransfer
+	(*PaymentDetails_ArgentinianBankTransfer)(nil),                  // 33: tzero.v1.common.PaymentDetails.ArgentinianBankTransfer
+	(*PaymentDetails_MexicanBankTransfer)(nil),                      // 34: tzero.v1.common.PaymentDetails.MexicanBankTransfer
+	(*PaymentDetails_ColombianAch)(nil),                             // 35: tzero.v1.common.PaymentDetails.ColombianAch
+	(*PaymentDetails_ColombianBreb)(nil),                            // 36: tzero.v1.common.PaymentDetails.ColombianBreb
+	(*PaymentDetails_Gip)(nil),                                      // 37: tzero.v1.common.PaymentDetails.Gip
+	(*PaymentDetails_IndianBankTransfer_AccountIFSC)(nil),           // 38: tzero.v1.common.PaymentDetails.IndianBankTransfer.AccountIFSC
+	(*PaymentDetails_IndianBankTransfer_IMPS)(nil),                  // 39: tzero.v1.common.PaymentDetails.IndianBankTransfer.IMPS
+	(*PaymentDetails_Swift_IntermediaryBank)(nil),                   // 40: tzero.v1.common.PaymentDetails.Swift.IntermediaryBank
+	(*PaymentDetails_Cnaps_Business)(nil),                           // 41: tzero.v1.common.PaymentDetails.Cnaps.Business
+	(*PaymentDetails_Cnaps_Person)(nil),                             // 42: tzero.v1.common.PaymentDetails.Cnaps.Person
+	(*descriptorpb.MessageOptions)(nil),                             // 43: google.protobuf.MessageOptions
 }
 var file_tzero_v1_common_payment_method_proto_depIdxs = []int32{
-	7,  // 0: tzero.v1.common.PaymentDetails.sepa:type_name -> tzero.v1.common.PaymentDetails.Sepa
-	13, // 1: tzero.v1.common.PaymentDetails.swift:type_name -> tzero.v1.common.PaymentDetails.Swift
-	14, // 2: tzero.v1.common.PaymentDetails.ach:type_name -> tzero.v1.common.PaymentDetails.Ach
-	15, // 3: tzero.v1.common.PaymentDetails.domestic_wire:type_name -> tzero.v1.common.PaymentDetails.DomesticWire
-	8,  // 4: tzero.v1.common.PaymentDetails.fps:type_name -> tzero.v1.common.PaymentDetails.Fps
-	9,  // 5: tzero.v1.common.PaymentDetails.mpesa:type_name -> tzero.v1.common.PaymentDetails.MPesa
-	11, // 6: tzero.v1.common.PaymentDetails.gcash:type_name -> tzero.v1.common.PaymentDetails.GCash
-	12, // 7: tzero.v1.common.PaymentDetails.indian_bank_transfer:type_name -> tzero.v1.common.PaymentDetails.IndianBankTransfer
-	16, // 8: tzero.v1.common.PaymentDetails.pesonet:type_name -> tzero.v1.common.PaymentDetails.Pesonet
-	17, // 9: tzero.v1.common.PaymentDetails.instapay:type_name -> tzero.v1.common.PaymentDetails.Instapay
-	18, // 10: tzero.v1.common.PaymentDetails.pakistan_bank_transfer:type_name -> tzero.v1.common.PaymentDetails.PakistanBankTransfer
-	19, // 11: tzero.v1.common.PaymentDetails.pakistan_mobile_wallet:type_name -> tzero.v1.common.PaymentDetails.PakistanMobileWallet
-	20, // 12: tzero.v1.common.PaymentDetails.pix:type_name -> tzero.v1.common.PaymentDetails.Pix
-	10, // 13: tzero.v1.common.PaymentDetails.african_mobile_money:type_name -> tzero.v1.common.PaymentDetails.AfricanMobileMoney
-	21, // 14: tzero.v1.common.PaymentDetails.naps:type_name -> tzero.v1.common.PaymentDetails.Cnaps
-	22, // 15: tzero.v1.common.PaymentDetails.nip:type_name -> tzero.v1.common.PaymentDetails.Nip
-	23, // 16: tzero.v1.common.PaymentDetails.rtp:type_name -> tzero.v1.common.PaymentDetails.Rtp
-	1,  // 17: tzero.v1.common.PaymentDetails.AfricanMobileMoney.network:type_name -> tzero.v1.common.PaymentDetails.AfricanMobileMoney.Network
-	24, // 18: tzero.v1.common.PaymentDetails.IndianBankTransfer.account_ifsc:type_name -> tzero.v1.common.PaymentDetails.IndianBankTransfer.AccountIFSC
-	25, // 19: tzero.v1.common.PaymentDetails.IndianBankTransfer.imps:type_name -> tzero.v1.common.PaymentDetails.IndianBankTransfer.IMPS
-	26, // 20: tzero.v1.common.PaymentDetails.Swift.intermediary_bank:type_name -> tzero.v1.common.PaymentDetails.Swift.IntermediaryBank
-	2,  // 21: tzero.v1.common.PaymentDetails.Ach.account_type:type_name -> tzero.v1.common.PaymentDetails.Ach.AchAccountType
-	3,  // 22: tzero.v1.common.PaymentDetails.PakistanMobileWallet.wallet_provider:type_name -> tzero.v1.common.PaymentDetails.PakistanMobileWallet.PakistanWalletProvider
-	4,  // 23: tzero.v1.common.PaymentDetails.Pix.key_type:type_name -> tzero.v1.common.PaymentDetails.Pix.KeyType
-	27, // 24: tzero.v1.common.PaymentDetails.Cnaps.business:type_name -> tzero.v1.common.PaymentDetails.Cnaps.Business
-	28, // 25: tzero.v1.common.PaymentDetails.Cnaps.person:type_name -> tzero.v1.common.PaymentDetails.Cnaps.Person
-	5,  // 26: tzero.v1.common.PaymentDetails.Rtp.account_type:type_name -> tzero.v1.common.PaymentDetails.Rtp.RtpAccountType
-	29, // 27: tzero.v1.common.payment_method_type:extendee -> google.protobuf.MessageOptions
-	0,  // 28: tzero.v1.common.payment_method_type:type_name -> tzero.v1.common.PaymentMethodType
-	29, // [29:29] is the sub-list for method output_type
-	29, // [29:29] is the sub-list for method input_type
-	28, // [28:29] is the sub-list for extension type_name
-	27, // [27:28] is the sub-list for extension extendee
-	0,  // [0:27] is the sub-list for field type_name
+	14, // 0: tzero.v1.common.PaymentDetails.sepa:type_name -> tzero.v1.common.PaymentDetails.Sepa
+	20, // 1: tzero.v1.common.PaymentDetails.swift:type_name -> tzero.v1.common.PaymentDetails.Swift
+	21, // 2: tzero.v1.common.PaymentDetails.ach:type_name -> tzero.v1.common.PaymentDetails.Ach
+	22, // 3: tzero.v1.common.PaymentDetails.domestic_wire:type_name -> tzero.v1.common.PaymentDetails.DomesticWire
+	15, // 4: tzero.v1.common.PaymentDetails.fps:type_name -> tzero.v1.common.PaymentDetails.Fps
+	16, // 5: tzero.v1.common.PaymentDetails.mpesa:type_name -> tzero.v1.common.PaymentDetails.MPesa
+	18, // 6: tzero.v1.common.PaymentDetails.gcash:type_name -> tzero.v1.common.PaymentDetails.GCash
+	19, // 7: tzero.v1.common.PaymentDetails.indian_bank_transfer:type_name -> tzero.v1.common.PaymentDetails.IndianBankTransfer
+	23, // 8: tzero.v1.common.PaymentDetails.pesonet:type_name -> tzero.v1.common.PaymentDetails.Pesonet
+	24, // 9: tzero.v1.common.PaymentDetails.instapay:type_name -> tzero.v1.common.PaymentDetails.Instapay
+	25, // 10: tzero.v1.common.PaymentDetails.pakistan_bank_transfer:type_name -> tzero.v1.common.PaymentDetails.PakistanBankTransfer
+	26, // 11: tzero.v1.common.PaymentDetails.pakistan_mobile_wallet:type_name -> tzero.v1.common.PaymentDetails.PakistanMobileWallet
+	27, // 12: tzero.v1.common.PaymentDetails.pix:type_name -> tzero.v1.common.PaymentDetails.Pix
+	17, // 13: tzero.v1.common.PaymentDetails.african_mobile_money:type_name -> tzero.v1.common.PaymentDetails.AfricanMobileMoney
+	28, // 14: tzero.v1.common.PaymentDetails.naps:type_name -> tzero.v1.common.PaymentDetails.Cnaps
+	29, // 15: tzero.v1.common.PaymentDetails.nip:type_name -> tzero.v1.common.PaymentDetails.Nip
+	30, // 16: tzero.v1.common.PaymentDetails.rtp:type_name -> tzero.v1.common.PaymentDetails.Rtp
+	31, // 17: tzero.v1.common.PaymentDetails.chilean_bank_transfer:type_name -> tzero.v1.common.PaymentDetails.ChileanBankTransfer
+	32, // 18: tzero.v1.common.PaymentDetails.peru_bank_transfer:type_name -> tzero.v1.common.PaymentDetails.PeruBankTransfer
+	33, // 19: tzero.v1.common.PaymentDetails.argentinian_bank_transfer:type_name -> tzero.v1.common.PaymentDetails.ArgentinianBankTransfer
+	34, // 20: tzero.v1.common.PaymentDetails.mexican_bank_transfer:type_name -> tzero.v1.common.PaymentDetails.MexicanBankTransfer
+	35, // 21: tzero.v1.common.PaymentDetails.colombian_ach:type_name -> tzero.v1.common.PaymentDetails.ColombianAch
+	36, // 22: tzero.v1.common.PaymentDetails.colombian_breb:type_name -> tzero.v1.common.PaymentDetails.ColombianBreb
+	37, // 23: tzero.v1.common.PaymentDetails.gip:type_name -> tzero.v1.common.PaymentDetails.Gip
+	1,  // 24: tzero.v1.common.PaymentDetails.AfricanMobileMoney.network:type_name -> tzero.v1.common.PaymentDetails.AfricanMobileMoney.Network
+	38, // 25: tzero.v1.common.PaymentDetails.IndianBankTransfer.account_ifsc:type_name -> tzero.v1.common.PaymentDetails.IndianBankTransfer.AccountIFSC
+	39, // 26: tzero.v1.common.PaymentDetails.IndianBankTransfer.imps:type_name -> tzero.v1.common.PaymentDetails.IndianBankTransfer.IMPS
+	40, // 27: tzero.v1.common.PaymentDetails.Swift.intermediary_bank:type_name -> tzero.v1.common.PaymentDetails.Swift.IntermediaryBank
+	2,  // 28: tzero.v1.common.PaymentDetails.Ach.account_type:type_name -> tzero.v1.common.PaymentDetails.Ach.AchAccountType
+	3,  // 29: tzero.v1.common.PaymentDetails.PakistanMobileWallet.wallet_provider:type_name -> tzero.v1.common.PaymentDetails.PakistanMobileWallet.PakistanWalletProvider
+	4,  // 30: tzero.v1.common.PaymentDetails.Pix.key_type:type_name -> tzero.v1.common.PaymentDetails.Pix.KeyType
+	41, // 31: tzero.v1.common.PaymentDetails.Cnaps.business:type_name -> tzero.v1.common.PaymentDetails.Cnaps.Business
+	42, // 32: tzero.v1.common.PaymentDetails.Cnaps.person:type_name -> tzero.v1.common.PaymentDetails.Cnaps.Person
+	5,  // 33: tzero.v1.common.PaymentDetails.Rtp.account_type:type_name -> tzero.v1.common.PaymentDetails.Rtp.RtpAccountType
+	6,  // 34: tzero.v1.common.PaymentDetails.ChileanBankTransfer.account_type:type_name -> tzero.v1.common.PaymentDetails.ChileanBankTransfer.AccountType
+	7,  // 35: tzero.v1.common.PaymentDetails.PeruBankTransfer.document_type:type_name -> tzero.v1.common.PaymentDetails.PeruBankTransfer.DocumentType
+	8,  // 36: tzero.v1.common.PaymentDetails.PeruBankTransfer.account_type:type_name -> tzero.v1.common.PaymentDetails.PeruBankTransfer.AccountType
+	9,  // 37: tzero.v1.common.PaymentDetails.ColombianAch.document_type:type_name -> tzero.v1.common.PaymentDetails.ColombianAch.DocumentType
+	10, // 38: tzero.v1.common.PaymentDetails.ColombianAch.account_type:type_name -> tzero.v1.common.PaymentDetails.ColombianAch.AccountType
+	11, // 39: tzero.v1.common.PaymentDetails.ColombianBreb.document_type:type_name -> tzero.v1.common.PaymentDetails.ColombianBreb.DocumentType
+	12, // 40: tzero.v1.common.PaymentDetails.ColombianBreb.account_type:type_name -> tzero.v1.common.PaymentDetails.ColombianBreb.AccountType
+	43, // 41: tzero.v1.common.payment_method_type:extendee -> google.protobuf.MessageOptions
+	0,  // 42: tzero.v1.common.payment_method_type:type_name -> tzero.v1.common.PaymentMethodType
+	43, // [43:43] is the sub-list for method output_type
+	43, // [43:43] is the sub-list for method input_type
+	42, // [42:43] is the sub-list for extension type_name
+	41, // [41:42] is the sub-list for extension extendee
+	0,  // [0:41] is the sub-list for field type_name
 }
 
 func init() { file_tzero_v1_common_payment_method_proto_init() }
@@ -2817,6 +4037,13 @@ func file_tzero_v1_common_payment_method_proto_init() {
 		(*PaymentDetails_Naps)(nil),
 		(*PaymentDetails_Nip_)(nil),
 		(*PaymentDetails_Rtp_)(nil),
+		(*PaymentDetails_ChileanBankTransfer_)(nil),
+		(*PaymentDetails_PeruBankTransfer_)(nil),
+		(*PaymentDetails_ArgentinianBankTransfer_)(nil),
+		(*PaymentDetails_MexicanBankTransfer_)(nil),
+		(*PaymentDetails_ColombianAch_)(nil),
+		(*PaymentDetails_ColombianBreb_)(nil),
+		(*PaymentDetails_Gip_)(nil),
 	}
 	file_tzero_v1_common_payment_method_proto_msgTypes[6].OneofWrappers = []any{
 		(*PaymentDetails_IndianBankTransfer_AccountIfsc)(nil),
@@ -2832,13 +4059,16 @@ func file_tzero_v1_common_payment_method_proto_init() {
 		(*PaymentDetails_Cnaps_Business_)(nil),
 		(*PaymentDetails_Cnaps_Person_)(nil),
 	}
+	file_tzero_v1_common_payment_method_proto_msgTypes[18].OneofWrappers = []any{}
+	file_tzero_v1_common_payment_method_proto_msgTypes[19].OneofWrappers = []any{}
+	file_tzero_v1_common_payment_method_proto_msgTypes[22].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{
 		File: protoimpl.DescBuilder{
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_tzero_v1_common_payment_method_proto_rawDesc), len(file_tzero_v1_common_payment_method_proto_rawDesc)),
-			NumEnums:      6,
-			NumMessages:   23,
+			NumEnums:      13,
+			NumMessages:   30,
 			NumExtensions: 1,
 			NumServices:   0,
 		},

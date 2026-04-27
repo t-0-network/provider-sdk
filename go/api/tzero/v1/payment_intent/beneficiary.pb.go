@@ -154,7 +154,7 @@ type PaymentIntentUpdateRequest_FundsReceived struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// *
 	// The settlement amount credited to your balance.
-	// This is calculated as: source_amount / rate
+	// This is calculated as: (source_amount / rate) - fix
 	//
 	// Note: Fees are NOT deducted from this amount. Fees are tracked
 	// separately and settled in periodic fee settlements.
@@ -174,8 +174,13 @@ type PaymentIntentUpdateRequest_FundsReceived struct {
 	// Travel rule data of the pay-in provider's legal entity that received the funds.
 	// Present when the pay-in provider has registered travel rule data.
 	TravelRuleData *PaymentIntentUpdateRequest_FundsReceived_TravelRuleData `protobuf:"bytes,60,opt,name=travel_rule_data,json=travelRuleData,proto3" json:"travel_rule_data,omitempty"`
-	unknownFields  protoimpl.UnknownFields
-	sizeCache      protoimpl.SizeCache
+	// *
+	// Flat USD surcharge retained by the pay-in provider per transfer.
+	// Already subtracted from settlement_amount. Surface to beneficiaries that
+	// need to audit the settlement math: settlement = (payment_amount / rate) - fix.
+	Fix           *common.Decimal `protobuf:"bytes,70,opt,name=fix,proto3" json:"fix,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *PaymentIntentUpdateRequest_FundsReceived) Reset() {
@@ -250,6 +255,13 @@ func (x *PaymentIntentUpdateRequest_FundsReceived) GetTravelRuleData() *PaymentI
 	return nil
 }
 
+func (x *PaymentIntentUpdateRequest_FundsReceived) GetFix() *common.Decimal {
+	if x != nil {
+		return x.Fix
+	}
+	return nil
+}
+
 type PaymentIntentUpdateRequest_FundsReceived_TravelRuleData struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// *
@@ -300,11 +312,11 @@ var File_tzero_v1_payment_intent_beneficiary_proto protoreflect.FileDescriptor
 
 const file_tzero_v1_payment_intent_beneficiary_proto_rawDesc = "" +
 	"\n" +
-	")tzero/v1/payment_intent/beneficiary.proto\x12\x17tzero.v1.payment_intent\x1a\x1ctzero/v1/common/common.proto\x1a$tzero/v1/common/payment_method.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1divms101/v1/ivms/ivms101.proto\"\xfc\x05\n" +
+	")tzero/v1/payment_intent/beneficiary.proto\x12\x17tzero.v1.payment_intent\x1a\x1ctzero/v1/common/common.proto\x1a$tzero/v1/common/payment_method.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1divms101/v1/ivms/ivms101.proto\"\xde\x06\n" +
 	"\x1aPaymentIntentUpdateRequest\x123\n" +
 	"\x11payment_intent_id\x18\n" +
 	" \x01(\x04B\a\xbaH\x042\x02 \x00R\x0fpaymentIntentId\x12j\n" +
-	"\x0efunds_received\x18\x14 \x01(\v2A.tzero.v1.payment_intent.PaymentIntentUpdateRequest.FundsReceivedH\x00R\rfundsReceived\x1a\xab\x04\n" +
+	"\x0efunds_received\x18\x14 \x01(\v2A.tzero.v1.payment_intent.PaymentIntentUpdateRequest.FundsReceivedH\x00R\rfundsReceived\x1a\x8d\x05\n" +
 	"\rFundsReceived\x12E\n" +
 	"\x11settlement_amount\x18\n" +
 	" \x01(\v2\x18.tzero.v1.common.DecimalR\x10settlementAmount\x12,\n" +
@@ -312,7 +324,8 @@ const file_tzero_v1_payment_intent_beneficiary_proto_rawDesc = "" +
 	"\x0epayment_amount\x18\x1e \x01(\v2\x18.tzero.v1.common.DecimalR\rpaymentAmount\x12I\n" +
 	"\x0epayment_method\x18( \x01(\x0e2\".tzero.v1.common.PaymentMethodTypeR\rpaymentMethod\x123\n" +
 	"\x15transaction_reference\x182 \x01(\tR\x14transactionReference\x12\x82\x01\n" +
-	"\x10travel_rule_data\x18< \x01(\v2P.tzero.v1.payment_intent.PaymentIntentUpdateRequest.FundsReceived.TravelRuleDataB\x06\xbaH\x03\xc8\x01\x01R\x0etravelRuleData\x1a_\n" +
+	"\x10travel_rule_data\x18< \x01(\v2P.tzero.v1.payment_intent.PaymentIntentUpdateRequest.FundsReceived.TravelRuleDataB\x06\xbaH\x03\xc8\x01\x01R\x0etravelRuleData\x12`\n" +
+	"\x03fix\x18F \x01(\v2\x18.tzero.v1.common.DecimalB4\xbaH1\xba\x01.\x12\x18fix must be non-negative\x1a\x12this.unscaled >= 0R\x03fix\x1a_\n" +
 	"\x0eTravelRuleData\x12M\n" +
 	"\x13originator_provider\x18\x1e \x01(\v2\x14.ivms101.LegalPersonB\x06\xbaH\x03\xc8\x01\x01R\x12originatorProviderB\x0f\n" +
 	"\x06update\x12\x05\xbaH\x02\b\x01\"\x1d\n" +
@@ -350,14 +363,15 @@ var file_tzero_v1_payment_intent_beneficiary_proto_depIdxs = []int32{
 	4, // 3: tzero.v1.payment_intent.PaymentIntentUpdateRequest.FundsReceived.payment_amount:type_name -> tzero.v1.common.Decimal
 	5, // 4: tzero.v1.payment_intent.PaymentIntentUpdateRequest.FundsReceived.payment_method:type_name -> tzero.v1.common.PaymentMethodType
 	3, // 5: tzero.v1.payment_intent.PaymentIntentUpdateRequest.FundsReceived.travel_rule_data:type_name -> tzero.v1.payment_intent.PaymentIntentUpdateRequest.FundsReceived.TravelRuleData
-	6, // 6: tzero.v1.payment_intent.PaymentIntentUpdateRequest.FundsReceived.TravelRuleData.originator_provider:type_name -> ivms101.LegalPerson
-	0, // 7: tzero.v1.payment_intent.BeneficiaryService.PaymentIntentUpdate:input_type -> tzero.v1.payment_intent.PaymentIntentUpdateRequest
-	1, // 8: tzero.v1.payment_intent.BeneficiaryService.PaymentIntentUpdate:output_type -> tzero.v1.payment_intent.PaymentIntentUpdateResponse
-	8, // [8:9] is the sub-list for method output_type
-	7, // [7:8] is the sub-list for method input_type
-	7, // [7:7] is the sub-list for extension type_name
-	7, // [7:7] is the sub-list for extension extendee
-	0, // [0:7] is the sub-list for field type_name
+	4, // 6: tzero.v1.payment_intent.PaymentIntentUpdateRequest.FundsReceived.fix:type_name -> tzero.v1.common.Decimal
+	6, // 7: tzero.v1.payment_intent.PaymentIntentUpdateRequest.FundsReceived.TravelRuleData.originator_provider:type_name -> ivms101.LegalPerson
+	0, // 8: tzero.v1.payment_intent.BeneficiaryService.PaymentIntentUpdate:input_type -> tzero.v1.payment_intent.PaymentIntentUpdateRequest
+	1, // 9: tzero.v1.payment_intent.BeneficiaryService.PaymentIntentUpdate:output_type -> tzero.v1.payment_intent.PaymentIntentUpdateResponse
+	9, // [9:10] is the sub-list for method output_type
+	8, // [8:9] is the sub-list for method input_type
+	8, // [8:8] is the sub-list for extension type_name
+	8, // [8:8] is the sub-list for extension extendee
+	0, // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_tzero_v1_payment_intent_beneficiary_proto_init() }
