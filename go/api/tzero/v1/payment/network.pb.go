@@ -74,8 +74,15 @@ func (QuoteType) EnumDescriptor() ([]byte, []int) {
 type GetQuoteResponse_Failure_Reason int32
 
 const (
-	GetQuoteResponse_Failure_REASON_UNSPECIFIED     GetQuoteResponse_Failure_Reason = 0
-	GetQuoteResponse_Failure_REASON_QUOTE_NOT_FOUND GetQuoteResponse_Failure_Reason = 10 // No matching quote par for the specified payout currency found or provider limits would exceed by processing this payment
+	GetQuoteResponse_Failure_REASON_UNSPECIFIED GetQuoteResponse_Failure_Reason = 0
+	// No candidate quote was returned for the requested currency / payment method
+	// (e.g. no published quote, all expired, no credit line configured between
+	// the providers, or the requested amount exceeds the provider's max_amount band).
+	GetQuoteResponse_Failure_REASON_QUOTE_NOT_FOUND GetQuoteResponse_Failure_Reason = 10
+	// At least one provider quoted, but none has enough credit / prefunding
+	// headroom to execute the requested amount. Inspect `all_quotes[].settlement`
+	// for the per-provider prefunding gap.
+	GetQuoteResponse_Failure_REASON_CREDIT_OR_PREDEPOSIT_REQUIRED GetQuoteResponse_Failure_Reason = 20
 )
 
 // Enum value maps for GetQuoteResponse_Failure_Reason.
@@ -83,10 +90,12 @@ var (
 	GetQuoteResponse_Failure_Reason_name = map[int32]string{
 		0:  "REASON_UNSPECIFIED",
 		10: "REASON_QUOTE_NOT_FOUND",
+		20: "REASON_CREDIT_OR_PREDEPOSIT_REQUIRED",
 	}
 	GetQuoteResponse_Failure_Reason_value = map[string]int32{
-		"REASON_UNSPECIFIED":     0,
-		"REASON_QUOTE_NOT_FOUND": 10,
+		"REASON_UNSPECIFIED":                   0,
+		"REASON_QUOTE_NOT_FOUND":               10,
+		"REASON_CREDIT_OR_PREDEPOSIT_REQUIRED": 20,
 	}
 )
 
@@ -120,9 +129,15 @@ func (GetQuoteResponse_Failure_Reason) EnumDescriptor() ([]byte, []int) {
 type CreatePaymentResponse_Failure_Reason int32
 
 const (
-	CreatePaymentResponse_Failure_REASON_UNSPECIFIED                   CreatePaymentResponse_Failure_Reason = 0
-	CreatePaymentResponse_Failure_REASON_QUOTE_NOT_FOUND               CreatePaymentResponse_Failure_Reason = 10 // No matching quote for the specified payout currency found or provider limits would exceed by processing this payment
-	CreatePaymentResponse_Failure_REASON_CREDIT_OR_PREDEPOSIT_REQUIRED CreatePaymentResponse_Failure_Reason = 20 // Payments with amount in pay out currency require available credit or pre-deposit
+	CreatePaymentResponse_Failure_REASON_UNSPECIFIED CreatePaymentResponse_Failure_Reason = 0
+	// No candidate quote was returned for the requested currency / payment method
+	// (e.g. no published quote, all expired, no credit line configured between
+	// the providers, or the requested amount exceeds the provider's max_amount band).
+	CreatePaymentResponse_Failure_REASON_QUOTE_NOT_FOUND CreatePaymentResponse_Failure_Reason = 10
+	// At least one provider quoted, but none has enough credit / prefunding
+	// headroom to execute the requested amount. Call GetQuote to inspect
+	// `all_quotes[].settlement` for the per-provider prefunding gap.
+	CreatePaymentResponse_Failure_REASON_CREDIT_OR_PREDEPOSIT_REQUIRED CreatePaymentResponse_Failure_Reason = 20
 )
 
 // Enum value maps for CreatePaymentResponse_Failure_Reason.
@@ -2190,7 +2205,7 @@ const file_tzero_v1_payment_network_proto_rawDesc = "" +
 	"^[A-Z]{3}$\x98\x01\x03R\x0epayOutCurrency\x12P\n" +
 	"\x0epay_out_method\x182 \x01(\x0e2\".tzero.v1.common.PaymentMethodTypeB\x06\xbaH\x03\xc8\x01\x01R\fpayOutMethod\x12B\n" +
 	"\n" +
-	"quote_type\x18< \x01(\x0e2\x1b.tzero.v1.payment.QuoteTypeB\x06\xbaH\x03\xc8\x01\x01R\tquoteType\"\xfb\v\n" +
+	"quote_type\x18< \x01(\x0e2\x1b.tzero.v1.payment.QuoteTypeB\x06\xbaH\x03\xc8\x01\x01R\tquoteType\"\xa5\f\n" +
 	"\x10GetQuoteResponse\x12F\n" +
 	"\asuccess\x18\x14 \x01(\v2*.tzero.v1.payment.GetQuoteResponse.SuccessH\x00R\asuccess\x12F\n" +
 	"\afailure\x18\x1e \x01(\v2*.tzero.v1.payment.GetQuoteResponse.FailureH\x00R\afailure\x12O\n" +
@@ -2205,14 +2220,15 @@ const file_tzero_v1_payment_network_proto_rawDesc = "" +
 	"\bquote_id\x18\x1e \x01(\v2\x19.tzero.v1.payment.QuoteIdB\x06\xbaH\x03\xc8\x01\x01R\aquoteId\x12F\n" +
 	"\x0epay_out_amount\x18( \x01(\v2\x18.tzero.v1.common.DecimalB\x06\xbaH\x03\xc8\x01\x01R\fpayOutAmount\x12M\n" +
 	"\x11settlement_amount\x182 \x01(\v2\x18.tzero.v1.common.DecimalB\x06\xbaH\x03\xc8\x01\x01R\x10settlementAmount\x12*\n" +
-	"\x03fix\x18< \x01(\v2\x18.tzero.v1.common.DecimalR\x03fix\x1a\x92\x01\n" +
+	"\x03fix\x18< \x01(\v2\x18.tzero.v1.common.DecimalR\x03fix\x1a\xbc\x01\n" +
 	"\aFailure\x12I\n" +
 	"\x06reason\x18\n" +
-	" \x01(\x0e21.tzero.v1.payment.GetQuoteResponse.Failure.ReasonR\x06reason\"<\n" +
+	" \x01(\x0e21.tzero.v1.payment.GetQuoteResponse.Failure.ReasonR\x06reason\"f\n" +
 	"\x06Reason\x12\x16\n" +
 	"\x12REASON_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16REASON_QUOTE_NOT_FOUND\x10\n" +
-	"\x1a\xd6\x05\n" +
+	"\x12(\n" +
+	"$REASON_CREDIT_OR_PREDEPOSIT_REQUIRED\x10\x14\x1a\xd6\x05\n" +
 	"\rProviderQuote\x12<\n" +
 	"\bquote_id\x18\n" +
 	" \x01(\v2\x19.tzero.v1.payment.QuoteIdB\x06\xbaH\x03\xc8\x01\x01R\aquoteId\x124\n" +
@@ -2323,7 +2339,7 @@ const file_tzero_v1_payment_network_proto_rawDesc = "" +
 	"\rPaymentAmount\x12@\n" +
 	"\x0epay_out_amount\x18\x14 \x01(\v2\x18.tzero.v1.common.DecimalH\x00R\fpayOutAmount\x12G\n" +
 	"\x11settlement_amount\x18\x1e \x01(\v2\x18.tzero.v1.common.DecimalH\x00R\x10settlementAmountB\x0f\n" +
-	"\x06amount\x12\x05\xbaH\x02\b\x01\"\xe4\x02\n" +
+	"\x06amount\x12\x05\xbaH\x02\b\x01\"\xee\x02\n" +
 	"\x15FinalizePayoutRequest\x12&\n" +
 	"\n" +
 	"payment_id\x18\n" +
@@ -2333,10 +2349,10 @@ const file_tzero_v1_payment_network_proto_rawDesc = "" +
 	"\aSuccess\x12>\n" +
 	"\areceipt\x18\x1e \x01(\v2\x1f.tzero.v1.common.PaymentReceiptH\x00R\areceipt\x88\x01\x01B\n" +
 	"\n" +
-	"\b_receipt\x1a!\n" +
-	"\aFailure\x12\x16\n" +
+	"\b_receipt\x1a+\n" +
+	"\aFailure\x12 \n" +
 	"\x06reason\x18\n" +
-	" \x01(\tR\x06reasonB\x0f\n" +
+	" \x01(\tB\b\xbaH\x05r\x03\x18\x80\bR\x06reasonB\x0f\n" +
 	"\x06result\x12\x05\xbaH\x02\b\x01\"\x18\n" +
 	"\x16FinalizePayoutResponse*@\n" +
 	"\tQuoteType\x12\x1a\n" +

@@ -29,6 +29,13 @@ class PaymentMethodType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     PAYMENT_METHOD_TYPE_CNAPS: _ClassVar[PaymentMethodType]
     PAYMENT_METHOD_TYPE_NIP: _ClassVar[PaymentMethodType]
     PAYMENT_METHOD_TYPE_RTP: _ClassVar[PaymentMethodType]
+    PAYMENT_METHOD_TYPE_CHILEAN_BANK_TRANSFER: _ClassVar[PaymentMethodType]
+    PAYMENT_METHOD_TYPE_PERU_BANK_TRANSFER: _ClassVar[PaymentMethodType]
+    PAYMENT_METHOD_TYPE_ARGENTINIAN_BANK_TRANSFER: _ClassVar[PaymentMethodType]
+    PAYMENT_METHOD_TYPE_MEXICAN_BANK_TRANSFER: _ClassVar[PaymentMethodType]
+    PAYMENT_METHOD_TYPE_COLOMBIAN_ACH: _ClassVar[PaymentMethodType]
+    PAYMENT_METHOD_TYPE_COLOMBIAN_BREB: _ClassVar[PaymentMethodType]
+    PAYMENT_METHOD_TYPE_GIP: _ClassVar[PaymentMethodType]
 PAYMENT_METHOD_TYPE_UNSPECIFIED: PaymentMethodType
 PAYMENT_METHOD_TYPE_SEPA: PaymentMethodType
 PAYMENT_METHOD_TYPE_SWIFT: PaymentMethodType
@@ -47,11 +54,18 @@ PAYMENT_METHOD_TYPE_AFRICAN_MOBILE_MONEY: PaymentMethodType
 PAYMENT_METHOD_TYPE_CNAPS: PaymentMethodType
 PAYMENT_METHOD_TYPE_NIP: PaymentMethodType
 PAYMENT_METHOD_TYPE_RTP: PaymentMethodType
+PAYMENT_METHOD_TYPE_CHILEAN_BANK_TRANSFER: PaymentMethodType
+PAYMENT_METHOD_TYPE_PERU_BANK_TRANSFER: PaymentMethodType
+PAYMENT_METHOD_TYPE_ARGENTINIAN_BANK_TRANSFER: PaymentMethodType
+PAYMENT_METHOD_TYPE_MEXICAN_BANK_TRANSFER: PaymentMethodType
+PAYMENT_METHOD_TYPE_COLOMBIAN_ACH: PaymentMethodType
+PAYMENT_METHOD_TYPE_COLOMBIAN_BREB: PaymentMethodType
+PAYMENT_METHOD_TYPE_GIP: PaymentMethodType
 PAYMENT_METHOD_TYPE_FIELD_NUMBER: _ClassVar[int]
 payment_method_type: _descriptor.FieldDescriptor
 
 class PaymentDetails(_message.Message):
-    __slots__ = ("sepa", "swift", "ach", "domestic_wire", "fps", "mpesa", "gcash", "indian_bank_transfer", "pesonet", "instapay", "pakistan_bank_transfer", "pakistan_mobile_wallet", "pix", "african_mobile_money", "naps", "nip", "rtp")
+    __slots__ = ("sepa", "swift", "ach", "domestic_wire", "fps", "mpesa", "gcash", "indian_bank_transfer", "pesonet", "instapay", "pakistan_bank_transfer", "pakistan_mobile_wallet", "pix", "african_mobile_money", "naps", "nip", "rtp", "chilean_bank_transfer", "peru_bank_transfer", "argentinian_bank_transfer", "mexican_bank_transfer", "colombian_ach", "colombian_breb", "gip")
     class Sepa(_message.Message):
         __slots__ = ("iban", "beneficiary_name", "payment_reference")
         IBAN_FIELD_NUMBER: _ClassVar[int]
@@ -364,6 +378,161 @@ class PaymentDetails(_message.Message):
         bank_name: str
         payment_reference: str
         def __init__(self, routing_number: _Optional[str] = ..., account_number: _Optional[str] = ..., account_type: _Optional[_Union[PaymentDetails.Rtp.RtpAccountType, str]] = ..., bank_name: _Optional[str] = ..., payment_reference: _Optional[str] = ...) -> None: ...
+    class ChileanBankTransfer(_message.Message):
+        __slots__ = ("document_number", "beneficiary_name", "bank_code", "account_number", "account_type")
+        class AccountType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+            __slots__ = ()
+            ACCOUNT_TYPE_UNSPECIFIED: _ClassVar[PaymentDetails.ChileanBankTransfer.AccountType]
+            ACCOUNT_TYPE_CHECKING: _ClassVar[PaymentDetails.ChileanBankTransfer.AccountType]
+            ACCOUNT_TYPE_VISTA: _ClassVar[PaymentDetails.ChileanBankTransfer.AccountType]
+            ACCOUNT_TYPE_SAVINGS: _ClassVar[PaymentDetails.ChileanBankTransfer.AccountType]
+        ACCOUNT_TYPE_UNSPECIFIED: PaymentDetails.ChileanBankTransfer.AccountType
+        ACCOUNT_TYPE_CHECKING: PaymentDetails.ChileanBankTransfer.AccountType
+        ACCOUNT_TYPE_VISTA: PaymentDetails.ChileanBankTransfer.AccountType
+        ACCOUNT_TYPE_SAVINGS: PaymentDetails.ChileanBankTransfer.AccountType
+        DOCUMENT_NUMBER_FIELD_NUMBER: _ClassVar[int]
+        BENEFICIARY_NAME_FIELD_NUMBER: _ClassVar[int]
+        BANK_CODE_FIELD_NUMBER: _ClassVar[int]
+        ACCOUNT_NUMBER_FIELD_NUMBER: _ClassVar[int]
+        ACCOUNT_TYPE_FIELD_NUMBER: _ClassVar[int]
+        document_number: str
+        beneficiary_name: str
+        bank_code: str
+        account_number: str
+        account_type: PaymentDetails.ChileanBankTransfer.AccountType
+        def __init__(self, document_number: _Optional[str] = ..., beneficiary_name: _Optional[str] = ..., bank_code: _Optional[str] = ..., account_number: _Optional[str] = ..., account_type: _Optional[_Union[PaymentDetails.ChileanBankTransfer.AccountType, str]] = ...) -> None: ...
+    class PeruBankTransfer(_message.Message):
+        __slots__ = ("document_number", "document_type", "bank_code", "account_number", "account_type")
+        class DocumentType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+            __slots__ = ()
+            DOCUMENT_TYPE_UNSPECIFIED: _ClassVar[PaymentDetails.PeruBankTransfer.DocumentType]
+            DOCUMENT_TYPE_DNI: _ClassVar[PaymentDetails.PeruBankTransfer.DocumentType]
+            DOCUMENT_TYPE_CE: _ClassVar[PaymentDetails.PeruBankTransfer.DocumentType]
+            DOCUMENT_TYPE_RUC: _ClassVar[PaymentDetails.PeruBankTransfer.DocumentType]
+        DOCUMENT_TYPE_UNSPECIFIED: PaymentDetails.PeruBankTransfer.DocumentType
+        DOCUMENT_TYPE_DNI: PaymentDetails.PeruBankTransfer.DocumentType
+        DOCUMENT_TYPE_CE: PaymentDetails.PeruBankTransfer.DocumentType
+        DOCUMENT_TYPE_RUC: PaymentDetails.PeruBankTransfer.DocumentType
+        class AccountType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+            __slots__ = ()
+            ACCOUNT_TYPE_UNSPECIFIED: _ClassVar[PaymentDetails.PeruBankTransfer.AccountType]
+            ACCOUNT_TYPE_CHECKING: _ClassVar[PaymentDetails.PeruBankTransfer.AccountType]
+            ACCOUNT_TYPE_SAVINGS: _ClassVar[PaymentDetails.PeruBankTransfer.AccountType]
+        ACCOUNT_TYPE_UNSPECIFIED: PaymentDetails.PeruBankTransfer.AccountType
+        ACCOUNT_TYPE_CHECKING: PaymentDetails.PeruBankTransfer.AccountType
+        ACCOUNT_TYPE_SAVINGS: PaymentDetails.PeruBankTransfer.AccountType
+        DOCUMENT_NUMBER_FIELD_NUMBER: _ClassVar[int]
+        DOCUMENT_TYPE_FIELD_NUMBER: _ClassVar[int]
+        BANK_CODE_FIELD_NUMBER: _ClassVar[int]
+        ACCOUNT_NUMBER_FIELD_NUMBER: _ClassVar[int]
+        ACCOUNT_TYPE_FIELD_NUMBER: _ClassVar[int]
+        document_number: str
+        document_type: PaymentDetails.PeruBankTransfer.DocumentType
+        bank_code: str
+        account_number: str
+        account_type: PaymentDetails.PeruBankTransfer.AccountType
+        def __init__(self, document_number: _Optional[str] = ..., document_type: _Optional[_Union[PaymentDetails.PeruBankTransfer.DocumentType, str]] = ..., bank_code: _Optional[str] = ..., account_number: _Optional[str] = ..., account_type: _Optional[_Union[PaymentDetails.PeruBankTransfer.AccountType, str]] = ...) -> None: ...
+    class ArgentinianBankTransfer(_message.Message):
+        __slots__ = ("account_number",)
+        ACCOUNT_NUMBER_FIELD_NUMBER: _ClassVar[int]
+        account_number: str
+        def __init__(self, account_number: _Optional[str] = ...) -> None: ...
+    class MexicanBankTransfer(_message.Message):
+        __slots__ = ("beneficiary_name", "bank_code", "account_number")
+        BENEFICIARY_NAME_FIELD_NUMBER: _ClassVar[int]
+        BANK_CODE_FIELD_NUMBER: _ClassVar[int]
+        ACCOUNT_NUMBER_FIELD_NUMBER: _ClassVar[int]
+        beneficiary_name: str
+        bank_code: str
+        account_number: str
+        def __init__(self, beneficiary_name: _Optional[str] = ..., bank_code: _Optional[str] = ..., account_number: _Optional[str] = ...) -> None: ...
+    class ColombianAch(_message.Message):
+        __slots__ = ("document_number", "document_type", "bank_code", "account_number", "account_type", "beneficiary_name", "phone_number")
+        class DocumentType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+            __slots__ = ()
+            DOCUMENT_TYPE_UNSPECIFIED: _ClassVar[PaymentDetails.ColombianAch.DocumentType]
+            DOCUMENT_TYPE_CC: _ClassVar[PaymentDetails.ColombianAch.DocumentType]
+            DOCUMENT_TYPE_CE: _ClassVar[PaymentDetails.ColombianAch.DocumentType]
+            DOCUMENT_TYPE_NIT: _ClassVar[PaymentDetails.ColombianAch.DocumentType]
+            DOCUMENT_TYPE_TI: _ClassVar[PaymentDetails.ColombianAch.DocumentType]
+            DOCUMENT_TYPE_PP: _ClassVar[PaymentDetails.ColombianAch.DocumentType]
+        DOCUMENT_TYPE_UNSPECIFIED: PaymentDetails.ColombianAch.DocumentType
+        DOCUMENT_TYPE_CC: PaymentDetails.ColombianAch.DocumentType
+        DOCUMENT_TYPE_CE: PaymentDetails.ColombianAch.DocumentType
+        DOCUMENT_TYPE_NIT: PaymentDetails.ColombianAch.DocumentType
+        DOCUMENT_TYPE_TI: PaymentDetails.ColombianAch.DocumentType
+        DOCUMENT_TYPE_PP: PaymentDetails.ColombianAch.DocumentType
+        class AccountType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+            __slots__ = ()
+            ACCOUNT_TYPE_UNSPECIFIED: _ClassVar[PaymentDetails.ColombianAch.AccountType]
+            ACCOUNT_TYPE_SAVINGS: _ClassVar[PaymentDetails.ColombianAch.AccountType]
+            ACCOUNT_TYPE_CHECKING: _ClassVar[PaymentDetails.ColombianAch.AccountType]
+        ACCOUNT_TYPE_UNSPECIFIED: PaymentDetails.ColombianAch.AccountType
+        ACCOUNT_TYPE_SAVINGS: PaymentDetails.ColombianAch.AccountType
+        ACCOUNT_TYPE_CHECKING: PaymentDetails.ColombianAch.AccountType
+        DOCUMENT_NUMBER_FIELD_NUMBER: _ClassVar[int]
+        DOCUMENT_TYPE_FIELD_NUMBER: _ClassVar[int]
+        BANK_CODE_FIELD_NUMBER: _ClassVar[int]
+        ACCOUNT_NUMBER_FIELD_NUMBER: _ClassVar[int]
+        ACCOUNT_TYPE_FIELD_NUMBER: _ClassVar[int]
+        BENEFICIARY_NAME_FIELD_NUMBER: _ClassVar[int]
+        PHONE_NUMBER_FIELD_NUMBER: _ClassVar[int]
+        document_number: str
+        document_type: PaymentDetails.ColombianAch.DocumentType
+        bank_code: str
+        account_number: str
+        account_type: PaymentDetails.ColombianAch.AccountType
+        beneficiary_name: str
+        phone_number: str
+        def __init__(self, document_number: _Optional[str] = ..., document_type: _Optional[_Union[PaymentDetails.ColombianAch.DocumentType, str]] = ..., bank_code: _Optional[str] = ..., account_number: _Optional[str] = ..., account_type: _Optional[_Union[PaymentDetails.ColombianAch.AccountType, str]] = ..., beneficiary_name: _Optional[str] = ..., phone_number: _Optional[str] = ...) -> None: ...
+    class ColombianBreb(_message.Message):
+        __slots__ = ("document_number", "document_type", "bank_code", "account_number", "account_type", "beneficiary_name")
+        class DocumentType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+            __slots__ = ()
+            DOCUMENT_TYPE_UNSPECIFIED: _ClassVar[PaymentDetails.ColombianBreb.DocumentType]
+            DOCUMENT_TYPE_CC: _ClassVar[PaymentDetails.ColombianBreb.DocumentType]
+            DOCUMENT_TYPE_CE: _ClassVar[PaymentDetails.ColombianBreb.DocumentType]
+            DOCUMENT_TYPE_NIT: _ClassVar[PaymentDetails.ColombianBreb.DocumentType]
+            DOCUMENT_TYPE_TI: _ClassVar[PaymentDetails.ColombianBreb.DocumentType]
+            DOCUMENT_TYPE_PP: _ClassVar[PaymentDetails.ColombianBreb.DocumentType]
+        DOCUMENT_TYPE_UNSPECIFIED: PaymentDetails.ColombianBreb.DocumentType
+        DOCUMENT_TYPE_CC: PaymentDetails.ColombianBreb.DocumentType
+        DOCUMENT_TYPE_CE: PaymentDetails.ColombianBreb.DocumentType
+        DOCUMENT_TYPE_NIT: PaymentDetails.ColombianBreb.DocumentType
+        DOCUMENT_TYPE_TI: PaymentDetails.ColombianBreb.DocumentType
+        DOCUMENT_TYPE_PP: PaymentDetails.ColombianBreb.DocumentType
+        class AccountType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+            __slots__ = ()
+            ACCOUNT_TYPE_UNSPECIFIED: _ClassVar[PaymentDetails.ColombianBreb.AccountType]
+            ACCOUNT_TYPE_SAVINGS: _ClassVar[PaymentDetails.ColombianBreb.AccountType]
+            ACCOUNT_TYPE_CHECKING: _ClassVar[PaymentDetails.ColombianBreb.AccountType]
+        ACCOUNT_TYPE_UNSPECIFIED: PaymentDetails.ColombianBreb.AccountType
+        ACCOUNT_TYPE_SAVINGS: PaymentDetails.ColombianBreb.AccountType
+        ACCOUNT_TYPE_CHECKING: PaymentDetails.ColombianBreb.AccountType
+        DOCUMENT_NUMBER_FIELD_NUMBER: _ClassVar[int]
+        DOCUMENT_TYPE_FIELD_NUMBER: _ClassVar[int]
+        BANK_CODE_FIELD_NUMBER: _ClassVar[int]
+        ACCOUNT_NUMBER_FIELD_NUMBER: _ClassVar[int]
+        ACCOUNT_TYPE_FIELD_NUMBER: _ClassVar[int]
+        BENEFICIARY_NAME_FIELD_NUMBER: _ClassVar[int]
+        document_number: str
+        document_type: PaymentDetails.ColombianBreb.DocumentType
+        bank_code: str
+        account_number: str
+        account_type: PaymentDetails.ColombianBreb.AccountType
+        beneficiary_name: str
+        def __init__(self, document_number: _Optional[str] = ..., document_type: _Optional[_Union[PaymentDetails.ColombianBreb.DocumentType, str]] = ..., bank_code: _Optional[str] = ..., account_number: _Optional[str] = ..., account_type: _Optional[_Union[PaymentDetails.ColombianBreb.AccountType, str]] = ..., beneficiary_name: _Optional[str] = ...) -> None: ...
+    class Gip(_message.Message):
+        __slots__ = ("sort_code", "account_number", "account_name", "reference")
+        SORT_CODE_FIELD_NUMBER: _ClassVar[int]
+        ACCOUNT_NUMBER_FIELD_NUMBER: _ClassVar[int]
+        ACCOUNT_NAME_FIELD_NUMBER: _ClassVar[int]
+        REFERENCE_FIELD_NUMBER: _ClassVar[int]
+        sort_code: str
+        account_number: str
+        account_name: str
+        reference: str
+        def __init__(self, sort_code: _Optional[str] = ..., account_number: _Optional[str] = ..., account_name: _Optional[str] = ..., reference: _Optional[str] = ...) -> None: ...
     SEPA_FIELD_NUMBER: _ClassVar[int]
     SWIFT_FIELD_NUMBER: _ClassVar[int]
     ACH_FIELD_NUMBER: _ClassVar[int]
@@ -381,6 +550,13 @@ class PaymentDetails(_message.Message):
     NAPS_FIELD_NUMBER: _ClassVar[int]
     NIP_FIELD_NUMBER: _ClassVar[int]
     RTP_FIELD_NUMBER: _ClassVar[int]
+    CHILEAN_BANK_TRANSFER_FIELD_NUMBER: _ClassVar[int]
+    PERU_BANK_TRANSFER_FIELD_NUMBER: _ClassVar[int]
+    ARGENTINIAN_BANK_TRANSFER_FIELD_NUMBER: _ClassVar[int]
+    MEXICAN_BANK_TRANSFER_FIELD_NUMBER: _ClassVar[int]
+    COLOMBIAN_ACH_FIELD_NUMBER: _ClassVar[int]
+    COLOMBIAN_BREB_FIELD_NUMBER: _ClassVar[int]
+    GIP_FIELD_NUMBER: _ClassVar[int]
     sepa: PaymentDetails.Sepa
     swift: PaymentDetails.Swift
     ach: PaymentDetails.Ach
@@ -398,4 +574,11 @@ class PaymentDetails(_message.Message):
     naps: PaymentDetails.Cnaps
     nip: PaymentDetails.Nip
     rtp: PaymentDetails.Rtp
-    def __init__(self, sepa: _Optional[_Union[PaymentDetails.Sepa, _Mapping]] = ..., swift: _Optional[_Union[PaymentDetails.Swift, _Mapping]] = ..., ach: _Optional[_Union[PaymentDetails.Ach, _Mapping]] = ..., domestic_wire: _Optional[_Union[PaymentDetails.DomesticWire, _Mapping]] = ..., fps: _Optional[_Union[PaymentDetails.Fps, _Mapping]] = ..., mpesa: _Optional[_Union[PaymentDetails.MPesa, _Mapping]] = ..., gcash: _Optional[_Union[PaymentDetails.GCash, _Mapping]] = ..., indian_bank_transfer: _Optional[_Union[PaymentDetails.IndianBankTransfer, _Mapping]] = ..., pesonet: _Optional[_Union[PaymentDetails.Pesonet, _Mapping]] = ..., instapay: _Optional[_Union[PaymentDetails.Instapay, _Mapping]] = ..., pakistan_bank_transfer: _Optional[_Union[PaymentDetails.PakistanBankTransfer, _Mapping]] = ..., pakistan_mobile_wallet: _Optional[_Union[PaymentDetails.PakistanMobileWallet, _Mapping]] = ..., pix: _Optional[_Union[PaymentDetails.Pix, _Mapping]] = ..., african_mobile_money: _Optional[_Union[PaymentDetails.AfricanMobileMoney, _Mapping]] = ..., naps: _Optional[_Union[PaymentDetails.Cnaps, _Mapping]] = ..., nip: _Optional[_Union[PaymentDetails.Nip, _Mapping]] = ..., rtp: _Optional[_Union[PaymentDetails.Rtp, _Mapping]] = ...) -> None: ...
+    chilean_bank_transfer: PaymentDetails.ChileanBankTransfer
+    peru_bank_transfer: PaymentDetails.PeruBankTransfer
+    argentinian_bank_transfer: PaymentDetails.ArgentinianBankTransfer
+    mexican_bank_transfer: PaymentDetails.MexicanBankTransfer
+    colombian_ach: PaymentDetails.ColombianAch
+    colombian_breb: PaymentDetails.ColombianBreb
+    gip: PaymentDetails.Gip
+    def __init__(self, sepa: _Optional[_Union[PaymentDetails.Sepa, _Mapping]] = ..., swift: _Optional[_Union[PaymentDetails.Swift, _Mapping]] = ..., ach: _Optional[_Union[PaymentDetails.Ach, _Mapping]] = ..., domestic_wire: _Optional[_Union[PaymentDetails.DomesticWire, _Mapping]] = ..., fps: _Optional[_Union[PaymentDetails.Fps, _Mapping]] = ..., mpesa: _Optional[_Union[PaymentDetails.MPesa, _Mapping]] = ..., gcash: _Optional[_Union[PaymentDetails.GCash, _Mapping]] = ..., indian_bank_transfer: _Optional[_Union[PaymentDetails.IndianBankTransfer, _Mapping]] = ..., pesonet: _Optional[_Union[PaymentDetails.Pesonet, _Mapping]] = ..., instapay: _Optional[_Union[PaymentDetails.Instapay, _Mapping]] = ..., pakistan_bank_transfer: _Optional[_Union[PaymentDetails.PakistanBankTransfer, _Mapping]] = ..., pakistan_mobile_wallet: _Optional[_Union[PaymentDetails.PakistanMobileWallet, _Mapping]] = ..., pix: _Optional[_Union[PaymentDetails.Pix, _Mapping]] = ..., african_mobile_money: _Optional[_Union[PaymentDetails.AfricanMobileMoney, _Mapping]] = ..., naps: _Optional[_Union[PaymentDetails.Cnaps, _Mapping]] = ..., nip: _Optional[_Union[PaymentDetails.Nip, _Mapping]] = ..., rtp: _Optional[_Union[PaymentDetails.Rtp, _Mapping]] = ..., chilean_bank_transfer: _Optional[_Union[PaymentDetails.ChileanBankTransfer, _Mapping]] = ..., peru_bank_transfer: _Optional[_Union[PaymentDetails.PeruBankTransfer, _Mapping]] = ..., argentinian_bank_transfer: _Optional[_Union[PaymentDetails.ArgentinianBankTransfer, _Mapping]] = ..., mexican_bank_transfer: _Optional[_Union[PaymentDetails.MexicanBankTransfer, _Mapping]] = ..., colombian_ach: _Optional[_Union[PaymentDetails.ColombianAch, _Mapping]] = ..., colombian_breb: _Optional[_Union[PaymentDetails.ColombianBreb, _Mapping]] = ..., gip: _Optional[_Union[PaymentDetails.Gip, _Mapping]] = ...) -> None: ...

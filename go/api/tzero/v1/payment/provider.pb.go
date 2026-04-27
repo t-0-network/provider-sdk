@@ -135,6 +135,7 @@ func (PayoutResponse_Failed_Reason) EnumDescriptor() ([]byte, []int) {
 	return file_tzero_v1_payment_provider_proto_rawDescGZIP(), []int{3, 2, 0}
 }
 
+// Additive-only. Consumers must treat unknown values as UNSPECIFIED.
 type UpdatePaymentRequest_Failed_Reason int32
 
 const (
@@ -143,6 +144,8 @@ const (
 	UpdatePaymentRequest_Failed_REASON_QUOTE_REJECTED_AFTER_AML_APPROVAL        UpdatePaymentRequest_Failed_Reason = 2 // AML review completed and a new quote was required, but the pay-in provider rejected the updated quote (e.g. due to rate change after AML delay).
 	UpdatePaymentRequest_Failed_REASON_AML_RISK_CHECK_FAILED                    UpdatePaymentRequest_Failed_Reason = 3 // Payment was rejected by the pay-out provider because the AML / risk checks failed.
 	UpdatePaymentRequest_Failed_REASON_CREDIT_LIMIT_EXCEEDED_AFTER_AML_APPROVAL UpdatePaymentRequest_Failed_Reason = 4 // AML review completed and a new quote was found, but the updated settlement amount exceeds the credit limit between the pay-in and pay-out providers.
+	UpdatePaymentRequest_Failed_REASON_REJECTED_BY_BENEFICIARY                  UpdatePaymentRequest_Failed_Reason = 5 // Pay-out provider rejected the initial PayOut request (no AML check involved).
+	UpdatePaymentRequest_Failed_REASON_FINALIZE_FAILURE                         UpdatePaymentRequest_Failed_Reason = 6 // Pay-out provider accepted initially, then reported failure via FinalizePayout (e.g. payment rails rejected).
 )
 
 // Enum value maps for UpdatePaymentRequest_Failed_Reason.
@@ -153,6 +156,8 @@ var (
 		2: "REASON_QUOTE_REJECTED_AFTER_AML_APPROVAL",
 		3: "REASON_AML_RISK_CHECK_FAILED",
 		4: "REASON_CREDIT_LIMIT_EXCEEDED_AFTER_AML_APPROVAL",
+		5: "REASON_REJECTED_BY_BENEFICIARY",
+		6: "REASON_FINALIZE_FAILURE",
 	}
 	UpdatePaymentRequest_Failed_Reason_value = map[string]int32{
 		"REASON_UNSPECIFIED":                              0,
@@ -160,6 +165,8 @@ var (
 		"REASON_QUOTE_REJECTED_AFTER_AML_APPROVAL":        2,
 		"REASON_AML_RISK_CHECK_FAILED":                    3,
 		"REASON_CREDIT_LIMIT_EXCEEDED_AFTER_AML_APPROVAL": 4,
+		"REASON_REJECTED_BY_BENEFICIARY":                  5,
+		"REASON_FINALIZE_FAILURE":                         6,
 	}
 )
 
@@ -1944,7 +1951,7 @@ const file_tzero_v1_payment_provider_proto_rawDesc = "" +
 	"\vbeneficiary\x18\x14 \x03(\v2\x0f.ivms101.PersonB\b\xbaH\x05\x92\x01\x02\b\x01R\vbeneficiary\x12E\n" +
 	"\x13originator_provider\x18\x1e \x01(\v2\x0f.ivms101.PersonH\x00R\x12originatorProvider\x88\x01\x01B\x16\n" +
 	"\x14_originator_providerB\x11\n" +
-	"\x0f_payout_details\"\xcf\x04\n" +
+	"\x0f_payout_details\"\xd9\x04\n" +
 	"\x0ePayoutResponse\x12\\\n" +
 	"$beneficiary_provider_legal_entity_id\x18\n" +
 	" \x01(\rB\a\xbaH\x04*\x02 \x00H\x01R beneficiaryProviderLegalEntityId\x88\x01\x01\x12G\n" +
@@ -1953,17 +1960,18 @@ const file_tzero_v1_payment_provider_proto_rawDesc = "" +
 	"\x10manual_aml_check\x18( \x01(\v2/.tzero.v1.payment.PayoutResponse.ManualAmlCheckH\x00R\x0emanualAmlCheck\x1a\n" +
 	"\n" +
 	"\bAccepted\x1a\x10\n" +
-	"\x0eManualAmlCheck\x1a\x9d\x01\n" +
+	"\x0eManualAmlCheck\x1a\xa7\x01\n" +
 	"\x06Failed\x12F\n" +
 	"\x06reason\x18\n" +
-	" \x01(\x0e2..tzero.v1.payment.PayoutResponse.Failed.ReasonR\x06reason\x12\x1d\n" +
-	"\adetails\x18\x14 \x01(\tH\x00R\adetails\x88\x01\x01\" \n" +
+	" \x01(\x0e2..tzero.v1.payment.PayoutResponse.Failed.ReasonR\x06reason\x12'\n" +
+	"\adetails\x18\x14 \x01(\tB\b\xbaH\x05r\x03\x18\x80\bH\x00R\adetails\x88\x01\x01\" \n" +
 	"\x06Reason\x12\x16\n" +
 	"\x12REASON_UNSPECIFIED\x10\x00B\n" +
 	"\n" +
 	"\b_detailsB\x0f\n" +
 	"\x06result\x12\x05\xbaH\x02\b\x01B'\n" +
-	"%_beneficiary_provider_legal_entity_id\"\xd7\t\n" +
+	"%_beneficiary_provider_legal_entity_id\"\xa2\n" +
+	"\n" +
 	"\x14UpdatePaymentRequest\x12\x1d\n" +
 	"\n" +
 	"payment_id\x18\x05 \x01(\x04R\tpaymentId\x12*\n" +
@@ -1979,17 +1987,19 @@ const file_tzero_v1_payment_provider_proto_rawDesc = "" +
 	"\x10travel_rule_data\x18\x14 \x01(\v2>.tzero.v1.payment.UpdatePaymentRequest.Accepted.TravelRuleDataB\x06\xbaH\x03\xc8\x01\x01R\x0etravelRuleData\x1a\\\n" +
 	"\x0eTravelRuleData\x12J\n" +
 	"\x14beneficiary_provider\x18\n" +
-	" \x01(\v2\x0f.ivms101.PersonB\x06\xbaH\x03\xc8\x01\x01R\x13beneficiaryProvider\x1a\xd1\x02\n" +
+	" \x01(\v2\x0f.ivms101.PersonB\x06\xbaH\x03\xc8\x01\x01R\x13beneficiaryProvider\x1a\x9c\x03\n" +
 	"\x06Failed\x12L\n" +
 	"\x06reason\x18\n" +
-	" \x01(\x0e24.tzero.v1.payment.UpdatePaymentRequest.Failed.ReasonR\x06reason\x12\x1d\n" +
-	"\adetails\x18\x14 \x01(\tH\x00R\adetails\x88\x01\x01\"\xcd\x01\n" +
+	" \x01(\x0e24.tzero.v1.payment.UpdatePaymentRequest.Failed.ReasonR\x06reason\x12'\n" +
+	"\adetails\x18\x14 \x01(\tB\b\xbaH\x05r\x03\x18\x80\bH\x00R\adetails\x88\x01\x01\"\x8e\x02\n" +
 	"\x06Reason\x12\x16\n" +
 	"\x12REASON_UNSPECIFIED\x10\x00\x12&\n" +
 	"\"REASON_NO_QUOTE_AFTER_AML_APPROVAL\x10\x01\x12,\n" +
 	"(REASON_QUOTE_REJECTED_AFTER_AML_APPROVAL\x10\x02\x12 \n" +
 	"\x1cREASON_AML_RISK_CHECK_FAILED\x10\x03\x123\n" +
-	"/REASON_CREDIT_LIMIT_EXCEEDED_AFTER_AML_APPROVAL\x10\x04B\n" +
+	"/REASON_CREDIT_LIMIT_EXCEEDED_AFTER_AML_APPROVAL\x10\x04\x12\"\n" +
+	"\x1eREASON_REJECTED_BY_BENEFICIARY\x10\x05\x12\x1b\n" +
+	"\x17REASON_FINALIZE_FAILURE\x10\x06B\n" +
 	"\n" +
 	"\b_details\x1a\x93\x01\n" +
 	"\tConfirmed\x12:\n" +

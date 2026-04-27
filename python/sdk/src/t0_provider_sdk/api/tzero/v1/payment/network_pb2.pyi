@@ -95,8 +95,10 @@ class GetQuoteResponse(_message.Message):
             __slots__ = ()
             REASON_UNSPECIFIED: _ClassVar[GetQuoteResponse.Failure.Reason]
             REASON_QUOTE_NOT_FOUND: _ClassVar[GetQuoteResponse.Failure.Reason]
+            REASON_CREDIT_OR_PREDEPOSIT_REQUIRED: _ClassVar[GetQuoteResponse.Failure.Reason]
         REASON_UNSPECIFIED: GetQuoteResponse.Failure.Reason
         REASON_QUOTE_NOT_FOUND: GetQuoteResponse.Failure.Reason
+        REASON_CREDIT_OR_PREDEPOSIT_REQUIRED: GetQuoteResponse.Failure.Reason
         REASON_FIELD_NUMBER: _ClassVar[int]
         reason: GetQuoteResponse.Failure.Reason
         def __init__(self, reason: _Optional[_Union[GetQuoteResponse.Failure.Reason, str]] = ...) -> None: ...
