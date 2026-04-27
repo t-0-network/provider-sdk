@@ -13,7 +13,7 @@
 
     <!-- NuGet metadata -->
     <PackageId>T0.ProviderStarter</PackageId>
-    <Version>1.1.13</Version>
+    <Version>1.1.14</Version>
     <Authors>New Settlement Technologies Inc.</Authors>
     <Description>CLI tool to initialize a new T-0 Network provider project (.NET)</Description>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
