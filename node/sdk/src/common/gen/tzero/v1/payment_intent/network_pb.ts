@@ -364,7 +364,9 @@ export type PaymentIntentPayInDetails = Message<"tzero.v1.payment_intent.Payment
    * *
    * Indicative exchange rate USD/XXX (base currency is always USD).
    *
-   * Note: This is indicative only. The actual rate is determined when pay-in provider calls ConfirmFundsReceived
+   * Resolved live from the network's current quote snapshot on every call,
+   * including idempotent retries. The binding rate is locked in at
+   * ConfirmFundsReceived and may differ.
    *
    * @generated from field: tzero.v1.common.Decimal indicative_rate = 40;
    */
@@ -375,7 +377,9 @@ export type PaymentIntentPayInDetails = Message<"tzero.v1.payment_intent.Payment
    * Indicative fixed charge in USD retained by the pay-in provider per transfer.
    * Settlement is calculated as (amount / indicative_rate) - indicative_fix.
    *
-   * Note: This is indicative only. The actual fix is locked in at ConfirmFundsReceived time.
+   * Resolved live from the network's current quote snapshot on every call,
+   * including idempotent retries. The binding fix is locked in at
+   * ConfirmFundsReceived and may differ.
    *
    * @generated from field: tzero.v1.common.Decimal indicative_fix = 50;
    */
@@ -542,6 +546,11 @@ export type CreatePaymentIntentResponse_Success = Message<"tzero.v1.payment_inte
    * Present these options to your user so they can choose how to pay.
    * Each entry contains the payment details needed to complete the payment.
    *
+   * Indicative rate/fix are resolved live on every call, including idempotent
+   * retries. The set of options (provider, payment_method, payment_details)
+   * is fixed at first call; individual options whose underlying quote has
+   * lapsed are omitted on retry.
+   *
    * @generated from field: repeated tzero.v1.payment_intent.PaymentIntentPayInDetails pay_in_details = 20;
    */
   payInDetails: PaymentIntentPayInDetails[];
@@ -588,7 +597,10 @@ export enum CreatePaymentIntentResponse_Failure_Reason {
 
   /**
    * *
-   * No quotes found for the requested currency/amount.
+   * No live quote covers the requested currency/amount. On first call this
+   * means the intent was never created. On an idempotent retry this means
+   * every stored offer has since lost its live quote; a subsequent retry
+   * may succeed once providers republish.
    *
    * @generated from enum value: FAILURE_REASON_QUOTE_NOT_FOUND = 10;
    */

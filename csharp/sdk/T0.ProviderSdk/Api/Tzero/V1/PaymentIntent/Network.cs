@@ -2715,7 +2715,9 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
     ///*
     /// Indicative exchange rate USD/XXX (base currency is always USD).
     ///
-    /// Note: This is indicative only. The actual rate is determined when pay-in provider calls ConfirmFundsReceived
+    /// Resolved live from the network's current quote snapshot on every call,
+    /// including idempotent retries. The binding rate is locked in at
+    /// ConfirmFundsReceived and may differ.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -2734,7 +2736,9 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
     /// Indicative fixed charge in USD retained by the pay-in provider per transfer.
     /// Settlement is calculated as (amount / indicative_rate) - indicative_fix.
     ///
-    /// Note: This is indicative only. The actual fix is locked in at ConfirmFundsReceived time.
+    /// Resolved live from the network's current quote snapshot on every call,
+    /// including idempotent retries. The binding fix is locked in at
+    /// ConfirmFundsReceived and may differ.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -4033,6 +4037,11 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
         /// Available payment options for the end-user.
         /// Present these options to your user so they can choose how to pay.
         /// Each entry contains the payment details needed to complete the payment.
+        ///
+        /// Indicative rate/fix are resolved live on every call, including idempotent
+        /// retries. The set of options (provider, payment_method, payment_details)
+        /// is fixed at first call; individual options whose underlying quote has
+        /// lapsed are omitted on retry.
         /// </summary>
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -4408,7 +4417,10 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
             [pbr::OriginalName("FAILURE_REASON_UNSPECIFIED")] FailureReasonUnspecified = 0,
             /// <summary>
             ///*
-            /// No quotes found for the requested currency/amount.
+            /// No live quote covers the requested currency/amount. On first call this
+            /// means the intent was never created. On an idempotent retry this means
+            /// every stored offer has since lost its live quote; a subsequent retry
+            /// may succeed once providers republish.
             /// </summary>
             [pbr::OriginalName("FAILURE_REASON_QUOTE_NOT_FOUND")] FailureReasonQuoteNotFound = 10,
             /// <summary>
