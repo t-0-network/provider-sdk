@@ -55,7 +55,10 @@ const createSignatureVerification: (networkPublicKey: Buffer) => Interceptor = (
 };
 
 interface Router {
-  service: <T extends DescService>(service: T, implementation: Partial<ServiceImpl<T>>) => void;
+  service: <T extends DescService, I extends ServiceImpl<T>>(
+    service: T,
+    implementation: I,
+  ) => void;
 }
 
 export const createService = (

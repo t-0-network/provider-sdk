@@ -69,7 +69,7 @@ const CreateProviderService = (networkClient: Client<typeof NetworkService>) => 
             return {} as AppendLedgerEntriesResponse
         },
 
-        async approvePaymentQuote(req: ApprovePaymentQuoteRequest, _: HandlerContext) {
+        async approvePaymentQuotes(req: ApprovePaymentQuoteRequest, _: HandlerContext) {
             // TODO: when the payment goes through the Manual AML Check on the pay-out provider side, the provider submitted the payment will have a last look to approve final quote
             // The request includes payOutFix — the fixed charge in USD for this payout.
             // Consider it alongside payOutRate and payOutAmount when deciding to accept.
