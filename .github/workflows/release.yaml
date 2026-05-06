@@ -217,6 +217,19 @@ jobs:
           sed -i "s|<Version>.*</Version>|<Version>${VERSION}</Version>|" csharp/sdk/T0.ProviderSdk/T0.ProviderSdk.csproj
           sed -i "s|<Version>.*</Version>|<Version>${VERSION}</Version>|" csharp/starter/T0.ProviderStarter/T0.ProviderStarter.csproj
 
+      # --- Update SDK runtime version constants (read by SystemService.Health) ---
+      - name: Update SDK runtime version constants
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          # Go
+          sed -i "s/const Version = \".*\"/const Version = \"${VERSION}\"/" go/sdkversion/version.go
+          # Node
+          sed -i "s/export const SDK_VERSION = \".*\"/export const SDK_VERSION = \"${VERSION}\"/" node/sdk/src/version.ts
+          # Python
+          sed -i "s/^__version__ = \".*\"/__version__ = \"${VERSION}\"/" python/sdk/src/t0_provider_sdk/_version.py
+          # Java
+          sed -i "s/^sdk\.version=.*/sdk.version=${VERSION}/" java/sdk/src/main/resources/META-INF/sdk-version.properties
+
       # --- Update SDK version in starter templates ---
       - name: Update TS Starter template SDK version
         run: |
@@ -309,6 +322,34 @@ jobs:
           CSHARP_STARTER_VER=$(grep '<Version>' csharp/starter/T0.ProviderStarter/T0.ProviderStarter.csproj | sed 's/.*<Version>\(.*\)<\/Version>.*/\1/')
           if [ "$CSHARP_STARTER_VER" != "$VERSION" ]; then
             echo "::error::C# Starter version mismatch: expected $VERSION, got $CSHARP_STARTER_VER"
+            ERRORS=$((ERRORS + 1))
+          fi
+
+          # Validate Go SDK runtime version constant (used by SystemService.Health)
+          GO_RUNTIME_VER=$(grep 'const Version = ' go/sdkversion/version.go | sed 's/.*"\(.*\)".*/\1/')
+          if [ "$GO_RUNTIME_VER" != "$VERSION" ]; then
+            echo "::error::Go SDK runtime version mismatch: expected $VERSION, got $GO_RUNTIME_VER"
+            ERRORS=$((ERRORS + 1))
+          fi
+
+          # Validate Node SDK runtime version constant
+          NODE_RUNTIME_VER=$(grep 'export const SDK_VERSION = ' node/sdk/src/version.ts | sed 's/.*"\(.*\)".*/\1/')
+          if [ "$NODE_RUNTIME_VER" != "$VERSION" ]; then
+            echo "::error::Node SDK runtime version mismatch: expected $VERSION, got $NODE_RUNTIME_VER"
+            ERRORS=$((ERRORS + 1))
+          fi
+
+          # Validate Python SDK runtime version constant
+          PY_RUNTIME_VER=$(grep '^__version__ = ' python/sdk/src/t0_provider_sdk/_version.py | sed 's/.*"\(.*\)".*/\1/')
+          if [ "$PY_RUNTIME_VER" != "$VERSION" ]; then
+            echo "::error::Python SDK runtime version mismatch: expected $VERSION, got $PY_RUNTIME_VER"
+            ERRORS=$((ERRORS + 1))
+          fi
+
+          # Validate Java SDK runtime version constant
+          JAVA_RUNTIME_VER=$(grep '^sdk.version=' java/sdk/src/main/resources/META-INF/sdk-version.properties | cut -d= -f2)
+          if [ "$JAVA_RUNTIME_VER" != "$VERSION" ]; then
+            echo "::error::Java SDK runtime version mismatch: expected $VERSION, got $JAVA_RUNTIME_VER"
             ERRORS=$((ERRORS + 1))
           fi
 

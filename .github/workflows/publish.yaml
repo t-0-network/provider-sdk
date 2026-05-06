@@ -146,6 +146,13 @@ jobs:
           go-version: "stable"
           cache-dependency-path: go/go.sum
 
+      - name: Verify SDK version matches tag
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          RUNTIME=$(grep 'const Version = ' go/sdkversion/version.go | sed 's/.*"\(.*\)".*/\1/')
+          [ "$RUNTIME" = "$VERSION" ] || { echo "::error::go/sdkversion/version.go has $RUNTIME, tag is v$VERSION"; exit 1; }
+          echo "Go SDK runtime version $RUNTIME matches tag v$VERSION"
+
       - name: Request GOPROXY update
         run: |
           VERSION="${GITHUB_REF#refs/tags/v}"
@@ -171,6 +178,15 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version: lts/*
+
+      - name: Verify SDK version matches tag
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          RUNTIME=$(grep 'export const SDK_VERSION = ' node/sdk/src/version.ts | sed 's/.*"\(.*\)".*/\1/')
+          PKG=$(node -p "require('./node/sdk/package.json').version")
+          [ "$RUNTIME" = "$VERSION" ] || { echo "::error::node/sdk/src/version.ts has $RUNTIME, tag is v$VERSION"; exit 1; }
+          [ "$PKG" = "$VERSION" ]     || { echo "::error::node/sdk/package.json has $PKG, tag is v$VERSION"; exit 1; }
+          echo "Node SDK runtime + package version $VERSION matches tag"
 
       - name: Build
         working-directory: node/sdk
@@ -201,6 +217,13 @@ jobs:
         with:
           node-version: lts/*
 
+      - name: Verify Starter version matches tag
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          PKG=$(node -p "require('./node/starter/package.json').version")
+          [ "$PKG" = "$VERSION" ] || { echo "::error::node/starter/package.json has $PKG, tag is v$VERSION"; exit 1; }
+          echo "Node Starter version $PKG matches tag"
+
       - name: Build
         working-directory: node/starter
         run: |
@@ -230,6 +253,15 @@ jobs:
       - name: Install uv
         uses: astral-sh/setup-uv@v7
 
+      - name: Verify SDK version matches tag
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          RUNTIME=$(grep '^__version__ = ' python/sdk/src/t0_provider_sdk/_version.py | sed 's/.*"\(.*\)".*/\1/')
+          PKG=$(grep '^version = ' python/sdk/pyproject.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+          [ "$RUNTIME" = "$VERSION" ] || { echo "::error::python/sdk/.../t0_provider_sdk/_version.py has $RUNTIME, tag is v$VERSION"; exit 1; }
+          [ "$PKG" = "$VERSION" ]     || { echo "::error::python/sdk/pyproject.toml has $PKG, tag is v$VERSION"; exit 1; }
+          echo "Python SDK runtime + package version $VERSION matches tag"
+
       - name: Build
         working-directory: python
         run: uv build --package t0-provider-sdk
@@ -256,6 +288,13 @@ jobs:
 
       - name: Install uv
         uses: astral-sh/setup-uv@v7
+
+      - name: Verify Starter version matches tag
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          PKG=$(grep '^version = ' python/starter/pyproject.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
+          [ "$PKG" = "$VERSION" ] || { echo "::error::python/starter/pyproject.toml has $PKG, tag is v$VERSION"; exit 1; }
+          echo "Python Starter version $PKG matches tag"
 
       - name: Build
         working-directory: python
@@ -288,6 +327,15 @@ jobs:
       - name: Get version from tag
         id: version
         run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Verify SDK version matches tag
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          RUNTIME=$(grep '^sdk.version=' java/sdk/src/main/resources/META-INF/sdk-version.properties | cut -d= -f2)
+          PKG=$(grep '^version=' java/gradle.properties | cut -d= -f2)
+          [ "$RUNTIME" = "$VERSION" ] || { echo "::error::java/sdk/src/main/resources/META-INF/sdk-version.properties has $RUNTIME, tag is v$VERSION"; exit 1; }
+          [ "$PKG" = "$VERSION" ]     || { echo "::error::java/gradle.properties has $PKG, tag is v$VERSION"; exit 1; }
+          echo "Java SDK runtime + package version $VERSION matches tag"
 
       - name: Build
         working-directory: java
@@ -327,6 +375,15 @@ jobs:
         uses: actions/setup-dotnet@v5
         with:
           dotnet-version: "10.0.x"
+
+      - name: Verify SDK + Starter versions match tag
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          SDK_VER=$(grep '<Version>' csharp/sdk/T0.ProviderSdk/T0.ProviderSdk.csproj | sed 's/.*<Version>\(.*\)<\/Version>.*/\1/')
+          STARTER_VER=$(grep '<Version>' csharp/starter/T0.ProviderStarter/T0.ProviderStarter.csproj | sed 's/.*<Version>\(.*\)<\/Version>.*/\1/')
+          [ "$SDK_VER" = "$VERSION" ]     || { echo "::error::C# SDK csproj has $SDK_VER, tag is v$VERSION"; exit 1; }
+          [ "$STARTER_VER" = "$VERSION" ] || { echo "::error::C# Starter csproj has $STARTER_VER, tag is v$VERSION"; exit 1; }
+          echo "C# SDK + Starter versions $VERSION match tag"
 
       - name: Pack SDK
         working-directory: csharp

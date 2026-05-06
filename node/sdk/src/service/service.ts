@@ -14,6 +14,8 @@ import {Hash} from "@noble/hashes/utils.js";
 import type {DescService, } from "@bufbuild/protobuf";
 import type {ServiceImpl} from "@connectrpc/connect";
 import {createValidationInterceptor} from "./validate_response.js";
+import {SystemService} from "../common/gen/tzero/v1/system/system_pb.js";
+import {createSystemServiceImpl} from "./system.js";
 
 export const REQUEST_VALIDITY_MILLIS = 60_000;
 
@@ -70,7 +72,17 @@ export const createService = (
 
   return {
     routes: (router: ConnectRouter)=> {
-      registerRoutes(router)
+      const collected: string[] = [];
+      const origService = router.service.bind(router);
+      const wrappedRouter: Router = {
+        service: <T extends DescService>(desc: T, impl: Partial<ServiceImpl<T>>) => {
+          collected.push(desc.typeName);
+          origService(desc, impl);
+        },
+      };
+      registerRoutes(wrappedRouter);
+      collected.push(SystemService.typeName);
+      origService(SystemService, createSystemServiceImpl(collected));
     },
     interceptors: [createSignatureVerification(networkPublicKey), createValidationInterceptor()],
     grpcWeb: false,

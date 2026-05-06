@@ -24,9 +24,11 @@ cross_test/         Cross-language test vectors
 
 ## Versioning
 
-All SDKs share a unified version managed via git tags (`vX.Y.Z`). Version is bumped in all language files simultaneously by the Release workflow.
+All SDKs share a unified version managed via git tags (`vX.Y.Z`). The version lives in three categories of files (package-level, starter-template pin, runtime constant) across five ecosystems. **Whenever you add a new version site, also update [`release.yaml`](.github/workflows/release.yaml) (bump + validate) and [`publish.yaml`](.github/workflows/publish.yaml) (per-job tag-vs-version assertion) — otherwise the tag will silently drift.** Full file-by-file breakdown: [`docs/VERSIONING.md`](docs/VERSIONING.md). End-to-end CI flow: [`docs/RELEASE_AND_PUBLISH.md`](docs/RELEASE_AND_PUBLISH.md). Go requires additional module tags: `go/vX.Y.Z`, `go/starter/vX.Y.Z`, `go/starter/template/vX.Y.Z`.
 
-Go requires additional module tags: `go/vX.Y.Z`, `go/starter/vX.Y.Z`, `go/starter/template/vX.Y.Z`.
+## SystemService (auto-registered)
+
+Every SDK auto-registers `tzero.v1.system.SystemService` inside its server-construction wrapper (`provider.NewHttpHandler` / `createService` / `new_asgi_app` / `ProviderServer.Builder`). Customers never name `SystemService`; bumping the SDK is the only action they take. The first RPC is `Health()` (returns registered service FQNs, server time, SDK version + ecosystem). **Future operational RPCs belong on this same service** so customers get them automatically. Full design + per-language seams + maintainer guidance: [`docs/SYSTEM_SERVICE.md`](docs/SYSTEM_SERVICE.md).
 
 ## Workflows
 

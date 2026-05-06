@@ -12,6 +12,8 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from typing import Any, TypeVar
 
+from tzero.v1.system.system_connect import SystemServiceASGIApplication, SystemServiceWSGIApplication
+
 from t0_provider_sdk.provider.interceptor import SignatureErrorInterceptor, SignatureErrorInterceptorSync
 from t0_provider_sdk.provider.middleware import (
     DEFAULT_MAX_BODY_SIZE,
@@ -23,6 +25,7 @@ from t0_provider_sdk.provider.middleware_wsgi import (
     WSGIApp,
     signature_verification_middleware_wsgi,
 )
+from t0_provider_sdk.provider.system import SystemServiceImpl, SystemServiceImplSync
 from t0_provider_sdk.provider.validate_response import ValidationInterceptor, ValidationInterceptorSync
 
 T = TypeVar("T")
@@ -107,6 +110,16 @@ def new_asgi_app(
         path, app = build(default_options)
         routes[path] = app
 
+    # Auto-register SystemService alongside customer services. Inherits the
+    # same default_options interceptors and the outer signature middleware.
+    service_names = [path.lstrip("/") for path in routes]
+    service_names.append("tzero.v1.system.SystemService")
+    system_app = SystemServiceASGIApplication(
+        SystemServiceImpl(service_names),
+        interceptors=list(default_options.interceptors),
+    )
+    routes[system_app.path] = system_app
+
     # Create router ASGI app
     router = _create_router(routes)
 
@@ -176,6 +189,15 @@ def new_wsgi_app(
     for build in build_handlers:
         path, app = build(default_options)
         routes[path] = app
+
+    # Auto-register SystemService alongside customer services.
+    service_names = [path.lstrip("/") for path in routes]
+    service_names.append("tzero.v1.system.SystemService")
+    system_app = SystemServiceWSGIApplication(
+        SystemServiceImplSync(service_names),
+        interceptors=list(default_options.interceptors),
+    )
+    routes[system_app.path] = system_app
 
     # Create router WSGI app
     router = _create_wsgi_router(routes)

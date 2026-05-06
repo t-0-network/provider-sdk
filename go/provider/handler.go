@@ -2,8 +2,11 @@ package provider
 
 import (
 	"net/http"
+	"strings"
 
 	"connectrpc.com/connect"
+
+	"github.com/t-0-network/provider-sdk/go/api/tzero/v1/system/systemconnect"
 )
 
 type BuildHandler func(defaultOptions providerHandlerOptions) (path string, handler http.Handler)
@@ -40,10 +43,17 @@ func NewHttpHandler(
 	}
 
 	mux := http.NewServeMux()
+	registered := make([]string, 0, len(buildHandlers)+1)
 	for _, b := range buildHandlers {
 		path, providerServiceHandler := b(defaultOptions)
 		mux.Handle(path, providerServiceHandler)
+		registered = append(registered, strings.Trim(path, "/"))
 	}
+	registered = append(registered, systemconnect.SystemServiceName)
+
+	systemBuild := Handler(systemconnect.NewSystemServiceHandler, systemconnect.SystemServiceHandler(newSystemServiceImpl(registered)))
+	systemPath, systemHandler := systemBuild(defaultOptions)
+	mux.Handle(systemPath, systemHandler)
 
 	return mux, nil
 }
