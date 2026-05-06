@@ -59,13 +59,13 @@ python/
 
 | Package | PyPI | Import | Purpose |
 |---------|------|--------|---------|
-| connect-python | `connect-python>=0.8` | `connectrpc` | ConnectRPC runtime |
+| connectrpc | `connectrpc>=0.10.0` | `connectrpc` | ConnectRPC runtime (renamed from `connect-python` at v0.10.0) |
 | pyqwest | (transitive) | `pyqwest` | HTTP client (Rust-backed) |
 | protobuf | `protobuf>=7.34` | `google.protobuf` | Message serialization |
 | coincurve | `coincurve>=21.0` | `coincurve` | secp256k1 ECDSA |
 | pycryptodome | `pycryptodome>=3.23` | `Crypto.Hash.keccak` | Keccak256 |
 
-**DO NOT use:** `pysha3` (incompatible with Python 3.13), `hashlib.sha3_256()` (different padding from Keccak256), `connectrpc` from PyPI (different package v0.0.1 by Gaudiy).
+**DO NOT use:** `pysha3` (incompatible with Python 3.13), `hashlib.sha3_256()` (different padding from Keccak256). Note: `connectrpc` on PyPI is the official ConnectRPC Python runtime as of v0.10.0; pin `>=0.10.0` to skip the older squatted v0.0.1.
 
 ## ConnectRPC Python Specifics
 
@@ -104,7 +104,7 @@ Validates: Keccak256 hash, public key derivation, bidirectional signature verifi
 
 ## SystemService & Versioning
 
-`new_asgi_app` / `new_wsgi_app` in `provider/handler.py` auto-register `tzero.v1.system.SystemService` (impl in `provider/system.py`). Runtime version: `_version.py` (`__version__`). Full design + maintenance details: [`docs/SYSTEM_SERVICE.md`](../docs/SYSTEM_SERVICE.md), [`docs/VERSIONING.md`](../docs/VERSIONING.md). **Gotcha:** the generated `tzero/v1/system/system_connect.py` has a manual patch (codec import + kwarg removed) for connect-python 0.9.0 compatibility — re-apply after any `buf generate` until the buf plugin is pinned.
+`new_asgi_app` / `new_wsgi_app` in `provider/handler.py` auto-register `tzero.v1.system.SystemService` (impl in `provider/system.py`). Runtime version: `_version.py` (`__version__`). Full design + maintenance details: [`docs/SYSTEM_SERVICE.md`](../docs/SYSTEM_SERVICE.md), [`docs/VERSIONING.md`](../docs/VERSIONING.md).
 
 ## Architecture (Go SDK Mapping)
 

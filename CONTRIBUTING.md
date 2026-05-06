@@ -163,7 +163,7 @@ Run tests per language:
 
 | PyPI Package | Import | Purpose | Notes |
 |---|---|---|---|
-| `connect-python` | `connectrpc` | ConnectRPC runtime | Do NOT use the `connectrpc` PyPI package (different, unmaintained) |
+| `connectrpc` | `connectrpc` | ConnectRPC runtime | PyPI distribution renamed from `connect-python` at v0.10.0; pin `>=0.10.0` |
 | `protobuf` | `google.protobuf` | Message serialization | >= 5.28 required |
 | `coincurve` | `coincurve` | secp256k1 ECDSA | Signing, verification, key derivation |
 | `pycryptodome` | `Crypto.Hash.keccak` | Keccak256 hash | Do NOT use `pysha3` (incompatible with Python 3.13) or `hashlib.sha3_256` (different padding) |

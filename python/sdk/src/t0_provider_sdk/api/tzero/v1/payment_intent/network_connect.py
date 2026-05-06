@@ -7,6 +7,7 @@ from typing import Protocol
 
 from connectrpc.client import ConnectClient, ConnectClientSync
 from connectrpc.code import Code
+from connectrpc.codec import Codec
 from connectrpc.compression import Compression
 from connectrpc.errors import ConnectError
 from connectrpc.interceptor import Interceptor, InterceptorSync
@@ -31,7 +32,7 @@ class PaymentIntentService(Protocol):
 
 
 class PaymentIntentServiceASGIApplication(ConnectASGIApplication[PaymentIntentService]):
-    def __init__(self, service: PaymentIntentService | AsyncGenerator[PaymentIntentService], *, interceptors: Iterable[Interceptor]=(), read_max_bytes: int | None = None, compressions: Iterable[Compression] | None = None) -> None:
+    def __init__(self, service: PaymentIntentService | AsyncGenerator[PaymentIntentService], *, interceptors: Iterable[Interceptor]=(), read_max_bytes: int | None = None, compressions: Iterable[Compression] | None = None, codecs: Iterable[Codec] | None = None) -> None:
         super().__init__(
             service=service,
             endpoints=lambda svc: {
@@ -79,6 +80,7 @@ class PaymentIntentServiceASGIApplication(ConnectASGIApplication[PaymentIntentSe
             interceptors=interceptors,
             read_max_bytes=read_max_bytes,
             compressions=compressions,
+            codecs=codecs,
         )
 
     @property
@@ -169,6 +171,9 @@ class PaymentIntentServiceClient(ConnectClient):
         )
 
 
+
+
+
 class PaymentIntentServiceSync(Protocol):
     def update_quote(self, request: tzero_dot_v1_dot_payment__intent_dot_network__pb2.UpdateQuoteRequest, ctx: RequestContext) -> tzero_dot_v1_dot_payment__intent_dot_network__pb2.UpdateQuoteResponse:
         raise ConnectError(Code.UNIMPLEMENTED, "Not implemented")
@@ -181,7 +186,7 @@ class PaymentIntentServiceSync(Protocol):
 
 
 class PaymentIntentServiceWSGIApplication(ConnectWSGIApplication):
-    def __init__(self, service: PaymentIntentServiceSync, interceptors: Iterable[InterceptorSync]=(), read_max_bytes: int | None = None, compressions: Iterable[Compression] | None = None) -> None:
+    def __init__(self, service: PaymentIntentServiceSync, interceptors: Iterable[InterceptorSync]=(), read_max_bytes: int | None = None, compressions: Iterable[Compression] | None = None, codecs: Iterable[Codec] | None = None) -> None:
         super().__init__(
             endpoints={
                 "/tzero.v1.payment_intent.PaymentIntentService/UpdateQuote": EndpointSync.unary(
@@ -228,6 +233,7 @@ class PaymentIntentServiceWSGIApplication(ConnectWSGIApplication):
             interceptors=interceptors,
             read_max_bytes=read_max_bytes,
             compressions=compressions,
+            codecs=codecs,
         )
 
     @property
@@ -316,3 +322,5 @@ class PaymentIntentServiceClientSync(ConnectClientSync):
             headers=headers,
             timeout_ms=timeout_ms,
         )
+
+

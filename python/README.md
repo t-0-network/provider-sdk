@@ -176,4 +176,4 @@ docker run --env-file .env -p 8080:8080 my-provider
 
 **Signature verification failures** -- Ensure the server clock is synchronized (NTP). Timestamps outside +/- 60 seconds are rejected. Verify that `NETWORK_PUBLIC_KEY` matches the key provided by the T-0 team.
 
-**`pip install connectrpc` installs the wrong package** -- The correct PyPI package is `connect-python` (which imports as `connectrpc`). The `connectrpc` package on PyPI is a different, unmaintained package. The SDK's `pyproject.toml` already depends on the correct package.
+**ConnectRPC PyPI package** -- The package is `connectrpc` (renamed from `connect-python` at v0.10.0). The SDK's `pyproject.toml` pins `connectrpc>=0.10.0`, which resolves to the official runtime. Earlier docs warned about a squatted v0.0.1 on the same PyPI name; that release pre-dates 0.9.0 and pinning `>=0.10.0` skips it.

@@ -104,8 +104,6 @@ Implementations live next to the wrapper:
 
 ### Per-language gotchas
 
-**Python — manual patch on generated `system_connect.py`.** The current connect-python plugin emits `from connectrpc.codec import Codec` and a `codecs=` kwarg, both of which break against the installed `connect-python==0.9.0` runtime. The committed [`python/sdk/src/t0_provider_sdk/api/tzero/v1/system/system_connect.py`](../python/sdk/src/t0_provider_sdk/api/tzero/v1/system/system_connect.py) has those lines manually removed. **If you re-run `buf generate`, re-apply the patch** (or pin the buf plugin version per the TODO in [`buf.gen.yaml`](../buf.gen.yaml) line ~42). The same regression affects every other `*_connect.py`; today the workaround is to revert their regenerations after every `buf generate`.
-
 **Java — `services.isEmpty()` validation is preserved.** `Builder.build()` rejects construction when no customer service was added via `withService(...)`. SystemService is appended **inside** `buildGrpcServer()`, never into `Builder.services`, so the check still catches "you forgot to add ProviderService".
 
 **Java — runtime version is a classpath resource, not a constant.** `META-INF/sdk-version.properties` ships in the jar; `SystemServiceImpl.loadSdkVersion()` reads it via `getResourceAsStream`. This works under jar shading, but consumers who repackage with relocation rules need to keep `META-INF/` intact.
@@ -139,4 +137,4 @@ Examples that do **not** fit and should be separate services:
 
 ### Known gaps
 
-- Buf plugin versions in [`buf.gen.yaml`](../buf.gen.yaml) are unpinned — TODO at line ~42. Pinning them (or upgrading `connect-python` to a release whose plugin output matches the runtime API) would eliminate the manual codec patch on `system_connect.py` noted above. Tracked separately.
+- No Python/Node/Java Health-specific tests yet (see "Tests covering Health" above).

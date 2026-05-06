@@ -7,6 +7,7 @@ from typing import Protocol
 
 from connectrpc.client import ConnectClient, ConnectClientSync
 from connectrpc.code import Code
+from connectrpc.codec import Codec
 from connectrpc.compression import Compression
 from connectrpc.errors import ConnectError
 from connectrpc.interceptor import Interceptor, InterceptorSync
@@ -37,7 +38,7 @@ class NetworkService(Protocol):
 
 
 class NetworkServiceASGIApplication(ConnectASGIApplication[NetworkService]):
-    def __init__(self, service: NetworkService | AsyncGenerator[NetworkService], *, interceptors: Iterable[Interceptor]=(), read_max_bytes: int | None = None, compressions: Iterable[Compression] | None = None) -> None:
+    def __init__(self, service: NetworkService | AsyncGenerator[NetworkService], *, interceptors: Iterable[Interceptor]=(), read_max_bytes: int | None = None, compressions: Iterable[Compression] | None = None, codecs: Iterable[Codec] | None = None) -> None:
         super().__init__(
             service=service,
             endpoints=lambda svc: {
@@ -105,6 +106,7 @@ class NetworkServiceASGIApplication(ConnectASGIApplication[NetworkService]):
             interceptors=interceptors,
             read_max_bytes=read_max_bytes,
             compressions=compressions,
+            codecs=codecs,
         )
 
     @property
@@ -237,6 +239,9 @@ class NetworkServiceClient(ConnectClient):
         )
 
 
+
+
+
 class NetworkServiceSync(Protocol):
     def update_quote(self, request: tzero_dot_v1_dot_payment_dot_network__pb2.UpdateQuoteRequest, ctx: RequestContext) -> tzero_dot_v1_dot_payment_dot_network__pb2.UpdateQuoteResponse:
         raise ConnectError(Code.UNIMPLEMENTED, "Not implemented")
@@ -253,7 +258,7 @@ class NetworkServiceSync(Protocol):
 
 
 class NetworkServiceWSGIApplication(ConnectWSGIApplication):
-    def __init__(self, service: NetworkServiceSync, interceptors: Iterable[InterceptorSync]=(), read_max_bytes: int | None = None, compressions: Iterable[Compression] | None = None) -> None:
+    def __init__(self, service: NetworkServiceSync, interceptors: Iterable[InterceptorSync]=(), read_max_bytes: int | None = None, compressions: Iterable[Compression] | None = None, codecs: Iterable[Codec] | None = None) -> None:
         super().__init__(
             endpoints={
                 "/tzero.v1.payment.NetworkService/UpdateQuote": EndpointSync.unary(
@@ -320,6 +325,7 @@ class NetworkServiceWSGIApplication(ConnectWSGIApplication):
             interceptors=interceptors,
             read_max_bytes=read_max_bytes,
             compressions=compressions,
+            codecs=codecs,
         )
 
     @property
@@ -450,3 +456,5 @@ class NetworkServiceClientSync(ConnectClientSync):
             headers=headers,
             timeout_ms=timeout_ms,
         )
+
+

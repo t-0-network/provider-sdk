@@ -39,21 +39,19 @@ managed:
       value: T0.ProviderSdk.Api.Buf.Validate
 
 plugins:
-  # TODO: Pin plugin versions for reproducible generation (append :vX.Y.Z to remote URLs)
-  # Go deps: protobuf-go v1.36.11, connect v1.19.1
-  # Node deps: @bufbuild/protobuf ^2.10.0
-  # Python deps: protobuf >=5.28, connect-python >=0.8
+  # Plugin versions are pinned. When upgrading a runtime SDK, bump the matching
+  # plugin pin here in the same PR and run `buf generate`.
 
   # --- Go ---
-  - remote: buf.build/protocolbuffers/go
+  - remote: buf.build/protocolbuffers/go:v1.36.11
     out: go/api
     opt: paths=source_relative
-  - remote: buf.build/connectrpc/go
+  - remote: buf.build/connectrpc/go:v1.19.1
     out: go/api
     opt: paths=source_relative
 
   # --- Node (TypeScript) ---
-  - remote: buf.build/bufbuild/es
+  - remote: buf.build/bufbuild/es:v2.12.0
     out: node/sdk/src/common/gen
     include_imports: true
     opt:
@@ -61,17 +59,17 @@ plugins:
       - import_extension=js
 
   # --- Python ---
-  - remote: buf.build/protocolbuffers/python
+  - remote: buf.build/protocolbuffers/python:v34.1
     out: python/sdk/src/t0_provider_sdk/api
-  - remote: buf.build/protocolbuffers/pyi
+  - remote: buf.build/protocolbuffers/pyi:v34.1
     out: python/sdk/src/t0_provider_sdk/api
-  - remote: buf.build/connectrpc/python
+  - remote: buf.build/connectrpc/python:v0.10.0
     out: python/sdk/src/t0_provider_sdk/api
 
   # --- C# ---
-  - remote: buf.build/protocolbuffers/csharp
+  - remote: buf.build/protocolbuffers/csharp:v34.0
     out: csharp/sdk/T0.ProviderSdk/Api
     opt: base_namespace=T0.ProviderSdk.Api
-  - remote: buf.build/grpc/csharp
+  - remote: buf.build/grpc/csharp:v1.78.0
     out: csharp/sdk/T0.ProviderSdk/Api
     opt: base_namespace=T0.ProviderSdk.Api
