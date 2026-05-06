@@ -67,7 +67,7 @@ Each SDK has a wrapper around server construction that the starter calls. Inside
 | Node | `createService` | [`node/sdk/src/service/service.ts`](../node/sdk/src/service/service.ts) |
 | Python | `new_asgi_app`, `new_wsgi_app` | [`python/sdk/src/t0_provider_sdk/provider/handler.py`](../python/sdk/src/t0_provider_sdk/provider/handler.py) |
 | Java | `ProviderServer.Builder.buildGrpcServer` | [`java/sdk/src/main/java/network/t0/sdk/provider/ProviderServer.java`](../java/sdk/src/main/java/network/t0/sdk/provider/ProviderServer.java) |
-| C# | *(not implemented yet — TODO at C# parity)* | — |
+| C# | `T0ProviderServer.RunAsync` | [`csharp/sdk/T0.ProviderSdk/T0ProviderServer.cs`](../csharp/sdk/T0.ProviderSdk/T0ProviderServer.cs) |
 
 The customer-facing FQN list returned by `Health.services` is collected at registration time:
 
@@ -75,12 +75,14 @@ The customer-facing FQN list returned by `Health.services` is collected at regis
 - **Node:** the user's `Router.service(desc, impl)` call is wrapped to capture `desc.typeName`.
 - **Python:** `routes.keys()` are stripped of leading `/` to recover FQNs.
 - **Java:** `BindableService.bindService().getServiceDescriptor().getName()` returns the FQN directly.
+- **C#:** each `MapPaymentService` / `MapPaymentIntentService` call appends `*.ProviderService.Descriptor.FullName` to a list; `RunAsync` adds `SystemService.Descriptor.FullName` and constructs `SystemServiceImpl` with the full list.
 
 Implementations live next to the wrapper:
 - Go: [`go/provider/system.go`](../go/provider/system.go)
 - Node: [`node/sdk/src/service/system.ts`](../node/sdk/src/service/system.ts)
 - Python: [`python/sdk/src/t0_provider_sdk/provider/system.py`](../python/sdk/src/t0_provider_sdk/provider/system.py)
 - Java: [`java/sdk/src/main/java/network/t0/sdk/provider/SystemServiceImpl.java`](../java/sdk/src/main/java/network/t0/sdk/provider/SystemServiceImpl.java)
+- C#: [`csharp/sdk/T0.ProviderSdk/Provider/SystemServiceImpl.cs`](../csharp/sdk/T0.ProviderSdk/Provider/SystemServiceImpl.cs)
 
 ### Adding a new RPC to SystemService
 
@@ -91,6 +93,7 @@ Implementations live next to the wrapper:
    - Node: add a method on the object returned by `createSystemServiceImpl`.
    - Python: add a method on both `SystemServiceImpl` (async, ASGI) and `SystemServiceImplSync` (WSGI).
    - Java: override the method on `SystemServiceImpl extends SystemServiceGrpc.SystemServiceImplBase`.
+   - C#: override the method on `SystemServiceImpl : SystemService.SystemServiceBase`.
 4. **Don't change any wrapper code** — the auto-registration loop already covers all RPCs of `SystemService`.
 5. **No customer code change** — the new RPC appears on every provider after they bump the SDK.
 
@@ -110,7 +113,9 @@ Implementations live next to the wrapper:
 
 **Node — public API contract.** The wrapped `Router` cast in `service.ts` is small (one method); if the underlying `ConnectRouter.service` signature changes, update the wrapper or starters break.
 
-**C# — not yet wired.** Generated stubs exist at [`csharp/sdk/T0.ProviderSdk/Api/Tzero/V1/System/`](../csharp/sdk/T0.ProviderSdk/Api/Tzero/V1/System/) but no equivalent of `SystemServiceImpl` or auto-registration is in place. Tracked for parity work when the C# SDK is published.
+**C# — runtime version read from assembly.** `SystemServiceImpl.LoadSdkVersion()` reads `AssemblyInformationalVersionAttribute`, which MSBuild auto-populates from the `<Version>` element in `T0.ProviderSdk.csproj`. Any `+gitsha` suffix (set when `IncludeSourceRevisionInInformationalVersion` is on) is stripped so the returned string is plain semver. No second source of truth — `release.yaml`'s `<Version>` bump is the only knob.
+
+**C# — Kestrel HTTP/2 from appsettings.** The starter's `appsettings.json` sets `Kestrel:EndpointDefaults:Protocols=Http2` so cleartext gRPC works. `T0ProviderServer` itself does not configure Kestrel; tests pass `--Kestrel:EndpointDefaults:Protocols=Http2` via the constructor's `args` parameter to mirror that setup.
 
 ### Future endpoints (design intent)
 
@@ -129,6 +134,7 @@ Examples that do **not** fit and should be separate services:
 ### Tests covering Health
 
 - Go: [`go/provider/system_test.go`](../go/provider/system_test.go) — three tests: response shape, fully-signed end-to-end through `network.NewServiceClient`, and unsigned-request rejection (proves signature middleware applies to Health).
+- C#: [`csharp/sdk/T0.ProviderSdk.Tests/Provider/SystemServiceImplTests.cs`](../csharp/sdk/T0.ProviderSdk.Tests/Provider/SystemServiceImplTests.cs) — three xUnit tests mirroring the Go set: direct impl shape, signed end-to-end through `T0ProviderServer.RunAsync`, and unsigned-request rejection.
 - Node, Python, Java: existing test suites build green; **no Health-specific tests yet** — see "Known gaps" below.
 
 ### Cross-language testing

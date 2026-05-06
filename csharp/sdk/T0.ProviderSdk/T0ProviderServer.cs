@@ -7,6 +7,7 @@ using T0.ProviderSdk.Crypto;
 using T0.ProviderSdk.Provider;
 using PaymentApi = T0.ProviderSdk.Api.Tzero.V1.Payment;
 using PaymentIntentApi = T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.Provider;
+using SystemApi = T0.ProviderSdk.Api.Tzero.V1.System;
 
 namespace T0.ProviderSdk;
 
@@ -19,6 +20,7 @@ public sealed class T0ProviderServer
     private readonly WebApplicationBuilder _builder;
     private readonly T0Config _config;
     private readonly List<Action<WebApplication>> _mapActions = [];
+    private readonly List<string> _registeredFqns = [];
 
     public T0ProviderServer(T0Config config, Signer signer, string[]? args = null)
     {
@@ -43,6 +45,7 @@ public sealed class T0ProviderServer
         PaymentApi.NetworkService.NetworkServiceClient networkClient)
         where THandler : PaymentApi.ProviderService.ProviderServiceBase
     {
+        _registeredFqns.Add(PaymentApi.ProviderService.Descriptor.FullName);
         _builder.Services.AddSingleton(networkClient);
         _mapActions.Add(app => app.MapGrpcService<THandler>());
         return this;
@@ -55,6 +58,7 @@ public sealed class T0ProviderServer
         PaymentIntentApi.NetworkService.NetworkServiceClient networkClient)
         where THandler : PaymentIntentApi.ProviderService.ProviderServiceBase
     {
+        _registeredFqns.Add(PaymentIntentApi.ProviderService.Descriptor.FullName);
         _builder.Services.AddSingleton(networkClient);
         _mapActions.Add(app => app.MapGrpcService<THandler>());
         return this;
@@ -70,10 +74,17 @@ public sealed class T0ProviderServer
     }
 
     /// <summary>
-    /// Builds and runs the provider server. Blocks until shutdown.
+    /// Builds and runs the provider server. Blocks until <paramref name="cancellationToken"/>
+    /// fires or the host shuts down.
     /// </summary>
-    public async Task RunAsync()
+    public async Task RunAsync(CancellationToken cancellationToken = default)
     {
+        var fqns = new List<string>(_registeredFqns)
+        {
+            SystemApi.SystemService.Descriptor.FullName,
+        };
+        _builder.Services.AddSingleton(new SystemServiceImpl(fqns));
+
         var app = _builder.Build();
 
         app.UseMiddleware<SignatureVerificationMiddleware>(
@@ -82,6 +93,8 @@ public sealed class T0ProviderServer
         foreach (var mapAction in _mapActions)
             mapAction(app);
 
-        await app.RunAsync();
+        app.MapGrpcService<SystemServiceImpl>();
+
+        await app.RunAsync(cancellationToken);
     }
 }
