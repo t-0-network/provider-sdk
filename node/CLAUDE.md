@@ -34,6 +34,10 @@ node/
 - Trusted publishing uses OIDC (`id-token: write` permission) — no npm tokens needed
 - Trusted publisher config on npmjs.com must point to repo `t-0-network/provider-sdk` and the correct workflow/environment
 
+## SystemService & Versioning
+
+`createService()` in `src/service/service.ts` wraps the customer's `Router` and auto-registers `tzero.v1.system.SystemService` (impl in `src/service/system.ts`). Runtime version constant: `src/version.ts` (`SDK_VERSION`). Full design + maintenance details: [`docs/SYSTEM_SERVICE.md`](../docs/SYSTEM_SERVICE.md), [`docs/VERSIONING.md`](../docs/VERSIONING.md).
+
 ## Dual ESM/CJS Build
 
 The SDK publishes both ESM and CJS:

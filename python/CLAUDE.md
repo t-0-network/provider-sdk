@@ -102,6 +102,10 @@ uv run pytest tests/cross_test/ -v
 
 Validates: Keccak256 hash, public key derivation, bidirectional signature verification, and end-to-end server-to-server communication (both ASGI and WSGI).
 
+## SystemService & Versioning
+
+`new_asgi_app` / `new_wsgi_app` in `provider/handler.py` auto-register `tzero.v1.system.SystemService` (impl in `provider/system.py`). Runtime version: `_version.py` (`__version__`). Full design + maintenance details: [`docs/SYSTEM_SERVICE.md`](../docs/SYSTEM_SERVICE.md), [`docs/VERSIONING.md`](../docs/VERSIONING.md). **Gotcha:** the generated `tzero/v1/system/system_connect.py` has a manual patch (codec import + kwarg removed) for connect-python 0.9.0 compatibility — re-apply after any `buf generate` until the buf plugin is pinned.
+
 ## Architecture (Go SDK Mapping)
 
 | Go SDK | Python SDK |

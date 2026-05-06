@@ -35,10 +35,11 @@ go/
 ## Key Packages
 
 - `provider.StartServer()` — Starts HTTP/2 (h2c) server, returns immediately with shutdown function
-- `provider.NewProviderHandler()` — Creates handler with signature verification middleware
+- `provider.NewHttpHandler()` — Creates handler with signature verification middleware; auto-registers `tzero.v1.system.SystemService` alongside customer services. See [`docs/SYSTEM_SERVICE.md`](../docs/SYSTEM_SERVICE.md).
 - `provider.Handler()` — Registers ConnectRPC service with options (`WithMaxBodySize`, `WithVerifySignatureFn`)
 - `network.NewServiceClient()` — Creates auto-signing ConnectRPC client
 - `crypto.Sign()` / `crypto.VerifySignature()` — secp256k1 operations
+- `sdkversion.Version` — runtime SDK version returned by `SystemService.Health`. Bumped by `release.yaml`, validated by `publish.yaml`. See [`docs/VERSIONING.md`](../docs/VERSIONING.md).
 
 ## Module Tags
 

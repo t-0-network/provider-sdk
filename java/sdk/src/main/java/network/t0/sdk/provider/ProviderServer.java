@@ -5,6 +5,7 @@ import io.grpc.Server;
 import io.grpc.ServerInterceptors;
 import io.grpc.ServerServiceDefinition;
 import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder;
+import network.t0.sdk.proto.tzero.v1.system.SystemServiceGrpc;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -293,13 +294,22 @@ public final class ProviderServer implements Closeable {
                     .maxInboundMetadataSize(maxInboundMetadataSize)
                     .handshakeTimeout(handshakeTimeout, handshakeTimeoutUnit);
 
+            List<String> registeredFqns = new ArrayList<>(services.size() + 1);
             for (BindableService service : services) {
                 ServerServiceDefinition originalDefinition = service.bindService();
+                registeredFqns.add(originalDefinition.getServiceDescriptor().getName());
                 ServerServiceDefinition withInputStream = ServerInterceptors.useInputStreamMessages(originalDefinition);
                 ServerServiceDefinition interceptedDefinition =
                         ServerInterceptors.intercept(withInputStream, verificationInterceptor, validationInterceptor);
                 builder.addService(interceptedDefinition);
             }
+
+            // Auto-register SystemService alongside customer services. Inherits the
+            // same signature-verification and response-validation interceptors.
+            registeredFqns.add(SystemServiceGrpc.SERVICE_NAME);
+            BindableService systemSvc = new SystemServiceImpl(registeredFqns);
+            ServerServiceDefinition systemDef = ServerInterceptors.useInputStreamMessages(systemSvc.bindService());
+            builder.addService(ServerInterceptors.intercept(systemDef, verificationInterceptor, validationInterceptor));
 
             return builder.build();
         }

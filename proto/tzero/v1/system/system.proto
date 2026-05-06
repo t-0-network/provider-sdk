@@ -1,0 +1,65 @@
+syntax = "proto3";
+
+package tzero.v1.system;
+
+import "google/protobuf/timestamp.proto";
+import "buf/validate/validate.proto";
+
+/**
+ * SystemService exposes operational/introspection RPCs on a provider
+ * endpoint. It is automatically registered by every provider SDK;
+ * customers do not implement it themselves. Calls are signed with the
+ * T-0 Network keypair, just like every other provider RPC.
+ *
+ * Health() is the first RPC. Future operational endpoints (e.g.
+ * Diagnostics, BuildInfo) belong on this service so customers continue
+ * to get them automatically as they upgrade the SDK.
+ */
+service SystemService {
+
+  /**
+   * Health returns the list of RPC services registered on this provider,
+   * the server's current wall-clock time, and the SDK build identifying
+   * this deployment. The returned `services` list always includes
+   * "tzero.v1.system.SystemService" itself.
+   */
+  rpc Health(HealthRequest) returns (HealthResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  };
+}
+
+message HealthRequest {}
+
+message HealthResponse {
+  /**
+   * Fully-qualified protobuf service names registered on this server, e.g.
+   * "tzero.v1.payment.ProviderService". Always includes
+   * "tzero.v1.system.SystemService".
+   */
+  repeated string services = 10;
+
+  /**
+   * Server wall-clock time. Useful to detect clock skew between the network
+   * and the provider.
+   */
+  google.protobuf.Timestamp current_time = 20;
+
+  /**
+   * Semver of the provider SDK package, e.g. "1.1.15".
+   */
+  string sdk_version = 30 [(buf.validate.field).string.min_len = 1];
+
+  /**
+   * Which SDK runtime/ecosystem this provider was built against.
+   */
+  SdkEcosystem sdk_ecosystem = 40;
+}
+
+enum SdkEcosystem {
+  SDK_ECOSYSTEM_UNSPECIFIED = 0;
+  SDK_ECOSYSTEM_GO = 1;
+  SDK_ECOSYSTEM_NODE = 2;
+  SDK_ECOSYSTEM_PYTHON = 3;
+  SDK_ECOSYSTEM_JAVA = 4;
+  SDK_ECOSYSTEM_CSHARP = 5;
+}

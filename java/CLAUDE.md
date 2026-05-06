@@ -81,6 +81,10 @@ java -jar provider-init.jar [OPTIONS] [PROJECT_NAME]
 - Template uses `${PROJECT_NAME}` and `${SDK_VERSION}` placeholders
 - Generated projects include Dockerfile with `applicationName = "provider"` (fixed install path)
 
+## SystemService & Versioning
+
+`ProviderServer.Builder.buildGrpcServer()` auto-registers `tzero.v1.system.SystemService` (impl in `SystemServiceImpl`) after the customer's `withService(...)` chain. SystemService is added inside `buildGrpcServer()` and is NOT in `Builder.services`, so the `services.isEmpty()` validation still catches "no customer service added". Runtime version: `META-INF/sdk-version.properties` (classpath resource). Full design + maintenance details: [`docs/SYSTEM_SERVICE.md`](../docs/SYSTEM_SERVICE.md), [`docs/VERSIONING.md`](../docs/VERSIONING.md).
+
 ## Key Technical Details
 
 - **Java 17+** required
