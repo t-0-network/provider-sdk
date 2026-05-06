@@ -133,9 +133,13 @@ Examples that do **not** fit and should be separate services:
 
 ### Tests covering Health
 
-- Go: [`go/provider/system_test.go`](../go/provider/system_test.go) — three tests: response shape, fully-signed end-to-end through `network.NewServiceClient`, and unsigned-request rejection (proves signature middleware applies to Health).
-- C#: [`csharp/sdk/T0.ProviderSdk.Tests/Provider/SystemServiceImplTests.cs`](../csharp/sdk/T0.ProviderSdk.Tests/Provider/SystemServiceImplTests.cs) — three xUnit tests mirroring the Go set: direct impl shape, signed end-to-end through `T0ProviderServer.RunAsync`, and unsigned-request rejection.
-- Node, Python, Java: existing test suites build green; **no Health-specific tests yet** — see "Known gaps" below.
+Each language SDK has Go-canonical coverage of `Health`: a direct impl unit test, a signed end-to-end test through the public server-construction wrapper (which proves auto-registration AND that customer-FQN + SystemService-FQN both appear), and an unsigned-request rejection (proves the signature middleware also covers the auto-registered service).
+
+- Go: [`go/provider/system_test.go`](../go/provider/system_test.go).
+- Node: [`node/sdk/test/system.test.ts`](../node/sdk/test/system.test.ts).
+- Python: [`python/sdk/tests/provider/test_system.py`](../python/sdk/tests/provider/test_system.py) (impl shape, async + sync) + [`python/sdk/tests/integration/test_system_signed.py`](../python/sdk/tests/integration/test_system_signed.py) (signed E2E via `new_asgi_app` + unsigned rejection).
+- Java: [`java/sdk/src/test/java/network/t0/sdk/provider/SystemServiceImplTest.java`](../java/sdk/src/test/java/network/t0/sdk/provider/SystemServiceImplTest.java).
+- C#: [`csharp/sdk/T0.ProviderSdk.Tests/Provider/SystemServiceImplTests.cs`](../csharp/sdk/T0.ProviderSdk.Tests/Provider/SystemServiceImplTests.cs).
 
 ### Cross-language testing
 
