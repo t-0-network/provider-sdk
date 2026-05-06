@@ -179,4 +179,39 @@ func TestProtovalidateRequests(t *testing.T) {
 		err := protovalidate.Validate(msg)
 		require.Error(t, err)
 	})
+
+	t.Run("multiple violations surface a non-empty ValidationError", func(t *testing.T) {
+		msg := &payment.AppendLedgerEntriesRequest{
+			Transactions: []*payment.AppendLedgerEntriesRequest_Transaction{
+				{
+					TransactionId:      0, // must be > 0
+					Entries:            nil,
+					TransactionDetails: nil,
+				},
+			},
+		}
+		err := protovalidate.Validate(msg)
+		require.Error(t, err)
+		var ve *protovalidate.ValidationError
+		require.ErrorAs(t, err, &ve)
+		require.NotEmpty(t, ve.Violations, "expected at least one violation in ValidationError")
+	})
+
+	t.Run("nested oneof: invalid Decimal inside a valid request still fails", func(t *testing.T) {
+		msg := &payment.AppendLedgerEntriesRequest{
+			Transactions: []*payment.AppendLedgerEntriesRequest_Transaction{
+				{
+					TransactionId: 1,
+					Entries: []*payment.AppendLedgerEntriesRequest_LedgerEntry{
+						{Debit: &common.Decimal{Exponent: 999}}, // out-of-range exponent on nested Decimal
+					},
+					TransactionDetails: &payment.AppendLedgerEntriesRequest_Transaction_Payout_{
+						Payout: &payment.AppendLedgerEntriesRequest_Transaction_Payout{PaymentId: 1},
+					},
+				},
+			},
+		}
+		err := protovalidate.Validate(msg)
+		require.Error(t, err)
+	})
 }
