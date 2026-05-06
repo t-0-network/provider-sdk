@@ -10,7 +10,7 @@ This document provides detailed technical documentation for developers who need 
 - [Architecture Overview](#architecture-overview)
 - [Critical: Raw Payload Bytes](#critical-raw-payload-bytes)
 - [Signature Format and Headers](#signature-format-and-headers)
-- [Protocol Support](#protocol-support)
+- [Accepted Signature Payload Formats](#accepted-signature-payload-formats)
 - [Thread Safety](#thread-safety)
 - [Usage Examples](#usage-examples)
 - [Error Handling](#error-handling)
@@ -72,7 +72,7 @@ Handles inbound requests from the t-0 Network with automatic signature verificat
 - Builder pattern for configuration
 - Configurable message sizes (default: 4MB inbound)
 - Automatic rejection of invalid/expired signatures
-- Support for both Connect and gRPC protocols
+- Inbound signature verification accepts both unframed and gRPC-framed signing payloads
 
 ### 3. Cryptography Layer (`network.t0.sdk.crypto`)
 
@@ -194,20 +194,21 @@ Where:
 
 ---
 
-## Protocol Support
+## Accepted Signature Payload Formats
 
-The SDK supports both Connect and gRPC protocols:
+The provider's `SignatureVerificationInterceptor` accepts signatures over either of two payload framings, allowing callers whose signing wiring sits at different layers in the gRPC stack:
 
-### Connect Protocol
-- HTTP body contains **raw protobuf bytes**
-- Signature computed over: `Keccak256(protobuf_bytes || timestamp)`
+### Unframed (signer above the gRPC framer)
+- Payload: raw protobuf message bytes
+- Signature computed over: `Keccak256(protobuf_bytes || timestamp_le_u64)`
+- Used by callers including the Java SDK's own `NetworkClient` and any Connect-protocol caller
 
-### gRPC Protocol
-- HTTP body contains **5-byte frame prefix + protobuf bytes**
+### gRPC-framed (signer below the gRPC framer)
+- Payload: 5-byte gRPC frame prefix followed by protobuf bytes
 - Frame format: `[0x00 (compression flag)] [4-byte length, big-endian]`
-- Signature computed over: `Keccak256(frame + protobuf_bytes || timestamp)`
+- Signature computed over: `Keccak256(frame || protobuf_bytes || timestamp_le_u64)`
 
-The `SignatureVerificationInterceptor` automatically tries both formats, enabling cross-protocol compatibility.
+The interceptor tries the unframed payload first, then reconstructs the gRPC frame and tries the framed payload. Both paths are load-bearing in production — see [`docs/java/SIGNATURE_VERIFICATION.md`](../../docs/java/SIGNATURE_VERIFICATION.md) for the full rationale.
 
 ---
 
@@ -398,7 +399,7 @@ Results are reported in operations per millisecond.
 1. **Re-serialization**: Message was deserialized and re-serialized before verification. Ensure you're using raw bytes.
 2. **Timestamp mismatch**: Client and server clocks are out of sync. Check system time.
 3. **Wrong public key**: Server is configured with a different public key than the client is using.
-4. **Protocol mismatch**: Client using Connect but server expecting gRPC framing (or vice versa).
+4. **Inconsistent payload framing**: Client computed the digest over different bytes than the server sees on the wire (e.g. signed pre-frame but framed bytes diverged due to compression flags). The verifier accepts either unframed or 5-byte-gRPC-framed payloads — but the signer's bytes must be self-consistent.
 
 **Debug Steps**:
 - Enable debug logging to see the exact bytes being signed/verified
