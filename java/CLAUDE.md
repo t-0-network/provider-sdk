@@ -16,6 +16,17 @@ byte[] rawBytes = getOriginalRequestBytes();
 verifySignature(rawBytes, signature);
 ```
 
+## Signature Verification — Dual Framing (DO NOT REMOVE)
+
+`SignatureVerificationInterceptor.verifySignature` accepts signatures over **either** unframed protobuf **or** the 5-byte-gRPC-framed body. Both paths are load-bearing in production:
+
+- **Unframed path** — Java SDK's own `NetworkClient` (signs above the gRPC framer), Connect-protocol callers in Go / Node / Python (no frame exists), and the T-0 Network when configured to call this provider via Connect protocol.
+- **gRPC-framed path** — T-0 Network when configured to call this provider via gRPC protocol. The signer sits below the gRPC framer, so the signed payload covers the 5-byte frame prefix (1 byte compressed flag + 4 bytes big-endian length) followed by the protobuf message bytes.
+
+Removing either path silently breaks one class of caller with `UNAUTHENTICATED` errors.
+
+GitHub issue #89 raised concern that the framed path looked like dead code — investigation confirmed it is alive and required because the network's gRPC-protocol path signs framed bodies. See [`docs/java/SIGNATURE_VERIFICATION.md`](../../docs/java/SIGNATURE_VERIFICATION.md) for the precise signing-payload definitions per transport and conditions under which simplification would be safe.
+
 ---
 
 ## Build Commands
@@ -102,6 +113,7 @@ See [`docs/java/ISSUES_AND_LESSONS.md`](../../docs/java/ISSUES_AND_LESSONS.md) f
 ## Documentation
 
 Docs live in the top-level [`docs/java/`](../../docs/java/) directory:
+- [`SIGNATURE_VERIFICATION.md`](../../docs/java/SIGNATURE_VERIFICATION.md) — dual-path verification rationale (CRITICAL — read before touching `SignatureVerificationInterceptor`)
 - [`GITHUB_SETUP.md`](../../docs/java/GITHUB_SETUP.md) — CI/CD, secrets, publishing setup
 - [`STARTER_ARCHITECTURE.md`](../../docs/java/STARTER_ARCHITECTURE.md) — how the init system works
 - [`PROTO_SCHEMA_MANAGEMENT.md`](../../docs/java/PROTO_SCHEMA_MANAGEMENT.md) — protobuf code generation

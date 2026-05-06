@@ -28,7 +28,10 @@ import java.time.Clock;
  *   <li>Validate timestamp is within the allowed window (60 seconds)</li>
  *   <li>Read the raw request body from InputStream</li>
  *   <li>Compute: digest = Keccak256(body + timestampBytes)</li>
- *   <li>Verify the signature against the expected network public key</li>
+ *   <li>Verify the signature against the expected network public key, accepting either
+ *       unframed (raw protobuf) or gRPC-framed (5-byte prefix + protobuf) framings —
+ *       see {@link #verifySignature} for the rationale and {@code docs/java/SIGNATURE_VERIFICATION.md}
+ *       for the precise signing-payload definitions per caller and transport.</li>
  * </ol>
  *
  * <p>Error handling:
@@ -168,46 +171,67 @@ public final class SignatureVerificationInterceptor implements ServerInterceptor
     /**
      * Verifies the signature against the message body.
      *
-     * <p>This method supports both Connect protocol (raw protobuf) and gRPC protocol (with framing).
-     * The client signs the full HTTP body, which differs based on the protocol:
+     * <p><b>DUAL-PATH IS LOAD-BEARING — DO NOT REMOVE EITHER PATH.</b>
+     *
+     * <p>Both verification paths below are exercised by real production traffic. The asymmetry
+     * exists because different signers sit at different layers relative to the gRPC framer:
+     *
      * <ul>
-     *   <li>Connect protocol: HTTP body = raw protobuf bytes</li>
-     *   <li>gRPC protocol: HTTP body = 5-byte frame prefix + raw protobuf bytes</li>
+     *   <li><b>Path 1 — unframed (raw protobuf):</b> Used by callers whose signing interceptor
+     *       sits <i>above</i> the gRPC framer. This includes the Java SDK's own
+     *       {@code NetworkClient} (signs bytes pulled from the marshaller stream before framing)
+     *       and any caller whose transport is Connect protocol (where no gRPC frame exists at
+     *       all). The T-0 Network signs unframed bytes when configured to call this provider via
+     *       Connect protocol.</li>
+     *   <li><b>Path 2 — gRPC-framed:</b> Used when the signer sits <i>below</i> the gRPC framer
+     *       and signs the on-wire body. The signed payload then includes the 5-byte gRPC frame
+     *       prefix (1 byte compressed flag + 4 bytes big-endian length) followed by the protobuf
+     *       message bytes. The T-0 Network signs framed bodies when configured to call this
+     *       provider via gRPC protocol.</li>
      * </ul>
      *
-     * <p>Since the Java server receives only the protobuf bytes (gRPC strips the frame),
-     * we try verification both ways:
-     * <ol>
-     *   <li>First, verify against raw protobuf bytes (Connect protocol)</li>
-     *   <li>If that fails, reconstruct the gRPC frame and verify against framed bytes</li>
-     * </ol>
+     * <p>Removing path 2 silently breaks all traffic from the T-0 Network whenever it is
+     * configured to call this provider via gRPC protocol. Removing path 1 silently breaks the
+     * Java SDK's own {@code NetworkClient}, plus T-0 Network traffic configured to use Connect
+     * protocol. Both failures surface only as {@code UNAUTHENTICATED} responses for one class of
+     * caller but not the other — exactly the kind of stealth breakage that looks like an
+     * unrelated bug.
+     *
+     * <p>For the full architectural rationale, the network's signing behavior in detail, and
+     * conditions under which simplification would be safe, see
+     * {@code docs/java/SIGNATURE_VERIFICATION.md}.
      *
      * @param publicKey the public key to verify against
-     * @param bodyBytes the raw protobuf message bytes (without gRPC frame)
+     * @param bodyBytes the raw protobuf message bytes (without gRPC frame, as delivered by
+     *                  {@link ServerInterceptors#useInputStreamMessages})
      * @param timestampMs the request timestamp in milliseconds
      * @param signature the signature to verify
-     * @return true if signature is valid for either format
+     * @return true if signature is valid for either framing
      */
     private boolean verifySignature(byte[] publicKey, byte[] bodyBytes, long timestampMs, byte[] signature) {
         byte[] timestampBytes = Headers.encodeTimestamp(timestampMs);
 
-        // Try 1: Verify against raw protobuf bytes (Connect protocol - no framing)
+        // Path 1: unframed (raw protobuf). Matches the Java SDK's NetworkClient, Connect-
+        // protocol callers (no frame exists), and the T-0 Network when configured to call
+        // this provider via Connect protocol.
         byte[] digestRaw = Keccak256.hash(bodyBytes, timestampBytes);
         if (SignatureVerifier.verify(publicKey, digestRaw, signature)) {
-            log.debug("Signature verified using Connect protocol (raw protobuf)");
+            log.debug("Signature verified against unframed body");
             return true;
         }
 
-        // Try 2: Verify against gRPC-framed bytes (5-byte prefix + protobuf)
-        // gRPC frame format: 1 byte compressed flag (0) + 4 bytes length (big-endian)
+        // Path 2: gRPC-framed (5-byte prefix + protobuf). Matches the T-0 Network when
+        // configured to call this provider via gRPC protocol. The signer sits below the
+        // gRPC framer, so the signed payload includes the on-wire frame.
+        // gRPC frame format: 1 byte compressed flag (0) + 4 bytes length (big-endian).
         byte[] framedBytes = reconstructGrpcFrame(bodyBytes);
         byte[] digestFramed = Keccak256.hash(framedBytes, timestampBytes);
         if (SignatureVerifier.verify(publicKey, digestFramed, signature)) {
-            log.debug("Signature verified using gRPC protocol (with frame prefix)");
+            log.debug("Signature verified against gRPC-framed body");
             return true;
         }
 
-        log.debug("Signature verification failed for both Connect and gRPC protocols");
+        log.debug("Signature verification failed for both unframed and gRPC-framed payloads");
         return false;
     }
 

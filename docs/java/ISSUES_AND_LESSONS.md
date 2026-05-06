@@ -2,6 +2,19 @@
 
 Historical issues encountered during development, extracted from git history. Organized chronologically (newest first).
 
+## Near-Miss: Removing dual-framing signature verification (issue #89)
+
+**Problem:** A cross-language code review flagged the dual-path verification in `SignatureVerificationInterceptor.verifySignature` (tries unframed first, then gRPC-framed) as architecturally fragile and possibly dead code, since all four SDK clients shipped in this repo sign unframed bytes. Issue #89 proposed investigation before removal.
+
+**Root cause of confusion:** The survey covered only the SDK clients in this repo. It missed that the T-0 Network is itself a signing party calling providers, and that the network's signed payload depends on the transport configured for the provider — for Connect protocol it signs unframed bytes, for gRPC protocol it signs the gRPC-framed body (5-byte frame prefix + protobuf). The framed verification path is therefore alive in production whenever the network is configured to call a provider via gRPC protocol.
+
+**Resolution:** No code change. The dual-path is correct and required. Added:
+- Strengthened class-level and method-level Javadoc on `SignatureVerificationInterceptor` calling out that both paths are load-bearing and which callers exercise each.
+- New doc [`SIGNATURE_VERIFICATION.md`](SIGNATURE_VERIFICATION.md) with the precise signing-payload definition per network transport.
+- Cross-references from root `CLAUDE.md` and `java/CLAUDE.md`.
+
+**Lesson:** When auditing a verification path that "looks dead", the survey must include every signing party that can talk to the verifier — including the network itself — not just same-repo SDK clients. A path exercised by only one class of caller still cannot be removed if that class of caller is real production traffic.
+
 ## JitPack Dependency Coordinates (v1.0.31–1.0.33)
 
 **Problem:** Template used wrong JitPack coordinates `com.github.t-0.provider-sdk-java:sdk` — wrong GitHub org separator (`.` vs `-`), wrong repo name, and included a nonexistent submodule path.
