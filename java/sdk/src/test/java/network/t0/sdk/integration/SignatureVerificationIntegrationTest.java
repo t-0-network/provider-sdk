@@ -1,12 +1,31 @@
 package network.t0.sdk.integration;
 
+import io.grpc.Attributes;
+import io.grpc.CallOptions;
+import io.grpc.Channel;
+import io.grpc.ClientCall;
+import io.grpc.ClientInterceptor;
+import io.grpc.ClientInterceptors;
+import io.grpc.ManagedChannel;
+import io.grpc.Metadata;
+import io.grpc.MethodDescriptor;
 import io.grpc.StatusRuntimeException;
+import io.grpc.okhttp.OkHttpChannelBuilder;
 import io.grpc.stub.StreamObserver;
+import network.t0.sdk.common.Headers;
+import network.t0.sdk.crypto.Keccak256;
+import network.t0.sdk.crypto.SignResult;
 import network.t0.sdk.crypto.Signer;
 import network.t0.sdk.network.BlockingNetworkClient;
+import network.t0.sdk.network.ByteArrayMarshaller;
 import network.t0.sdk.provider.ProviderServer;
 import network.t0.sdk.proto.tzero.v1.payment.*;
 import org.junit.jupiter.api.*;
+
+import java.io.IOException;
+import java.io.InputStream;
+import java.time.Clock;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.*;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -281,6 +300,233 @@ class SignatureVerificationIntegrationTest {
                     .withService(new TestProviderServiceImpl())
                     .build())
                     .isInstanceOf(IllegalArgumentException.class);
+        }
+    }
+
+    // ==================== Framed-Payload Verification Tests (path 2) ====================
+
+    /**
+     * Exercises path 2 of {@link network.t0.sdk.provider.SignatureVerificationInterceptor#verifySignature}:
+     * signature computed over the gRPC-framed payload (5-byte frame prefix + protobuf bytes)
+     * rather than the unframed protobuf payload.
+     *
+     * <p>The Java SDK's own {@code NetworkClient} signs the unframed payload (path 1).
+     * Other callers — notably the T-0 Network when configured to call this provider via
+     * gRPC protocol — sign the framed payload because their signing wiring sits below the
+     * gRPC framer. Without these tests, removing path 2 would silently break those callers.
+     *
+     * <p>Implementation: a test-only client interceptor mirrors
+     * {@code NetworkClient.SigningClientInterceptor} structurally, differing only in what
+     * is hashed — the framed bytes instead of the unframed bytes.
+     */
+    @Nested
+    @DisplayName("Framed-Payload Signature Verification (path 2)")
+    class FramedPathTests {
+
+        @Test
+        @DisplayName("Signature over gRPC-framed payload should be accepted")
+        void framedSignature_validKey_shouldSucceed() throws Exception {
+            startServer(NETWORK_PUBLIC_KEY_HEX);
+            Signer networkSigner = Signer.fromHex(NETWORK_PRIVATE_KEY);
+
+            ManagedChannel channel = OkHttpChannelBuilder
+                    .forAddress("localhost", server.getPort())
+                    .usePlaintext()
+                    .build();
+            try {
+                Channel intercepted = ClientInterceptors.intercept(
+                        channel,
+                        new FramedPayloadSigningInterceptor(networkSigner, Clock.systemUTC()));
+                ProviderServiceGrpc.ProviderServiceBlockingStub stub =
+                        ProviderServiceGrpc.newBlockingStub(intercepted);
+
+                PayoutRequest request = PayoutRequest.newBuilder()
+                        .setPaymentId(12345)
+                        .setPayoutId(67890)
+                        .setCurrency("USD")
+                        .setClientQuoteId("framed-test")
+                        .build();
+
+                PayoutResponse response = stub.payOut(request);
+                assertThat(response.hasAccepted()).isTrue();
+            } finally {
+                channel.shutdownNow().awaitTermination(5, TimeUnit.SECONDS);
+            }
+        }
+
+        @Test
+        @DisplayName("Framed signature with wrong key should still be rejected")
+        void framedSignature_wrongKey_shouldReturnUnauthenticated() throws Exception {
+            startServer(NETWORK_PUBLIC_KEY_HEX);
+            Signer wrongSigner = Signer.fromHex(OTHER_PRIVATE_KEY);
+
+            ManagedChannel channel = OkHttpChannelBuilder
+                    .forAddress("localhost", server.getPort())
+                    .usePlaintext()
+                    .build();
+            try {
+                Channel intercepted = ClientInterceptors.intercept(
+                        channel,
+                        new FramedPayloadSigningInterceptor(wrongSigner, Clock.systemUTC()));
+                ProviderServiceGrpc.ProviderServiceBlockingStub stub =
+                        ProviderServiceGrpc.newBlockingStub(intercepted);
+
+                StatusRuntimeException exception = assertThrows(
+                        StatusRuntimeException.class,
+                        () -> stub.updateLimit(UpdateLimitRequest.getDefaultInstance()));
+
+                assertThat(exception.getStatus().getCode())
+                        .isEqualTo(io.grpc.Status.Code.UNAUTHENTICATED);
+            } finally {
+                channel.shutdownNow().awaitTermination(5, TimeUnit.SECONDS);
+            }
+        }
+    }
+
+    /**
+     * Test-only client interceptor that signs the gRPC-framed payload (5-byte frame
+     * prefix + protobuf bytes) instead of the unframed protobuf payload. Mirrors the
+     * structure of {@code NetworkClient.SigningClientInterceptor}.
+     */
+    private static final class FramedPayloadSigningInterceptor implements ClientInterceptor {
+
+        private static final int GRPC_FRAME_HEADER_SIZE = 5;
+
+        private final Signer signer;
+        private final Clock clock;
+
+        FramedPayloadSigningInterceptor(Signer signer, Clock clock) {
+            this.signer = signer;
+            this.clock = clock;
+        }
+
+        @Override
+        public <ReqT, RespT> ClientCall<ReqT, RespT> interceptCall(
+                MethodDescriptor<ReqT, RespT> method,
+                CallOptions callOptions,
+                Channel next) {
+
+            MethodDescriptor<byte[], RespT> rawMethod = method.toBuilder(
+                    ByteArrayMarshaller.INSTANCE,
+                    method.getResponseMarshaller()
+            ).build();
+
+            ClientCall<byte[], RespT> rawCall = next.newCall(rawMethod, callOptions);
+
+            return new ClientCall<ReqT, RespT>() {
+
+                private Listener<RespT> responseListener;
+                private Metadata headers;
+                private boolean started = false;
+                private int pendingRequests = 0;
+
+                @Override
+                public void start(Listener<RespT> responseListener, Metadata headers) {
+                    this.responseListener = responseListener;
+                    this.headers = headers;
+                }
+
+                @Override
+                public void sendMessage(ReqT message) {
+                    byte[] messageBytes;
+                    try (InputStream stream = method.getRequestMarshaller().stream(message)) {
+                        messageBytes = stream.readAllBytes();
+                    } catch (IOException e) {
+                        throw new RuntimeException("Failed to serialize message for signing", e);
+                    }
+
+                    long timestampMs = clock.millis();
+                    addFramedSignatureHeaders(messageBytes, timestampMs);
+
+                    if (!started) {
+                        rawCall.start(responseListener, headers);
+                        started = true;
+                        if (pendingRequests > 0) {
+                            rawCall.request(pendingRequests);
+                            pendingRequests = 0;
+                        }
+                    }
+
+                    rawCall.sendMessage(messageBytes);
+                }
+
+                @Override
+                public void halfClose() {
+                    if (!started) {
+                        long timestampMs = clock.millis();
+                        addFramedSignatureHeaders(new byte[0], timestampMs);
+                        rawCall.start(responseListener, headers);
+                        started = true;
+                        if (pendingRequests > 0) {
+                            rawCall.request(pendingRequests);
+                            pendingRequests = 0;
+                        }
+                    }
+                    rawCall.halfClose();
+                }
+
+                @Override
+                public void request(int numMessages) {
+                    if (started) {
+                        rawCall.request(numMessages);
+                    } else {
+                        pendingRequests += numMessages;
+                    }
+                }
+
+                @Override
+                public void cancel(String message, Throwable cause) {
+                    rawCall.cancel(message, cause);
+                }
+
+                @Override
+                public boolean isReady() {
+                    return rawCall.isReady();
+                }
+
+                @Override
+                public void setMessageCompression(boolean enabled) {
+                    rawCall.setMessageCompression(enabled);
+                }
+
+                @Override
+                public Attributes getAttributes() {
+                    return rawCall.getAttributes();
+                }
+
+                private void addFramedSignatureHeaders(byte[] messageBytes, long timestampMs) {
+                    byte[] timestampBytes = Headers.encodeTimestamp(timestampMs);
+                    byte[] framedBytes = grpcFrame(messageBytes);
+                    byte[] digest = Keccak256.hash(framedBytes, timestampBytes);
+                    SignResult signResult = signer.sign(digest);
+
+                    headers.put(
+                            Metadata.Key.of(Headers.SIGNATURE, Metadata.ASCII_STRING_MARSHALLER),
+                            signResult.getSignatureHex());
+                    headers.put(
+                            Metadata.Key.of(Headers.PUBLIC_KEY, Metadata.ASCII_STRING_MARSHALLER),
+                            signResult.getPublicKeyHex());
+                    headers.put(
+                            Metadata.Key.of(Headers.SIGNATURE_TIMESTAMP, Metadata.ASCII_STRING_MARSHALLER),
+                            String.valueOf(timestampMs));
+                }
+            };
+        }
+
+        /**
+         * Builds {@code [0x00 (compression flag)] [4-byte length, big-endian] [messageBytes]}.
+         * Matches {@code SignatureVerificationInterceptor.reconstructGrpcFrame}.
+         */
+        private static byte[] grpcFrame(byte[] messageBytes) {
+            byte[] framed = new byte[GRPC_FRAME_HEADER_SIZE + messageBytes.length];
+            framed[0] = 0;
+            int len = messageBytes.length;
+            framed[1] = (byte) ((len >> 24) & 0xFF);
+            framed[2] = (byte) ((len >> 16) & 0xFF);
+            framed[3] = (byte) ((len >> 8) & 0xFF);
+            framed[4] = (byte) (len & 0xFF);
+            System.arraycopy(messageBytes, 0, framed, GRPC_FRAME_HEADER_SIZE, messageBytes.length);
+            return framed;
         }
     }
 
