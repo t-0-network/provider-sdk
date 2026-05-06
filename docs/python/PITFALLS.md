@@ -24,14 +24,14 @@ keccak.new(digest_bits=256, data=data).digest()
 
 ---
 
-## 2. `connectrpc` PyPI Package Trap
+## 2. `connectrpc` PyPI Package — Historical Naming
 
-| Package | PyPI name | Version | Status |
-|---------|-----------|---------|--------|
-| ConnectRPC official | `connect-python` | 0.8.x | **CORRECT** — imports as `connectrpc` |
-| Gaudiy's package | `connectrpc` | 0.0.1 | **WRONG** — different, unmaintained package |
+| Version range | PyPI name | Notes |
+|---|---|---|
+| ≤ 0.9.0 | `connect-python` | Original name. Imported as `connectrpc`. |
+| ≥ 0.10.0 | `connectrpc` | Distribution renamed by upstream. **Pin `>=0.10.0`** so resolvers skip the squatted v0.0.1 by Gaudiy. |
 
-Always `pip install connect-python`, never `pip install connectrpc`.
+The lesson: the same PyPI name can mean different things across versions. Pin the floor (`>=0.10.0`) — never `>=0.0.1` — so the squat can't satisfy the constraint.
 
 ---
 
@@ -322,6 +322,6 @@ The `_parse_wsgi_headers()` function in `middleware_wsgi.py` converts all `HTTP_
 | Want | Don't Use | Use Instead | Why |
 |------|-----------|-------------|-----|
 | Keccak256 | `pysha3`, `hashlib.sha3_256` | `pycryptodome` (`Crypto.Hash.keccak`) | py3.13 compat, correct padding |
-| ConnectRPC | `connectrpc` (PyPI) | `connect-python` (PyPI) | Wrong package on PyPI |
+| ConnectRPC | `connectrpc<0.10` (squatted v0.0.1) | `connectrpc>=0.10.0` | Distribution renamed from `connect-python` at v0.10.0 |
 | buf.validate stubs | `protovalidate`, BSR index | `buf generate --include-imports` | Self-contained, no external index |
 | Async subprocess | `subprocess.run()` | `asyncio.create_subprocess_exec()` | Non-blocking in event loop |

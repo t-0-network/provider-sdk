@@ -1,5 +1,7 @@
 # Python Provider SDK + Starter - Implementation Plan
 
+> **Historical note (post-implementation):** the ConnectRPC PyPI distribution was renamed from `connect-python` to `connectrpc` at v0.10.0, and `protoc-gen-connect-python` to `protoc-gen-connectrpc`. Module imports are unchanged (`connectrpc.X`). Current floor pins are tracked in `python/CLAUDE.md`; the package names in this plan reflect the original (pre-rename) state and are preserved for historical accuracy.
+
 ## Context
 
 The T-0 Network needs a Python provider SDK and starter, matching the existing Go SDK (golden standard) and Java SDK. The Python SDK will use ConnectRPC protocol (like Go, NOT gRPC), live in a single repository with both SDK and starter, and provide one-line project initialization for Python developers joining the T-0 network.
