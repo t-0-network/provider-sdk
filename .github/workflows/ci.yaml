@@ -82,6 +82,32 @@ jobs:
         working-directory: node/sdk
         run: npm test
 
+      # Type-check the starter template against the freshly built SDK.
+      # The template ships to providers as a scaffolded project; without
+      # this guard, schema/API drift between the SDK and the template is
+      # only caught when a provider runs `npm run build` for the first
+      # time. We pack the local SDK and overlay it on top of the
+      # template's normal `npm install` (which fetches the published SDK
+      # from the registry) so we type-check against unreleased changes too.
+      - name: Pack SDK for template type-check
+        working-directory: node/sdk
+        run: npm pack
+
+      - name: Install starter template dependencies
+        # `npm install` (not `npm ci`) because the template's package-lock.json
+        # is not strict-locked to the latest SDK — providers regenerate it on
+        # first install. We just need a working install for type checking.
+        working-directory: node/starter/template
+        run: npm install --no-audit --no-fund
+
+      - name: Overlay local SDK build into template
+        working-directory: node/starter/template
+        run: npm install --no-save --no-audit --no-fund ../../sdk/t-0-provider-sdk-*.tgz
+
+      - name: Type-check starter template against local SDK
+        working-directory: node/starter/template
+        run: npx tsc --noEmit -p tsconfig.typecheck.json
+
   java:
     name: Java
     runs-on: blacksmith-4vcpu-ubuntu-2404
