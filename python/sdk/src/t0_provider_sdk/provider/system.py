@@ -6,13 +6,13 @@ current wall-clock time, the SDK version, and the SDK ecosystem identifier.
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from connectrpc.request import RequestContext
 from google.protobuf.timestamp_pb2 import Timestamp
+from tzero.v1.system import system_pb2
 
 from t0_provider_sdk._version import __version__
-from tzero.v1.system import system_pb2
 
 
 class SystemServiceImpl:
@@ -45,7 +45,7 @@ class SystemServiceImplSync:
 
 def _build_response(services: list[str]) -> system_pb2.HealthResponse:
     now = Timestamp()
-    now.FromDatetime(datetime.now(tz=timezone.utc))
+    now.FromDatetime(datetime.now(tz=UTC))
     return system_pb2.HealthResponse(
         services=services,
         current_time=now,

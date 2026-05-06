@@ -8,7 +8,6 @@ asserts the response shape matches what `SystemServiceImpl` returns.
 from __future__ import annotations
 
 import asyncio
-import os
 import socket
 
 import pytest
