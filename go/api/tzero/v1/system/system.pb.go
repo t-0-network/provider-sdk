@@ -27,30 +27,30 @@ type SdkEcosystem int32
 
 const (
 	SdkEcosystem_SDK_ECOSYSTEM_UNSPECIFIED SdkEcosystem = 0
-	SdkEcosystem_SDK_ECOSYSTEM_GO          SdkEcosystem = 1
-	SdkEcosystem_SDK_ECOSYSTEM_NODE        SdkEcosystem = 2
-	SdkEcosystem_SDK_ECOSYSTEM_PYTHON      SdkEcosystem = 3
-	SdkEcosystem_SDK_ECOSYSTEM_JAVA        SdkEcosystem = 4
-	SdkEcosystem_SDK_ECOSYSTEM_CSHARP      SdkEcosystem = 5
+	SdkEcosystem_SDK_ECOSYSTEM_GO          SdkEcosystem = 10
+	SdkEcosystem_SDK_ECOSYSTEM_NODE        SdkEcosystem = 20
+	SdkEcosystem_SDK_ECOSYSTEM_PYTHON      SdkEcosystem = 30
+	SdkEcosystem_SDK_ECOSYSTEM_JAVA        SdkEcosystem = 40
+	SdkEcosystem_SDK_ECOSYSTEM_CSHARP      SdkEcosystem = 50
 )
 
 // Enum value maps for SdkEcosystem.
 var (
 	SdkEcosystem_name = map[int32]string{
-		0: "SDK_ECOSYSTEM_UNSPECIFIED",
-		1: "SDK_ECOSYSTEM_GO",
-		2: "SDK_ECOSYSTEM_NODE",
-		3: "SDK_ECOSYSTEM_PYTHON",
-		4: "SDK_ECOSYSTEM_JAVA",
-		5: "SDK_ECOSYSTEM_CSHARP",
+		0:  "SDK_ECOSYSTEM_UNSPECIFIED",
+		10: "SDK_ECOSYSTEM_GO",
+		20: "SDK_ECOSYSTEM_NODE",
+		30: "SDK_ECOSYSTEM_PYTHON",
+		40: "SDK_ECOSYSTEM_JAVA",
+		50: "SDK_ECOSYSTEM_CSHARP",
 	}
 	SdkEcosystem_value = map[string]int32{
 		"SDK_ECOSYSTEM_UNSPECIFIED": 0,
-		"SDK_ECOSYSTEM_GO":          1,
-		"SDK_ECOSYSTEM_NODE":        2,
-		"SDK_ECOSYSTEM_PYTHON":      3,
-		"SDK_ECOSYSTEM_JAVA":        4,
-		"SDK_ECOSYSTEM_CSHARP":      5,
+		"SDK_ECOSYSTEM_GO":          10,
+		"SDK_ECOSYSTEM_NODE":        20,
+		"SDK_ECOSYSTEM_PYTHON":      30,
+		"SDK_ECOSYSTEM_JAVA":        40,
+		"SDK_ECOSYSTEM_CSHARP":      50,
 	}
 )
 
@@ -201,21 +201,23 @@ var File_tzero_v1_system_system_proto protoreflect.FileDescriptor
 const file_tzero_v1_system_system_proto_rawDesc = "" +
 	"\n" +
 	"\x1ctzero/v1/system/system.proto\x12\x0ftzero.v1.system\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bbuf/validate/validate.proto\"\x0f\n" +
-	"\rHealthRequest\"\xd9\x01\n" +
-	"\x0eHealthResponse\x12\x1a\n" +
+	"\rHealthRequest\"\xfb\x01\n" +
+	"\x0eHealthResponse\x12(\n" +
 	"\bservices\x18\n" +
-	" \x03(\tR\bservices\x12=\n" +
-	"\fcurrent_time\x18\x14 \x01(\v2\x1a.google.protobuf.TimestampR\vcurrentTime\x12(\n" +
+	" \x03(\tB\f\xbaH\t\x92\x01\x06\"\x04r\x02\x10\x01R\bservices\x12E\n" +
+	"\fcurrent_time\x18\x14 \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\vcurrentTime\x12(\n" +
 	"\vsdk_version\x18\x1e \x01(\tB\a\xbaH\x04r\x02\x10\x01R\n" +
-	"sdkVersion\x12B\n" +
-	"\rsdk_ecosystem\x18( \x01(\x0e2\x1d.tzero.v1.system.SdkEcosystemR\fsdkEcosystem*\xa7\x01\n" +
+	"sdkVersion\x12N\n" +
+	"\rsdk_ecosystem\x18( \x01(\x0e2\x1d.tzero.v1.system.SdkEcosystemB\n" +
+	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\fsdkEcosystem*\xa7\x01\n" +
 	"\fSdkEcosystem\x12\x1d\n" +
 	"\x19SDK_ECOSYSTEM_UNSPECIFIED\x10\x00\x12\x14\n" +
-	"\x10SDK_ECOSYSTEM_GO\x10\x01\x12\x16\n" +
-	"\x12SDK_ECOSYSTEM_NODE\x10\x02\x12\x18\n" +
-	"\x14SDK_ECOSYSTEM_PYTHON\x10\x03\x12\x16\n" +
-	"\x12SDK_ECOSYSTEM_JAVA\x10\x04\x12\x18\n" +
-	"\x14SDK_ECOSYSTEM_CSHARP\x10\x052_\n" +
+	"\x10SDK_ECOSYSTEM_GO\x10\n" +
+	"\x12\x16\n" +
+	"\x12SDK_ECOSYSTEM_NODE\x10\x14\x12\x18\n" +
+	"\x14SDK_ECOSYSTEM_PYTHON\x10\x1e\x12\x16\n" +
+	"\x12SDK_ECOSYSTEM_JAVA\x10(\x12\x18\n" +
+	"\x14SDK_ECOSYSTEM_CSHARP\x1022_\n" +
 	"\rSystemService\x12N\n" +
 	"\x06Health\x12\x1e.tzero.v1.system.HealthRequest\x1a\x1f.tzero.v1.system.HealthResponse\"\x03\x90\x02\x01B\xcf\x01\n" +
 	"\x13com.tzero.v1.systemB\vSystemProtoP\x01Z:github.com/t-0-network/provider-sdk/go/api/tzero/v1/system\xa2\x02\x03TVS\xaa\x02\"T0.ProviderSdk.Api.Tzero.V1.System\xca\x02\x0fTzero\\V1\\System\xe2\x02\x1bTzero\\V1\\System\\GPBMetadata\xea\x02\x11Tzero::V1::Systemb\x06proto3"
