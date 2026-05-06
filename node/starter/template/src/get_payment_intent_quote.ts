@@ -12,11 +12,11 @@ export default async function getPaymentIntentQuote(
     amount: toProtoDecimal(500, 0), // end-user pays 500 EUR
   })
 
-  switch (response.Result.case) {
+  switch (response.result.case) {
     case 'success':
       console.log(
-          `Got ${response.Result.value.bestQuotes.length} best pay-in quotes`,
-          `and ${response.Result.value.allQuotes.length} total quotes`,
+          `Got ${response.result.value.bestQuotes.length} best pay-in quotes`,
+          `and ${response.result.value.allQuotes.length} total quotes`,
       )
       break;
     case 'quoteNotFound':

@@ -18,12 +18,12 @@ export default async function confirmFundsReceived(
     // optional: if your provider has multiple legal entities, set originatorProviderLegalEntityId
   })
 
-  switch (response.Result.case) {
+  switch (response.result.case) {
     case 'accept':
       console.log(`Funds accepted for payment intent ${paymentIntentId}`)
       break;
     case 'reject':
-      console.log(`Funds rejected for payment intent ${paymentIntentId}: ${response.Result.value.reason}`)
+      console.log(`Funds rejected for payment intent ${paymentIntentId}: ${response.result.value.reason}`)
       break;
     default:
       console.error("unexpected result type")
