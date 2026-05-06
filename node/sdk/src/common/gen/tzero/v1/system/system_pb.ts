@@ -13,7 +13,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file tzero/v1/system/system.proto.
  */
 export const file_tzero_v1_system_system: GenFile = /*@__PURE__*/
-  fileDesc("Chx0emVyby92MS9zeXN0ZW0vc3lzdGVtLnByb3RvEg90emVyby52MS5zeXN0ZW0iDwoNSGVhbHRoUmVxdWVzdCKoAQoOSGVhbHRoUmVzcG9uc2USEAoIc2VydmljZXMYCiADKAkSMAoMY3VycmVudF90aW1lGBQgASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcBIcCgtzZGtfdmVyc2lvbhgeIAEoCUIHukgEcgIQARI0Cg1zZGtfZWNvc3lzdGVtGCggASgOMh0udHplcm8udjEuc3lzdGVtLlNka0Vjb3N5c3RlbSqnAQoMU2RrRWNvc3lzdGVtEh0KGVNES19FQ09TWVNURU1fVU5TUEVDSUZJRUQQABIUChBTREtfRUNPU1lTVEVNX0dPEAESFgoSU0RLX0VDT1NZU1RFTV9OT0RFEAISGAoUU0RLX0VDT1NZU1RFTV9QWVRIT04QAxIWChJTREtfRUNPU1lTVEVNX0pBVkEQBBIYChRTREtfRUNPU1lTVEVNX0NTSEFSUBAFMl8KDVN5c3RlbVNlcnZpY2USTgoGSGVhbHRoEh4udHplcm8udjEuc3lzdGVtLkhlYWx0aFJlcXVlc3QaHy50emVyby52MS5zeXN0ZW0uSGVhbHRoUmVzcG9uc2UiA5ACAULPAQoTY29tLnR6ZXJvLnYxLnN5c3RlbUILU3lzdGVtUHJvdG9QAVo6Z2l0aHViLmNvbS90LTAtbmV0d29yay9wcm92aWRlci1zZGsvZ28vYXBpL3R6ZXJvL3YxL3N5c3RlbaICA1RWU6oCIlQwLlByb3ZpZGVyU2RrLkFwaS5UemVyby5WMS5TeXN0ZW3KAg9UemVyb1xWMVxTeXN0ZW3iAhtUemVyb1xWMVxTeXN0ZW1cR1BCTWV0YWRhdGHqAhFUemVybzo6VjE6OlN5c3RlbWIGcHJvdG8z", [file_google_protobuf_timestamp, file_buf_validate_validate]);
+  fileDesc("Chx0emVyby92MS9zeXN0ZW0vc3lzdGVtLnByb3RvEg90emVyby52MS5zeXN0ZW0iDwoNSGVhbHRoUmVxdWVzdCLKAQoOSGVhbHRoUmVzcG9uc2USHgoIc2VydmljZXMYCiADKAlCDLpICZIBBiIEcgIQARI4CgxjdXJyZW50X3RpbWUYFCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQga6SAPIAQESHAoLc2RrX3ZlcnNpb24YHiABKAlCB7pIBHICEAESQAoNc2RrX2Vjb3N5c3RlbRgoIAEoDjIdLnR6ZXJvLnYxLnN5c3RlbS5TZGtFY29zeXN0ZW1CCrpIB4IBBBABIAAqpwEKDFNka0Vjb3N5c3RlbRIdChlTREtfRUNPU1lTVEVNX1VOU1BFQ0lGSUVEEAASFAoQU0RLX0VDT1NZU1RFTV9HTxAKEhYKElNES19FQ09TWVNURU1fTk9ERRAUEhgKFFNES19FQ09TWVNURU1fUFlUSE9OEB4SFgoSU0RLX0VDT1NZU1RFTV9KQVZBECgSGAoUU0RLX0VDT1NZU1RFTV9DU0hBUlAQMjJfCg1TeXN0ZW1TZXJ2aWNlEk4KBkhlYWx0aBIeLnR6ZXJvLnYxLnN5c3RlbS5IZWFsdGhSZXF1ZXN0Gh8udHplcm8udjEuc3lzdGVtLkhlYWx0aFJlc3BvbnNlIgOQAgFCzwEKE2NvbS50emVyby52MS5zeXN0ZW1CC1N5c3RlbVByb3RvUAFaOmdpdGh1Yi5jb20vdC0wLW5ldHdvcmsvcHJvdmlkZXItc2RrL2dvL2FwaS90emVyby92MS9zeXN0ZW2iAgNUVlOqAiJUMC5Qcm92aWRlclNkay5BcGkuVHplcm8uVjEuU3lzdGVtygIPVHplcm9cVjFcU3lzdGVt4gIbVHplcm9cVjFcU3lzdGVtXEdQQk1ldGFkYXRh6gIRVHplcm86OlYxOjpTeXN0ZW1iBnByb3RvMw", [file_google_protobuf_timestamp, file_buf_validate_validate]);
 
 /**
  * @generated from message tzero.v1.system.HealthRequest
@@ -85,29 +85,29 @@ export enum SdkEcosystem {
   UNSPECIFIED = 0,
 
   /**
-   * @generated from enum value: SDK_ECOSYSTEM_GO = 1;
+   * @generated from enum value: SDK_ECOSYSTEM_GO = 10;
    */
-  GO = 1,
+  GO = 10,
 
   /**
-   * @generated from enum value: SDK_ECOSYSTEM_NODE = 2;
+   * @generated from enum value: SDK_ECOSYSTEM_NODE = 20;
    */
-  NODE = 2,
+  NODE = 20,
 
   /**
-   * @generated from enum value: SDK_ECOSYSTEM_PYTHON = 3;
+   * @generated from enum value: SDK_ECOSYSTEM_PYTHON = 30;
    */
-  PYTHON = 3,
+  PYTHON = 30,
 
   /**
-   * @generated from enum value: SDK_ECOSYSTEM_JAVA = 4;
+   * @generated from enum value: SDK_ECOSYSTEM_JAVA = 40;
    */
-  JAVA = 4,
+  JAVA = 40,
 
   /**
-   * @generated from enum value: SDK_ECOSYSTEM_CSHARP = 5;
+   * @generated from enum value: SDK_ECOSYSTEM_CSHARP = 50;
    */
-  CSHARP = 5,
+  CSHARP = 50,
 }
 
 /**
