@@ -34,7 +34,7 @@ Every SDK auto-registers `tzero.v1.system.SystemService` inside its server-const
 
 - **release.yaml** — Triggered manually. Bumps version, creates tags + GitHub Release.
 - **publish.yaml** — Triggered by tag push. Publishes to npm, PyPI, Maven Central, Go Module Proxy.
-- **proto_sync.yaml** — Syncs proto files from backend.
+- **proto_sync.yaml** — Syncs proto files from upstream proto source.
 - **generate-clients.yaml** — Regenerates language-specific code from protos.
 
 ## Build & Test (all languages)
@@ -61,6 +61,12 @@ headers = { X-Public-Key: "0x...", X-Signature: "0x...", X-Signature-Timestamp: 
 - Public keys: uncompressed secp256k1 (65 bytes, 0x04 prefix)
 - Signatures: 64 or 65 bytes (r + s + optional recovery id)
 - Hash: Keccak-256 (NOT NIST SHA-3)
+
+### body_bytes framing — depends on signer position
+
+`body_bytes` is whichever bytes the signer covers at its own layer. For SDK clients in this repo and Connect-protocol callers in general, that is **unframed protobuf** (the Java SDK's `NetworkClient` signs above the gRPC framer; Go / Node / Python use Connect protocol, where no frame exists). The T-0 Network signs unframed bytes when calling a provider via Connect protocol, and signs the **gRPC-framed body** (5-byte prefix + protobuf) when calling via gRPC protocol — in that case the signer sits below the framer.
+
+Consequently the Java SDK's `SignatureVerificationInterceptor` accepts both framings. **This dual-path is required, not defensive** — see [`docs/java/SIGNATURE_VERIFICATION.md`](docs/java/SIGNATURE_VERIFICATION.md) before touching it.
 
 ## Releasing
 
