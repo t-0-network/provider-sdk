@@ -1,0 +1,13 @@
+{
+  // CI-only typecheck config used by .github/workflows/ci.yaml to validate
+  // this template against the local SDK before publishing. The shipped
+  // tsconfig.json uses module=commonjs (matching providers' typical Node
+  // runtime deployments) which conflicts with moduleResolution=bundler
+  // (TS5095). This override flips module to esnext so tsc can run; it is
+  // not used at build/runtime by providers and is safe to ignore or delete
+  // in a scaffolded project.
+  "extends": "./tsconfig.json",
+  "compilerOptions": {
+    "module": "esnext"
+  }
+}
