@@ -7,7 +7,7 @@ plugins {
     id("com.gradleup.nmcp")
 }
 
-val grpcVersion = "1.80.0"
+val grpcVersion = "1.81.0"
 val protobufVersion = "4.34.1"
 val bouncyCastleVersion = "1.83"
 
@@ -21,7 +21,7 @@ dependencies {
 
     // Protobuf
     api("com.google.protobuf:protobuf-java:$protobufVersion")
-    api("build.buf:protovalidate:1.1.2")
+    api("build.buf:protovalidate:1.2.2")
 
     // BouncyCastle for crypto (secp256k1, Keccak-256)
     implementation("org.bouncycastle:bcprov-jdk18on:$bouncyCastleVersion")
@@ -33,7 +33,7 @@ dependencies {
     compileOnly("javax.annotation:javax.annotation-api:1.3.2")
 
     // Testing
-    testImplementation("com.google.code.gson:gson:2.13.2")
+    testImplementation("com.google.code.gson:gson:2.14.0")
     testImplementation("org.junit.jupiter:junit-jupiter:6.0.3")
     testImplementation("org.assertj:assertj-core:3.27.7")
     testImplementation("io.grpc:grpc-testing:$grpcVersion")
