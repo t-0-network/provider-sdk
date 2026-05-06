@@ -23,7 +23,7 @@ QUOTE_TYPE_UNSPECIFIED: QuoteType
 QUOTE_TYPE_REALTIME: QuoteType
 
 class UpdateQuoteRequest(_message.Message):
-    __slots__ = ("pay_out", "pay_in")
+    __slots__ = ("pay_out",)
     class Quote(_message.Message):
         __slots__ = ("currency", "quote_type", "payment_method", "bands", "expiration", "timestamp")
         class Band(_message.Message):
@@ -51,10 +51,8 @@ class UpdateQuoteRequest(_message.Message):
         timestamp: _timestamp_pb2.Timestamp
         def __init__(self, currency: _Optional[str] = ..., quote_type: _Optional[_Union[QuoteType, str]] = ..., payment_method: _Optional[_Union[_payment_method_pb2.PaymentMethodType, str]] = ..., bands: _Optional[_Iterable[_Union[UpdateQuoteRequest.Quote.Band, _Mapping]]] = ..., expiration: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ..., timestamp: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
     PAY_OUT_FIELD_NUMBER: _ClassVar[int]
-    PAY_IN_FIELD_NUMBER: _ClassVar[int]
     pay_out: _containers.RepeatedCompositeFieldContainer[UpdateQuoteRequest.Quote]
-    pay_in: _containers.RepeatedCompositeFieldContainer[UpdateQuoteRequest.Quote]
-    def __init__(self, pay_out: _Optional[_Iterable[_Union[UpdateQuoteRequest.Quote, _Mapping]]] = ..., pay_in: _Optional[_Iterable[_Union[UpdateQuoteRequest.Quote, _Mapping]]] = ...) -> None: ...
+    def __init__(self, pay_out: _Optional[_Iterable[_Union[UpdateQuoteRequest.Quote, _Mapping]]] = ...) -> None: ...
 
 class UpdateQuoteResponse(_message.Message):
     __slots__ = ()
@@ -200,9 +198,15 @@ class CreatePaymentResponse(_message.Message):
             REASON_UNSPECIFIED: _ClassVar[CreatePaymentResponse.Failure.Reason]
             REASON_QUOTE_NOT_FOUND: _ClassVar[CreatePaymentResponse.Failure.Reason]
             REASON_CREDIT_OR_PREDEPOSIT_REQUIRED: _ClassVar[CreatePaymentResponse.Failure.Reason]
+            REASON_AMOUNT_EXCEEDS_QUOTE_BAND: _ClassVar[CreatePaymentResponse.Failure.Reason]
+            REASON_QUOTE_EXPIRED: _ClassVar[CreatePaymentResponse.Failure.Reason]
+            REASON_QUOTE_ID_UNKNOWN: _ClassVar[CreatePaymentResponse.Failure.Reason]
         REASON_UNSPECIFIED: CreatePaymentResponse.Failure.Reason
         REASON_QUOTE_NOT_FOUND: CreatePaymentResponse.Failure.Reason
         REASON_CREDIT_OR_PREDEPOSIT_REQUIRED: CreatePaymentResponse.Failure.Reason
+        REASON_AMOUNT_EXCEEDS_QUOTE_BAND: CreatePaymentResponse.Failure.Reason
+        REASON_QUOTE_EXPIRED: CreatePaymentResponse.Failure.Reason
+        REASON_QUOTE_ID_UNKNOWN: CreatePaymentResponse.Failure.Reason
         REASON_FIELD_NUMBER: _ClassVar[int]
         reason: CreatePaymentResponse.Failure.Reason
         def __init__(self, reason: _Optional[_Union[CreatePaymentResponse.Failure.Reason, str]] = ...) -> None: ...

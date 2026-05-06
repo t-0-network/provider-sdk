@@ -138,6 +138,17 @@ const (
 	// headroom to execute the requested amount. Call GetQuote to inspect
 	// `all_quotes[].settlement` for the per-provider prefunding gap.
 	CreatePaymentResponse_Failure_REASON_CREDIT_OR_PREDEPOSIT_REQUIRED CreatePaymentResponse_Failure_Reason = 20
+	// The pinned quote's band cannot cover the requested amount. The quote is
+	// still live; retry with a smaller amount, split the payment across bands,
+	// or request a fresh GetQuote for a quote that covers the full amount.
+	CreatePaymentResponse_Failure_REASON_AMOUNT_EXCEEDS_QUOTE_BAND CreatePaymentResponse_Failure_Reason = 30
+	// The pinned quote's expires_at has passed. Auto-retry by calling GetQuote
+	// to obtain a fresh quote id and re-submit with it.
+	CreatePaymentResponse_Failure_REASON_QUOTE_EXPIRED CreatePaymentResponse_Failure_Reason = 40
+	// The pinned quote id does not exist for the pay-in/pay-out provider pair.
+	// Indicates a client-side plumbing bug (stale / mismatched id); no auto-retry
+	// will succeed until the client fixes quote propagation.
+	CreatePaymentResponse_Failure_REASON_QUOTE_ID_UNKNOWN CreatePaymentResponse_Failure_Reason = 50
 )
 
 // Enum value maps for CreatePaymentResponse_Failure_Reason.
@@ -146,11 +157,17 @@ var (
 		0:  "REASON_UNSPECIFIED",
 		10: "REASON_QUOTE_NOT_FOUND",
 		20: "REASON_CREDIT_OR_PREDEPOSIT_REQUIRED",
+		30: "REASON_AMOUNT_EXCEEDS_QUOTE_BAND",
+		40: "REASON_QUOTE_EXPIRED",
+		50: "REASON_QUOTE_ID_UNKNOWN",
 	}
 	CreatePaymentResponse_Failure_Reason_value = map[string]int32{
 		"REASON_UNSPECIFIED":                   0,
 		"REASON_QUOTE_NOT_FOUND":               10,
 		"REASON_CREDIT_OR_PREDEPOSIT_REQUIRED": 20,
+		"REASON_AMOUNT_EXCEEDS_QUOTE_BAND":     30,
+		"REASON_QUOTE_EXPIRED":                 40,
+		"REASON_QUOTE_ID_UNKNOWN":              50,
 	}
 )
 
@@ -187,15 +204,7 @@ type UpdateQuoteRequest struct {
 	// *
 	// Zero or more quotes for pay-out operations, each quote must have a unique currency, and one or more bands, with the
 	// unique client_quote_id for each band.
-	PayOut []*UpdateQuoteRequest_Quote `protobuf:"bytes,10,rep,name=pay_out,json=payOut,proto3" json:"pay_out,omitempty"`
-	// *
-	// Zero or more quotes for pay-in operations, each quote must have a unique currency, and one or more bands, with the
-	// unique client_quote_id for each band.
-	//
-	// Deprecated: pay-in quotes are no longer used.
-	//
-	// Deprecated: Marked as deprecated in tzero/v1/payment/network.proto.
-	PayIn         []*UpdateQuoteRequest_Quote `protobuf:"bytes,20,rep,name=pay_in,json=payIn,proto3" json:"pay_in,omitempty"`
+	PayOut        []*UpdateQuoteRequest_Quote `protobuf:"bytes,10,rep,name=pay_out,json=payOut,proto3" json:"pay_out,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -233,14 +242,6 @@ func (*UpdateQuoteRequest) Descriptor() ([]byte, []int) {
 func (x *UpdateQuoteRequest) GetPayOut() []*UpdateQuoteRequest_Quote {
 	if x != nil {
 		return x.PayOut
-	}
-	return nil
-}
-
-// Deprecated: Marked as deprecated in tzero/v1/payment/network.proto.
-func (x *UpdateQuoteRequest) GetPayIn() []*UpdateQuoteRequest_Quote {
-	if x != nil {
-		return x.PayIn
 	}
 	return nil
 }
@@ -1189,9 +1190,12 @@ func (*FinalizePayoutResponse) Descriptor() ([]byte, []int) {
 }
 
 type UpdateQuoteRequest_Quote struct {
-	state     protoimpl.MessageState `protogen:"open.v1"`
-	Currency  string                 `protobuf:"bytes,10,opt,name=currency,proto3" json:"currency,omitempty"` // BRL, EUR, GBP, etc. (ISO 4217 currency code)
-	QuoteType QuoteType              `protobuf:"varint,20,opt,name=quote_type,json=quoteType,proto3,enum=tzero.v1.payment.QuoteType" json:"quote_type,omitempty"`
+	state    protoimpl.MessageState `protogen:"open.v1"`
+	Currency string                 `protobuf:"bytes,10,opt,name=currency,proto3" json:"currency,omitempty"` // BRL, EUR, GBP, etc. (ISO 4217 currency code)
+	// Deprecated: rate type is no longer used; the server ignores the value.
+	//
+	// Deprecated: Marked as deprecated in tzero/v1/payment/network.proto.
+	QuoteType QuoteType `protobuf:"varint,20,opt,name=quote_type,json=quoteType,proto3,enum=tzero.v1.payment.QuoteType" json:"quote_type,omitempty"`
 	// Payment method must be specified
 	PaymentMethod common.PaymentMethodType         `protobuf:"varint,25,opt,name=payment_method,json=paymentMethod,proto3,enum=tzero.v1.common.PaymentMethodType" json:"payment_method,omitempty"`
 	Bands         []*UpdateQuoteRequest_Quote_Band `protobuf:"bytes,30,rep,name=bands,proto3" json:"bands,omitempty"`           // list of bands for this quote
@@ -1238,6 +1242,7 @@ func (x *UpdateQuoteRequest_Quote) GetCurrency() string {
 	return ""
 }
 
+// Deprecated: Marked as deprecated in tzero/v1/payment/network.proto.
 func (x *UpdateQuoteRequest_Quote) GetQuoteType() QuoteType {
 	if x != nil {
 		return x.QuoteType
@@ -2173,17 +2178,16 @@ var File_tzero_v1_payment_network_proto protoreflect.FileDescriptor
 
 const file_tzero_v1_payment_network_proto_rawDesc = "" +
 	"\n" +
-	"\x1etzero/v1/payment/network.proto\x12\x10tzero.v1.payment\x1a\x1ctzero/v1/common/common.proto\x1a$tzero/v1/common/payment_method.proto\x1a%tzero/v1/common/payment_receipt.proto\x1a\x1divms101/v1/ivms/ivms101.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bbuf/validate/validate.proto\"\xb8\x06\n" +
+	"\x1etzero/v1/payment/network.proto\x12\x10tzero.v1.payment\x1a\x1ctzero/v1/common/common.proto\x1a$tzero/v1/common/payment_method.proto\x1a%tzero/v1/common/payment_receipt.proto\x1a\x1divms101/v1/ivms/ivms101.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bbuf/validate/validate.proto\"\xfb\x05\n" +
 	"\x12UpdateQuoteRequest\x12C\n" +
 	"\apay_out\x18\n" +
-	" \x03(\v2*.tzero.v1.payment.UpdateQuoteRequest.QuoteR\x06payOut\x12E\n" +
-	"\x06pay_in\x18\x14 \x03(\v2*.tzero.v1.payment.UpdateQuoteRequest.QuoteB\x02\x18\x01R\x05payIn\x1a\x95\x05\n" +
+	" \x03(\v2*.tzero.v1.payment.UpdateQuoteRequest.QuoteR\x06payOut\x1a\x91\x05\n" +
 	"\x05Quote\x120\n" +
 	"\bcurrency\x18\n" +
 	" \x01(\tB\x14\xbaH\x11r\x0f2\n" +
-	"^[A-Z]{3}$\x98\x01\x03R\bcurrency\x12B\n" +
+	"^[A-Z]{3}$\x98\x01\x03R\bcurrency\x12>\n" +
 	"\n" +
-	"quote_type\x18\x14 \x01(\x0e2\x1b.tzero.v1.payment.QuoteTypeB\x06\xbaH\x03\xc8\x01\x01R\tquoteType\x12Q\n" +
+	"quote_type\x18\x14 \x01(\x0e2\x1b.tzero.v1.payment.QuoteTypeB\x02\x18\x01R\tquoteType\x12Q\n" +
 	"\x0epayment_method\x18\x19 \x01(\x0e2\".tzero.v1.common.PaymentMethodTypeB\x06\xbaH\x03\xc8\x01\x01R\rpaymentMethod\x12O\n" +
 	"\x05bands\x18\x1e \x03(\v2/.tzero.v1.payment.UpdateQuoteRequest.Quote.BandB\b\xbaH\x05\x92\x01\x02\b\x01R\x05bands\x12D\n" +
 	"\n" +
@@ -2197,7 +2201,7 @@ const file_tzero_v1_payment_network_proto_rawDesc = "" +
 	"max_amount\x18( \x01(\v2\x18.tzero.v1.common.DecimalB\x06\xbaH\x03\xc8\x01\x01R\tmaxAmount\x124\n" +
 	"\x04rate\x182 \x01(\v2\x18.tzero.v1.common.DecimalB\x06\xbaH\x03\xc8\x01\x01R\x04rate\x12/\n" +
 	"\x03fix\x18< \x01(\v2\x18.tzero.v1.common.DecimalH\x00R\x03fix\x88\x01\x01B\x06\n" +
-	"\x04_fix\"\x15\n" +
+	"\x04_fixJ\x04\b\x14\x10\x15R\x06pay_in\"\x15\n" +
 	"\x13UpdateQuoteResponse\"\xa8\x02\n" +
 	"\x0fGetQuoteRequest\x12?\n" +
 	"\x06amount\x18\x14 \x01(\v2\x1f.tzero.v1.payment.PaymentAmountB\x06\xbaH\x03\xc8\x01\x01R\x06amount\x12>\n" +
@@ -2274,7 +2278,7 @@ const file_tzero_v1_payment_network_proto_rawDesc = "" +
 	"\aQuoteId\x12\"\n" +
 	"\bquote_id\x18\x1e \x01(\x03B\a\xbaH\x04\"\x02 \x00R\aquoteId\x12(\n" +
 	"\vprovider_id\x18( \x01(\x05B\a\xbaH\x04\x1a\x02 \x00R\n" +
-	"providerId\"\xfc\a\n" +
+	"providerId\"\xda\b\n" +
 	"\x15CreatePaymentResponse\x123\n" +
 	"\x11payment_client_id\x18\n" +
 	" \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x0fpaymentClientId\x12N\n" +
@@ -2293,15 +2297,18 @@ const file_tzero_v1_payment_network_proto_rawDesc = "" +
 	"payment_id\x18\n" +
 	" \x01(\x04B\a\xbaH\x042\x02 \x00R\tpaymentId\x12M\n" +
 	"\x11settlement_amount\x18\x14 \x01(\v2\x18.tzero.v1.common.DecimalB\x06\xbaH\x03\xc8\x01\x01R\x10settlementAmount\x125\n" +
-	"\x12payout_provider_id\x18\x1e \x01(\rB\a\xbaH\x04*\x02 \x00R\x10payoutProviderId:\x02\x18\x01\x1a\xc1\x01\n" +
+	"\x12payout_provider_id\x18\x1e \x01(\rB\a\xbaH\x04*\x02 \x00R\x10payoutProviderId:\x02\x18\x01\x1a\x9f\x02\n" +
 	"\aFailure\x12N\n" +
 	"\x06reason\x18\n" +
-	" \x01(\x0e26.tzero.v1.payment.CreatePaymentResponse.Failure.ReasonR\x06reason\"f\n" +
+	" \x01(\x0e26.tzero.v1.payment.CreatePaymentResponse.Failure.ReasonR\x06reason\"\xc3\x01\n" +
 	"\x06Reason\x12\x16\n" +
 	"\x12REASON_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16REASON_QUOTE_NOT_FOUND\x10\n" +
 	"\x12(\n" +
-	"$REASON_CREDIT_OR_PREDEPOSIT_REQUIRED\x10\x14B\x0f\n" +
+	"$REASON_CREDIT_OR_PREDEPOSIT_REQUIRED\x10\x14\x12$\n" +
+	" REASON_AMOUNT_EXCEEDS_QUOTE_BAND\x10\x1e\x12\x18\n" +
+	"\x14REASON_QUOTE_EXPIRED\x10(\x12\x1b\n" +
+	"\x17REASON_QUOTE_ID_UNKNOWN\x102B\x0f\n" +
 	"\x06result\x12\x05\xbaH\x02\b\x01\"\xb6\x01\n" +
 	"\x14ConfirmPayoutRequest\x12&\n" +
 	"\n" +
@@ -2424,80 +2431,79 @@ var file_tzero_v1_payment_network_proto_goTypes = []any{
 }
 var file_tzero_v1_payment_network_proto_depIdxs = []int32{
 	17, // 0: tzero.v1.payment.UpdateQuoteRequest.pay_out:type_name -> tzero.v1.payment.UpdateQuoteRequest.Quote
-	17, // 1: tzero.v1.payment.UpdateQuoteRequest.pay_in:type_name -> tzero.v1.payment.UpdateQuoteRequest.Quote
-	14, // 2: tzero.v1.payment.GetQuoteRequest.amount:type_name -> tzero.v1.payment.PaymentAmount
-	33, // 3: tzero.v1.payment.GetQuoteRequest.pay_out_method:type_name -> tzero.v1.common.PaymentMethodType
-	0,  // 4: tzero.v1.payment.GetQuoteRequest.quote_type:type_name -> tzero.v1.payment.QuoteType
-	19, // 5: tzero.v1.payment.GetQuoteResponse.success:type_name -> tzero.v1.payment.GetQuoteResponse.Success
-	20, // 6: tzero.v1.payment.GetQuoteResponse.failure:type_name -> tzero.v1.payment.GetQuoteResponse.Failure
-	21, // 7: tzero.v1.payment.GetQuoteResponse.all_quotes:type_name -> tzero.v1.payment.GetQuoteResponse.ProviderQuote
-	14, // 8: tzero.v1.payment.CreatePaymentRequest.amount:type_name -> tzero.v1.payment.PaymentAmount
-	34, // 9: tzero.v1.payment.CreatePaymentRequest.payment_details:type_name -> tzero.v1.common.PaymentDetails
-	8,  // 10: tzero.v1.payment.CreatePaymentRequest.quote_id:type_name -> tzero.v1.payment.QuoteId
-	23, // 11: tzero.v1.payment.CreatePaymentRequest.travel_rule_data:type_name -> tzero.v1.payment.CreatePaymentRequest.TravelRuleData
-	24, // 12: tzero.v1.payment.CreatePaymentResponse.accepted:type_name -> tzero.v1.payment.CreatePaymentResponse.Accepted
-	25, // 13: tzero.v1.payment.CreatePaymentResponse.settlement_required:type_name -> tzero.v1.payment.CreatePaymentResponse.SettlementRequired
-	26, // 14: tzero.v1.payment.CreatePaymentResponse.failure:type_name -> tzero.v1.payment.CreatePaymentResponse.Failure
-	35, // 15: tzero.v1.payment.ConfirmPayoutRequest.receipt:type_name -> tzero.v1.common.PaymentReceipt
-	27, // 16: tzero.v1.payment.CompleteManualAmlCheckRequest.approved:type_name -> tzero.v1.payment.CompleteManualAmlCheckRequest.Approved
-	28, // 17: tzero.v1.payment.CompleteManualAmlCheckRequest.rejected:type_name -> tzero.v1.payment.CompleteManualAmlCheckRequest.Rejected
-	29, // 18: tzero.v1.payment.CompleteManualAmlCheckResponse.approved:type_name -> tzero.v1.payment.CompleteManualAmlCheckResponse.Approved
-	30, // 19: tzero.v1.payment.CompleteManualAmlCheckResponse.rejected:type_name -> tzero.v1.payment.CompleteManualAmlCheckResponse.Rejected
-	36, // 20: tzero.v1.payment.PaymentAmount.pay_out_amount:type_name -> tzero.v1.common.Decimal
-	36, // 21: tzero.v1.payment.PaymentAmount.settlement_amount:type_name -> tzero.v1.common.Decimal
-	31, // 22: tzero.v1.payment.FinalizePayoutRequest.success:type_name -> tzero.v1.payment.FinalizePayoutRequest.Success
-	32, // 23: tzero.v1.payment.FinalizePayoutRequest.failure:type_name -> tzero.v1.payment.FinalizePayoutRequest.Failure
-	0,  // 24: tzero.v1.payment.UpdateQuoteRequest.Quote.quote_type:type_name -> tzero.v1.payment.QuoteType
-	33, // 25: tzero.v1.payment.UpdateQuoteRequest.Quote.payment_method:type_name -> tzero.v1.common.PaymentMethodType
-	18, // 26: tzero.v1.payment.UpdateQuoteRequest.Quote.bands:type_name -> tzero.v1.payment.UpdateQuoteRequest.Quote.Band
-	37, // 27: tzero.v1.payment.UpdateQuoteRequest.Quote.expiration:type_name -> google.protobuf.Timestamp
-	37, // 28: tzero.v1.payment.UpdateQuoteRequest.Quote.timestamp:type_name -> google.protobuf.Timestamp
-	36, // 29: tzero.v1.payment.UpdateQuoteRequest.Quote.Band.max_amount:type_name -> tzero.v1.common.Decimal
-	36, // 30: tzero.v1.payment.UpdateQuoteRequest.Quote.Band.rate:type_name -> tzero.v1.common.Decimal
-	36, // 31: tzero.v1.payment.UpdateQuoteRequest.Quote.Band.fix:type_name -> tzero.v1.common.Decimal
-	36, // 32: tzero.v1.payment.GetQuoteResponse.Success.rate:type_name -> tzero.v1.common.Decimal
-	37, // 33: tzero.v1.payment.GetQuoteResponse.Success.expiration:type_name -> google.protobuf.Timestamp
-	8,  // 34: tzero.v1.payment.GetQuoteResponse.Success.quote_id:type_name -> tzero.v1.payment.QuoteId
-	36, // 35: tzero.v1.payment.GetQuoteResponse.Success.pay_out_amount:type_name -> tzero.v1.common.Decimal
-	36, // 36: tzero.v1.payment.GetQuoteResponse.Success.settlement_amount:type_name -> tzero.v1.common.Decimal
-	36, // 37: tzero.v1.payment.GetQuoteResponse.Success.fix:type_name -> tzero.v1.common.Decimal
-	1,  // 38: tzero.v1.payment.GetQuoteResponse.Failure.reason:type_name -> tzero.v1.payment.GetQuoteResponse.Failure.Reason
-	8,  // 39: tzero.v1.payment.GetQuoteResponse.ProviderQuote.quote_id:type_name -> tzero.v1.payment.QuoteId
-	36, // 40: tzero.v1.payment.GetQuoteResponse.ProviderQuote.rate:type_name -> tzero.v1.common.Decimal
-	37, // 41: tzero.v1.payment.GetQuoteResponse.ProviderQuote.expiration:type_name -> google.protobuf.Timestamp
-	36, // 42: tzero.v1.payment.GetQuoteResponse.ProviderQuote.pay_out_amount:type_name -> tzero.v1.common.Decimal
-	22, // 43: tzero.v1.payment.GetQuoteResponse.ProviderQuote.settlement:type_name -> tzero.v1.payment.GetQuoteResponse.ProviderQuote.Settlement
-	36, // 44: tzero.v1.payment.GetQuoteResponse.ProviderQuote.fix:type_name -> tzero.v1.common.Decimal
-	36, // 45: tzero.v1.payment.GetQuoteResponse.ProviderQuote.Settlement.amount:type_name -> tzero.v1.common.Decimal
-	36, // 46: tzero.v1.payment.GetQuoteResponse.ProviderQuote.Settlement.credit_limit:type_name -> tzero.v1.common.Decimal
-	36, // 47: tzero.v1.payment.GetQuoteResponse.ProviderQuote.Settlement.total_used:type_name -> tzero.v1.common.Decimal
-	36, // 48: tzero.v1.payment.GetQuoteResponse.ProviderQuote.Settlement.prefunding_amount:type_name -> tzero.v1.common.Decimal
-	38, // 49: tzero.v1.payment.CreatePaymentRequest.TravelRuleData.originator:type_name -> ivms101.Person
-	38, // 50: tzero.v1.payment.CreatePaymentRequest.TravelRuleData.beneficiary:type_name -> ivms101.Person
-	36, // 51: tzero.v1.payment.CreatePaymentResponse.Accepted.settlement_amount:type_name -> tzero.v1.common.Decimal
-	36, // 52: tzero.v1.payment.CreatePaymentResponse.Accepted.payout_amount:type_name -> tzero.v1.common.Decimal
-	36, // 53: tzero.v1.payment.CreatePaymentResponse.SettlementRequired.settlement_amount:type_name -> tzero.v1.common.Decimal
-	2,  // 54: tzero.v1.payment.CreatePaymentResponse.Failure.reason:type_name -> tzero.v1.payment.CreatePaymentResponse.Failure.Reason
-	36, // 55: tzero.v1.payment.CompleteManualAmlCheckResponse.Approved.pay_out_amount:type_name -> tzero.v1.common.Decimal
-	36, // 56: tzero.v1.payment.CompleteManualAmlCheckResponse.Approved.settlement_amount:type_name -> tzero.v1.common.Decimal
-	35, // 57: tzero.v1.payment.FinalizePayoutRequest.Success.receipt:type_name -> tzero.v1.common.PaymentReceipt
-	3,  // 58: tzero.v1.payment.NetworkService.UpdateQuote:input_type -> tzero.v1.payment.UpdateQuoteRequest
-	5,  // 59: tzero.v1.payment.NetworkService.GetQuote:input_type -> tzero.v1.payment.GetQuoteRequest
-	7,  // 60: tzero.v1.payment.NetworkService.CreatePayment:input_type -> tzero.v1.payment.CreatePaymentRequest
-	10, // 61: tzero.v1.payment.NetworkService.ConfirmPayout:input_type -> tzero.v1.payment.ConfirmPayoutRequest
-	15, // 62: tzero.v1.payment.NetworkService.FinalizePayout:input_type -> tzero.v1.payment.FinalizePayoutRequest
-	12, // 63: tzero.v1.payment.NetworkService.CompleteManualAmlCheck:input_type -> tzero.v1.payment.CompleteManualAmlCheckRequest
-	4,  // 64: tzero.v1.payment.NetworkService.UpdateQuote:output_type -> tzero.v1.payment.UpdateQuoteResponse
-	6,  // 65: tzero.v1.payment.NetworkService.GetQuote:output_type -> tzero.v1.payment.GetQuoteResponse
-	9,  // 66: tzero.v1.payment.NetworkService.CreatePayment:output_type -> tzero.v1.payment.CreatePaymentResponse
-	11, // 67: tzero.v1.payment.NetworkService.ConfirmPayout:output_type -> tzero.v1.payment.ConfirmPayoutResponse
-	16, // 68: tzero.v1.payment.NetworkService.FinalizePayout:output_type -> tzero.v1.payment.FinalizePayoutResponse
-	13, // 69: tzero.v1.payment.NetworkService.CompleteManualAmlCheck:output_type -> tzero.v1.payment.CompleteManualAmlCheckResponse
-	64, // [64:70] is the sub-list for method output_type
-	58, // [58:64] is the sub-list for method input_type
-	58, // [58:58] is the sub-list for extension type_name
-	58, // [58:58] is the sub-list for extension extendee
-	0,  // [0:58] is the sub-list for field type_name
+	14, // 1: tzero.v1.payment.GetQuoteRequest.amount:type_name -> tzero.v1.payment.PaymentAmount
+	33, // 2: tzero.v1.payment.GetQuoteRequest.pay_out_method:type_name -> tzero.v1.common.PaymentMethodType
+	0,  // 3: tzero.v1.payment.GetQuoteRequest.quote_type:type_name -> tzero.v1.payment.QuoteType
+	19, // 4: tzero.v1.payment.GetQuoteResponse.success:type_name -> tzero.v1.payment.GetQuoteResponse.Success
+	20, // 5: tzero.v1.payment.GetQuoteResponse.failure:type_name -> tzero.v1.payment.GetQuoteResponse.Failure
+	21, // 6: tzero.v1.payment.GetQuoteResponse.all_quotes:type_name -> tzero.v1.payment.GetQuoteResponse.ProviderQuote
+	14, // 7: tzero.v1.payment.CreatePaymentRequest.amount:type_name -> tzero.v1.payment.PaymentAmount
+	34, // 8: tzero.v1.payment.CreatePaymentRequest.payment_details:type_name -> tzero.v1.common.PaymentDetails
+	8,  // 9: tzero.v1.payment.CreatePaymentRequest.quote_id:type_name -> tzero.v1.payment.QuoteId
+	23, // 10: tzero.v1.payment.CreatePaymentRequest.travel_rule_data:type_name -> tzero.v1.payment.CreatePaymentRequest.TravelRuleData
+	24, // 11: tzero.v1.payment.CreatePaymentResponse.accepted:type_name -> tzero.v1.payment.CreatePaymentResponse.Accepted
+	25, // 12: tzero.v1.payment.CreatePaymentResponse.settlement_required:type_name -> tzero.v1.payment.CreatePaymentResponse.SettlementRequired
+	26, // 13: tzero.v1.payment.CreatePaymentResponse.failure:type_name -> tzero.v1.payment.CreatePaymentResponse.Failure
+	35, // 14: tzero.v1.payment.ConfirmPayoutRequest.receipt:type_name -> tzero.v1.common.PaymentReceipt
+	27, // 15: tzero.v1.payment.CompleteManualAmlCheckRequest.approved:type_name -> tzero.v1.payment.CompleteManualAmlCheckRequest.Approved
+	28, // 16: tzero.v1.payment.CompleteManualAmlCheckRequest.rejected:type_name -> tzero.v1.payment.CompleteManualAmlCheckRequest.Rejected
+	29, // 17: tzero.v1.payment.CompleteManualAmlCheckResponse.approved:type_name -> tzero.v1.payment.CompleteManualAmlCheckResponse.Approved
+	30, // 18: tzero.v1.payment.CompleteManualAmlCheckResponse.rejected:type_name -> tzero.v1.payment.CompleteManualAmlCheckResponse.Rejected
+	36, // 19: tzero.v1.payment.PaymentAmount.pay_out_amount:type_name -> tzero.v1.common.Decimal
+	36, // 20: tzero.v1.payment.PaymentAmount.settlement_amount:type_name -> tzero.v1.common.Decimal
+	31, // 21: tzero.v1.payment.FinalizePayoutRequest.success:type_name -> tzero.v1.payment.FinalizePayoutRequest.Success
+	32, // 22: tzero.v1.payment.FinalizePayoutRequest.failure:type_name -> tzero.v1.payment.FinalizePayoutRequest.Failure
+	0,  // 23: tzero.v1.payment.UpdateQuoteRequest.Quote.quote_type:type_name -> tzero.v1.payment.QuoteType
+	33, // 24: tzero.v1.payment.UpdateQuoteRequest.Quote.payment_method:type_name -> tzero.v1.common.PaymentMethodType
+	18, // 25: tzero.v1.payment.UpdateQuoteRequest.Quote.bands:type_name -> tzero.v1.payment.UpdateQuoteRequest.Quote.Band
+	37, // 26: tzero.v1.payment.UpdateQuoteRequest.Quote.expiration:type_name -> google.protobuf.Timestamp
+	37, // 27: tzero.v1.payment.UpdateQuoteRequest.Quote.timestamp:type_name -> google.protobuf.Timestamp
+	36, // 28: tzero.v1.payment.UpdateQuoteRequest.Quote.Band.max_amount:type_name -> tzero.v1.common.Decimal
+	36, // 29: tzero.v1.payment.UpdateQuoteRequest.Quote.Band.rate:type_name -> tzero.v1.common.Decimal
+	36, // 30: tzero.v1.payment.UpdateQuoteRequest.Quote.Band.fix:type_name -> tzero.v1.common.Decimal
+	36, // 31: tzero.v1.payment.GetQuoteResponse.Success.rate:type_name -> tzero.v1.common.Decimal
+	37, // 32: tzero.v1.payment.GetQuoteResponse.Success.expiration:type_name -> google.protobuf.Timestamp
+	8,  // 33: tzero.v1.payment.GetQuoteResponse.Success.quote_id:type_name -> tzero.v1.payment.QuoteId
+	36, // 34: tzero.v1.payment.GetQuoteResponse.Success.pay_out_amount:type_name -> tzero.v1.common.Decimal
+	36, // 35: tzero.v1.payment.GetQuoteResponse.Success.settlement_amount:type_name -> tzero.v1.common.Decimal
+	36, // 36: tzero.v1.payment.GetQuoteResponse.Success.fix:type_name -> tzero.v1.common.Decimal
+	1,  // 37: tzero.v1.payment.GetQuoteResponse.Failure.reason:type_name -> tzero.v1.payment.GetQuoteResponse.Failure.Reason
+	8,  // 38: tzero.v1.payment.GetQuoteResponse.ProviderQuote.quote_id:type_name -> tzero.v1.payment.QuoteId
+	36, // 39: tzero.v1.payment.GetQuoteResponse.ProviderQuote.rate:type_name -> tzero.v1.common.Decimal
+	37, // 40: tzero.v1.payment.GetQuoteResponse.ProviderQuote.expiration:type_name -> google.protobuf.Timestamp
+	36, // 41: tzero.v1.payment.GetQuoteResponse.ProviderQuote.pay_out_amount:type_name -> tzero.v1.common.Decimal
+	22, // 42: tzero.v1.payment.GetQuoteResponse.ProviderQuote.settlement:type_name -> tzero.v1.payment.GetQuoteResponse.ProviderQuote.Settlement
+	36, // 43: tzero.v1.payment.GetQuoteResponse.ProviderQuote.fix:type_name -> tzero.v1.common.Decimal
+	36, // 44: tzero.v1.payment.GetQuoteResponse.ProviderQuote.Settlement.amount:type_name -> tzero.v1.common.Decimal
+	36, // 45: tzero.v1.payment.GetQuoteResponse.ProviderQuote.Settlement.credit_limit:type_name -> tzero.v1.common.Decimal
+	36, // 46: tzero.v1.payment.GetQuoteResponse.ProviderQuote.Settlement.total_used:type_name -> tzero.v1.common.Decimal
+	36, // 47: tzero.v1.payment.GetQuoteResponse.ProviderQuote.Settlement.prefunding_amount:type_name -> tzero.v1.common.Decimal
+	38, // 48: tzero.v1.payment.CreatePaymentRequest.TravelRuleData.originator:type_name -> ivms101.Person
+	38, // 49: tzero.v1.payment.CreatePaymentRequest.TravelRuleData.beneficiary:type_name -> ivms101.Person
+	36, // 50: tzero.v1.payment.CreatePaymentResponse.Accepted.settlement_amount:type_name -> tzero.v1.common.Decimal
+	36, // 51: tzero.v1.payment.CreatePaymentResponse.Accepted.payout_amount:type_name -> tzero.v1.common.Decimal
+	36, // 52: tzero.v1.payment.CreatePaymentResponse.SettlementRequired.settlement_amount:type_name -> tzero.v1.common.Decimal
+	2,  // 53: tzero.v1.payment.CreatePaymentResponse.Failure.reason:type_name -> tzero.v1.payment.CreatePaymentResponse.Failure.Reason
+	36, // 54: tzero.v1.payment.CompleteManualAmlCheckResponse.Approved.pay_out_amount:type_name -> tzero.v1.common.Decimal
+	36, // 55: tzero.v1.payment.CompleteManualAmlCheckResponse.Approved.settlement_amount:type_name -> tzero.v1.common.Decimal
+	35, // 56: tzero.v1.payment.FinalizePayoutRequest.Success.receipt:type_name -> tzero.v1.common.PaymentReceipt
+	3,  // 57: tzero.v1.payment.NetworkService.UpdateQuote:input_type -> tzero.v1.payment.UpdateQuoteRequest
+	5,  // 58: tzero.v1.payment.NetworkService.GetQuote:input_type -> tzero.v1.payment.GetQuoteRequest
+	7,  // 59: tzero.v1.payment.NetworkService.CreatePayment:input_type -> tzero.v1.payment.CreatePaymentRequest
+	10, // 60: tzero.v1.payment.NetworkService.ConfirmPayout:input_type -> tzero.v1.payment.ConfirmPayoutRequest
+	15, // 61: tzero.v1.payment.NetworkService.FinalizePayout:input_type -> tzero.v1.payment.FinalizePayoutRequest
+	12, // 62: tzero.v1.payment.NetworkService.CompleteManualAmlCheck:input_type -> tzero.v1.payment.CompleteManualAmlCheckRequest
+	4,  // 63: tzero.v1.payment.NetworkService.UpdateQuote:output_type -> tzero.v1.payment.UpdateQuoteResponse
+	6,  // 64: tzero.v1.payment.NetworkService.GetQuote:output_type -> tzero.v1.payment.GetQuoteResponse
+	9,  // 65: tzero.v1.payment.NetworkService.CreatePayment:output_type -> tzero.v1.payment.CreatePaymentResponse
+	11, // 66: tzero.v1.payment.NetworkService.ConfirmPayout:output_type -> tzero.v1.payment.ConfirmPayoutResponse
+	16, // 67: tzero.v1.payment.NetworkService.FinalizePayout:output_type -> tzero.v1.payment.FinalizePayoutResponse
+	13, // 68: tzero.v1.payment.NetworkService.CompleteManualAmlCheck:output_type -> tzero.v1.payment.CompleteManualAmlCheckResponse
+	63, // [63:69] is the sub-list for method output_type
+	57, // [57:63] is the sub-list for method input_type
+	57, // [57:57] is the sub-list for extension type_name
+	57, // [57:57] is the sub-list for extension extendee
+	0,  // [0:57] is the sub-list for field type_name
 }
 
 func init() { file_tzero_v1_payment_network_proto_init() }

@@ -30,7 +30,10 @@ type CreatePaymentIntentResponse_Failure_Reason int32
 const (
 	CreatePaymentIntentResponse_Failure_FAILURE_REASON_UNSPECIFIED CreatePaymentIntentResponse_Failure_Reason = 0
 	// *
-	// No quotes found for the requested currency/amount.
+	// No live quote covers the requested currency/amount. On first call this
+	// means the intent was never created. On an idempotent retry this means
+	// every stored offer has since lost its live quote; a subsequent retry
+	// may succeed once providers republish.
 	CreatePaymentIntentResponse_Failure_FAILURE_REASON_QUOTE_NOT_FOUND CreatePaymentIntentResponse_Failure_Reason = 10
 	// *
 	// Payment intent rejected.
@@ -395,13 +398,17 @@ type PaymentIntentPayInDetails struct {
 	// *
 	// Indicative exchange rate USD/XXX (base currency is always USD).
 	//
-	// Note: This is indicative only. The actual rate is determined when pay-in provider calls ConfirmFundsReceived
+	// Resolved live from the network's current quote snapshot on every call,
+	// including idempotent retries. The binding rate is locked in at
+	// ConfirmFundsReceived and may differ.
 	IndicativeRate *common.Decimal `protobuf:"bytes,40,opt,name=indicative_rate,json=indicativeRate,proto3" json:"indicative_rate,omitempty"`
 	// *
 	// Indicative fixed charge in USD retained by the pay-in provider per transfer.
 	// Settlement is calculated as (amount / indicative_rate) - indicative_fix.
 	//
-	// Note: This is indicative only. The actual fix is locked in at ConfirmFundsReceived time.
+	// Resolved live from the network's current quote snapshot on every call,
+	// including idempotent retries. The binding fix is locked in at
+	// ConfirmFundsReceived and may differ.
 	IndicativeFix *common.Decimal `protobuf:"bytes,50,opt,name=indicative_fix,json=indicativeFix,proto3" json:"indicative_fix,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1242,6 +1249,11 @@ type CreatePaymentIntentResponse_Success struct {
 	// Available payment options for the end-user.
 	// Present these options to your user so they can choose how to pay.
 	// Each entry contains the payment details needed to complete the payment.
+	//
+	// Indicative rate/fix are resolved live on every call, including idempotent
+	// retries. The set of options (provider, payment_method, payment_details)
+	// is fixed at first call; individual options whose underlying quote has
+	// lapsed are omitted on retry.
 	PayInDetails  []*PaymentIntentPayInDetails `protobuf:"bytes,20,rep,name=pay_in_details,json=payInDetails,proto3" json:"pay_in_details,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
