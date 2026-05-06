@@ -19,17 +19,17 @@ export default async function createPaymentIntent(
     },
   })
 
-  switch (response.Result.case) {
+  switch (response.result.case) {
     case 'success':
       console.log(
-          `Created payment intent id=${response.Result.value.paymentIntentId}`,
-          `with ${response.Result.value.payInDetails.length} pay-in option(s)`,
+          `Created payment intent id=${response.result.value.paymentIntentId}`,
+          `with ${response.result.value.payInDetails.length} pay-in option(s)`,
       )
       // TODO: persist (paymentIntentId, externalReference) and present the
       // payInDetails options to your end-user.
       break;
     case 'failure':
-      console.log(`Failed to create payment intent: ${response.Result.value.reason}`)
+      console.log(`Failed to create payment intent: ${response.result.value.reason}`)
       break;
     default:
       console.error("unexpected result type")
