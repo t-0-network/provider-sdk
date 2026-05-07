@@ -58,7 +58,9 @@ def _make_signed_request(
     return scope, body
 
 
-async def _run_middleware(scope: dict, body: bytes, network_key: str = PUBLIC_KEY, max_body_size: int = DEFAULT_MAX_BODY_SIZE):
+async def _run_middleware(
+    scope: dict, body: bytes, network_key: str = PUBLIC_KEY, max_body_size: int = DEFAULT_MAX_BODY_SIZE
+):
     """Run the middleware and return the signature error (if any)."""
     verify_fn = new_verify_signature(network_key)
 
@@ -75,6 +77,7 @@ async def _run_middleware(scope: dict, body: bytes, network_key: str = PUBLIC_KE
     app = signature_verification_middleware(downstream_app, verify_fn, max_body_size)
 
     body_sent = False
+
     async def receive():
         nonlocal body_sent
         if not body_sent:

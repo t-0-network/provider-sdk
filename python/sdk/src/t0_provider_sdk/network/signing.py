@@ -68,9 +68,7 @@ class SigningClient:
         headers = _sign_request(self._sign_fn, b"", headers)
         return await self._inner.get(url, headers=headers)
 
-    async def post(
-        self, url: str, headers: pyqwest.Headers | None = None, content: bytes | None = None
-    ) -> Any:
+    async def post(self, url: str, headers: pyqwest.Headers | None = None, content: bytes | None = None) -> Any:
         body = content or b""
         headers = _sign_request(self._sign_fn, body, headers)
         return await self._inner.post(url, headers=headers, content=content)

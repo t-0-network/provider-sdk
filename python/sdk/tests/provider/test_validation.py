@@ -28,14 +28,17 @@ from t0_provider_sdk.provider.validate_response import (
 # Fixtures
 # ---------------------------------------------------------------------------
 
+
 class FakeContext:
     """Minimal RequestContext stub for interceptor tests."""
+
     pass
 
 
 # ---------------------------------------------------------------------------
 # Server-side: response validation
 # ---------------------------------------------------------------------------
+
 
 class TestResponseValidation:
     """Test that the server interceptor validates provider responses."""
@@ -134,6 +137,7 @@ class TestResponseValidationSync:
 # Client-side: request validation
 # ---------------------------------------------------------------------------
 
+
 class TestRequestValidation:
     """Test that the client interceptor validates outgoing requests."""
 
@@ -214,6 +218,7 @@ class TestRequestValidationSync:
 # ---------------------------------------------------------------------------
 # Direct protovalidate sanity checks
 # ---------------------------------------------------------------------------
+
 
 class TestProtovalidateDirect:
     """Verify protovalidate catches violations on our proto messages."""

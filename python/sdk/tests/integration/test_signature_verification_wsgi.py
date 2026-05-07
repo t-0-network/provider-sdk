@@ -72,43 +72,33 @@ class TestEndToEndSignatureVerificationWSGI:
     def test_valid_signed_request_succeeds(self):
         """Client signs -> server verifies -> success."""
         body = b"payment request data"
-        received_body, error = _send_signed_request_through_wsgi_middleware(
-            body, PRIVATE_KEY, PUBLIC_KEY
-        )
+        received_body, error = _send_signed_request_through_wsgi_middleware(body, PRIVATE_KEY, PUBLIC_KEY)
         assert error is None
         assert received_body == body
 
     def test_wrong_key_fails(self):
         """Client signs with wrong key -> server rejects."""
         body = b"payment request data"
-        received_body, error = _send_signed_request_through_wsgi_middleware(
-            body, OTHER_PRIVATE_KEY, PUBLIC_KEY
-        )
+        received_body, error = _send_signed_request_through_wsgi_middleware(body, OTHER_PRIVATE_KEY, PUBLIC_KEY)
         assert error is not None
         assert "unknown public key" in str(error)
 
     def test_empty_body_succeeds(self):
         """Empty body signed request -> success."""
-        received_body, error = _send_signed_request_through_wsgi_middleware(
-            b"", PRIVATE_KEY, PUBLIC_KEY
-        )
+        received_body, error = _send_signed_request_through_wsgi_middleware(b"", PRIVATE_KEY, PUBLIC_KEY)
         assert error is None
         assert received_body == b""
 
     def test_large_body_succeeds(self):
         """Large body signed request -> success."""
         body = b"x" * 100_000
-        received_body, error = _send_signed_request_through_wsgi_middleware(
-            body, PRIVATE_KEY, PUBLIC_KEY
-        )
+        received_body, error = _send_signed_request_through_wsgi_middleware(body, PRIVATE_KEY, PUBLIC_KEY)
         assert error is None
         assert received_body == body
 
     def test_body_integrity(self):
         """Body is not modified during signing/verification."""
         body = bytes(range(256)) * 10  # Various byte values
-        received_body, error = _send_signed_request_through_wsgi_middleware(
-            body, PRIVATE_KEY, PUBLIC_KEY
-        )
+        received_body, error = _send_signed_request_through_wsgi_middleware(body, PRIVATE_KEY, PUBLIC_KEY)
         assert error is None
         assert received_body == body

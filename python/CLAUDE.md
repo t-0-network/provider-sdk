@@ -24,6 +24,7 @@ uv run pytest -v              # Run all tests (SDK + integration + cross)
 uv run pytest sdk/tests -v    # Run SDK unit tests only
 uv run pytest tests/cross_test -v  # Run Go cross-tests (requires Go helper binary)
 uv run ruff check .           # Lint
+uv run ruff format --check .  # Format check (also a CI gate)
 ```
 
 ## Project Structure
@@ -172,6 +173,7 @@ TimestampOutOfRangeError, UnknownPublicKeyError, SignatureFailedError
 - Files with `.template` suffix have the suffix stripped (e.g., `pyproject.toml.template` → `pyproject.toml`)
 - `.env` created from `.env.example` with auto-generated private key
 - Template directory included in wheel via `artifacts = ["template/**"]` in hatch config
+- `template/pyproject.toml.template` `dependencies` are **customer-facing** and independent of the workspace `python/pyproject.toml` dev pins — Dependabot does not touch them. Bump explicitly with a safety analysis: grep `template/src/**` for the dep's actual usage and confirm an existing pytest path covers the same API surface on the new version.
 
 ## Documentation
 

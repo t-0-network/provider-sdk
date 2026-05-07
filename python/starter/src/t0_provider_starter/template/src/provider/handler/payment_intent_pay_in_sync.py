@@ -27,9 +27,7 @@ class PayInProviderServiceSyncImplementation:
         self._payment_intent_client = payment_intent_client
 
     # TODO: Step 3A.2 See the async variant (payment_intent_pay_in.py) for context.
-    def get_payment_details(
-        self, request: GetPaymentDetailsRequest, ctx: RequestContext
-    ) -> GetPaymentDetailsResponse:
+    def get_payment_details(self, request: GetPaymentDetailsRequest, ctx: RequestContext) -> GetPaymentDetailsResponse:
         logger.info(
             "GetPaymentDetails for payment intent %d, %d method(s)",
             request.payment_intent_id,
