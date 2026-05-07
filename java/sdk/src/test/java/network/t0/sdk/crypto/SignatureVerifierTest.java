@@ -2,6 +2,9 @@ package network.t0.sdk.crypto;
 
 import org.junit.jupiter.api.Test;
 
+import java.math.BigInteger;
+import java.util.Arrays;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -229,6 +232,144 @@ class SignatureVerifierTest {
     void publicKeysEqual_nullSecond_shouldReturnFalse() {
         byte[] key = hexToBytes(PUBLIC_KEY_HEX);
         assertThat(SignatureVerifier.publicKeysEqual(key, null)).isFalse();
+    }
+
+    // ==================== BC ECCurve.decodePoint exception path ====================
+    // SignatureVerifier wraps decodePoint in try/catch(IllegalArgumentException);
+    // these tests pass 65-byte buffers that BC must reject so the catch returns false.
+
+    @Test
+    void verify_offCurvePublicKey_shouldReturnFalse() {
+        // 0x04 prefix with x=1, y=1 - not on secp256k1 (y^2 = x^3 + 7 mod p).
+        byte[] offCurveKey = new byte[65];
+        offCurveKey[0] = 0x04;
+        offCurveKey[32] = 0x01; // x = 1
+        offCurveKey[64] = 0x01; // y = 1
+
+        Signer signer = Signer.fromHex(PRIVATE_KEY_HEX);
+        byte[] digest = hexToBytes(MESSAGE_KECCAK_HASH);
+        SignResult sig = signer.sign(digest);
+
+        assertThat(SignatureVerifier.verify(offCurveKey, digest, sig.getSignature()))
+                .isFalse();
+    }
+
+    @Test
+    void verify_invalidPublicKeyPrefix_shouldReturnFalse() {
+        // Valid x,y but with prefix 0x05 - BC rejects unknown encoding bytes.
+        byte[] validKey = hexToBytes(PUBLIC_KEY_HEX);
+        byte[] invalidPrefixKey = Arrays.copyOf(validKey, validKey.length);
+        invalidPrefixKey[0] = 0x05;
+
+        Signer signer = Signer.fromHex(PRIVATE_KEY_HEX);
+        byte[] digest = hexToBytes(MESSAGE_KECCAK_HASH);
+        SignResult sig = signer.sign(digest);
+
+        assertThat(SignatureVerifier.verify(invalidPrefixKey, digest, sig.getSignature()))
+                .isFalse();
+    }
+
+    @Test
+    void verify_allZeroPublicKey_shouldReturnFalse() {
+        byte[] zeroKey = new byte[65];
+
+        Signer signer = Signer.fromHex(PRIVATE_KEY_HEX);
+        byte[] digest = hexToBytes(MESSAGE_KECCAK_HASH);
+        SignResult sig = signer.sign(digest);
+
+        assertThat(SignatureVerifier.verify(zeroKey, digest, sig.getSignature()))
+                .isFalse();
+    }
+
+    // ==================== BC ECDSASigner range-check coverage ====================
+    // ECDSASigner.verifySignature must reject r/s = 0 and r/s >= n per the ECDSA spec.
+
+    @Test
+    void verify_zeroR_shouldReturnFalse() {
+        byte[] sigZeroR = new byte[65];
+        sigZeroR[63] = 0x01; // s = 1, r = 0
+
+        Signer signer = Signer.fromHex(PRIVATE_KEY_HEX);
+        byte[] digest = hexToBytes(MESSAGE_KECCAK_HASH);
+
+        assertThat(SignatureVerifier.verify(signer.getPublicKey(), digest, sigZeroR))
+                .isFalse();
+    }
+
+    @Test
+    void verify_zeroS_shouldReturnFalse() {
+        byte[] sigZeroS = new byte[65];
+        sigZeroS[31] = 0x01; // r = 1, s = 0
+
+        Signer signer = Signer.fromHex(PRIVATE_KEY_HEX);
+        byte[] digest = hexToBytes(MESSAGE_KECCAK_HASH);
+
+        assertThat(SignatureVerifier.verify(signer.getPublicKey(), digest, sigZeroS))
+                .isFalse();
+    }
+
+    @Test
+    void verify_rEqualToCurveOrder_shouldReturnFalse() {
+        byte[] nBytes = hexToBytes("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141");
+        byte[] sig = new byte[65];
+        System.arraycopy(nBytes, 0, sig, 0, 32); // r = n
+        sig[63] = 0x01; // s = 1
+
+        Signer signer = Signer.fromHex(PRIVATE_KEY_HEX);
+        byte[] digest = hexToBytes(MESSAGE_KECCAK_HASH);
+
+        assertThat(SignatureVerifier.verify(signer.getPublicKey(), digest, sig))
+                .isFalse();
+    }
+
+    @Test
+    void verify_sEqualToCurveOrder_shouldReturnFalse() {
+        byte[] nBytes = hexToBytes("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141");
+        byte[] sig = new byte[65];
+        sig[31] = 0x01; // r = 1
+        System.arraycopy(nBytes, 0, sig, 32, 32); // s = n
+
+        Signer signer = Signer.fromHex(PRIVATE_KEY_HEX);
+        byte[] digest = hexToBytes(MESSAGE_KECCAK_HASH);
+
+        assertThat(SignatureVerifier.verify(signer.getPublicKey(), digest, sig))
+                .isFalse();
+    }
+
+    // ==================== High-s signature acceptance (BC behavior lock-in) ====================
+    // BC's ECDSASigner.verifySignature accepts both low-s and high-s forms (s and n - s
+    // are mathematically equivalent ECDSA signatures). Signer.sign normalizes to low-s,
+    // but the verifier must still accept externally-produced high-s signatures.
+
+    @Test
+    void verify_acceptsHighSSignature() {
+        Signer signer = Signer.fromHex(PRIVATE_KEY_HEX);
+        byte[] digest = hexToBytes(MESSAGE_KECCAK_HASH);
+        SignResult result = signer.sign(digest);
+
+        BigInteger n = new BigInteger(
+                "fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141", 16);
+        BigInteger lowS = new BigInteger(1, result.getS());
+        BigInteger highS = n.subtract(lowS);
+
+        byte[] highSSig = new byte[65];
+        System.arraycopy(result.getR(), 0, highSSig, 0, 32);
+        System.arraycopy(bigIntegerTo32Bytes(highS), 0, highSSig, 32, 32);
+        // v left at 0 (verify ignores it)
+
+        assertThat(SignatureVerifier.verify(signer.getPublicKey(), digest, highSSig))
+                .isTrue();
+    }
+
+    private static byte[] bigIntegerTo32Bytes(BigInteger value) {
+        byte[] raw = value.toByteArray();
+        if (raw.length == 32) return raw;
+        if (raw.length > 32) {
+            return Arrays.copyOfRange(raw, raw.length - 32, raw.length);
+        }
+        byte[] padded = new byte[32];
+        System.arraycopy(raw, 0, padded, 32 - raw.length, raw.length);
+        return padded;
     }
 
     private static byte[] hexToBytes(String hex) {

@@ -2,6 +2,8 @@ package network.t0.sdk.crypto;
 
 import org.junit.jupiter.api.Test;
 
+import java.math.BigInteger;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
@@ -196,6 +198,122 @@ class SignerTest {
         assertThatThrownBy(() -> signer.sign(null))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("digest must be 32 bytes");
+    }
+
+    // ==================== fromBytes Tests ====================
+    // fromBytes is part of the public API (used by cli/KeyGenerator and the starter
+    // gradle task) and exercises the same BouncyCastle paths as fromHex
+    // (FixedPointCombMultiplier, ECPoint.getEncoded, CustomNamedCurves).
+
+    @Test
+    void fromBytes_shouldDeriveCorrectPublicKey() {
+        byte[] privateKeyBytes = hexToBytes(PRIVATE_KEY_HEX);
+        Signer signer = Signer.fromBytes(privateKeyBytes);
+
+        assertThat(signer.getPublicKeyHex()).isEqualTo(EXPECTED_PUBLIC_KEY_HEX);
+    }
+
+    @Test
+    void fromBytes_shouldMatchFromHex() {
+        byte[] privateKeyBytes = hexToBytes(PRIVATE_KEY_HEX);
+        Signer signerFromBytes = Signer.fromBytes(privateKeyBytes);
+        Signer signerFromHex = Signer.fromHex(PRIVATE_KEY_HEX);
+
+        assertThat(signerFromBytes.getPublicKey()).isEqualTo(signerFromHex.getPublicKey());
+    }
+
+    @Test
+    void fromBytes_signatureMatchesFromHex() {
+        byte[] privateKeyBytes = hexToBytes(PRIVATE_KEY_HEX);
+        byte[] digest = hexToBytes(MESSAGE_KECCAK_HASH);
+
+        SignResult fromBytesResult = Signer.fromBytes(privateKeyBytes).sign(digest);
+        SignResult fromHexResult = Signer.fromHex(PRIVATE_KEY_HEX).sign(digest);
+
+        assertThat(fromBytesResult.getSignature()).isEqualTo(fromHexResult.getSignature());
+    }
+
+    @Test
+    void fromBytes_null_shouldThrow() {
+        assertThatThrownBy(() -> Signer.fromBytes(null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("private key must be 32 bytes");
+    }
+
+    @Test
+    void fromBytes_wrongLengthShort_shouldThrow() {
+        assertThatThrownBy(() -> Signer.fromBytes(new byte[31]))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("private key must be 32 bytes");
+    }
+
+    @Test
+    void fromBytes_wrongLengthLong_shouldThrow() {
+        assertThatThrownBy(() -> Signer.fromBytes(new byte[33]))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("private key must be 32 bytes");
+    }
+
+    @Test
+    void fromBytes_zeroKey_shouldThrow() {
+        assertThatThrownBy(() -> Signer.fromBytes(new byte[32]))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("private key must be in range [1, n-1]");
+    }
+
+    @Test
+    void fromBytes_keyAtCurveOrder_shouldThrow() {
+        byte[] keyAtN = hexToBytes("fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141");
+        assertThatThrownBy(() -> Signer.fromBytes(keyAtN))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("private key must be in range [1, n-1]");
+    }
+
+    // ==================== Canonical (low-s) Signature ====================
+    // BouncyCastle's ECDSASigner.generateSignature can produce either low-s or high-s;
+    // Signer.sign normalizes to the canonical low-s form (s <= n/2). Lock the behavior
+    // in across many distinct digests so a BC change that drops the normalization is caught.
+
+    @Test
+    void sign_producesLowSCanonicalSignature() {
+        Signer signer = Signer.fromHex(PRIVATE_KEY_HEX);
+        BigInteger n = new BigInteger(
+                "fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141", 16);
+        BigInteger halfN = n.shiftRight(1);
+
+        for (int i = 0; i < 32; i++) {
+            byte[] digest = Keccak256.hash(("low-s test " + i).getBytes());
+            SignResult result = signer.sign(digest);
+
+            BigInteger s = new BigInteger(1, result.getS());
+            assertThat(s)
+                    .as("signature %d must have s <= n/2 (canonical low-s)", i)
+                    .isLessThanOrEqualTo(halfN);
+        }
+    }
+
+    // ==================== Recovery ID Both Branches ====================
+    // calculateRecoveryId / recoverPublicKey iterate recId 0 and 1, exercising BC's
+    // ECCurve.decodePoint, ECPoint.multiply/subtract/isInfinity, ECPoint.getEncoded.
+    // RFC 6979 makes individual signatures deterministic but the v split is ~50/50
+    // across distinct digests; scan until both branches fire.
+
+    @Test
+    void sign_exercisesBothRecoveryIds() {
+        Signer signer = Signer.fromHex(PRIVATE_KEY_HEX);
+        boolean sawV0 = false;
+        boolean sawV1 = false;
+
+        for (int i = 0; i < 64 && !(sawV0 && sawV1); i++) {
+            byte[] digest = Keccak256.hash(("recid test " + i).getBytes());
+            int v = signer.sign(digest).getV();
+            if (v == 0) sawV0 = true;
+            else if (v == 1) sawV1 = true;
+            else throw new AssertionError("unexpected recovery id: " + v);
+        }
+
+        assertThat(sawV0).as("recovery id 0 must occur within 64 digests").isTrue();
+        assertThat(sawV1).as("recovery id 1 must occur within 64 digests").isTrue();
     }
 
     private static String bytesToHex(byte[] bytes) {
