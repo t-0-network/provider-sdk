@@ -43,9 +43,7 @@ async def _wait_for_port(port: int, timeout: float = 5.0) -> None:
     deadline = asyncio.get_event_loop().time() + timeout
     while asyncio.get_event_loop().time() < deadline:
         try:
-            _, writer = await asyncio.wait_for(
-                asyncio.open_connection("127.0.0.1", port), timeout=0.5
-            )
+            _, writer = await asyncio.wait_for(asyncio.open_connection("127.0.0.1", port), timeout=0.5)
             writer.close()
             await writer.wait_closed()
             return

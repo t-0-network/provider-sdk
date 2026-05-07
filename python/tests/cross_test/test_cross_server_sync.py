@@ -93,10 +93,14 @@ class _ProviderServiceSync:
     def update_limit(self, request: UpdateLimitRequest, ctx: RequestContext) -> UpdateLimitResponse:
         return UpdateLimitResponse()
 
-    def append_ledger_entries(self, request: AppendLedgerEntriesRequest, ctx: RequestContext) -> AppendLedgerEntriesResponse:
+    def append_ledger_entries(
+        self, request: AppendLedgerEntriesRequest, ctx: RequestContext
+    ) -> AppendLedgerEntriesResponse:
         return AppendLedgerEntriesResponse()
 
-    def approve_payment_quotes(self, request: ApprovePaymentQuoteRequest, ctx: RequestContext) -> ApprovePaymentQuoteResponse:
+    def approve_payment_quotes(
+        self, request: ApprovePaymentQuoteRequest, ctx: RequestContext
+    ) -> ApprovePaymentQuoteResponse:
         return ApprovePaymentQuoteResponse()
 
 

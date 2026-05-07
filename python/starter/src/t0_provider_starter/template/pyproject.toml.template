@@ -4,7 +4,7 @@ version = "0.1.0"
 requires-python = ">=3.13"
 dependencies = [
     "t0-provider-sdk>=0.1.0",
-    "uvicorn>=0.34",
+    "uvicorn>=0.44.0",
     "python-dotenv>=1.0",
 ]
 

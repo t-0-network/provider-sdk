@@ -4,7 +4,6 @@ Creates a real ASGI app with signature verification middleware,
 sends a signed request, and verifies it succeeds end-to-end.
 """
 
-
 import pytest
 from t0_provider_sdk.crypto.signer import new_signer_from_hex
 from t0_provider_sdk.network.signing import _sign_request
@@ -58,6 +57,7 @@ async def _send_signed_request_through_middleware(
 
     # Send request
     body_sent = False
+
     async def receive():
         nonlocal body_sent
         if not body_sent:
@@ -77,43 +77,33 @@ class TestEndToEndSignatureVerification:
     async def test_valid_signed_request_succeeds(self):
         """Client signs → server verifies → success."""
         body = b"payment request data"
-        received_body, error = await _send_signed_request_through_middleware(
-            body, PRIVATE_KEY, PUBLIC_KEY
-        )
+        received_body, error = await _send_signed_request_through_middleware(body, PRIVATE_KEY, PUBLIC_KEY)
         assert error is None
         assert received_body == body
 
     async def test_wrong_key_fails(self):
         """Client signs with wrong key → server rejects."""
         body = b"payment request data"
-        received_body, error = await _send_signed_request_through_middleware(
-            body, OTHER_PRIVATE_KEY, PUBLIC_KEY
-        )
+        received_body, error = await _send_signed_request_through_middleware(body, OTHER_PRIVATE_KEY, PUBLIC_KEY)
         assert error is not None
         assert "unknown public key" in str(error)
 
     async def test_empty_body_succeeds(self):
         """Empty body signed request → success."""
-        received_body, error = await _send_signed_request_through_middleware(
-            b"", PRIVATE_KEY, PUBLIC_KEY
-        )
+        received_body, error = await _send_signed_request_through_middleware(b"", PRIVATE_KEY, PUBLIC_KEY)
         assert error is None
         assert received_body == b""
 
     async def test_large_body_succeeds(self):
         """Large body signed request → success."""
         body = b"x" * 100_000
-        received_body, error = await _send_signed_request_through_middleware(
-            body, PRIVATE_KEY, PUBLIC_KEY
-        )
+        received_body, error = await _send_signed_request_through_middleware(body, PRIVATE_KEY, PUBLIC_KEY)
         assert error is None
         assert received_body == body
 
     async def test_body_integrity(self):
         """Body is not modified during signing/verification."""
         body = bytes(range(256)) * 10  # Various byte values
-        received_body, error = await _send_signed_request_through_middleware(
-            body, PRIVATE_KEY, PUBLIC_KEY
-        )
+        received_body, error = await _send_signed_request_through_middleware(body, PRIVATE_KEY, PUBLIC_KEY)
         assert error is None
         assert received_body == body

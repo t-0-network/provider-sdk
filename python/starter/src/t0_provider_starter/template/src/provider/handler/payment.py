@@ -40,15 +40,11 @@ class ProviderServiceImplementation:
         self._network_client = network_client
 
     # TODO: Step 2.1 implement how you handle updates of payment initiated by you
-    async def update_payment(
-        self, request: UpdatePaymentRequest, ctx: RequestContext
-    ) -> UpdatePaymentResponse:
+    async def update_payment(self, request: UpdatePaymentRequest, ctx: RequestContext) -> UpdatePaymentResponse:
         return UpdatePaymentResponse()
 
     # TODO: Step 2.4 implement how you do payouts (payments initiated by your counterparts)
-    async def pay_out(
-        self, request: PayoutRequest, ctx: RequestContext
-    ) -> PayoutResponse:
+    async def pay_out(self, request: PayoutRequest, ctx: RequestContext) -> PayoutResponse:
         # TODO: FinalizePayout should be called when your system notifies
         # that payout has been made successfully
         await self._network_client.finalize_payout(
@@ -67,9 +63,7 @@ class ProviderServiceImplementation:
         # optional: if your provider has multiple legal entities, set beneficiary_provider_legal_entity_id
         return PayoutResponse()
 
-    async def update_limit(
-        self, request: UpdateLimitRequest, ctx: RequestContext
-    ) -> UpdateLimitResponse:
+    async def update_limit(self, request: UpdateLimitRequest, ctx: RequestContext) -> UpdateLimitResponse:
         # TODO: optionally implement handling of the notifications about
         # updates on your limits and limits usage
         return UpdateLimitResponse()

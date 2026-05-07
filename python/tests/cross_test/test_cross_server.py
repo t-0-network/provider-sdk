@@ -75,9 +75,7 @@ async def _async_wait_for_port(port: int, timeout: float = 10.0) -> None:
     deadline = asyncio.get_event_loop().time() + timeout
     while asyncio.get_event_loop().time() < deadline:
         try:
-            _, writer = await asyncio.wait_for(
-                asyncio.open_connection("127.0.0.1", port), timeout=0.5
-            )
+            _, writer = await asyncio.wait_for(asyncio.open_connection("127.0.0.1", port), timeout=0.5)
             writer.close()
             await writer.wait_closed()
             return
@@ -110,10 +108,14 @@ class _ProviderService:
     async def update_limit(self, request: UpdateLimitRequest, ctx: RequestContext) -> UpdateLimitResponse:
         return UpdateLimitResponse()
 
-    async def append_ledger_entries(self, request: AppendLedgerEntriesRequest, ctx: RequestContext) -> AppendLedgerEntriesResponse:
+    async def append_ledger_entries(
+        self, request: AppendLedgerEntriesRequest, ctx: RequestContext
+    ) -> AppendLedgerEntriesResponse:
         return AppendLedgerEntriesResponse()
 
-    async def approve_payment_quotes(self, request: ApprovePaymentQuoteRequest, ctx: RequestContext) -> ApprovePaymentQuoteResponse:
+    async def approve_payment_quotes(
+        self, request: ApprovePaymentQuoteRequest, ctx: RequestContext
+    ) -> ApprovePaymentQuoteResponse:
         return ApprovePaymentQuoteResponse()
 
 

@@ -78,9 +78,7 @@ class TestCrossHash:
         go_hash = bytes.fromhex(go_hash_hex.removeprefix("0x"))
 
         assert python_hash == go_hash, (
-            f"Hash mismatch for input '{data_hex}':\n"
-            f"  Python: 0x{python_hash.hex()}\n"
-            f"  Go:     {go_hash_hex}"
+            f"Hash mismatch for input '{data_hex}':\n  Python: 0x{python_hash.hex()}\n  Go:     {go_hash_hex}"
         )
 
 
