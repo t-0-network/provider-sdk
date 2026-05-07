@@ -1,6 +1,7 @@
 import { describe, it, assert } from 'node:test';
 import * as nodeAssert from 'node:assert/strict';
 import { keccak_256 } from '@noble/hashes/sha3.js';
+import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { CreateSigner } from '../src/client/signer.js';
 import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
@@ -16,6 +17,90 @@ describe('Keccak-256 hashing', () => {
       nodeAssert.equal(hash, vec.hash);
     });
   }
+
+  // Mirrors the streaming pattern in src/service/node.ts where the
+  // signatureValidation middleware feeds N request chunks into hasher.update().
+  // Asserts incremental hashing across many chunk boundaries matches the
+  // one-shot digest, guarding against a regression in noble-hashes' sha3
+  // streaming state across releases (the 2.2.0 sha3 unrolling speedup is the
+  // exact kind of change this catches).
+  it('multi-chunk streaming digest matches one-shot for same bytes', () => {
+    const full = Buffer.from('the quick brown fox jumps over the lazy dog 0123456789', 'utf-8');
+    const oneShot = Buffer.from(keccak_256(full)).toString('hex');
+
+    for (const splits of [
+      [1, 2, 3, 4, 5],
+      [10, 20, 30],
+      [0, full.length],
+      [1, 1, 1, 1, 1, 1, 1, 1],
+    ]) {
+      const hasher = keccak_256.create();
+      let offset = 0;
+      for (const len of splits) {
+        hasher.update(full.subarray(offset, offset + len));
+        offset += len;
+      }
+      hasher.update(full.subarray(offset));
+      const streamed = Buffer.from(hasher.digest()).toString('hex');
+      nodeAssert.equal(streamed, oneShot, `splits=${splits.join(',')}`);
+    }
+  });
+});
+
+describe('secp256k1 verification', () => {
+  // service.ts line ~40 calls secp256k1.verify(signature, hash, publicKey, {prehash: false})
+  // to authenticate every inbound request. Without a direct test, regressions in
+  // noble-curves' verify path would only surface through the end-to-end Health
+  // test in system.test.ts — and only on the rejection branch we exercise there.
+  // These cases pin down the function's contract on the exact arguments the SDK
+  // hands it.
+
+  const publicKey = Buffer.from(vectors.keys.public_key, 'hex');
+  const validHash = Buffer.from(vectors.request_signing.expected_hash, 'hex');
+  const validSig = Buffer.from(vectors.request_signing.expected_signature, 'hex');
+
+  it('accepts cross-language signature against matching public key + hash', () => {
+    const ok = secp256k1.verify(validSig, validHash, publicKey, { prehash: false });
+    nodeAssert.equal(ok, true);
+  });
+
+  it('rejects signature with one bit flipped', () => {
+    const tampered = Buffer.from(validSig);
+    tampered[63] ^= 0x01;
+    const ok = secp256k1.verify(tampered, validHash, publicKey, { prehash: false });
+    nodeAssert.equal(ok, false);
+  });
+
+  it('rejects when hash does not match what was signed', () => {
+    const tamperedHash = Buffer.from(validHash);
+    tamperedHash[0] ^= 0xff;
+    const ok = secp256k1.verify(validSig, tamperedHash, publicKey, { prehash: false });
+    nodeAssert.equal(ok, false);
+  });
+
+  it('rejects against a different public key', () => {
+    // Derive a second uncompressed public key from a known good private key.
+    const otherPriv = Buffer.alloc(32);
+    otherPriv[31] = 0x01;
+    const otherPub = Buffer.from(secp256k1.getPublicKey(otherPriv, false));
+    nodeAssert.notEqual(otherPub.toString('hex'), publicKey.toString('hex'));
+
+    const ok = secp256k1.verify(validSig, validHash, otherPub, { prehash: false });
+    nodeAssert.equal(ok, false);
+  });
+
+  // SDK callers may submit a 65-byte (r||s||recoveryId) signature; service.ts
+  // truncates to the first 64 bytes before calling verify(). Asserts noble's
+  // 64-byte verify succeeds on bytes that were sliced out of a 65-byte buffer
+  // — i.e. the slice path leaves the signature byte-identical.
+  it('verifies signature sliced from a synthetic 65-byte buffer', () => {
+    const sig65 = Buffer.alloc(65);
+    validSig.copy(sig65, 0);
+    sig65[64] = 0x01; // recovery id; will be discarded
+    const truncated = sig65.subarray(0, 64);
+    const ok = secp256k1.verify(truncated, validHash, publicKey, { prehash: false });
+    nodeAssert.equal(ok, true);
+  });
 });
 
 describe('CreateSigner', () => {
