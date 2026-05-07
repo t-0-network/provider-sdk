@@ -8,11 +8,7 @@
 Thumbs.db
 
 # Claude Code
-# Ignore personal config (settings.local.json, worktrees, conversations) but
-# track repo-scoped skills so contributors share them.
-.claude/*
-!.claude/skills/
-.claude.local.md
+.claude/settings.local.json
 
 # Go
 go/starter/template/vendor/
