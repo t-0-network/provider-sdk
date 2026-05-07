@@ -79,6 +79,10 @@ Consequently the Java SDK's `SignatureVerificationInterceptor` accepts both fram
 
 When the user asks to release, trigger it via `gh workflow run release.yaml -f bump=<type> --ref master`. Default to `patch` unless the user specifies otherwise.
 
+## Dependency updates
+
+When triaging a Dependabot PR or bumping a library, follow [`.claude/skills/dependency-update/SKILL.md`](.claude/skills/dependency-update/SKILL.md). Three tiers: dev-only deps batch through with existing tests (PR #98 pattern), behavior/strictness jumps are held for human review, and crypto/security-path deps require a pre-bump coverage audit + new direct tests + post-bump byte-identical re-verification (PR #99 pattern). The skill auto-triggers on dep-update conversation; there is no slash command.
+
 ## Git Workflow
 
 - NEVER commit or push without explicit user request

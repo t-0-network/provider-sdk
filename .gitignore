@@ -8,7 +8,10 @@
 Thumbs.db
 
 # Claude Code
-.claude/
+# Ignore personal config (settings.local.json, worktrees, conversations) but
+# track repo-scoped skills so contributors share them.
+.claude/*
+!.claude/skills/
 .claude.local.md
 
 # Go
