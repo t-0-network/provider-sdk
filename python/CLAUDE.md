@@ -24,6 +24,7 @@ uv run pytest -v              # Run all tests (SDK + integration + cross)
 uv run pytest sdk/tests -v    # Run SDK unit tests only
 uv run pytest tests/cross_test -v  # Run Go cross-tests (requires Go helper binary)
 uv run ruff check .           # Lint
+uv run ruff format --check .  # Format check (also a CI gate)
 ```
 
 ## Project Structure
@@ -172,6 +173,7 @@ TimestampOutOfRangeError, UnknownPublicKeyError, SignatureFailedError
 - Files with `.template` suffix have the suffix stripped (e.g., `pyproject.toml.template` → `pyproject.toml`)
 - `.env` created from `.env.example` with auto-generated private key
 - Template directory included in wheel via `artifacts = ["template/**"]` in hatch config
+- `template/pyproject.toml.template` `dependencies` are **customer-facing** and independent of the workspace `python/pyproject.toml` dev pins — Dependabot does not touch them. Bump explicitly with a safety analysis: grep `template/src/**` for the dep's actual usage and confirm an existing pytest path covers the same API surface on the new version.
 
 ## Documentation
 
@@ -184,25 +186,3 @@ Docs live in the top-level [`docs/python/`](../../docs/python/) directory:
 
 - NEVER commit or push without explicit user request
 - Run tests locally before suggesting commits
-
-## Dependency Update Policy
-
-**Dev-only dependencies in `python/pyproject.toml` `[dependency-groups].dev` are safe to bump.** They never reach customer runtimes:
-
-- `sdk/pyproject.toml` `dependencies` — published to PyPI as `t0-provider-sdk`; runtime deps only (`connectrpc`, `protobuf`, `coincurve`, `pycryptodome`, `protovalidate`).
-- `starter/pyproject.toml` `dependencies` — published as `t0-provider-starter`; runtime is `coincurve`/`click`/`python-dotenv`.
-- `starter/src/t0_provider_starter/template/pyproject.toml.template` — the customer-facing template shipped to generated projects. Its `dependencies` block is independent of the workspace dev pins and must be edited explicitly.
-
-Acceptance for a dev-deps bump:
-
-```bash
-cd python
-uv sync --all-packages
-uv run pytest -v
-uv run ruff check .
-uv run ruff format --check .
-```
-
-All four must pass. Mypy is informational only (CI step is currently disabled — see `.github/workflows/ci.yaml`).
-
-**Runtime-affecting changes** — anything inside `sdk/pyproject.toml` `dependencies`, `starter/pyproject.toml` `dependencies`, or the starter template's `pyproject.toml.template` — require explicit user review and a safety analysis: confirm the template's actual usage of the dependency (grep its source) and verify the new floor is exercised by an existing pytest path before bumping.
