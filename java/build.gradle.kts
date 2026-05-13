@@ -2,7 +2,7 @@ import java.time.Duration
 
 plugins {
     java
-    id("com.gradleup.nmcp.aggregation") version "1.4.4"
+    id("com.gradleup.nmcp.aggregation") version "1.5.0"
     // JReleaser disabled - using NMCP instead. Re-enable when JReleaser bugs are fixed.
     // id("org.jreleaser") version "1.22.0"
 }

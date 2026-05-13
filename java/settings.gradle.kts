@@ -5,7 +5,7 @@ pluginManagement {
     }
     plugins {
         id("com.gradleup.nmcp") version "1.4.4"
-        id("com.gradleup.nmcp.aggregation") version "1.4.4"
+        id("com.gradleup.nmcp.aggregation") version "1.5.0"
     }
 }
 
