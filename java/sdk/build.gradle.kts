@@ -27,7 +27,7 @@ dependencies {
     implementation("org.bouncycastle:bcprov-jdk18on:$bouncyCastleVersion")
 
     // Logging
-    implementation("org.slf4j:slf4j-api:2.0.17")
+    implementation("org.slf4j:slf4j-api:2.0.18")
 
     // javax.annotation for generated code
     compileOnly("javax.annotation:javax.annotation-api:1.3.2")
