@@ -10,6 +10,8 @@ import network.t0.sdk.proto.tzero.v1.common.Decimal;
 import network.t0.sdk.proto.tzero.v1.payment.AppendLedgerEntriesRequest;
 import network.t0.sdk.proto.tzero.v1.payment.PayoutResponse;
 import network.t0.sdk.proto.tzero.v1.payment.UpdatePaymentResponse;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 import network.t0.sdk.provider.ResponseValidationInterceptor;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -17,6 +19,10 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.slf4j.LoggerFactory;
+
+import java.util.Map;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -225,6 +231,79 @@ class ValidationTest {
 
             assertThat(fakeCall.closedStatus).isNull();
             assertThat(fakeCall.sentMessage).isEqualTo(validResponse);
+        }
+
+        @Test
+        @DisplayName("Custom logger receives single structured error event on invalid response")
+        void customLoggerReceivesStructuredEvent() {
+            ch.qos.logback.classic.Logger customLogger =
+                    (ch.qos.logback.classic.Logger) LoggerFactory.getLogger("ValidationTest.custom");
+            ListAppender<ILoggingEvent> appender = new ListAppender<>();
+            appender.start();
+            customLogger.addAppender(appender);
+            try {
+                var interceptor = new ResponseValidationInterceptor(customLogger);
+                var fakeCall = new FakeServerCall<Decimal, Decimal>();
+
+                ServerCallHandler<Decimal, Decimal> handler = (call, metadata) -> {
+                    call.sendMessage(Decimal.newBuilder().setExponent(100).build());
+                    return new ServerCall.Listener<>() {};
+                };
+
+                interceptor.interceptCall(fakeCall, new Metadata(), handler);
+
+                // Wire shape unchanged: Status.INTERNAL with the same description.
+                assertThat(fakeCall.closedStatus).isNotNull();
+                assertThat(fakeCall.closedStatus.getCode()).isEqualTo(Status.Code.INTERNAL);
+                assertThat(fakeCall.closedStatus.getDescription()).startsWith("response validation failed");
+
+                // Exactly one error event landed on the custom logger.
+                assertThat(appender.list).hasSize(1);
+                ILoggingEvent event = appender.list.get(0);
+                assertThat(event.getLevel().toString()).isEqualTo("ERROR");
+                assertThat(event.getMessage()).isEqualTo("response validation failed");
+
+                Map<String, String> kv = event.getKeyValuePairs() == null
+                        ? Map.of()
+                        : event.getKeyValuePairs().stream()
+                                .collect(Collectors.toMap(p -> p.key, p -> String.valueOf(p.value)));
+                assertThat(kv).containsKeys("rpc_method", "response_type", "violations", "sdk_version");
+                assertThat(kv.get("response_type")).isEqualTo("tzero.v1.common.Decimal");
+                assertThat(kv.get("violations")).isNotBlank();
+                assertThat(kv.get("sdk_version")).isNotBlank();
+            } finally {
+                customLogger.detachAppender(appender);
+            }
+        }
+
+        @Test
+        @DisplayName("withLogger(null) is rejected")
+        void nullLoggerRejected() {
+            assertThatThrownBy(() -> new ResponseValidationInterceptor(null))
+                    .isInstanceOf(IllegalArgumentException.class);
+        }
+
+        @Test
+        @DisplayName("ResponseValidationException from handler is mapped to Status.INTERNAL")
+        void handlerThrownExceptionMapsToInternal() {
+            var interceptor = new ResponseValidationInterceptor();
+            var fakeCall = new FakeServerCall<Decimal, Decimal>();
+
+            // Handler whose onHalfClose throws ResponseValidationException (mirrors what
+            // happens when a handler calls Validate.check(...) and lets it propagate).
+            ServerCallHandler<Decimal, Decimal> handler = (call, metadata) -> new ServerCall.Listener<>() {
+                @Override public void onHalfClose() {
+                    throw new network.t0.sdk.provider.ResponseValidationException("field: must be > 0");
+                }
+            };
+
+            ServerCall.Listener<Decimal> wrapped = interceptor.interceptCall(fakeCall, new Metadata(), handler);
+            wrapped.onHalfClose();
+
+            assertThat(fakeCall.closedStatus).isNotNull();
+            assertThat(fakeCall.closedStatus.getCode()).isEqualTo(Status.Code.INTERNAL);
+            assertThat(fakeCall.closedStatus.getDescription())
+                    .isEqualTo("response validation failed: field: must be > 0");
         }
     }
 

@@ -105,6 +105,49 @@ docker build -t my-provider:latest .
 docker run -p 8080:8080 --env-file .env my-provider:latest
 ```
 
+## Configuring logging
+
+The SDK writes a single `slog.Error` line when its response-validation interceptor catches a handler returning a protobuf message that fails the buf.validate rules. The wire response is still `connect.CodeInternal` (unchanged), so this is a developer-facing safety net for failures the handler did not catch with `provider.Validate(...)`.
+
+**Default behaviour**: `slog.Default()`. On Go 1.21+ that is a text handler writing to stderr; in production you typically replace it before starting the server.
+
+**Override via `provider.WithLogger`** (already wired in `cmd/main.go`):
+
+```go
+import (
+    "log/slog"
+    "os"
+
+    "github.com/t-0-network/provider-sdk/go/provider"
+)
+
+logger := slog.New(slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
+    Level: slog.LevelInfo,
+}))
+
+handler, err := provider.NewHttpHandlerWithOptions(
+    networkPublicKey,
+    []provider.HttpHandlerOption{provider.WithLogger(logger)},
+    provider.Handler(/* ... */),
+)
+```
+
+Log fields: `rpc_method`, `response_type`, `violations`, `sdk_version`.
+
+`response_type` is captured from the method descriptor when the validator fails before producing a response; it should always be the response message's FQN. `unknown` indicates a non-protobuf custom transport, which is unusual.
+
+**Catching the failure in your own code**: wrap responses with `provider.Validate(...)` before returning. It runs the same rules and either returns the typed message unchanged or returns an error prefixed `response validation failed: ...`. Propagating the error keeps the wire shape; catching it lets you translate the failure into a domain-level signal (for example, the `Failed` arm of a oneof result).
+
+```go
+resp, err := provider.Validate(&payment.PayoutResponse{ /* ... */ })
+if err != nil {
+    return nil, err
+}
+return connect.NewResponse(resp), nil
+```
+
+**Bridging to zap or zerolog**: both libraries expose `slog.Handler` adapters (`zap.NewSlogHandler`, `slogzerolog.NewHandler` and similar). Build your bridge handler and pass `slog.New(handler)` to `provider.WithLogger`.
+
 ## SDK Reference
 
 For direct SDK usage (without the starter), see the [Go SDK documentation](../README.md).

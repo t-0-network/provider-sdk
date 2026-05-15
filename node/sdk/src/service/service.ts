@@ -13,9 +13,20 @@ import { secp256k1 } from '@noble/curves/secp256k1.js'
 import {Hash} from "@noble/hashes/utils.js";
 import type {DescService, } from "@bufbuild/protobuf";
 import type {ServiceImpl} from "@connectrpc/connect";
-import {createValidationInterceptor} from "./validate_response.js";
+import {createValidationInterceptor, type Logger} from "./validate_response.js";
 import {SystemService} from "../common/gen/tzero/v1/system/system_pb.js";
 import {createSystemServiceImpl} from "./system.js";
+
+export interface CreateServiceOptions {
+  /**
+   * Logger used by the SDK for error-level events (currently:
+   * response-validation failures from the interceptor safety net). The same
+   * logger will be used for any future server-wide SDK log sites.
+   *
+   * If omitted, the SDK logs to `console.error` with a JSON-encoded payload.
+   */
+  logger?: Logger;
+}
 
 export const REQUEST_VALIDITY_MILLIS = 60_000;
 
@@ -65,7 +76,8 @@ interface Router {
 
 export const createService = (
   networkPublicKey: string | Buffer,
-  registerRoutes: (router: Router) => void) => {
+  registerRoutes: (router: Router) => void,
+  options?: CreateServiceOptions) => {
   if (typeof networkPublicKey == "string") {
     networkPublicKey = decodeHex(networkPublicKey)
   }
@@ -84,7 +96,7 @@ export const createService = (
       collected.push(SystemService.typeName);
       origService(SystemService, createSystemServiceImpl(collected));
     },
-    interceptors: [createSignatureVerification(networkPublicKey), createValidationInterceptor()],
+    interceptors: [createSignatureVerification(networkPublicKey), createValidationInterceptor(options?.logger)],
     grpcWeb: false,
     contextValues: (req: any) => {
       return createContextValues().set(kHash, (req as any).hasher as Hash<Hash<any>>)

@@ -57,6 +57,13 @@ async function main() {
           r.service(PaymentIntentPayInProvider.PayInProviderService, CreatePayInProviderService(paymentIntentClient));
           // Phase 3B — Beneficiary Provider role. Remove if you are only a pay-in provider.
           r.service(PaymentIntentBeneficiary.BeneficiaryService, CreateBeneficiaryService());
+        }, {
+          // SDK-wide logger. Used for response-validation failures (safety net)
+          // and signature-verification errors. Swap `console` for pino / winston
+          // by adapting: { error: (msg, fields) => pino.error(fields, msg) }
+          logger: {
+            error: (msg, fields) => console.error(JSON.stringify({ msg, ...fields })),
+          },
         })))
   ).listen(port);
   console.log("✅ Service ready and is listening at", server.address());
