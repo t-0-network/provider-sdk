@@ -92,6 +92,12 @@ const (
 	// The pay-in amount would yield a zero or negative beneficiary
 	// settlement (pay_in / rate − fix) at every active quote.
 	ConfirmFundsReceivedResponse_Reject_REJECT_REASON_AMOUNT_TOO_SMALL ConfirmFundsReceivedResponse_Reject_Reason = 40
+	// *
+	// The (pay-in provider, payment method) tuple was not offered on
+	// this intent. Either the intent was rejected during creation,
+	// or this provider's GetPaymentDetails response was invalid for
+	// the requested method.
+	ConfirmFundsReceivedResponse_Reject_REJECT_REASON_NO_VALID_OFFER ConfirmFundsReceivedResponse_Reject_Reason = 50
 )
 
 // Enum value maps for ConfirmFundsReceivedResponse_Reject_Reason.
@@ -102,6 +108,7 @@ var (
 		20: "REJECT_REASON_NO_ACTIVE_QUOTE",
 		30: "REJECT_REASON_PROVIDER_NOT_ALLOWED",
 		40: "REJECT_REASON_AMOUNT_TOO_SMALL",
+		50: "REJECT_REASON_NO_VALID_OFFER",
 	}
 	ConfirmFundsReceivedResponse_Reject_Reason_value = map[string]int32{
 		"REJECT_REASON_UNSPECIFIED":                0,
@@ -109,6 +116,7 @@ var (
 		"REJECT_REASON_NO_ACTIVE_QUOTE":            20,
 		"REJECT_REASON_PROVIDER_NOT_ALLOWED":       30,
 		"REJECT_REASON_AMOUNT_TOO_SMALL":           40,
+		"REJECT_REASON_NO_VALID_OFFER":             50,
 	}
 )
 
@@ -669,8 +677,13 @@ type ConfirmFundsReceivedRequest struct {
 	// The payment intent ID being confirmed.
 	// Must be a valid, pending payment intent.
 	PaymentIntentId uint64 `protobuf:"varint,10,opt,name=payment_intent_id,json=paymentIntentId,proto3" json:"payment_intent_id,omitempty"`
-	// Confirmation code received in the get payment details along with the payment_intent_id. This is to prevent
-	// the accidental confirmation of the wrong payment intent.
+	// *
+	// Confirmation code received in the get payment details along with the payment_intent_id.
+	// This prevents accidental confirmation of the wrong payment intent. The network
+	// generates this as a UUID at CreatePaymentIntent time; non-UUID strings still pass
+	// field-level length validation here and surface as a REJECT_REASON_CONFIRMATION_CODE_MISMATCH
+	// at the orchestrator (preserving the "wrong code is a domain reject, not a transport error"
+	// contract).
 	ConfirmationCode string `protobuf:"bytes,20,opt,name=confirmation_code,json=confirmationCode,proto3" json:"confirmation_code,omitempty"`
 	// *
 	// The payment method used by the end-user.
@@ -1441,10 +1454,10 @@ var File_tzero_v1_payment_intent_network_proto protoreflect.FileDescriptor
 
 const file_tzero_v1_payment_intent_network_proto_rawDesc = "" +
 	"\n" +
-	"%tzero/v1/payment_intent/network.proto\x12\x17tzero.v1.payment_intent\x1a\x1bbuf/validate/validate.proto\x1a\x1ctzero/v1/common/common.proto\x1a$tzero/v1/common/payment_method.proto\x1a\x1divms101/v1/ivms/ivms101.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x8c\x06\n" +
+	"%tzero/v1/payment_intent/network.proto\x12\x17tzero.v1.payment_intent\x1a\x1bbuf/validate/validate.proto\x1a\x1ctzero/v1/common/common.proto\x1a$tzero/v1/common/payment_method.proto\x1a\x1divms101/v1/ivms/ivms101.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xfe\x06\n" +
 	"\x12UpdateQuoteRequest\x12e\n" +
 	"\x15payment_intent_quotes\x18\n" +
-	" \x03(\v21.tzero.v1.payment_intent.UpdateQuoteRequest.QuoteR\x13paymentIntentQuotes\x1a\x8e\x05\n" +
+	" \x03(\v21.tzero.v1.payment_intent.UpdateQuoteRequest.QuoteR\x13paymentIntentQuotes\x1a\x80\x06\n" +
 	"\x05Quote\x120\n" +
 	"\bcurrency\x18\n" +
 	" \x01(\tB\x14\xbaH\x11r\x0f2\n" +
@@ -1454,61 +1467,62 @@ const file_tzero_v1_payment_intent_network_proto_rawDesc = "" +
 	"\n" +
 	"expiration\x18< \x01(\v2\x1a.google.protobuf.TimestampB\b\xbaH\x05\xb2\x01\x02@\x01R\n" +
 	"expiration\x12@\n" +
-	"\ttimestamp\x18F \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\ttimestamp\x1a\x9f\x02\n" +
+	"\ttimestamp\x18F \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\ttimestamp\x1a\x91\x03\n" +
 	"\x04Band\x121\n" +
 	"\x0fclient_quote_id\x18\n" +
-	" \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18@R\rclientQuoteId\x12?\n" +
+	" \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18@R\rclientQuoteId\x12{\n" +
 	"\n" +
-	"max_amount\x18( \x01(\v2\x18.tzero.v1.common.DecimalB\x06\xbaH\x03\xc8\x01\x01R\tmaxAmount\x124\n" +
-	"\x04rate\x182 \x01(\v2\x18.tzero.v1.common.DecimalB\x06\xbaH\x03\xc8\x01\x01R\x04rate\x12e\n" +
+	"max_amount\x18( \x01(\v2\x18.tzero.v1.common.DecimalBB\xbaH?\xba\x019\x12$max_amount must be greater than zero\x1a\x11this.unscaled > 0\xc8\x01\x01R\tmaxAmount\x12j\n" +
+	"\x04rate\x182 \x01(\v2\x18.tzero.v1.common.DecimalB<\xbaH9\xba\x013\x12\x1erate must be greater than zero\x1a\x11this.unscaled > 0\xc8\x01\x01R\x04rate\x12e\n" +
 	"\x03fix\x18< \x01(\v2\x18.tzero.v1.common.DecimalB4\xbaH1\xba\x01.\x12\x18fix must be non-negative\x1a\x12this.unscaled >= 0H\x00R\x03fix\x88\x01\x01B\x06\n" +
 	"\x04_fix\"\x15\n" +
-	"\x13UpdateQuoteResponse\"\xac\x01\n" +
+	"\x13UpdateQuoteResponse\"\xee\x01\n" +
 	"\x0fGetQuoteRequest\x120\n" +
 	"\bcurrency\x18\x14 \x01(\tB\x14\xbaH\x11r\x0f2\n" +
-	"^[A-Z]{3}$\x98\x01\x03R\bcurrency\x128\n" +
-	"\x06amount\x18\x1e \x01(\v2\x18.tzero.v1.common.DecimalB\x06\xbaH\x03\xc8\x01\x01R\x06amount\x12-\n" +
-	"\x13pay_in_provider_ids\x18( \x03(\rR\x10payInProviderIds\"\xfe\x05\n" +
+	"^[A-Z]{3}$\x98\x01\x03R\bcurrency\x12p\n" +
+	"\x06amount\x18\x1e \x01(\v2\x18.tzero.v1.common.DecimalB>\xbaH;\xba\x015\x12 amount must be greater than zero\x1a\x11this.unscaled > 0\xc8\x01\x01R\x06amount\x127\n" +
+	"\x13pay_in_provider_ids\x18( \x03(\rB\b\xbaH\x05\x92\x01\x02\x10dR\x10payInProviderIds\"\xc8\x06\n" +
 	"\x10GetQuoteResponse\x12M\n" +
 	"\asuccess\x18\n" +
 	" \x01(\v21.tzero.v1.payment_intent.GetQuoteResponse.SuccessH\x00R\asuccess\x12a\n" +
-	"\x0fquote_not_found\x18\x14 \x01(\v27.tzero.v1.payment_intent.GetQuoteResponse.QuoteNotFoundH\x00R\rquoteNotFound\x1a\x95\x04\n" +
+	"\x0fquote_not_found\x18\x14 \x01(\v27.tzero.v1.payment_intent.GetQuoteResponse.QuoteNotFoundH\x00R\rquoteNotFound\x1a\xdf\x04\n" +
 	"\aSuccess\x12b\n" +
 	"\vbest_quotes\x18\n" +
 	" \x03(\v2A.tzero.v1.payment_intent.GetQuoteResponse.Success.IndicativeQuoteR\n" +
 	"bestQuotes\x12`\n" +
 	"\n" +
-	"all_quotes\x18\x14 \x03(\v2A.tzero.v1.payment_intent.GetQuoteResponse.Success.IndicativeQuoteR\tallQuotes\x1a\xc3\x02\n" +
+	"all_quotes\x18\x14 \x03(\v2A.tzero.v1.payment_intent.GetQuoteResponse.Success.IndicativeQuoteR\tallQuotes\x1a\x8d\x03\n" +
 	"\x0fIndicativeQuote\x12I\n" +
 	"\x0epayment_method\x18\n" +
 	" \x01(\x0e2\".tzero.v1.common.PaymentMethodTypeR\rpaymentMethod\x12\x1f\n" +
 	"\vprovider_id\x18\x14 \x01(\rR\n" +
-	"providerId\x12A\n" +
-	"\x0findicative_rate\x18\x1e \x01(\v2\x18.tzero.v1.common.DecimalR\x0eindicativeRate\x12\x80\x01\n" +
+	"providerId\x12\x8a\x01\n" +
+	"\x0findicative_rate\x18\x1e \x01(\v2\x18.tzero.v1.common.DecimalBG\xbaHD\xba\x01>\x12)indicative_rate must be greater than zero\x1a\x11this.unscaled > 0\xc8\x01\x01R\x0eindicativeRate\x12\x80\x01\n" +
 	"\x0eindicative_fix\x18( \x01(\v2\x18.tzero.v1.common.DecimalB?\xbaH<\xba\x019\x12#indicative_fix must be non-negative\x1a\x12this.unscaled >= 0R\rindicativeFix\x1a\x0f\n" +
 	"\rQuoteNotFoundB\x0f\n" +
-	"\x06result\x12\x05\xbaH\x02\b\x01\"\x97\x03\n" +
+	"\x06result\x12\x05\xbaH\x02\b\x01\"\xe1\x03\n" +
 	"\x19PaymentIntentPayInDetails\x12I\n" +
 	"\x0epayment_method\x18\n" +
 	" \x01(\x0e2\".tzero.v1.common.PaymentMethodTypeR\rpaymentMethod\x12\x1f\n" +
 	"\vprovider_id\x18\x14 \x01(\rR\n" +
 	"providerId\x12H\n" +
-	"\x0fpayment_details\x18\x1e \x01(\v2\x1f.tzero.v1.common.PaymentDetailsR\x0epaymentDetails\x12A\n" +
-	"\x0findicative_rate\x18( \x01(\v2\x18.tzero.v1.common.DecimalR\x0eindicativeRate\x12\x80\x01\n" +
-	"\x0eindicative_fix\x182 \x01(\v2\x18.tzero.v1.common.DecimalB?\xbaH<\xba\x019\x12#indicative_fix must be non-negative\x1a\x12this.unscaled >= 0R\rindicativeFix\"\xe2\x03\n" +
-	"\x1aCreatePaymentIntentRequest\x12-\n" +
+	"\x0fpayment_details\x18\x1e \x01(\v2\x1f.tzero.v1.common.PaymentDetailsR\x0epaymentDetails\x12\x8a\x01\n" +
+	"\x0findicative_rate\x18( \x01(\v2\x18.tzero.v1.common.DecimalBG\xbaHD\xba\x01>\x12)indicative_rate must be greater than zero\x1a\x11this.unscaled > 0\xc8\x01\x01R\x0eindicativeRate\x12\x80\x01\n" +
+	"\x0eindicative_fix\x182 \x01(\v2\x18.tzero.v1.common.DecimalB?\xbaH<\xba\x019\x12#indicative_fix must be non-negative\x1a\x12this.unscaled >= 0R\rindicativeFix\"\xb0\x04\n" +
+	"\x1aCreatePaymentIntentRequest\x129\n" +
 	"\x12external_reference\x18\n" +
-	" \x01(\tR\x11externalReference\x120\n" +
+	" \x01(\tB\n" +
+	"\xbaH\ar\x05\x10\x01\x18\x80\x02R\x11externalReference\x120\n" +
 	"\bcurrency\x18\x14 \x01(\tB\x14\xbaH\x11r\x0f2\n" +
-	"^[A-Z]{3}$\x98\x01\x03R\bcurrency\x128\n" +
-	"\x06amount\x18\x1e \x01(\v2\x18.tzero.v1.common.DecimalB\x06\xbaH\x03\xc8\x01\x01R\x06amount\x12t\n" +
-	"\x10travel_rule_data\x18( \x01(\v2B.tzero.v1.payment_intent.CreatePaymentIntentRequest.TravelRuleDataB\x06\xbaH\x03\xc8\x01\x01R\x0etravelRuleData\x12-\n" +
-	"\x13pay_in_provider_ids\x182 \x03(\rR\x10payInProviderIds\x1a\x83\x01\n" +
+	"^[A-Z]{3}$\x98\x01\x03R\bcurrency\x12p\n" +
+	"\x06amount\x18\x1e \x01(\v2\x18.tzero.v1.common.DecimalB>\xbaH;\xba\x015\x12 amount must be greater than zero\x1a\x11this.unscaled > 0\xc8\x01\x01R\x06amount\x12t\n" +
+	"\x10travel_rule_data\x18( \x01(\v2B.tzero.v1.payment_intent.CreatePaymentIntentRequest.TravelRuleDataB\x06\xbaH\x03\xc8\x01\x01R\x0etravelRuleData\x127\n" +
+	"\x13pay_in_provider_ids\x182 \x03(\rB\b\xbaH\x05\x92\x01\x02\x10dR\x10payInProviderIds\x1a\x83\x01\n" +
 	"\x0eTravelRuleData\x12;\n" +
 	"\vbeneficiary\x18\n" +
 	" \x03(\v2\x0f.ivms101.PersonB\b\xbaH\x05\x92\x01\x02\b\x01R\vbeneficiary\x12*\n" +
 	"\x05payer\x18( \x01(\v2\x0f.ivms101.PersonH\x00R\x05payer\x88\x01\x01B\b\n" +
-	"\x06_payer\"\xd1\x04\n" +
+	"\x06_payer\"\xdb\x04\n" +
 	"\x1bCreatePaymentIntentResponse\x12X\n" +
 	"\asuccess\x18\n" +
 	" \x01(\v2<.tzero.v1.payment_intent.CreatePaymentIntentResponse.SuccessH\x00R\asuccess\x12X\n" +
@@ -1516,40 +1530,42 @@ const file_tzero_v1_payment_intent_network_proto_rawDesc = "" +
 	"\aSuccess\x123\n" +
 	"\x11payment_intent_id\x18\n" +
 	" \x01(\x04B\a\xbaH\x042\x02 \x00R\x0fpaymentIntentId\x12X\n" +
-	"\x0epay_in_details\x18\x14 \x03(\v22.tzero.v1.payment_intent.PaymentIntentPayInDetailsR\fpayInDetails\x1a\xd1\x01\n" +
-	"\aFailure\x12[\n" +
+	"\x0epay_in_details\x18\x14 \x03(\v22.tzero.v1.payment_intent.PaymentIntentPayInDetailsR\fpayInDetails\x1a\xdb\x01\n" +
+	"\aFailure\x12e\n" +
 	"\x06reason\x18\n" +
-	" \x01(\x0e2C.tzero.v1.payment_intent.CreatePaymentIntentResponse.Failure.ReasonR\x06reason\"i\n" +
+	" \x01(\x0e2C.tzero.v1.payment_intent.CreatePaymentIntentResponse.Failure.ReasonB\b\xbaH\x05\x82\x01\x02 \x00R\x06reason\"i\n" +
 	"\x06Reason\x12\x1e\n" +
 	"\x1aFAILURE_REASON_UNSPECIFIED\x10\x00\x12\"\n" +
 	"\x1eFAILURE_REASON_QUOTE_NOT_FOUND\x10\n" +
 	"\x12\x1b\n" +
 	"\x17FAILURE_REASON_REJECTED\x10\x14B\x0f\n" +
-	"\x06result\x12\x05\xbaH\x02\b\x01\"\x8f\x03\n" +
+	"\x06result\x12\x05\xbaH\x02\b\x01\"\xa6\x03\n" +
 	"\x1bConfirmFundsReceivedRequest\x123\n" +
 	"\x11payment_intent_id\x18\n" +
-	" \x01(\x04B\a\xbaH\x042\x02 \x00R\x0fpaymentIntentId\x12+\n" +
-	"\x11confirmation_code\x18\x14 \x01(\tR\x10confirmationCode\x12I\n" +
-	"\x0epayment_method\x18\x1e \x01(\x0e2\".tzero.v1.common.PaymentMethodTypeR\rpaymentMethod\x12?\n" +
+	" \x01(\x04B\a\xbaH\x042\x02 \x00R\x0fpaymentIntentId\x126\n" +
+	"\x11confirmation_code\x18\x14 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18@R\x10confirmationCode\x12U\n" +
+	"\x0epayment_method\x18\x1e \x01(\x0e2\".tzero.v1.common.PaymentMethodTypeB\n" +
+	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\rpaymentMethod\x12?\n" +
 	"\x15transaction_reference\x18( \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\x80\x02R\x14transactionReference\x12Z\n" +
 	"#originator_provider_legal_entity_id\x182 \x01(\rB\a\xbaH\x04*\x02 \x00H\x00R\x1foriginatorProviderLegalEntityId\x88\x01\x01B&\n" +
-	"$_originator_provider_legal_entity_id\"\x98\x04\n" +
+	"$_originator_provider_legal_entity_id\"\xc4\x04\n" +
 	"\x1cConfirmFundsReceivedResponse\x12V\n" +
 	"\x06accept\x18\n" +
 	" \x01(\v2<.tzero.v1.payment_intent.ConfirmFundsReceivedResponse.AcceptH\x00R\x06accept\x12V\n" +
 	"\x06reject\x18\x14 \x01(\v2<.tzero.v1.payment_intent.ConfirmFundsReceivedResponse.RejectH\x00R\x06reject\x1a\b\n" +
-	"\x06Accept\x1a\xac\x02\n" +
-	"\x06Reject\x12[\n" +
+	"\x06Accept\x1a\xd8\x02\n" +
+	"\x06Reject\x12e\n" +
 	"\x06reason\x18\n" +
-	" \x01(\x0e2C.tzero.v1.payment_intent.ConfirmFundsReceivedResponse.Reject.ReasonR\x06reason\"\xc4\x01\n" +
+	" \x01(\x0e2C.tzero.v1.payment_intent.ConfirmFundsReceivedResponse.Reject.ReasonB\b\xbaH\x05\x82\x01\x02 \x00R\x06reason\"\xe6\x01\n" +
 	"\x06Reason\x12\x1d\n" +
 	"\x19REJECT_REASON_UNSPECIFIED\x10\x00\x12,\n" +
 	"(REJECT_REASON_CONFIRMATION_CODE_MISMATCH\x10\n" +
 	"\x12!\n" +
 	"\x1dREJECT_REASON_NO_ACTIVE_QUOTE\x10\x14\x12&\n" +
 	"\"REJECT_REASON_PROVIDER_NOT_ALLOWED\x10\x1e\x12\"\n" +
-	"\x1eREJECT_REASON_AMOUNT_TOO_SMALL\x10(B\x0f\n" +
+	"\x1eREJECT_REASON_AMOUNT_TOO_SMALL\x10(\x12 \n" +
+	"\x1cREJECT_REASON_NO_VALID_OFFER\x102B\x0f\n" +
 	"\x06result\x12\x05\xbaH\x02\b\x012\xfe\x03\n" +
 	"\x14PaymentIntentService\x12m\n" +
 	"\vUpdateQuote\x12+.tzero.v1.payment_intent.UpdateQuoteRequest\x1a,.tzero.v1.payment_intent.UpdateQuoteResponse\"\x03\x90\x02\x02\x12d\n" +
