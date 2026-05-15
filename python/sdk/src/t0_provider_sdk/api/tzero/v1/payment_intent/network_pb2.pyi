@@ -178,11 +178,13 @@ class ConfirmFundsReceivedResponse(_message.Message):
             REJECT_REASON_NO_ACTIVE_QUOTE: _ClassVar[ConfirmFundsReceivedResponse.Reject.Reason]
             REJECT_REASON_PROVIDER_NOT_ALLOWED: _ClassVar[ConfirmFundsReceivedResponse.Reject.Reason]
             REJECT_REASON_AMOUNT_TOO_SMALL: _ClassVar[ConfirmFundsReceivedResponse.Reject.Reason]
+            REJECT_REASON_NO_VALID_OFFER: _ClassVar[ConfirmFundsReceivedResponse.Reject.Reason]
         REJECT_REASON_UNSPECIFIED: ConfirmFundsReceivedResponse.Reject.Reason
         REJECT_REASON_CONFIRMATION_CODE_MISMATCH: ConfirmFundsReceivedResponse.Reject.Reason
         REJECT_REASON_NO_ACTIVE_QUOTE: ConfirmFundsReceivedResponse.Reject.Reason
         REJECT_REASON_PROVIDER_NOT_ALLOWED: ConfirmFundsReceivedResponse.Reject.Reason
         REJECT_REASON_AMOUNT_TOO_SMALL: ConfirmFundsReceivedResponse.Reject.Reason
+        REJECT_REASON_NO_VALID_OFFER: ConfirmFundsReceivedResponse.Reject.Reason
         REASON_FIELD_NUMBER: _ClassVar[int]
         reason: ConfirmFundsReceivedResponse.Reject.Reason
         def __init__(self, reason: _Optional[_Union[ConfirmFundsReceivedResponse.Reject.Reason, str]] = ...) -> None: ...

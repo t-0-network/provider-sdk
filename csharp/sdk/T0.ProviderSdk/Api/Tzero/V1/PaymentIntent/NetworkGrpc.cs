@@ -118,8 +118,8 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
     {
       /// <summary>
       ///*
-      /// Used by the provider to publish payment intent (pay-in) quotes into the network.
-      /// These quotes include tiered pricing bands and an expiration timestamp.
+      /// Atomically replaces the calling provider's full pay-in quote set.
+      /// An empty payment_intent_quotes withdraws all of this provider's quotes.
       /// </summary>
       /// <param name="request">The request received from the client.</param>
       /// <param name="context">The context of the server-side call handler being invoked.</param>
@@ -173,7 +173,8 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
 
       /// <summary>
       ///*
-      /// ConfirmFundsReceived confirms that the pay-in provider has received funds from the end-user.
+      /// Confirms funds landed for a payment intent and locks the binding settlement rate.
+      /// Business failures return a typed Reject.Reason rather than a Connect transport error.
       /// </summary>
       /// <param name="request">The request received from the client.</param>
       /// <param name="context">The context of the server-side call handler being invoked.</param>
@@ -215,8 +216,8 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
 
       /// <summary>
       ///*
-      /// Used by the provider to publish payment intent (pay-in) quotes into the network.
-      /// These quotes include tiered pricing bands and an expiration timestamp.
+      /// Atomically replaces the calling provider's full pay-in quote set.
+      /// An empty payment_intent_quotes withdraws all of this provider's quotes.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
@@ -230,8 +231,8 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
       }
       /// <summary>
       ///*
-      /// Used by the provider to publish payment intent (pay-in) quotes into the network.
-      /// These quotes include tiered pricing bands and an expiration timestamp.
+      /// Atomically replaces the calling provider's full pay-in quote set.
+      /// An empty payment_intent_quotes withdraws all of this provider's quotes.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="options">The options for the call.</param>
@@ -243,8 +244,8 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
       }
       /// <summary>
       ///*
-      /// Used by the provider to publish payment intent (pay-in) quotes into the network.
-      /// These quotes include tiered pricing bands and an expiration timestamp.
+      /// Atomically replaces the calling provider's full pay-in quote set.
+      /// An empty payment_intent_quotes withdraws all of this provider's quotes.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
@@ -258,8 +259,8 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
       }
       /// <summary>
       ///*
-      /// Used by the provider to publish payment intent (pay-in) quotes into the network.
-      /// These quotes include tiered pricing bands and an expiration timestamp.
+      /// Atomically replaces the calling provider's full pay-in quote set.
+      /// An empty payment_intent_quotes withdraws all of this provider's quotes.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="options">The options for the call.</param>
@@ -435,7 +436,8 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
       }
       /// <summary>
       ///*
-      /// ConfirmFundsReceived confirms that the pay-in provider has received funds from the end-user.
+      /// Confirms funds landed for a payment intent and locks the binding settlement rate.
+      /// Business failures return a typed Reject.Reason rather than a Connect transport error.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
@@ -449,7 +451,8 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
       }
       /// <summary>
       ///*
-      /// ConfirmFundsReceived confirms that the pay-in provider has received funds from the end-user.
+      /// Confirms funds landed for a payment intent and locks the binding settlement rate.
+      /// Business failures return a typed Reject.Reason rather than a Connect transport error.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="options">The options for the call.</param>
@@ -461,7 +464,8 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
       }
       /// <summary>
       ///*
-      /// ConfirmFundsReceived confirms that the pay-in provider has received funds from the end-user.
+      /// Confirms funds landed for a payment intent and locks the binding settlement rate.
+      /// Business failures return a typed Reject.Reason rather than a Connect transport error.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
@@ -475,7 +479,8 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
       }
       /// <summary>
       ///*
-      /// ConfirmFundsReceived confirms that the pay-in provider has received funds from the end-user.
+      /// Confirms funds landed for a payment intent and locks the binding settlement rate.
+      /// Business failures return a typed Reject.Reason rather than a Connect transport error.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="options">The options for the call.</param>

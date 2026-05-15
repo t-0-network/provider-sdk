@@ -51,8 +51,8 @@ const (
 // service.
 type PaymentIntentServiceClient interface {
 	// *
-	// Used by the provider to publish payment intent (pay-in) quotes into the network.
-	// These quotes include tiered pricing bands and an expiration timestamp.
+	// Atomically replaces the calling provider's full pay-in quote set.
+	// An empty payment_intent_quotes withdraws all of this provider's quotes.
 	UpdateQuote(context.Context, *connect.Request[payment_intent.UpdateQuoteRequest]) (*connect.Response[payment_intent.UpdateQuoteResponse], error)
 	// *
 	// GetQuote returns available quotes for a given currency and amount.
@@ -76,7 +76,8 @@ type PaymentIntentServiceClient interface {
 	// Idempotency: Multiple calls with the same external_reference return the same payment_intent_id.
 	CreatePaymentIntent(context.Context, *connect.Request[payment_intent.CreatePaymentIntentRequest]) (*connect.Response[payment_intent.CreatePaymentIntentResponse], error)
 	// *
-	// ConfirmFundsReceived confirms that the pay-in provider has received funds from the end-user.
+	// Confirms funds landed for a payment intent and locks the binding settlement rate.
+	// Business failures return a typed Reject.Reason rather than a Connect transport error.
 	ConfirmFundsReceived(context.Context, *connect.Request[payment_intent.ConfirmFundsReceivedRequest]) (*connect.Response[payment_intent.ConfirmFundsReceivedResponse], error)
 }
 
@@ -155,8 +156,8 @@ func (c *paymentIntentServiceClient) ConfirmFundsReceived(ctx context.Context, r
 // tzero.v1.payment_intent.PaymentIntentService service.
 type PaymentIntentServiceHandler interface {
 	// *
-	// Used by the provider to publish payment intent (pay-in) quotes into the network.
-	// These quotes include tiered pricing bands and an expiration timestamp.
+	// Atomically replaces the calling provider's full pay-in quote set.
+	// An empty payment_intent_quotes withdraws all of this provider's quotes.
 	UpdateQuote(context.Context, *connect.Request[payment_intent.UpdateQuoteRequest]) (*connect.Response[payment_intent.UpdateQuoteResponse], error)
 	// *
 	// GetQuote returns available quotes for a given currency and amount.
@@ -180,7 +181,8 @@ type PaymentIntentServiceHandler interface {
 	// Idempotency: Multiple calls with the same external_reference return the same payment_intent_id.
 	CreatePaymentIntent(context.Context, *connect.Request[payment_intent.CreatePaymentIntentRequest]) (*connect.Response[payment_intent.CreatePaymentIntentResponse], error)
 	// *
-	// ConfirmFundsReceived confirms that the pay-in provider has received funds from the end-user.
+	// Confirms funds landed for a payment intent and locks the binding settlement rate.
+	// Business failures return a typed Reject.Reason rather than a Connect transport error.
 	ConfirmFundsReceived(context.Context, *connect.Request[payment_intent.ConfirmFundsReceivedRequest]) (*connect.Response[payment_intent.ConfirmFundsReceivedResponse], error)
 }
 
