@@ -98,6 +98,12 @@ const (
 	// or this provider's GetPaymentDetails response was invalid for
 	// the requested method.
 	ConfirmFundsReceivedResponse_Reject_REJECT_REASON_NO_VALID_OFFER ConfirmFundsReceivedResponse_Reject_Reason = 50
+	// *
+	// Transaction_reference is already attached to a different pay-in
+	// with the same payment_method. References must be unique per
+	// payment_method; retry with a fresh transaction_reference, or
+	// treat the prior pay-in as the authoritative confirmation.
+	ConfirmFundsReceivedResponse_Reject_REJECT_REASON_TRANSACTION_REFERENCE_ALREADY_USED ConfirmFundsReceivedResponse_Reject_Reason = 60
 )
 
 // Enum value maps for ConfirmFundsReceivedResponse_Reject_Reason.
@@ -109,14 +115,16 @@ var (
 		30: "REJECT_REASON_PROVIDER_NOT_ALLOWED",
 		40: "REJECT_REASON_AMOUNT_TOO_SMALL",
 		50: "REJECT_REASON_NO_VALID_OFFER",
+		60: "REJECT_REASON_TRANSACTION_REFERENCE_ALREADY_USED",
 	}
 	ConfirmFundsReceivedResponse_Reject_Reason_value = map[string]int32{
-		"REJECT_REASON_UNSPECIFIED":                0,
-		"REJECT_REASON_CONFIRMATION_CODE_MISMATCH": 10,
-		"REJECT_REASON_NO_ACTIVE_QUOTE":            20,
-		"REJECT_REASON_PROVIDER_NOT_ALLOWED":       30,
-		"REJECT_REASON_AMOUNT_TOO_SMALL":           40,
-		"REJECT_REASON_NO_VALID_OFFER":             50,
+		"REJECT_REASON_UNSPECIFIED":                        0,
+		"REJECT_REASON_CONFIRMATION_CODE_MISMATCH":         10,
+		"REJECT_REASON_NO_ACTIVE_QUOTE":                    20,
+		"REJECT_REASON_PROVIDER_NOT_ALLOWED":               30,
+		"REJECT_REASON_AMOUNT_TOO_SMALL":                   40,
+		"REJECT_REASON_NO_VALID_OFFER":                     50,
+		"REJECT_REASON_TRANSACTION_REFERENCE_ALREADY_USED": 60,
 	}
 )
 
@@ -1552,15 +1560,15 @@ const file_tzero_v1_payment_intent_network_proto_rawDesc = "" +
 	"\x15transaction_reference\x18( \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\x80\x02R\x14transactionReference\x12Z\n" +
 	"#originator_provider_legal_entity_id\x182 \x01(\rB\a\xbaH\x04*\x02 \x00H\x00R\x1foriginatorProviderLegalEntityId\x88\x01\x01B&\n" +
-	"$_originator_provider_legal_entity_id\"\xc4\x04\n" +
+	"$_originator_provider_legal_entity_id\"\xfa\x04\n" +
 	"\x1cConfirmFundsReceivedResponse\x12V\n" +
 	"\x06accept\x18\n" +
 	" \x01(\v2<.tzero.v1.payment_intent.ConfirmFundsReceivedResponse.AcceptH\x00R\x06accept\x12V\n" +
 	"\x06reject\x18\x14 \x01(\v2<.tzero.v1.payment_intent.ConfirmFundsReceivedResponse.RejectH\x00R\x06reject\x1a\b\n" +
-	"\x06Accept\x1a\xd8\x02\n" +
+	"\x06Accept\x1a\x8e\x03\n" +
 	"\x06Reject\x12e\n" +
 	"\x06reason\x18\n" +
-	" \x01(\x0e2C.tzero.v1.payment_intent.ConfirmFundsReceivedResponse.Reject.ReasonB\b\xbaH\x05\x82\x01\x02 \x00R\x06reason\"\xe6\x01\n" +
+	" \x01(\x0e2C.tzero.v1.payment_intent.ConfirmFundsReceivedResponse.Reject.ReasonB\b\xbaH\x05\x82\x01\x02 \x00R\x06reason\"\x9c\x02\n" +
 	"\x06Reason\x12\x1d\n" +
 	"\x19REJECT_REASON_UNSPECIFIED\x10\x00\x12,\n" +
 	"(REJECT_REASON_CONFIRMATION_CODE_MISMATCH\x10\n" +
@@ -1568,7 +1576,8 @@ const file_tzero_v1_payment_intent_network_proto_rawDesc = "" +
 	"\x1dREJECT_REASON_NO_ACTIVE_QUOTE\x10\x14\x12&\n" +
 	"\"REJECT_REASON_PROVIDER_NOT_ALLOWED\x10\x1e\x12\"\n" +
 	"\x1eREJECT_REASON_AMOUNT_TOO_SMALL\x10(\x12 \n" +
-	"\x1cREJECT_REASON_NO_VALID_OFFER\x102B\x0f\n" +
+	"\x1cREJECT_REASON_NO_VALID_OFFER\x102\x124\n" +
+	"0REJECT_REASON_TRANSACTION_REFERENCE_ALREADY_USED\x10<B\x0f\n" +
 	"\x06result\x12\x05\xbaH\x02\b\x012\xfe\x03\n" +
 	"\x14PaymentIntentService\x12m\n" +
 	"\vUpdateQuote\x12+.tzero.v1.payment_intent.UpdateQuoteRequest\x1a,.tzero.v1.payment_intent.UpdateQuoteResponse\"\x03\x90\x02\x02\x12d\n" +
