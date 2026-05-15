@@ -119,37 +119,39 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
             "CUIKukgHcgUQARiAAlIUdHJhbnNhY3Rpb25SZWZlcmVuY2USWgojb3JpZ2lu",
             "YXRvcl9wcm92aWRlcl9sZWdhbF9lbnRpdHlfaWQYMiABKA1CB7pIBCoCIABI",
             "AFIfb3JpZ2luYXRvclByb3ZpZGVyTGVnYWxFbnRpdHlJZIgBAUImCiRfb3Jp",
-            "Z2luYXRvcl9wcm92aWRlcl9sZWdhbF9lbnRpdHlfaWQixAQKHENvbmZpcm1G",
+            "Z2luYXRvcl9wcm92aWRlcl9sZWdhbF9lbnRpdHlfaWQi+gQKHENvbmZpcm1G",
             "dW5kc1JlY2VpdmVkUmVzcG9uc2USVgoGYWNjZXB0GAogASgLMjwudHplcm8u",
             "djEucGF5bWVudF9pbnRlbnQuQ29uZmlybUZ1bmRzUmVjZWl2ZWRSZXNwb25z",
             "ZS5BY2NlcHRIAFIGYWNjZXB0ElYKBnJlamVjdBgUIAEoCzI8LnR6ZXJvLnYx",
             "LnBheW1lbnRfaW50ZW50LkNvbmZpcm1GdW5kc1JlY2VpdmVkUmVzcG9uc2Uu",
-            "UmVqZWN0SABSBnJlamVjdBoICgZBY2NlcHQa2AIKBlJlamVjdBJlCgZyZWFz",
+            "UmVqZWN0SABSBnJlamVjdBoICgZBY2NlcHQajgMKBlJlamVjdBJlCgZyZWFz",
             "b24YCiABKA4yQy50emVyby52MS5wYXltZW50X2ludGVudC5Db25maXJtRnVu",
             "ZHNSZWNlaXZlZFJlc3BvbnNlLlJlamVjdC5SZWFzb25CCLpIBYIBAiAAUgZy",
-            "ZWFzb24i5gEKBlJlYXNvbhIdChlSRUpFQ1RfUkVBU09OX1VOU1BFQ0lGSUVE",
+            "ZWFzb24inAIKBlJlYXNvbhIdChlSRUpFQ1RfUkVBU09OX1VOU1BFQ0lGSUVE",
             "EAASLAooUkVKRUNUX1JFQVNPTl9DT05GSVJNQVRJT05fQ09ERV9NSVNNQVRD",
             "SBAKEiEKHVJFSkVDVF9SRUFTT05fTk9fQUNUSVZFX1FVT1RFEBQSJgoiUkVK",
             "RUNUX1JFQVNPTl9QUk9WSURFUl9OT1RfQUxMT1dFRBAeEiIKHlJFSkVDVF9S",
             "RUFTT05fQU1PVU5UX1RPT19TTUFMTBAoEiAKHFJFSkVDVF9SRUFTT05fTk9f",
-            "VkFMSURfT0ZGRVIQMkIPCgZyZXN1bHQSBbpIAggBMv4DChRQYXltZW50SW50",
-            "ZW50U2VydmljZRJtCgtVcGRhdGVRdW90ZRIrLnR6ZXJvLnYxLnBheW1lbnRf",
-            "aW50ZW50LlVwZGF0ZVF1b3RlUmVxdWVzdBosLnR6ZXJvLnYxLnBheW1lbnRf",
-            "aW50ZW50LlVwZGF0ZVF1b3RlUmVzcG9uc2UiA5ACAhJkCghHZXRRdW90ZRIo",
-            "LnR6ZXJvLnYxLnBheW1lbnRfaW50ZW50LkdldFF1b3RlUmVxdWVzdBopLnR6",
-            "ZXJvLnYxLnBheW1lbnRfaW50ZW50LkdldFF1b3RlUmVzcG9uc2UiA5ACAhKF",
-            "AQoTQ3JlYXRlUGF5bWVudEludGVudBIzLnR6ZXJvLnYxLnBheW1lbnRfaW50",
-            "ZW50LkNyZWF0ZVBheW1lbnRJbnRlbnRSZXF1ZXN0GjQudHplcm8udjEucGF5",
-            "bWVudF9pbnRlbnQuQ3JlYXRlUGF5bWVudEludGVudFJlc3BvbnNlIgOQAgIS",
-            "iAEKFENvbmZpcm1GdW5kc1JlY2VpdmVkEjQudHplcm8udjEucGF5bWVudF9p",
-            "bnRlbnQuQ29uZmlybUZ1bmRzUmVjZWl2ZWRSZXF1ZXN0GjUudHplcm8udjEu",
-            "cGF5bWVudF9pbnRlbnQuQ29uZmlybUZ1bmRzUmVjZWl2ZWRSZXNwb25zZSID",
-            "kAICQvwBChtjb20udHplcm8udjEucGF5bWVudF9pbnRlbnRCDE5ldHdvcmtQ",
-            "cm90b1ABWkJnaXRodWIuY29tL3QtMC1uZXR3b3JrL3Byb3ZpZGVyLXNkay9n",
-            "by9hcGkvdHplcm8vdjEvcGF5bWVudF9pbnRlbnSiAgNUVlCqAilUMC5Qcm92",
-            "aWRlclNkay5BcGkuVHplcm8uVjEuUGF5bWVudEludGVudMoCFlR6ZXJvXFYx",
-            "XFBheW1lbnRJbnRlbnTiAiJUemVyb1xWMVxQYXltZW50SW50ZW50XEdQQk1l",
-            "dGFkYXRh6gIYVHplcm86OlYxOjpQYXltZW50SW50ZW50YgZwcm90bzM="));
+            "VkFMSURfT0ZGRVIQMhI0CjBSRUpFQ1RfUkVBU09OX1RSQU5TQUNUSU9OX1JF",
+            "RkVSRU5DRV9BTFJFQURZX1VTRUQQPEIPCgZyZXN1bHQSBbpIAggBMv4DChRQ",
+            "YXltZW50SW50ZW50U2VydmljZRJtCgtVcGRhdGVRdW90ZRIrLnR6ZXJvLnYx",
+            "LnBheW1lbnRfaW50ZW50LlVwZGF0ZVF1b3RlUmVxdWVzdBosLnR6ZXJvLnYx",
+            "LnBheW1lbnRfaW50ZW50LlVwZGF0ZVF1b3RlUmVzcG9uc2UiA5ACAhJkCghH",
+            "ZXRRdW90ZRIoLnR6ZXJvLnYxLnBheW1lbnRfaW50ZW50LkdldFF1b3RlUmVx",
+            "dWVzdBopLnR6ZXJvLnYxLnBheW1lbnRfaW50ZW50LkdldFF1b3RlUmVzcG9u",
+            "c2UiA5ACAhKFAQoTQ3JlYXRlUGF5bWVudEludGVudBIzLnR6ZXJvLnYxLnBh",
+            "eW1lbnRfaW50ZW50LkNyZWF0ZVBheW1lbnRJbnRlbnRSZXF1ZXN0GjQudHpl",
+            "cm8udjEucGF5bWVudF9pbnRlbnQuQ3JlYXRlUGF5bWVudEludGVudFJlc3Bv",
+            "bnNlIgOQAgISiAEKFENvbmZpcm1GdW5kc1JlY2VpdmVkEjQudHplcm8udjEu",
+            "cGF5bWVudF9pbnRlbnQuQ29uZmlybUZ1bmRzUmVjZWl2ZWRSZXF1ZXN0GjUu",
+            "dHplcm8udjEucGF5bWVudF9pbnRlbnQuQ29uZmlybUZ1bmRzUmVjZWl2ZWRS",
+            "ZXNwb25zZSIDkAICQvwBChtjb20udHplcm8udjEucGF5bWVudF9pbnRlbnRC",
+            "DE5ldHdvcmtQcm90b1ABWkJnaXRodWIuY29tL3QtMC1uZXR3b3JrL3Byb3Zp",
+            "ZGVyLXNkay9nby9hcGkvdHplcm8vdjEvcGF5bWVudF9pbnRlbnSiAgNUVlCq",
+            "AilUMC5Qcm92aWRlclNkay5BcGkuVHplcm8uVjEuUGF5bWVudEludGVudMoC",
+            "FlR6ZXJvXFYxXFBheW1lbnRJbnRlbnTiAiJUemVyb1xWMVxQYXltZW50SW50",
+            "ZW50XEdQQk1ldGFkYXRh6gIYVHplcm86OlYxOjpQYXltZW50SW50ZW50YgZw",
+            "cm90bzM="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { global::Buf.Validate.ValidateReflection.Descriptor, global::Google.Protobuf.WellKnownTypes.TimestampReflection.Descriptor, global::T0.ProviderSdk.Api.Ivms101.V1.Ivms.Ivms101Reflection.Descriptor, global::T0.ProviderSdk.Api.Tzero.V1.Common.CommonReflection.Descriptor, global::T0.ProviderSdk.Api.Tzero.V1.Common.PaymentMethodReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(null, null, new pbr::GeneratedClrTypeInfo[] {
@@ -5544,6 +5546,14 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
             /// the requested method.
             /// </summary>
             [pbr::OriginalName("REJECT_REASON_NO_VALID_OFFER")] RejectReasonNoValidOffer = 50,
+            /// <summary>
+            ///*
+            /// Transaction_reference is already attached to a different pay-in
+            /// with the same payment_method. References must be unique per
+            /// payment_method; retry with a fresh transaction_reference, or
+            /// treat the prior pay-in as the authoritative confirmation.
+            /// </summary>
+            [pbr::OriginalName("REJECT_REASON_TRANSACTION_REFERENCE_ALREADY_USED")] RejectReasonTransactionReferenceAlreadyUsed = 60,
           }
 
         }

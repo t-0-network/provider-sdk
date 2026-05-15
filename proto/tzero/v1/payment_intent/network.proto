@@ -514,6 +514,13 @@ message ConfirmFundsReceivedResponse {
        * the requested method.
        */
       REJECT_REASON_NO_VALID_OFFER = 50;
+      /**
+       * Transaction_reference is already attached to a different pay-in
+       * with the same payment_method. References must be unique per
+       * payment_method; retry with a fresh transaction_reference, or
+       * treat the prior pay-in as the authoritative confirmation.
+       */
+      REJECT_REASON_TRANSACTION_REFERENCE_ALREADY_USED = 60;
     }
   }
 }
