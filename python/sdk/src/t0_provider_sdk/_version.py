@@ -3,4 +3,4 @@
 Bumped in lockstep with all other SDKs by the release.yaml workflow.
 """
 
-__version__ = "1.1.17"
+__version__ = "1.1.18"
