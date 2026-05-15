@@ -14,6 +14,7 @@ from __future__ import annotations
 import logging
 
 from connectrpc.request import RequestContext
+from t0_provider_sdk import validate
 from t0_provider_sdk.api.tzero.v1.common.payment_receipt_pb2 import PaymentReceipt
 from t0_provider_sdk.api.tzero.v1.payment.network_connect import NetworkServiceClient
 from t0_provider_sdk.api.tzero.v1.payment.network_pb2 import FinalizePayoutRequest
@@ -61,7 +62,12 @@ class ProviderServiceImplementation:
         )
 
         # optional: if your provider has multiple legal entities, set beneficiary_provider_legal_entity_id
-        return PayoutResponse()
+        # Wrap returns in validate() so protovalidate violations surface in
+        # your own call frame. On failure validate() raises ConnectError(
+        # Code.INTERNAL, "response validation failed: ...") — the same shape
+        # the SDK interceptor would emit, so propagating keeps wire behavior
+        # identical.
+        return validate(PayoutResponse())
 
     async def update_limit(self, request: UpdateLimitRequest, ctx: RequestContext) -> UpdateLimitResponse:
         # TODO: optionally implement handling of the notifications about

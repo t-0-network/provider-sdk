@@ -3,6 +3,7 @@ package network.t0.provider.handler;
 import io.grpc.stub.StreamObserver;
 import network.t0.sdk.proto.tzero.v1.common.PaymentReceipt;
 import network.t0.sdk.proto.tzero.v1.payment.*;
+import network.t0.sdk.provider.Validate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -68,9 +69,13 @@ public class PaymentHandler extends ProviderServiceGrpc.ProviderServiceImplBase 
 
         // Example: Accept the payout
         // optional: if your provider has multiple legal entities, set setBeneficiaryProviderLegalEntityId()
-        responseObserver.onNext(PayoutResponse.newBuilder()
+        PayoutResponse response = PayoutResponse.newBuilder()
                 .setAccepted(PayoutResponse.Accepted.newBuilder().build())
-                .build());
+                .build();
+        // Validate.check(...) surfaces protovalidate failures in this call frame so you can
+        // catch them and convert into a domain error (e.g. PayoutResponse.Failed). If you let
+        // it throw, the SDK still returns Code.Internal on the wire — same shape as today.
+        responseObserver.onNext(Validate.check(response));
         responseObserver.onCompleted();
 
         // TODO: finalizePayout should be called when your system completes (or fails) the payout
