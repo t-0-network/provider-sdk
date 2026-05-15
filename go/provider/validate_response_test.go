@@ -1,9 +1,12 @@
 package provider
 
 import (
+	"bytes"
 	"context"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"buf.build/go/protovalidate"
@@ -11,16 +14,17 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/t-0-network/provider-sdk/go/api/tzero/v1/common"
 	"github.com/t-0-network/provider-sdk/go/api/tzero/v1/payment"
+	"github.com/t-0-network/provider-sdk/go/sdkversion"
 )
 
 func TestValidationInterceptor(t *testing.T) {
 	t.Run("interceptor is created successfully", func(t *testing.T) {
-		interceptor := newValidationInterceptor()
+		interceptor := newValidationInterceptor(nil)
 		require.NotNil(t, interceptor)
 	})
 
 	t.Run("rejects invalid response with CodeInternal", func(t *testing.T) {
-		interceptor := newValidationInterceptor()
+		interceptor := newValidationInterceptor(nil)
 		procedure := "/test.v1.TestService/GetDecimal"
 		handler := connect.NewUnaryHandler(
 			procedure,
@@ -41,7 +45,7 @@ func TestValidationInterceptor(t *testing.T) {
 	})
 
 	t.Run("passes valid response through", func(t *testing.T) {
-		interceptor := newValidationInterceptor()
+		interceptor := newValidationInterceptor(nil)
 		procedure := "/test.v1.TestService/GetDecimal"
 		handler := connect.NewUnaryHandler(
 			procedure,
@@ -62,7 +66,7 @@ func TestValidationInterceptor(t *testing.T) {
 	})
 
 	t.Run("rejects invalid request with CodeInvalidArgument", func(t *testing.T) {
-		interceptor := newValidationInterceptor()
+		interceptor := newValidationInterceptor(nil)
 		procedure := "/test.v1.TestService/GetDecimal"
 		called := false
 		handler := connect.NewUnaryHandler(
@@ -83,6 +87,111 @@ func TestValidationInterceptor(t *testing.T) {
 		require.Error(t, err)
 		require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
 		require.False(t, called, "handler should not be called for invalid request")
+	})
+
+	t.Run("custom logger receives one structured error line on response-validation failure", func(t *testing.T) {
+		// Capture slog output to a buffer via a TextHandler so we can match
+		// the structured fields by substring without coupling to a specific
+		// JSON encoder shape.
+		var buf bytes.Buffer
+		logger := slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelError}))
+
+		interceptor := newValidationInterceptor(logger)
+		procedure := "/test.v1.TestService/GetDecimal"
+		handler := connect.NewUnaryHandler(
+			procedure,
+			func(_ context.Context, _ *connect.Request[common.Decimal]) (*connect.Response[common.Decimal], error) {
+				return connect.NewResponse(&common.Decimal{Exponent: 100}), nil // invalid response
+			},
+			connect.WithInterceptors(interceptor),
+		)
+		mux := http.NewServeMux()
+		mux.Handle(procedure, handler)
+		srv := httptest.NewServer(mux)
+		defer srv.Close()
+
+		client := connect.NewClient[common.Decimal, common.Decimal](srv.Client(), srv.URL+procedure)
+		_, err := client.CallUnary(context.Background(), connect.NewRequest(&common.Decimal{Exponent: 2}))
+
+		// Wire behaviour is unchanged.
+		require.Error(t, err)
+		require.Equal(t, connect.CodeInternal, connect.CodeOf(err))
+
+		// Exactly one log line, with the documented fields.
+		out := buf.String()
+		require.Equal(t, 1, strings.Count(out, "\n"), "expected exactly one slog record, got %q", out)
+		require.Contains(t, out, `level=ERROR`)
+		require.Contains(t, out, `msg="response validation failed"`)
+		require.Contains(t, out, `rpc_method=`+procedure)
+		require.Contains(t, out, `response_type=tzero.v1.common.Decimal`)
+		require.Contains(t, out, "violations=")
+		require.Contains(t, out, `sdk_version=`+sdkversion.Version)
+	})
+
+	t.Run("WithLogger option threads through NewHttpHandlerWithOptions to newDefaultHandlerOptions", func(t *testing.T) {
+		// Verify the wiring: WithLogger mutates providerHandlerOptions.logger,
+		// and that logger flows into newDefaultHandlerOptions so the
+		// validation interceptor is constructed with it. The full
+		// request-path behaviour is covered by the sibling sub-test that
+		// builds the interceptor directly with a custom logger.
+		var buf bytes.Buffer
+		logger := slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelError}))
+
+		scratch := providerHandlerOptions{}
+		WithLogger(logger)(&scratch)
+		require.Same(t, logger, scratch.logger, "WithLogger should set providerHandlerOptions.logger")
+
+		opts, err := newDefaultHandlerOptions(nil, scratch.logger)
+		require.NoError(t, err)
+		require.Same(t, logger, opts.logger, "newDefaultHandlerOptions should preserve the caller's logger")
+
+		// nil from the caller falls back to slog.Default(), preserving the
+		// "logger is always non-nil downstream" invariant.
+		fallback, err := newDefaultHandlerOptions(nil, nil)
+		require.NoError(t, err)
+		require.NotNil(t, fallback.logger, "newDefaultHandlerOptions should default to slog.Default() when nil")
+	})
+
+	t.Run("handler that propagates Validate error returns CodeInternal on the wire", func(t *testing.T) {
+		// Handler-propagation regression: a developer who calls
+		// provider.Validate(invalidResp) and does `return nil, err` must see
+		// connect.CodeInternal on the wire (not CodeUnknown). This is the
+		// wire-contract that Validate's *connect.Error wrapping protects.
+		// The validation interceptor is included so the path matches the
+		// production handler stack.
+		interceptor := newValidationInterceptor(nil)
+		procedure := "/test.v1.TestService/GetDecimal"
+		handler := connect.NewUnaryHandler(
+			procedure,
+			func(_ context.Context, _ *connect.Request[common.Decimal]) (*connect.Response[common.Decimal], error) {
+				resp, err := Validate(&common.Decimal{Exponent: 100}) // invalid
+				if err != nil {
+					return nil, err
+				}
+				return connect.NewResponse(resp), nil
+			},
+			connect.WithInterceptors(interceptor),
+		)
+		mux := http.NewServeMux()
+		mux.Handle(procedure, handler)
+		srv := httptest.NewServer(mux)
+		defer srv.Close()
+
+		client := connect.NewClient[common.Decimal, common.Decimal](srv.Client(), srv.URL+procedure)
+		_, err := client.CallUnary(context.Background(), connect.NewRequest(&common.Decimal{Exponent: 2}))
+		require.Error(t, err)
+		require.Equal(t, connect.CodeInternal, connect.CodeOf(err),
+			"handler-propagated Validate error must surface as CodeInternal, not CodeUnknown")
+		require.Contains(t, err.Error(), "response validation failed",
+			"wire error message must carry the documented prefix")
+	})
+
+	t.Run("NewHttpHandler continues to accept the old signature", func(t *testing.T) {
+		// Backward-compat smoke test: the original NewHttpHandler signature
+		// (no options) must keep working unchanged.
+		mux, err := NewHttpHandler("")
+		require.NoError(t, err)
+		require.NotNil(t, mux)
 	})
 }
 

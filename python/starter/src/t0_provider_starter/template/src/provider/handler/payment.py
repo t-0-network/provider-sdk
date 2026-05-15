@@ -14,6 +14,7 @@ from __future__ import annotations
 import logging
 
 from connectrpc.request import RequestContext
+from t0_provider_sdk import validate
 from t0_provider_sdk.api.tzero.v1.common.payment_receipt_pb2 import PaymentReceipt
 from t0_provider_sdk.api.tzero.v1.payment.network_connect import NetworkServiceClient
 from t0_provider_sdk.api.tzero.v1.payment.network_pb2 import FinalizePayoutRequest
@@ -66,7 +67,9 @@ class ProviderServiceImplementation:
         )
 
         # optional: if your provider has multiple legal entities, set beneficiary_provider_legal_entity_id
-        return PayoutResponse(accepted=PayoutResponse.Accepted())
+        response = PayoutResponse()
+        response.accepted.CopyFrom(PayoutResponse.Accepted())
+        return validate(response)
 
     async def update_limit(self, request: UpdateLimitRequest, ctx: RequestContext) -> UpdateLimitResponse:
         # TODO: optionally implement handling of the notifications about

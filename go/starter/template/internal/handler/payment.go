@@ -7,6 +7,7 @@ import (
 	"github.com/t-0-network/provider-sdk/go/api/tzero/v1/common"
 	"github.com/t-0-network/provider-sdk/go/api/tzero/v1/payment"
 	"github.com/t-0-network/provider-sdk/go/api/tzero/v1/payment/paymentconnect"
+	"github.com/t-0-network/provider-sdk/go/provider"
 )
 
 type ProviderServiceImplementation struct {
@@ -64,9 +65,15 @@ func (s *ProviderServiceImplementation) PayOut(ctx context.Context, req *connect
 		return nil, err
 	}
 	// optional: if your provider has multiple legal entities, set BeneficiaryProviderLegalEntityId
-	return connect.NewResponse(&payment.PayoutResponse{
-		Result: &payment.PayoutResponse_Accepted_{Accepted: &payment.PayoutResponse_Accepted{}},
-	}), nil
+	resp, err := provider.Validate(&payment.PayoutResponse{
+		Result: &payment.PayoutResponse_Accepted_{
+			Accepted: &payment.PayoutResponse_Accepted{},
+		},
+	})
+	if err != nil {
+		return nil, err
+	}
+	return connect.NewResponse(resp), nil
 }
 
 func (s *ProviderServiceImplementation) UpdateLimit(

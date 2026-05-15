@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import logging
+
 import protovalidate
 import pytest
 
@@ -9,6 +11,7 @@ import pytest
 import t0_provider_sdk  # noqa: F401
 from connectrpc.code import Code
 from connectrpc.errors import ConnectError
+from t0_provider_sdk._version import __version__
 from t0_provider_sdk.api.tzero.v1.common.common_pb2 import Decimal
 from t0_provider_sdk.api.tzero.v1.payment.provider_pb2 import (
     AppendLedgerEntriesRequest,
@@ -238,3 +241,114 @@ class TestProtovalidateDirect:
     def test_empty_append_ledger_request_fails(self):
         with pytest.raises(protovalidate.ValidationError):
             protovalidate.validate(AppendLedgerEntriesRequest())
+
+
+# ---------------------------------------------------------------------------
+# Logger override on the response-validation interceptor
+# ---------------------------------------------------------------------------
+
+
+class _CapturingHandler(logging.Handler):
+    """Test handler that retains every emitted ``LogRecord``."""
+
+    def __init__(self) -> None:
+        super().__init__(level=logging.DEBUG)
+        self.records: list[logging.LogRecord] = []
+
+    def emit(self, record: logging.LogRecord) -> None:
+        self.records.append(record)
+
+
+class FakeMethodContext:
+    """RequestContext stub that exposes an RPC method name."""
+
+    def __init__(self, method: str) -> None:
+        self.method = method
+
+
+class TestValidationInterceptorLogger:
+    """Confirm the response interceptor logs validation failures with structured fields."""
+
+    @pytest.fixture
+    def captured(self) -> tuple[logging.Logger, _CapturingHandler]:
+        logger = logging.getLogger(f"t0_provider_sdk.tests.{id(self)}")
+        logger.setLevel(logging.DEBUG)
+        # Don't bubble to the root logger — keeps test output clean.
+        logger.propagate = False
+        handler = _CapturingHandler()
+        logger.addHandler(handler)
+        yield logger, handler
+        logger.removeHandler(handler)
+
+    @pytest.mark.asyncio
+    async def test_async_logs_one_error_record(self, captured):
+        logger, handler = captured
+        interceptor = ValidationInterceptor(logger=logger)
+        response = Decimal(exponent=100)
+
+        async def call_next(req, ctx):
+            return response
+
+        ctx = FakeMethodContext("tzero.v1.payment.ProviderService/PayOut")
+        with pytest.raises(ConnectError):
+            await interceptor.intercept_unary(call_next, None, ctx)
+
+        assert len(handler.records) == 1
+        record = handler.records[0]
+        assert record.levelno == logging.ERROR
+        assert record.rpc_method == "tzero.v1.payment.ProviderService/PayOut"
+        assert record.response_type == "tzero.v1.common.Decimal"
+        assert "exponent" in record.violations.lower() or record.violations
+        assert record.sdk_version == __version__
+
+    def test_sync_logs_one_error_record(self, captured):
+        logger, handler = captured
+        interceptor = ValidationInterceptorSync(logger=logger)
+        response = Decimal(exponent=100)
+        ctx = FakeMethodContext("tzero.v1.payment.ProviderService/PayOutSync")
+
+        with pytest.raises(ConnectError):
+            interceptor.intercept_unary_sync(lambda req, ctx: response, None, ctx)
+
+        assert len(handler.records) == 1
+        record = handler.records[0]
+        assert record.levelno == logging.ERROR
+        assert record.rpc_method == "tzero.v1.payment.ProviderService/PayOutSync"
+        assert record.response_type == "tzero.v1.common.Decimal"
+        assert record.sdk_version == __version__
+
+    @pytest.mark.asyncio
+    async def test_valid_response_does_not_log(self, captured):
+        logger, handler = captured
+        interceptor = ValidationInterceptor(logger=logger)
+        response = Decimal(unscaled=100, exponent=2)
+
+        async def call_next(req, ctx):
+            return response
+
+        await interceptor.intercept_unary(call_next, None, FakeContext())
+        assert handler.records == []
+
+    @pytest.mark.asyncio
+    async def test_default_logger_when_none_provided(self):
+        # Default name documented in handler / validate_response.
+        default = logging.getLogger("t0_provider_sdk")
+        handler = _CapturingHandler()
+        default.addHandler(handler)
+        previous_propagate = default.propagate
+        default.propagate = False
+        try:
+            interceptor = ValidationInterceptor()  # no logger kwarg
+            response = Decimal(exponent=100)
+
+            async def call_next(req, ctx):
+                return response
+
+            with pytest.raises(ConnectError):
+                await interceptor.intercept_unary(call_next, None, FakeContext())
+
+            assert len(handler.records) == 1
+            assert handler.records[0].levelno == logging.ERROR
+        finally:
+            default.removeHandler(handler)
+            default.propagate = previous_propagate
