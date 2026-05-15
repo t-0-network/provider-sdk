@@ -25,41 +25,41 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
       byte[] descriptorData = global::System.Convert.FromBase64String(
           string.Concat(
             "Cil0emVyby92MS9wYXltZW50X2ludGVudC9iZW5lZmljaWFyeS5wcm90bxIX",
-            "dHplcm8udjEucGF5bWVudF9pbnRlbnQaHHR6ZXJvL3YxL2NvbW1vbi9jb21t",
-            "b24ucHJvdG8aJHR6ZXJvL3YxL2NvbW1vbi9wYXltZW50X21ldGhvZC5wcm90",
-            "bxobYnVmL3ZhbGlkYXRlL3ZhbGlkYXRlLnByb3RvGh1pdm1zMTAxL3YxL2l2",
-            "bXMvaXZtczEwMS5wcm90byLeBgoaUGF5bWVudEludGVudFVwZGF0ZVJlcXVl",
+            "dHplcm8udjEucGF5bWVudF9pbnRlbnQaG2J1Zi92YWxpZGF0ZS92YWxpZGF0",
+            "ZS5wcm90bxodaXZtczEwMS92MS9pdm1zL2l2bXMxMDEucHJvdG8aHHR6ZXJv",
+            "L3YxL2NvbW1vbi9jb21tb24ucHJvdG8aJHR6ZXJvL3YxL2NvbW1vbi9wYXlt",
+            "ZW50X21ldGhvZC5wcm90byLqBgoaUGF5bWVudEludGVudFVwZGF0ZVJlcXVl",
             "c3QSMwoRcGF5bWVudF9pbnRlbnRfaWQYCiABKARCB7pIBDICIABSD3BheW1l",
             "bnRJbnRlbnRJZBJqCg5mdW5kc19yZWNlaXZlZBgUIAEoCzJBLnR6ZXJvLnYx",
             "LnBheW1lbnRfaW50ZW50LlBheW1lbnRJbnRlbnRVcGRhdGVSZXF1ZXN0LkZ1",
-            "bmRzUmVjZWl2ZWRIAFINZnVuZHNSZWNlaXZlZBqNBQoNRnVuZHNSZWNlaXZl",
+            "bmRzUmVjZWl2ZWRIAFINZnVuZHNSZWNlaXZlZBqZBQoNRnVuZHNSZWNlaXZl",
             "ZBJFChFzZXR0bGVtZW50X2Ftb3VudBgKIAEoCzIYLnR6ZXJvLnYxLmNvbW1v",
             "bi5EZWNpbWFsUhBzZXR0bGVtZW50QW1vdW50EiwKBHJhdGUYFCABKAsyGC50",
             "emVyby52MS5jb21tb24uRGVjaW1hbFIEcmF0ZRI/Cg5wYXltZW50X2Ftb3Vu",
             "dBgeIAEoCzIYLnR6ZXJvLnYxLmNvbW1vbi5EZWNpbWFsUg1wYXltZW50QW1v",
             "dW50EkkKDnBheW1lbnRfbWV0aG9kGCggASgOMiIudHplcm8udjEuY29tbW9u",
-            "LlBheW1lbnRNZXRob2RUeXBlUg1wYXltZW50TWV0aG9kEjMKFXRyYW5zYWN0",
-            "aW9uX3JlZmVyZW5jZRgyIAEoCVIUdHJhbnNhY3Rpb25SZWZlcmVuY2USggEK",
-            "EHRyYXZlbF9ydWxlX2RhdGEYPCABKAsyUC50emVyby52MS5wYXltZW50X2lu",
-            "dGVudC5QYXltZW50SW50ZW50VXBkYXRlUmVxdWVzdC5GdW5kc1JlY2VpdmVk",
-            "LlRyYXZlbFJ1bGVEYXRhQga6SAPIAQFSDnRyYXZlbFJ1bGVEYXRhEmAKA2Zp",
-            "eBhGIAEoCzIYLnR6ZXJvLnYxLmNvbW1vbi5EZWNpbWFsQjS6SDG6AS4SGGZp",
-            "eCBtdXN0IGJlIG5vbi1uZWdhdGl2ZRoSdGhpcy51bnNjYWxlZCA+PSAwUgNm",
-            "aXgaXwoOVHJhdmVsUnVsZURhdGESTQoTb3JpZ2luYXRvcl9wcm92aWRlchge",
-            "IAEoCzIULml2bXMxMDEuTGVnYWxQZXJzb25CBrpIA8gBAVISb3JpZ2luYXRv",
-            "clByb3ZpZGVyQg8KBnVwZGF0ZRIFukgCCAEiHQobUGF5bWVudEludGVudFVw",
-            "ZGF0ZVJlc3BvbnNlMpwBChJCZW5lZmljaWFyeVNlcnZpY2UShQEKE1BheW1l",
-            "bnRJbnRlbnRVcGRhdGUSMy50emVyby52MS5wYXltZW50X2ludGVudC5QYXlt",
-            "ZW50SW50ZW50VXBkYXRlUmVxdWVzdBo0LnR6ZXJvLnYxLnBheW1lbnRfaW50",
-            "ZW50LlBheW1lbnRJbnRlbnRVcGRhdGVSZXNwb25zZSIDkAICQoACChtjb20u",
-            "dHplcm8udjEucGF5bWVudF9pbnRlbnRCEEJlbmVmaWNpYXJ5UHJvdG9QAVpC",
-            "Z2l0aHViLmNvbS90LTAtbmV0d29yay9wcm92aWRlci1zZGsvZ28vYXBpL3R6",
-            "ZXJvL3YxL3BheW1lbnRfaW50ZW50ogIDVFZQqgIpVDAuUHJvdmlkZXJTZGsu",
-            "QXBpLlR6ZXJvLlYxLlBheW1lbnRJbnRlbnTKAhZUemVyb1xWMVxQYXltZW50",
-            "SW50ZW504gIiVHplcm9cVjFcUGF5bWVudEludGVudFxHUEJNZXRhZGF0YeoC",
-            "GFR6ZXJvOjpWMTo6UGF5bWVudEludGVudGIGcHJvdG8z"));
+            "LlBheW1lbnRNZXRob2RUeXBlUg1wYXltZW50TWV0aG9kEj8KFXRyYW5zYWN0",
+            "aW9uX3JlZmVyZW5jZRgyIAEoCUIKukgHcgUQARiAAlIUdHJhbnNhY3Rpb25S",
+            "ZWZlcmVuY2USggEKEHRyYXZlbF9ydWxlX2RhdGEYPCABKAsyUC50emVyby52",
+            "MS5wYXltZW50X2ludGVudC5QYXltZW50SW50ZW50VXBkYXRlUmVxdWVzdC5G",
+            "dW5kc1JlY2VpdmVkLlRyYXZlbFJ1bGVEYXRhQga6SAPIAQFSDnRyYXZlbFJ1",
+            "bGVEYXRhEmAKA2ZpeBhGIAEoCzIYLnR6ZXJvLnYxLmNvbW1vbi5EZWNpbWFs",
+            "QjS6SDG6AS4SGGZpeCBtdXN0IGJlIG5vbi1uZWdhdGl2ZRoSdGhpcy51bnNj",
+            "YWxlZCA+PSAwUgNmaXgaXwoOVHJhdmVsUnVsZURhdGESTQoTb3JpZ2luYXRv",
+            "cl9wcm92aWRlchgeIAEoCzIULml2bXMxMDEuTGVnYWxQZXJzb25CBrpIA8gB",
+            "AVISb3JpZ2luYXRvclByb3ZpZGVyQg8KBnVwZGF0ZRIFukgCCAEiHQobUGF5",
+            "bWVudEludGVudFVwZGF0ZVJlc3BvbnNlMpwBChJCZW5lZmljaWFyeVNlcnZp",
+            "Y2UShQEKE1BheW1lbnRJbnRlbnRVcGRhdGUSMy50emVyby52MS5wYXltZW50",
+            "X2ludGVudC5QYXltZW50SW50ZW50VXBkYXRlUmVxdWVzdBo0LnR6ZXJvLnYx",
+            "LnBheW1lbnRfaW50ZW50LlBheW1lbnRJbnRlbnRVcGRhdGVSZXNwb25zZSID",
+            "kAICQoACChtjb20udHplcm8udjEucGF5bWVudF9pbnRlbnRCEEJlbmVmaWNp",
+            "YXJ5UHJvdG9QAVpCZ2l0aHViLmNvbS90LTAtbmV0d29yay9wcm92aWRlci1z",
+            "ZGsvZ28vYXBpL3R6ZXJvL3YxL3BheW1lbnRfaW50ZW50ogIDVFZQqgIpVDAu",
+            "UHJvdmlkZXJTZGsuQXBpLlR6ZXJvLlYxLlBheW1lbnRJbnRlbnTKAhZUemVy",
+            "b1xWMVxQYXltZW50SW50ZW504gIiVHplcm9cVjFcUGF5bWVudEludGVudFxH",
+            "UEJNZXRhZGF0YeoCGFR6ZXJvOjpWMTo6UGF5bWVudEludGVudGIGcHJvdG8z"));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
-          new pbr::FileDescriptor[] { global::T0.ProviderSdk.Api.Tzero.V1.Common.CommonReflection.Descriptor, global::T0.ProviderSdk.Api.Tzero.V1.Common.PaymentMethodReflection.Descriptor, global::Buf.Validate.ValidateReflection.Descriptor, global::T0.ProviderSdk.Api.Ivms101.V1.Ivms.Ivms101Reflection.Descriptor, },
+          new pbr::FileDescriptor[] { global::Buf.Validate.ValidateReflection.Descriptor, global::T0.ProviderSdk.Api.Ivms101.V1.Ivms.Ivms101Reflection.Descriptor, global::T0.ProviderSdk.Api.Tzero.V1.Common.CommonReflection.Descriptor, global::T0.ProviderSdk.Api.Tzero.V1.Common.PaymentMethodReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(null, null, new pbr::GeneratedClrTypeInfo[] {
             new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.PaymentIntentUpdateRequest), global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.PaymentIntentUpdateRequest.Parser, new[]{ "PaymentIntentId", "FundsReceived" }, new[]{ "Update" }, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.PaymentIntentUpdateRequest.Types.FundsReceived), global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.PaymentIntentUpdateRequest.Types.FundsReceived.Parser, new[]{ "SettlementAmount", "Rate", "PaymentAmount", "PaymentMethod", "TransactionReference", "TravelRuleData", "Fix" }, null, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.PaymentIntentUpdateRequest.Types.FundsReceived.Types.TravelRuleData), global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.PaymentIntentUpdateRequest.Types.FundsReceived.Types.TravelRuleData.Parser, new[]{ "OriginatorProvider" }, null, null, null, null)})}),
             new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.PaymentIntentUpdateResponse), global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.PaymentIntentUpdateResponse.Parser, null, null, null, null, null)
@@ -491,8 +491,10 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
         public const int TransactionReferenceFieldNumber = 50;
         private string transactionReference_ = "";
         /// <summary>
-        ///
-        /// Unique transaction reference identifying the pay-in transaction
+        ///*
+        /// Pay-in's rail-native reference (SEPA EndToEndId, SWIFT UETR, PIX e2e_id), forwarded from ConfirmFundsReceived.
+        /// Reconcile against your records; serves as the anchor for dispute resolution.
+        /// See docs/tech/TRANSACTION_REFERENCE.md.
         /// </summary>
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]

@@ -26,9 +26,9 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
           string.Concat(
             "CiV0emVyby92MS9wYXltZW50X2ludGVudC9uZXR3b3JrLnByb3RvEhd0emVy",
             "by52MS5wYXltZW50X2ludGVudBobYnVmL3ZhbGlkYXRlL3ZhbGlkYXRlLnBy",
-            "b3RvGhx0emVyby92MS9jb21tb24vY29tbW9uLnByb3RvGiR0emVyby92MS9j",
-            "b21tb24vcGF5bWVudF9tZXRob2QucHJvdG8aHWl2bXMxMDEvdjEvaXZtcy9p",
-            "dm1zMTAxLnByb3RvGh9nb29nbGUvcHJvdG9idWYvdGltZXN0YW1wLnByb3Rv",
+            "b3RvGh9nb29nbGUvcHJvdG9idWYvdGltZXN0YW1wLnByb3RvGh1pdm1zMTAx",
+            "L3YxL2l2bXMvaXZtczEwMS5wcm90bxocdHplcm8vdjEvY29tbW9uL2NvbW1v",
+            "bi5wcm90bxokdHplcm8vdjEvY29tbW9uL3BheW1lbnRfbWV0aG9kLnByb3Rv",
             "Iv4GChJVcGRhdGVRdW90ZVJlcXVlc3QSZQoVcGF5bWVudF9pbnRlbnRfcXVv",
             "dGVzGAogAygLMjEudHplcm8udjEucGF5bWVudF9pbnRlbnQuVXBkYXRlUXVv",
             "dGVSZXF1ZXN0LlF1b3RlUhNwYXltZW50SW50ZW50UXVvdGVzGoAGCgVRdW90",
@@ -151,7 +151,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
             "XFBheW1lbnRJbnRlbnTiAiJUemVyb1xWMVxQYXltZW50SW50ZW50XEdQQk1l",
             "dGFkYXRh6gIYVHplcm86OlYxOjpQYXltZW50SW50ZW50YgZwcm90bzM="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
-          new pbr::FileDescriptor[] { global::Buf.Validate.ValidateReflection.Descriptor, global::T0.ProviderSdk.Api.Tzero.V1.Common.CommonReflection.Descriptor, global::T0.ProviderSdk.Api.Tzero.V1.Common.PaymentMethodReflection.Descriptor, global::T0.ProviderSdk.Api.Ivms101.V1.Ivms.Ivms101Reflection.Descriptor, global::Google.Protobuf.WellKnownTypes.TimestampReflection.Descriptor, },
+          new pbr::FileDescriptor[] { global::Buf.Validate.ValidateReflection.Descriptor, global::Google.Protobuf.WellKnownTypes.TimestampReflection.Descriptor, global::T0.ProviderSdk.Api.Ivms101.V1.Ivms.Ivms101Reflection.Descriptor, global::T0.ProviderSdk.Api.Tzero.V1.Common.CommonReflection.Descriptor, global::T0.ProviderSdk.Api.Tzero.V1.Common.PaymentMethodReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(null, null, new pbr::GeneratedClrTypeInfo[] {
             new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.UpdateQuoteRequest), global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.UpdateQuoteRequest.Parser, new[]{ "PaymentIntentQuotes" }, null, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.UpdateQuoteRequest.Types.Quote), global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.UpdateQuoteRequest.Types.Quote.Parser, new[]{ "Currency", "PaymentMethod", "Bands", "Expiration", "Timestamp" }, null, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.UpdateQuoteRequest.Types.Quote.Types.Band), global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.UpdateQuoteRequest.Types.Quote.Types.Band.Parser, new[]{ "ClientQuoteId", "MaxAmount", "Rate", "Fix" }, new[]{ "Fix" }, null, null, null)})}),
             new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.UpdateQuoteResponse), global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.UpdateQuoteResponse.Parser, null, null, null, null, null),
@@ -4564,8 +4564,10 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
     public const int TransactionReferenceFieldNumber = 40;
     private string transactionReference_ = "";
     /// <summary>
-    ///
-    /// Transaction reference
+    ///*
+    /// Pay-in's rail-native reference (SEPA EndToEndId, SWIFT UETR, PIX e2e_id) — do not generate.
+    /// Forwarded to the beneficiary for end-to-end tracking and dispute resolution.
+    /// See docs/tech/TRANSACTION_REFERENCE.md.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]

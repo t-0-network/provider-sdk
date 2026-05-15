@@ -168,7 +168,10 @@ type PaymentIntentUpdateRequest_FundsReceived struct {
 	PaymentAmount *common.Decimal `protobuf:"bytes,30,opt,name=payment_amount,json=paymentAmount,proto3" json:"payment_amount,omitempty"`
 	// The payment method used for the pay-in
 	PaymentMethod common.PaymentMethodType `protobuf:"varint,40,opt,name=payment_method,json=paymentMethod,proto3,enum=tzero.v1.common.PaymentMethodType" json:"payment_method,omitempty"`
-	// Unique transaction reference identifying the pay-in transaction
+	// *
+	// Pay-in's rail-native reference (SEPA EndToEndId, SWIFT UETR, PIX e2e_id), forwarded from ConfirmFundsReceived.
+	// Reconcile against your records; serves as the anchor for dispute resolution.
+	// See docs/tech/TRANSACTION_REFERENCE.md.
 	TransactionReference string `protobuf:"bytes,50,opt,name=transaction_reference,json=transactionReference,proto3" json:"transaction_reference,omitempty"`
 	// *
 	// Travel rule data of the pay-in provider's legal entity that received the funds.
@@ -312,18 +315,19 @@ var File_tzero_v1_payment_intent_beneficiary_proto protoreflect.FileDescriptor
 
 const file_tzero_v1_payment_intent_beneficiary_proto_rawDesc = "" +
 	"\n" +
-	")tzero/v1/payment_intent/beneficiary.proto\x12\x17tzero.v1.payment_intent\x1a\x1ctzero/v1/common/common.proto\x1a$tzero/v1/common/payment_method.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1divms101/v1/ivms/ivms101.proto\"\xde\x06\n" +
+	")tzero/v1/payment_intent/beneficiary.proto\x12\x17tzero.v1.payment_intent\x1a\x1bbuf/validate/validate.proto\x1a\x1divms101/v1/ivms/ivms101.proto\x1a\x1ctzero/v1/common/common.proto\x1a$tzero/v1/common/payment_method.proto\"\xea\x06\n" +
 	"\x1aPaymentIntentUpdateRequest\x123\n" +
 	"\x11payment_intent_id\x18\n" +
 	" \x01(\x04B\a\xbaH\x042\x02 \x00R\x0fpaymentIntentId\x12j\n" +
-	"\x0efunds_received\x18\x14 \x01(\v2A.tzero.v1.payment_intent.PaymentIntentUpdateRequest.FundsReceivedH\x00R\rfundsReceived\x1a\x8d\x05\n" +
+	"\x0efunds_received\x18\x14 \x01(\v2A.tzero.v1.payment_intent.PaymentIntentUpdateRequest.FundsReceivedH\x00R\rfundsReceived\x1a\x99\x05\n" +
 	"\rFundsReceived\x12E\n" +
 	"\x11settlement_amount\x18\n" +
 	" \x01(\v2\x18.tzero.v1.common.DecimalR\x10settlementAmount\x12,\n" +
 	"\x04rate\x18\x14 \x01(\v2\x18.tzero.v1.common.DecimalR\x04rate\x12?\n" +
 	"\x0epayment_amount\x18\x1e \x01(\v2\x18.tzero.v1.common.DecimalR\rpaymentAmount\x12I\n" +
-	"\x0epayment_method\x18( \x01(\x0e2\".tzero.v1.common.PaymentMethodTypeR\rpaymentMethod\x123\n" +
-	"\x15transaction_reference\x182 \x01(\tR\x14transactionReference\x12\x82\x01\n" +
+	"\x0epayment_method\x18( \x01(\x0e2\".tzero.v1.common.PaymentMethodTypeR\rpaymentMethod\x12?\n" +
+	"\x15transaction_reference\x182 \x01(\tB\n" +
+	"\xbaH\ar\x05\x10\x01\x18\x80\x02R\x14transactionReference\x12\x82\x01\n" +
 	"\x10travel_rule_data\x18< \x01(\v2P.tzero.v1.payment_intent.PaymentIntentUpdateRequest.FundsReceived.TravelRuleDataB\x06\xbaH\x03\xc8\x01\x01R\x0etravelRuleData\x12`\n" +
 	"\x03fix\x18F \x01(\v2\x18.tzero.v1.common.DecimalB4\xbaH1\xba\x01.\x12\x18fix must be non-negative\x1a\x12this.unscaled >= 0R\x03fix\x1a_\n" +
 	"\x0eTravelRuleData\x12M\n" +
