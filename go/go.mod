@@ -7,7 +7,7 @@ require (
 	buf.build/go/protovalidate v1.2.0
 	connectrpc.com/connect v1.19.2
 	connectrpc.com/validate v0.6.0
-	github.com/btcsuite/btcd/btcec/v2 v2.3.6
+	github.com/btcsuite/btcd/btcec/v2 v2.5.0
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.1
 	github.com/stretchr/testify v1.11.1
 	golang.org/x/crypto v0.50.0
