@@ -167,8 +167,14 @@ class ConfirmFundsReceivedRequest(_message.Message):
 class ConfirmFundsReceivedResponse(_message.Message):
     __slots__ = ("accept", "reject")
     class Accept(_message.Message):
-        __slots__ = ()
-        def __init__(self) -> None: ...
+        __slots__ = ("settlement_amount", "rate", "fix")
+        SETTLEMENT_AMOUNT_FIELD_NUMBER: _ClassVar[int]
+        RATE_FIELD_NUMBER: _ClassVar[int]
+        FIX_FIELD_NUMBER: _ClassVar[int]
+        settlement_amount: _common_pb2.Decimal
+        rate: _common_pb2.Decimal
+        fix: _common_pb2.Decimal
+        def __init__(self, settlement_amount: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ..., rate: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ..., fix: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ...) -> None: ...
     class Reject(_message.Message):
         __slots__ = ("reason",)
         class Reason(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
