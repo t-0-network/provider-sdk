@@ -119,39 +119,47 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
             "CUIKukgHcgUQARiAAlIUdHJhbnNhY3Rpb25SZWZlcmVuY2USWgojb3JpZ2lu",
             "YXRvcl9wcm92aWRlcl9sZWdhbF9lbnRpdHlfaWQYMiABKA1CB7pIBCoCIABI",
             "AFIfb3JpZ2luYXRvclByb3ZpZGVyTGVnYWxFbnRpdHlJZIgBAUImCiRfb3Jp",
-            "Z2luYXRvcl9wcm92aWRlcl9sZWdhbF9lbnRpdHlfaWQi+gQKHENvbmZpcm1G",
+            "Z2luYXRvcl9wcm92aWRlcl9sZWdhbF9lbnRpdHlfaWQi3wcKHENvbmZpcm1G",
             "dW5kc1JlY2VpdmVkUmVzcG9uc2USVgoGYWNjZXB0GAogASgLMjwudHplcm8u",
             "djEucGF5bWVudF9pbnRlbnQuQ29uZmlybUZ1bmRzUmVjZWl2ZWRSZXNwb25z",
             "ZS5BY2NlcHRIAFIGYWNjZXB0ElYKBnJlamVjdBgUIAEoCzI8LnR6ZXJvLnYx",
             "LnBheW1lbnRfaW50ZW50LkNvbmZpcm1GdW5kc1JlY2VpdmVkUmVzcG9uc2Uu",
-            "UmVqZWN0SABSBnJlamVjdBoICgZBY2NlcHQajgMKBlJlamVjdBJlCgZyZWFz",
-            "b24YCiABKA4yQy50emVyby52MS5wYXltZW50X2ludGVudC5Db25maXJtRnVu",
-            "ZHNSZWNlaXZlZFJlc3BvbnNlLlJlamVjdC5SZWFzb25CCLpIBYIBAiAAUgZy",
-            "ZWFzb24inAIKBlJlYXNvbhIdChlSRUpFQ1RfUkVBU09OX1VOU1BFQ0lGSUVE",
-            "EAASLAooUkVKRUNUX1JFQVNPTl9DT05GSVJNQVRJT05fQ09ERV9NSVNNQVRD",
-            "SBAKEiEKHVJFSkVDVF9SRUFTT05fTk9fQUNUSVZFX1FVT1RFEBQSJgoiUkVK",
-            "RUNUX1JFQVNPTl9QUk9WSURFUl9OT1RfQUxMT1dFRBAeEiIKHlJFSkVDVF9S",
-            "RUFTT05fQU1PVU5UX1RPT19TTUFMTBAoEiAKHFJFSkVDVF9SRUFTT05fTk9f",
-            "VkFMSURfT0ZGRVIQMhI0CjBSRUpFQ1RfUkVBU09OX1RSQU5TQUNUSU9OX1JF",
-            "RkVSRU5DRV9BTFJFQURZX1VTRUQQPEIPCgZyZXN1bHQSBbpIAggBMv4DChRQ",
-            "YXltZW50SW50ZW50U2VydmljZRJtCgtVcGRhdGVRdW90ZRIrLnR6ZXJvLnYx",
-            "LnBheW1lbnRfaW50ZW50LlVwZGF0ZVF1b3RlUmVxdWVzdBosLnR6ZXJvLnYx",
-            "LnBheW1lbnRfaW50ZW50LlVwZGF0ZVF1b3RlUmVzcG9uc2UiA5ACAhJkCghH",
-            "ZXRRdW90ZRIoLnR6ZXJvLnYxLnBheW1lbnRfaW50ZW50LkdldFF1b3RlUmVx",
-            "dWVzdBopLnR6ZXJvLnYxLnBheW1lbnRfaW50ZW50LkdldFF1b3RlUmVzcG9u",
-            "c2UiA5ACAhKFAQoTQ3JlYXRlUGF5bWVudEludGVudBIzLnR6ZXJvLnYxLnBh",
-            "eW1lbnRfaW50ZW50LkNyZWF0ZVBheW1lbnRJbnRlbnRSZXF1ZXN0GjQudHpl",
-            "cm8udjEucGF5bWVudF9pbnRlbnQuQ3JlYXRlUGF5bWVudEludGVudFJlc3Bv",
-            "bnNlIgOQAgISiAEKFENvbmZpcm1GdW5kc1JlY2VpdmVkEjQudHplcm8udjEu",
-            "cGF5bWVudF9pbnRlbnQuQ29uZmlybUZ1bmRzUmVjZWl2ZWRSZXF1ZXN0GjUu",
-            "dHplcm8udjEucGF5bWVudF9pbnRlbnQuQ29uZmlybUZ1bmRzUmVjZWl2ZWRS",
-            "ZXNwb25zZSIDkAICQvwBChtjb20udHplcm8udjEucGF5bWVudF9pbnRlbnRC",
-            "DE5ldHdvcmtQcm90b1ABWkJnaXRodWIuY29tL3QtMC1uZXR3b3JrL3Byb3Zp",
-            "ZGVyLXNkay9nby9hcGkvdHplcm8vdjEvcGF5bWVudF9pbnRlbnSiAgNUVlCq",
-            "AilUMC5Qcm92aWRlclNkay5BcGkuVHplcm8uVjEuUGF5bWVudEludGVudMoC",
-            "FlR6ZXJvXFYxXFBheW1lbnRJbnRlbnTiAiJUemVyb1xWMVxQYXltZW50SW50",
-            "ZW50XEdQQk1ldGFkYXRh6gIYVHplcm86OlYxOjpQYXltZW50SW50ZW50YgZw",
-            "cm90bzM="));
+            "UmVqZWN0SABSBnJlamVjdBrsAgoGQWNjZXB0EpABChFzZXR0bGVtZW50X2Ft",
+            "b3VudBgKIAEoCzIYLnR6ZXJvLnYxLmNvbW1vbi5EZWNpbWFsQkm6SEa6AUAS",
+            "K3NldHRsZW1lbnRfYW1vdW50IG11c3QgYmUgZ3JlYXRlciB0aGFuIHplcm8a",
+            "EXRoaXMudW5zY2FsZWQgPiAwyAEBUhBzZXR0bGVtZW50QW1vdW50EmoKBHJh",
+            "dGUYFCABKAsyGC50emVyby52MS5jb21tb24uRGVjaW1hbEI8ukg5ugEzEh5y",
+            "YXRlIG11c3QgYmUgZ3JlYXRlciB0aGFuIHplcm8aEXRoaXMudW5zY2FsZWQg",
+            "PiAwyAEBUgRyYXRlEmMKA2ZpeBgeIAEoCzIYLnR6ZXJvLnYxLmNvbW1vbi5E",
+            "ZWNpbWFsQje6SDS6AS4SGGZpeCBtdXN0IGJlIG5vbi1uZWdhdGl2ZRoSdGhp",
+            "cy51bnNjYWxlZCA+PSAwyAEBUgNmaXgajgMKBlJlamVjdBJlCgZyZWFzb24Y",
+            "CiABKA4yQy50emVyby52MS5wYXltZW50X2ludGVudC5Db25maXJtRnVuZHNS",
+            "ZWNlaXZlZFJlc3BvbnNlLlJlamVjdC5SZWFzb25CCLpIBYIBAiAAUgZyZWFz",
+            "b24inAIKBlJlYXNvbhIdChlSRUpFQ1RfUkVBU09OX1VOU1BFQ0lGSUVEEAAS",
+            "LAooUkVKRUNUX1JFQVNPTl9DT05GSVJNQVRJT05fQ09ERV9NSVNNQVRDSBAK",
+            "EiEKHVJFSkVDVF9SRUFTT05fTk9fQUNUSVZFX1FVT1RFEBQSJgoiUkVKRUNU",
+            "X1JFQVNPTl9QUk9WSURFUl9OT1RfQUxMT1dFRBAeEiIKHlJFSkVDVF9SRUFT",
+            "T05fQU1PVU5UX1RPT19TTUFMTBAoEiAKHFJFSkVDVF9SRUFTT05fTk9fVkFM",
+            "SURfT0ZGRVIQMhI0CjBSRUpFQ1RfUkVBU09OX1RSQU5TQUNUSU9OX1JFRkVS",
+            "RU5DRV9BTFJFQURZX1VTRUQQPEIPCgZyZXN1bHQSBbpIAggBMv4DChRQYXlt",
+            "ZW50SW50ZW50U2VydmljZRJtCgtVcGRhdGVRdW90ZRIrLnR6ZXJvLnYxLnBh",
+            "eW1lbnRfaW50ZW50LlVwZGF0ZVF1b3RlUmVxdWVzdBosLnR6ZXJvLnYxLnBh",
+            "eW1lbnRfaW50ZW50LlVwZGF0ZVF1b3RlUmVzcG9uc2UiA5ACAhJkCghHZXRR",
+            "dW90ZRIoLnR6ZXJvLnYxLnBheW1lbnRfaW50ZW50LkdldFF1b3RlUmVxdWVz",
+            "dBopLnR6ZXJvLnYxLnBheW1lbnRfaW50ZW50LkdldFF1b3RlUmVzcG9uc2Ui",
+            "A5ACAhKFAQoTQ3JlYXRlUGF5bWVudEludGVudBIzLnR6ZXJvLnYxLnBheW1l",
+            "bnRfaW50ZW50LkNyZWF0ZVBheW1lbnRJbnRlbnRSZXF1ZXN0GjQudHplcm8u",
+            "djEucGF5bWVudF9pbnRlbnQuQ3JlYXRlUGF5bWVudEludGVudFJlc3BvbnNl",
+            "IgOQAgISiAEKFENvbmZpcm1GdW5kc1JlY2VpdmVkEjQudHplcm8udjEucGF5",
+            "bWVudF9pbnRlbnQuQ29uZmlybUZ1bmRzUmVjZWl2ZWRSZXF1ZXN0GjUudHpl",
+            "cm8udjEucGF5bWVudF9pbnRlbnQuQ29uZmlybUZ1bmRzUmVjZWl2ZWRSZXNw",
+            "b25zZSIDkAICQvwBChtjb20udHplcm8udjEucGF5bWVudF9pbnRlbnRCDE5l",
+            "dHdvcmtQcm90b1ABWkJnaXRodWIuY29tL3QtMC1uZXR3b3JrL3Byb3ZpZGVy",
+            "LXNkay9nby9hcGkvdHplcm8vdjEvcGF5bWVudF9pbnRlbnSiAgNUVlCqAilU",
+            "MC5Qcm92aWRlclNkay5BcGkuVHplcm8uVjEuUGF5bWVudEludGVudMoCFlR6",
+            "ZXJvXFYxXFBheW1lbnRJbnRlbnTiAiJUemVyb1xWMVxQYXltZW50SW50ZW50",
+            "XEdQQk1ldGFkYXRh6gIYVHplcm86OlYxOjpQYXltZW50SW50ZW50YgZwcm90",
+            "bzM="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { global::Buf.Validate.ValidateReflection.Descriptor, global::Google.Protobuf.WellKnownTypes.TimestampReflection.Descriptor, global::T0.ProviderSdk.Api.Ivms101.V1.Ivms.Ivms101Reflection.Descriptor, global::T0.ProviderSdk.Api.Tzero.V1.Common.CommonReflection.Descriptor, global::T0.ProviderSdk.Api.Tzero.V1.Common.PaymentMethodReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(null, null, new pbr::GeneratedClrTypeInfo[] {
@@ -165,7 +173,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
             new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.CreatePaymentIntentResponse), global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.CreatePaymentIntentResponse.Parser, new[]{ "Success", "Failure" }, new[]{ "Result" }, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.CreatePaymentIntentResponse.Types.Success), global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.CreatePaymentIntentResponse.Types.Success.Parser, new[]{ "PaymentIntentId", "PayInDetails" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.CreatePaymentIntentResponse.Types.Failure), global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.CreatePaymentIntentResponse.Types.Failure.Parser, new[]{ "Reason" }, null, new[]{ typeof(global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.CreatePaymentIntentResponse.Types.Failure.Types.Reason) }, null, null)}),
             new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.ConfirmFundsReceivedRequest), global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.ConfirmFundsReceivedRequest.Parser, new[]{ "PaymentIntentId", "ConfirmationCode", "PaymentMethod", "TransactionReference", "OriginatorProviderLegalEntityId" }, new[]{ "OriginatorProviderLegalEntityId" }, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.ConfirmFundsReceivedResponse), global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.ConfirmFundsReceivedResponse.Parser, new[]{ "Accept", "Reject" }, new[]{ "Result" }, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.ConfirmFundsReceivedResponse.Types.Accept), global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.ConfirmFundsReceivedResponse.Types.Accept.Parser, null, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.ConfirmFundsReceivedResponse), global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.ConfirmFundsReceivedResponse.Parser, new[]{ "Accept", "Reject" }, new[]{ "Result" }, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.ConfirmFundsReceivedResponse.Types.Accept), global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.ConfirmFundsReceivedResponse.Types.Accept.Parser, new[]{ "SettlementAmount", "Rate", "Fix" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.ConfirmFundsReceivedResponse.Types.Reject), global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.ConfirmFundsReceivedResponse.Types.Reject.Parser, new[]{ "Reason" }, null, new[]{ typeof(global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.ConfirmFundsReceivedResponse.Types.Reject.Types.Reason) }, null, null)})
           }));
     }
@@ -5196,6 +5204,9 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
         public Accept(Accept other) : this() {
+          settlementAmount_ = other.settlementAmount_ != null ? other.settlementAmount_.Clone() : null;
+          rate_ = other.rate_ != null ? other.rate_.Clone() : null;
+          fix_ = other.fix_ != null ? other.fix_.Clone() : null;
           _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
         }
 
@@ -5203,6 +5214,59 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
         public Accept Clone() {
           return new Accept(this);
+        }
+
+        /// <summary>Field number for the "settlement_amount" field.</summary>
+        public const int SettlementAmountFieldNumber = 10;
+        private global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal settlementAmount_;
+        /// <summary>
+        ///*
+        /// The settlement amount in USD that the pay-in provider owes the
+        /// beneficiary provider for this payment intent. Locked from the chosen
+        /// quote at confirm-time as (payment_amount / rate) − fix.
+        /// </summary>
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        public global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal SettlementAmount {
+          get { return settlementAmount_; }
+          set {
+            settlementAmount_ = value;
+          }
+        }
+
+        /// <summary>Field number for the "rate" field.</summary>
+        public const int RateFieldNumber = 20;
+        private global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal rate_;
+        /// <summary>
+        ///*
+        /// USD/&lt;pay-in currency> exchange rate locked in for this settlement.
+        /// Matches the rate forwarded to the beneficiary in PaymentIntentUpdate.FundsReceived.
+        /// </summary>
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        public global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal Rate {
+          get { return rate_; }
+          set {
+            rate_ = value;
+          }
+        }
+
+        /// <summary>Field number for the "fix" field.</summary>
+        public const int FixFieldNumber = 30;
+        private global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal fix_;
+        /// <summary>
+        ///*
+        /// Flat USD charge retained by the pay-in provider per transfer,
+        /// already subtracted from settlement_amount. Surfaced so the pay-in
+        /// provider can audit the settlement formula: settlement = (payment_amount / rate) − fix.
+        /// </summary>
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        public global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal Fix {
+          get { return fix_; }
+          set {
+            fix_ = value;
+          }
         }
 
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -5220,6 +5284,9 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
           if (ReferenceEquals(other, this)) {
             return true;
           }
+          if (!object.Equals(SettlementAmount, other.SettlementAmount)) return false;
+          if (!object.Equals(Rate, other.Rate)) return false;
+          if (!object.Equals(Fix, other.Fix)) return false;
           return Equals(_unknownFields, other._unknownFields);
         }
 
@@ -5227,6 +5294,9 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
         public override int GetHashCode() {
           int hash = 1;
+          if (settlementAmount_ != null) hash ^= SettlementAmount.GetHashCode();
+          if (rate_ != null) hash ^= Rate.GetHashCode();
+          if (fix_ != null) hash ^= Fix.GetHashCode();
           if (_unknownFields != null) {
             hash ^= _unknownFields.GetHashCode();
           }
@@ -5245,6 +5315,18 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
         #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
           output.WriteRawMessage(this);
         #else
+          if (settlementAmount_ != null) {
+            output.WriteRawTag(82);
+            output.WriteMessage(SettlementAmount);
+          }
+          if (rate_ != null) {
+            output.WriteRawTag(162, 1);
+            output.WriteMessage(Rate);
+          }
+          if (fix_ != null) {
+            output.WriteRawTag(242, 1);
+            output.WriteMessage(Fix);
+          }
           if (_unknownFields != null) {
             _unknownFields.WriteTo(output);
           }
@@ -5255,6 +5337,18 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
         void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+          if (settlementAmount_ != null) {
+            output.WriteRawTag(82);
+            output.WriteMessage(SettlementAmount);
+          }
+          if (rate_ != null) {
+            output.WriteRawTag(162, 1);
+            output.WriteMessage(Rate);
+          }
+          if (fix_ != null) {
+            output.WriteRawTag(242, 1);
+            output.WriteMessage(Fix);
+          }
           if (_unknownFields != null) {
             _unknownFields.WriteTo(ref output);
           }
@@ -5265,6 +5359,15 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
         public int CalculateSize() {
           int size = 0;
+          if (settlementAmount_ != null) {
+            size += 1 + pb::CodedOutputStream.ComputeMessageSize(SettlementAmount);
+          }
+          if (rate_ != null) {
+            size += 2 + pb::CodedOutputStream.ComputeMessageSize(Rate);
+          }
+          if (fix_ != null) {
+            size += 2 + pb::CodedOutputStream.ComputeMessageSize(Fix);
+          }
           if (_unknownFields != null) {
             size += _unknownFields.CalculateSize();
           }
@@ -5276,6 +5379,24 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
         public void MergeFrom(Accept other) {
           if (other == null) {
             return;
+          }
+          if (other.settlementAmount_ != null) {
+            if (settlementAmount_ == null) {
+              SettlementAmount = new global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal();
+            }
+            SettlementAmount.MergeFrom(other.SettlementAmount);
+          }
+          if (other.rate_ != null) {
+            if (rate_ == null) {
+              Rate = new global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal();
+            }
+            Rate.MergeFrom(other.Rate);
+          }
+          if (other.fix_ != null) {
+            if (fix_ == null) {
+              Fix = new global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal();
+            }
+            Fix.MergeFrom(other.Fix);
           }
           _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
         }
@@ -5296,6 +5417,27 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
               default:
                 _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
                 break;
+              case 82: {
+                if (settlementAmount_ == null) {
+                  SettlementAmount = new global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal();
+                }
+                input.ReadMessage(SettlementAmount);
+                break;
+              }
+              case 162: {
+                if (rate_ == null) {
+                  Rate = new global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal();
+                }
+                input.ReadMessage(Rate);
+                break;
+              }
+              case 242: {
+                if (fix_ == null) {
+                  Fix = new global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal();
+                }
+                input.ReadMessage(Fix);
+                break;
+              }
             }
           }
         #endif
@@ -5315,6 +5457,27 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
               default:
                 _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
                 break;
+              case 82: {
+                if (settlementAmount_ == null) {
+                  SettlementAmount = new global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal();
+                }
+                input.ReadMessage(SettlementAmount);
+                break;
+              }
+              case 162: {
+                if (rate_ == null) {
+                  Rate = new global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal();
+                }
+                input.ReadMessage(Rate);
+                break;
+              }
+              case 242: {
+                if (fix_ == null) {
+                  Fix = new global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal();
+                }
+                input.ReadMessage(Fix);
+                break;
+              }
             }
           }
         }

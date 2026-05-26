@@ -1380,7 +1380,21 @@ func (x *CreatePaymentIntentResponse_Failure) GetReason() CreatePaymentIntentRes
 // The beneficiary provider will receive a PaymentIntentUpdate notification
 // with settlement details.
 type ConfirmFundsReceivedResponse_Accept struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// *
+	// The settlement amount in USD that the pay-in provider owes the
+	// beneficiary provider for this payment intent. Locked from the chosen
+	// quote at confirm-time as (payment_amount / rate) − fix.
+	SettlementAmount *common.Decimal `protobuf:"bytes,10,opt,name=settlement_amount,json=settlementAmount,proto3" json:"settlement_amount,omitempty"`
+	// *
+	// USD/<pay-in currency> exchange rate locked in for this settlement.
+	// Matches the rate forwarded to the beneficiary in PaymentIntentUpdate.FundsReceived.
+	Rate *common.Decimal `protobuf:"bytes,20,opt,name=rate,proto3" json:"rate,omitempty"`
+	// *
+	// Flat USD charge retained by the pay-in provider per transfer,
+	// already subtracted from settlement_amount. Surfaced so the pay-in
+	// provider can audit the settlement formula: settlement = (payment_amount / rate) − fix.
+	Fix           *common.Decimal `protobuf:"bytes,30,opt,name=fix,proto3" json:"fix,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1413,6 +1427,27 @@ func (x *ConfirmFundsReceivedResponse_Accept) ProtoReflect() protoreflect.Messag
 // Deprecated: Use ConfirmFundsReceivedResponse_Accept.ProtoReflect.Descriptor instead.
 func (*ConfirmFundsReceivedResponse_Accept) Descriptor() ([]byte, []int) {
 	return file_tzero_v1_payment_intent_network_proto_rawDescGZIP(), []int{8, 0}
+}
+
+func (x *ConfirmFundsReceivedResponse_Accept) GetSettlementAmount() *common.Decimal {
+	if x != nil {
+		return x.SettlementAmount
+	}
+	return nil
+}
+
+func (x *ConfirmFundsReceivedResponse_Accept) GetRate() *common.Decimal {
+	if x != nil {
+		return x.Rate
+	}
+	return nil
+}
+
+func (x *ConfirmFundsReceivedResponse_Accept) GetFix() *common.Decimal {
+	if x != nil {
+		return x.Fix
+	}
+	return nil
 }
 
 // *
@@ -1560,12 +1595,16 @@ const file_tzero_v1_payment_intent_network_proto_rawDesc = "" +
 	"\x15transaction_reference\x18( \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\x80\x02R\x14transactionReference\x12Z\n" +
 	"#originator_provider_legal_entity_id\x182 \x01(\rB\a\xbaH\x04*\x02 \x00H\x00R\x1foriginatorProviderLegalEntityId\x88\x01\x01B&\n" +
-	"$_originator_provider_legal_entity_id\"\xfa\x04\n" +
+	"$_originator_provider_legal_entity_id\"\xdf\a\n" +
 	"\x1cConfirmFundsReceivedResponse\x12V\n" +
 	"\x06accept\x18\n" +
 	" \x01(\v2<.tzero.v1.payment_intent.ConfirmFundsReceivedResponse.AcceptH\x00R\x06accept\x12V\n" +
-	"\x06reject\x18\x14 \x01(\v2<.tzero.v1.payment_intent.ConfirmFundsReceivedResponse.RejectH\x00R\x06reject\x1a\b\n" +
-	"\x06Accept\x1a\x8e\x03\n" +
+	"\x06reject\x18\x14 \x01(\v2<.tzero.v1.payment_intent.ConfirmFundsReceivedResponse.RejectH\x00R\x06reject\x1a\xec\x02\n" +
+	"\x06Accept\x12\x90\x01\n" +
+	"\x11settlement_amount\x18\n" +
+	" \x01(\v2\x18.tzero.v1.common.DecimalBI\xbaHF\xba\x01@\x12+settlement_amount must be greater than zero\x1a\x11this.unscaled > 0\xc8\x01\x01R\x10settlementAmount\x12j\n" +
+	"\x04rate\x18\x14 \x01(\v2\x18.tzero.v1.common.DecimalB<\xbaH9\xba\x013\x12\x1erate must be greater than zero\x1a\x11this.unscaled > 0\xc8\x01\x01R\x04rate\x12c\n" +
+	"\x03fix\x18\x1e \x01(\v2\x18.tzero.v1.common.DecimalB7\xbaH4\xba\x01.\x12\x18fix must be non-negative\x1a\x12this.unscaled >= 0\xc8\x01\x01R\x03fix\x1a\x8e\x03\n" +
 	"\x06Reject\x12e\n" +
 	"\x06reason\x18\n" +
 	" \x01(\x0e2C.tzero.v1.payment_intent.ConfirmFundsReceivedResponse.Reject.ReasonB\b\xbaH\x05\x82\x01\x02 \x00R\x06reason\"\x9c\x02\n" +
@@ -1660,20 +1699,23 @@ var file_tzero_v1_payment_intent_network_proto_depIdxs = []int32{
 	25, // 28: tzero.v1.payment_intent.CreatePaymentIntentRequest.TravelRuleData.payer:type_name -> ivms101.Person
 	6,  // 29: tzero.v1.payment_intent.CreatePaymentIntentResponse.Success.pay_in_details:type_name -> tzero.v1.payment_intent.PaymentIntentPayInDetails
 	0,  // 30: tzero.v1.payment_intent.CreatePaymentIntentResponse.Failure.reason:type_name -> tzero.v1.payment_intent.CreatePaymentIntentResponse.Failure.Reason
-	1,  // 31: tzero.v1.payment_intent.ConfirmFundsReceivedResponse.Reject.reason:type_name -> tzero.v1.payment_intent.ConfirmFundsReceivedResponse.Reject.Reason
-	2,  // 32: tzero.v1.payment_intent.PaymentIntentService.UpdateQuote:input_type -> tzero.v1.payment_intent.UpdateQuoteRequest
-	4,  // 33: tzero.v1.payment_intent.PaymentIntentService.GetQuote:input_type -> tzero.v1.payment_intent.GetQuoteRequest
-	7,  // 34: tzero.v1.payment_intent.PaymentIntentService.CreatePaymentIntent:input_type -> tzero.v1.payment_intent.CreatePaymentIntentRequest
-	9,  // 35: tzero.v1.payment_intent.PaymentIntentService.ConfirmFundsReceived:input_type -> tzero.v1.payment_intent.ConfirmFundsReceivedRequest
-	3,  // 36: tzero.v1.payment_intent.PaymentIntentService.UpdateQuote:output_type -> tzero.v1.payment_intent.UpdateQuoteResponse
-	5,  // 37: tzero.v1.payment_intent.PaymentIntentService.GetQuote:output_type -> tzero.v1.payment_intent.GetQuoteResponse
-	8,  // 38: tzero.v1.payment_intent.PaymentIntentService.CreatePaymentIntent:output_type -> tzero.v1.payment_intent.CreatePaymentIntentResponse
-	10, // 39: tzero.v1.payment_intent.PaymentIntentService.ConfirmFundsReceived:output_type -> tzero.v1.payment_intent.ConfirmFundsReceivedResponse
-	36, // [36:40] is the sub-list for method output_type
-	32, // [32:36] is the sub-list for method input_type
-	32, // [32:32] is the sub-list for extension type_name
-	32, // [32:32] is the sub-list for extension extendee
-	0,  // [0:32] is the sub-list for field type_name
+	21, // 31: tzero.v1.payment_intent.ConfirmFundsReceivedResponse.Accept.settlement_amount:type_name -> tzero.v1.common.Decimal
+	21, // 32: tzero.v1.payment_intent.ConfirmFundsReceivedResponse.Accept.rate:type_name -> tzero.v1.common.Decimal
+	21, // 33: tzero.v1.payment_intent.ConfirmFundsReceivedResponse.Accept.fix:type_name -> tzero.v1.common.Decimal
+	1,  // 34: tzero.v1.payment_intent.ConfirmFundsReceivedResponse.Reject.reason:type_name -> tzero.v1.payment_intent.ConfirmFundsReceivedResponse.Reject.Reason
+	2,  // 35: tzero.v1.payment_intent.PaymentIntentService.UpdateQuote:input_type -> tzero.v1.payment_intent.UpdateQuoteRequest
+	4,  // 36: tzero.v1.payment_intent.PaymentIntentService.GetQuote:input_type -> tzero.v1.payment_intent.GetQuoteRequest
+	7,  // 37: tzero.v1.payment_intent.PaymentIntentService.CreatePaymentIntent:input_type -> tzero.v1.payment_intent.CreatePaymentIntentRequest
+	9,  // 38: tzero.v1.payment_intent.PaymentIntentService.ConfirmFundsReceived:input_type -> tzero.v1.payment_intent.ConfirmFundsReceivedRequest
+	3,  // 39: tzero.v1.payment_intent.PaymentIntentService.UpdateQuote:output_type -> tzero.v1.payment_intent.UpdateQuoteResponse
+	5,  // 40: tzero.v1.payment_intent.PaymentIntentService.GetQuote:output_type -> tzero.v1.payment_intent.GetQuoteResponse
+	8,  // 41: tzero.v1.payment_intent.PaymentIntentService.CreatePaymentIntent:output_type -> tzero.v1.payment_intent.CreatePaymentIntentResponse
+	10, // 42: tzero.v1.payment_intent.PaymentIntentService.ConfirmFundsReceived:output_type -> tzero.v1.payment_intent.ConfirmFundsReceivedResponse
+	39, // [39:43] is the sub-list for method output_type
+	35, // [35:39] is the sub-list for method input_type
+	35, // [35:35] is the sub-list for extension type_name
+	35, // [35:35] is the sub-list for extension extendee
+	0,  // [0:35] is the sub-list for field type_name
 }
 
 func init() { file_tzero_v1_payment_intent_network_proto_init() }
