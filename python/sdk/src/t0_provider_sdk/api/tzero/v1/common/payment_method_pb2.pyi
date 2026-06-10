@@ -152,6 +152,14 @@ class PaymentDetails(_message.Message):
         def __init__(self, beneficiary_name: _Optional[str] = ..., beneficiary_phone: _Optional[str] = ..., payment_reference: _Optional[str] = ...) -> None: ...
     class IndianBankTransfer(_message.Message):
         __slots__ = ("account_ifsc", "imps", "beneficiary_name", "beneficiary_type", "payment_reference")
+        class BeneficiaryType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+            __slots__ = ()
+            BENEFICIARY_TYPE_UNSPECIFIED: _ClassVar[PaymentDetails.IndianBankTransfer.BeneficiaryType]
+            BENEFICIARY_TYPE_INDIVIDUAL: _ClassVar[PaymentDetails.IndianBankTransfer.BeneficiaryType]
+            BENEFICIARY_TYPE_COMPANY: _ClassVar[PaymentDetails.IndianBankTransfer.BeneficiaryType]
+        BENEFICIARY_TYPE_UNSPECIFIED: PaymentDetails.IndianBankTransfer.BeneficiaryType
+        BENEFICIARY_TYPE_INDIVIDUAL: PaymentDetails.IndianBankTransfer.BeneficiaryType
+        BENEFICIARY_TYPE_COMPANY: PaymentDetails.IndianBankTransfer.BeneficiaryType
         class AccountIFSC(_message.Message):
             __slots__ = ("account_number", "ifsc")
             ACCOUNT_NUMBER_FIELD_NUMBER: _ClassVar[int]
@@ -174,9 +182,9 @@ class PaymentDetails(_message.Message):
         account_ifsc: PaymentDetails.IndianBankTransfer.AccountIFSC
         imps: PaymentDetails.IndianBankTransfer.IMPS
         beneficiary_name: str
-        beneficiary_type: str
+        beneficiary_type: PaymentDetails.IndianBankTransfer.BeneficiaryType
         payment_reference: str
-        def __init__(self, account_ifsc: _Optional[_Union[PaymentDetails.IndianBankTransfer.AccountIFSC, _Mapping]] = ..., imps: _Optional[_Union[PaymentDetails.IndianBankTransfer.IMPS, _Mapping]] = ..., beneficiary_name: _Optional[str] = ..., beneficiary_type: _Optional[str] = ..., payment_reference: _Optional[str] = ...) -> None: ...
+        def __init__(self, account_ifsc: _Optional[_Union[PaymentDetails.IndianBankTransfer.AccountIFSC, _Mapping]] = ..., imps: _Optional[_Union[PaymentDetails.IndianBankTransfer.IMPS, _Mapping]] = ..., beneficiary_name: _Optional[str] = ..., beneficiary_type: _Optional[_Union[PaymentDetails.IndianBankTransfer.BeneficiaryType, str]] = ..., payment_reference: _Optional[str] = ...) -> None: ...
     class Swift(_message.Message):
         __slots__ = ("swift_code", "account_number", "beneficiary_name", "beneficiary_address", "payment_reference", "bank_name", "bank_country", "account_currency", "intermediary_bank")
         class IntermediaryBank(_message.Message):
