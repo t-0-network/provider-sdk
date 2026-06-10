@@ -359,25 +359,59 @@ jobs:
           fi
           echo "All version validations passed for $VERSION"
 
-      # --- Commit and tag ---
+      # --- Commit, tag, and release ---
+      # Ordering is load-bearing. publish.yaml is triggered by the `v<version>` tag, and its
+      # "Publish Go" job asks the Go module proxy to resolve `.../go@v<version>`, which the
+      # proxy maps to the `go/v<version>` tag. So the go/* tags MUST already be on the remote
+      # before the `v<version>` tag is pushed, otherwise Publish Go races ahead and 404s (this
+      # is what broke 1.1.20). We push the go/* tags first and the trigger tag last.
+      #
+      # Every step here is idempotent (create-if-absent). A re-run of a partially-failed
+      # release recomputes the SAME version (the new tags aren't reachable from the re-run's
+      # checkout of the pre-release commit), so it must not hard-fail on already-existing tags
+      # or release — the 1.1.20 re-run died on `fatal: tag 'v1.1.20' already exists`.
       - name: Commit version bump
         uses: stefanzweifel/git-auto-commit-action@v7
         with:
           commit_message: "Release ${{ steps.version.outputs.version }}"
-          tagging_message: "v${{ steps.version.outputs.version }}"
+          # No tagging_message: the v<version> tag is pushed explicitly below, AFTER the
+          # go/* tags, so it is the last ref pushed (it is what triggers publish.yaml).
 
-      - name: Create GitHub Release
-        uses: elgohr/Github-Release-Action@v5
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          title: ${{ steps.version.outputs.version }}
-          tag: v${{ steps.version.outputs.version }}
-
-      - name: Create Go module tags
+      - name: Push Go module tags
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          git tag "go/v${VERSION}"
-          git tag "go/starter/v${VERSION}"
-          git tag "go/starter/template/v${VERSION}"
-          git push origin "go/v${VERSION}" "go/starter/v${VERSION}" "go/starter/template/v${VERSION}"
+          for t in "go/v${VERSION}" "go/starter/v${VERSION}" "go/starter/template/v${VERSION}"; do
+            if git ls-remote --exit-code origin "refs/tags/${t}" >/dev/null 2>&1; then
+              echo "Tag ${t} already exists on origin — skipping"
+            else
+              git tag "${t}"
+              git push origin "${t}"
+            fi
+          done
+
+      - name: Push release tag (triggers publish.yaml)
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          if git ls-remote --exit-code origin "refs/tags/v${VERSION}" >/dev/null 2>&1; then
+            echo "Tag v${VERSION} already exists on origin — skipping"
+          else
+            git tag -a "v${VERSION}" -m "v${VERSION}"
+            git push origin "v${VERSION}"
+          fi
+
+      - name: Create GitHub Release
+        env:
+          # Use the GitHub App token (same token the pushes above use), NOT the default
+          # GITHUB_TOKEN — the default token started returning HTTP 401 from the releases API
+          # and silently broke the 1.1.20 release. The App token carries the contents:write
+          # needed to create releases, and `gh release view` makes this step idempotent
+          # (the previous third-party action was not).
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          VERSION="${{ steps.version.outputs.version }}"
+          if gh release view "v${VERSION}" --repo "${{ github.repository }}" >/dev/null 2>&1; then
+            echo "Release v${VERSION} already exists — skipping"
+          else
+            gh release create "v${VERSION}" --repo "${{ github.repository }}" \
+              --title "${VERSION}" --notes "Release ${VERSION}"
+          fi
