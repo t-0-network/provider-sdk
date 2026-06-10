@@ -1,4 +1,3 @@
-from tzero.v1.common import common_pb2 as _common_pb2
 from buf.validate import validate_pb2 as _validate_pb2
 from google.protobuf import descriptor_pb2 as _descriptor_pb2
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
@@ -36,6 +35,14 @@ class PaymentMethodType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     PAYMENT_METHOD_TYPE_COLOMBIAN_ACH: _ClassVar[PaymentMethodType]
     PAYMENT_METHOD_TYPE_COLOMBIAN_BREB: _ClassVar[PaymentMethodType]
     PAYMENT_METHOD_TYPE_GIP: _ClassVar[PaymentMethodType]
+    PAYMENT_METHOD_TYPE_UAEFTS: _ClassVar[PaymentMethodType]
+    PAYMENT_METHOD_TYPE_VIETQR: _ClassVar[PaymentMethodType]
+    PAYMENT_METHOD_TYPE_NAPAS: _ClassVar[PaymentMethodType]
+    PAYMENT_METHOD_TYPE_FAST: _ClassVar[PaymentMethodType]
+    PAYMENT_METHOD_TYPE_PROMPTPAY: _ClassVar[PaymentMethodType]
+    PAYMENT_METHOD_TYPE_THAI_BANK_TRANSFER: _ClassVar[PaymentMethodType]
+    PAYMENT_METHOD_TYPE_INDONESIAN_BANK_TRANSFER: _ClassVar[PaymentMethodType]
+    PAYMENT_METHOD_TYPE_INDONESIAN_E_WALLET: _ClassVar[PaymentMethodType]
 PAYMENT_METHOD_TYPE_UNSPECIFIED: PaymentMethodType
 PAYMENT_METHOD_TYPE_SEPA: PaymentMethodType
 PAYMENT_METHOD_TYPE_SWIFT: PaymentMethodType
@@ -61,11 +68,19 @@ PAYMENT_METHOD_TYPE_MEXICAN_BANK_TRANSFER: PaymentMethodType
 PAYMENT_METHOD_TYPE_COLOMBIAN_ACH: PaymentMethodType
 PAYMENT_METHOD_TYPE_COLOMBIAN_BREB: PaymentMethodType
 PAYMENT_METHOD_TYPE_GIP: PaymentMethodType
+PAYMENT_METHOD_TYPE_UAEFTS: PaymentMethodType
+PAYMENT_METHOD_TYPE_VIETQR: PaymentMethodType
+PAYMENT_METHOD_TYPE_NAPAS: PaymentMethodType
+PAYMENT_METHOD_TYPE_FAST: PaymentMethodType
+PAYMENT_METHOD_TYPE_PROMPTPAY: PaymentMethodType
+PAYMENT_METHOD_TYPE_THAI_BANK_TRANSFER: PaymentMethodType
+PAYMENT_METHOD_TYPE_INDONESIAN_BANK_TRANSFER: PaymentMethodType
+PAYMENT_METHOD_TYPE_INDONESIAN_E_WALLET: PaymentMethodType
 PAYMENT_METHOD_TYPE_FIELD_NUMBER: _ClassVar[int]
 payment_method_type: _descriptor.FieldDescriptor
 
 class PaymentDetails(_message.Message):
-    __slots__ = ("sepa", "swift", "ach", "domestic_wire", "fps", "mpesa", "gcash", "indian_bank_transfer", "pesonet", "instapay", "pakistan_bank_transfer", "pakistan_mobile_wallet", "pix", "african_mobile_money", "naps", "nip", "rtp", "chilean_bank_transfer", "peru_bank_transfer", "argentinian_bank_transfer", "mexican_bank_transfer", "colombian_ach", "colombian_breb", "gip")
+    __slots__ = ("sepa", "swift", "ach", "domestic_wire", "fps", "mpesa", "gcash", "indian_bank_transfer", "pesonet", "instapay", "pakistan_bank_transfer", "pakistan_mobile_wallet", "pix", "african_mobile_money", "naps", "nip", "rtp", "chilean_bank_transfer", "peru_bank_transfer", "argentinian_bank_transfer", "mexican_bank_transfer", "colombian_ach", "colombian_breb", "gip", "uaefts", "vietqr", "napas", "fast", "promptpay", "thai_bank_transfer", "indonesian_bank_transfer", "indonesian_e_wallet")
     class Sepa(_message.Message):
         __slots__ = ("iban", "beneficiary_name", "payment_reference")
         IBAN_FIELD_NUMBER: _ClassVar[int]
@@ -533,6 +548,134 @@ class PaymentDetails(_message.Message):
         account_name: str
         reference: str
         def __init__(self, sort_code: _Optional[str] = ..., account_number: _Optional[str] = ..., account_name: _Optional[str] = ..., reference: _Optional[str] = ...) -> None: ...
+    class Uaefts(_message.Message):
+        __slots__ = ("iban", "beneficiary_name", "purpose_code", "payment_reference")
+        IBAN_FIELD_NUMBER: _ClassVar[int]
+        BENEFICIARY_NAME_FIELD_NUMBER: _ClassVar[int]
+        PURPOSE_CODE_FIELD_NUMBER: _ClassVar[int]
+        PAYMENT_REFERENCE_FIELD_NUMBER: _ClassVar[int]
+        iban: str
+        beneficiary_name: str
+        purpose_code: str
+        payment_reference: str
+        def __init__(self, iban: _Optional[str] = ..., beneficiary_name: _Optional[str] = ..., purpose_code: _Optional[str] = ..., payment_reference: _Optional[str] = ...) -> None: ...
+    class VietQr(_message.Message):
+        __slots__ = ("bank_bin", "account_number", "beneficiary_name", "payment_reference")
+        BANK_BIN_FIELD_NUMBER: _ClassVar[int]
+        ACCOUNT_NUMBER_FIELD_NUMBER: _ClassVar[int]
+        BENEFICIARY_NAME_FIELD_NUMBER: _ClassVar[int]
+        PAYMENT_REFERENCE_FIELD_NUMBER: _ClassVar[int]
+        bank_bin: str
+        account_number: str
+        beneficiary_name: str
+        payment_reference: str
+        def __init__(self, bank_bin: _Optional[str] = ..., account_number: _Optional[str] = ..., beneficiary_name: _Optional[str] = ..., payment_reference: _Optional[str] = ...) -> None: ...
+    class Napas(_message.Message):
+        __slots__ = ("bank_bin", "account_number", "card_number", "beneficiary_name", "payment_reference")
+        BANK_BIN_FIELD_NUMBER: _ClassVar[int]
+        ACCOUNT_NUMBER_FIELD_NUMBER: _ClassVar[int]
+        CARD_NUMBER_FIELD_NUMBER: _ClassVar[int]
+        BENEFICIARY_NAME_FIELD_NUMBER: _ClassVar[int]
+        PAYMENT_REFERENCE_FIELD_NUMBER: _ClassVar[int]
+        bank_bin: str
+        account_number: str
+        card_number: str
+        beneficiary_name: str
+        payment_reference: str
+        def __init__(self, bank_bin: _Optional[str] = ..., account_number: _Optional[str] = ..., card_number: _Optional[str] = ..., beneficiary_name: _Optional[str] = ..., payment_reference: _Optional[str] = ...) -> None: ...
+    class Fast(_message.Message):
+        __slots__ = ("iban", "proxy", "beneficiary_name", "payment_reference")
+        class Proxy(_message.Message):
+            __slots__ = ("proxy_type", "value")
+            class ProxyType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+                __slots__ = ()
+                PROXY_TYPE_UNSPECIFIED: _ClassVar[PaymentDetails.Fast.Proxy.ProxyType]
+                PROXY_TYPE_MOBILE: _ClassVar[PaymentDetails.Fast.Proxy.ProxyType]
+                PROXY_TYPE_EMAIL: _ClassVar[PaymentDetails.Fast.Proxy.ProxyType]
+                PROXY_TYPE_NATIONAL_ID: _ClassVar[PaymentDetails.Fast.Proxy.ProxyType]
+                PROXY_TYPE_PASSPORT: _ClassVar[PaymentDetails.Fast.Proxy.ProxyType]
+            PROXY_TYPE_UNSPECIFIED: PaymentDetails.Fast.Proxy.ProxyType
+            PROXY_TYPE_MOBILE: PaymentDetails.Fast.Proxy.ProxyType
+            PROXY_TYPE_EMAIL: PaymentDetails.Fast.Proxy.ProxyType
+            PROXY_TYPE_NATIONAL_ID: PaymentDetails.Fast.Proxy.ProxyType
+            PROXY_TYPE_PASSPORT: PaymentDetails.Fast.Proxy.ProxyType
+            PROXY_TYPE_FIELD_NUMBER: _ClassVar[int]
+            VALUE_FIELD_NUMBER: _ClassVar[int]
+            proxy_type: PaymentDetails.Fast.Proxy.ProxyType
+            value: str
+            def __init__(self, proxy_type: _Optional[_Union[PaymentDetails.Fast.Proxy.ProxyType, str]] = ..., value: _Optional[str] = ...) -> None: ...
+        IBAN_FIELD_NUMBER: _ClassVar[int]
+        PROXY_FIELD_NUMBER: _ClassVar[int]
+        BENEFICIARY_NAME_FIELD_NUMBER: _ClassVar[int]
+        PAYMENT_REFERENCE_FIELD_NUMBER: _ClassVar[int]
+        iban: str
+        proxy: PaymentDetails.Fast.Proxy
+        beneficiary_name: str
+        payment_reference: str
+        def __init__(self, iban: _Optional[str] = ..., proxy: _Optional[_Union[PaymentDetails.Fast.Proxy, _Mapping]] = ..., beneficiary_name: _Optional[str] = ..., payment_reference: _Optional[str] = ...) -> None: ...
+    class PromptPay(_message.Message):
+        __slots__ = ("proxy_type", "identifier", "beneficiary_name", "payment_reference")
+        class ProxyType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
+            __slots__ = ()
+            PROXY_TYPE_UNSPECIFIED: _ClassVar[PaymentDetails.PromptPay.ProxyType]
+            PROXY_TYPE_MOBILE: _ClassVar[PaymentDetails.PromptPay.ProxyType]
+            PROXY_TYPE_NATIONAL_ID: _ClassVar[PaymentDetails.PromptPay.ProxyType]
+            PROXY_TYPE_TAX_ID: _ClassVar[PaymentDetails.PromptPay.ProxyType]
+        PROXY_TYPE_UNSPECIFIED: PaymentDetails.PromptPay.ProxyType
+        PROXY_TYPE_MOBILE: PaymentDetails.PromptPay.ProxyType
+        PROXY_TYPE_NATIONAL_ID: PaymentDetails.PromptPay.ProxyType
+        PROXY_TYPE_TAX_ID: PaymentDetails.PromptPay.ProxyType
+        PROXY_TYPE_FIELD_NUMBER: _ClassVar[int]
+        IDENTIFIER_FIELD_NUMBER: _ClassVar[int]
+        BENEFICIARY_NAME_FIELD_NUMBER: _ClassVar[int]
+        PAYMENT_REFERENCE_FIELD_NUMBER: _ClassVar[int]
+        proxy_type: PaymentDetails.PromptPay.ProxyType
+        identifier: str
+        beneficiary_name: str
+        payment_reference: str
+        def __init__(self, proxy_type: _Optional[_Union[PaymentDetails.PromptPay.ProxyType, str]] = ..., identifier: _Optional[str] = ..., beneficiary_name: _Optional[str] = ..., payment_reference: _Optional[str] = ...) -> None: ...
+    class ThaiBankTransfer(_message.Message):
+        __slots__ = ("bank_code", "account_number", "beneficiary_name", "payment_reference")
+        BANK_CODE_FIELD_NUMBER: _ClassVar[int]
+        ACCOUNT_NUMBER_FIELD_NUMBER: _ClassVar[int]
+        BENEFICIARY_NAME_FIELD_NUMBER: _ClassVar[int]
+        PAYMENT_REFERENCE_FIELD_NUMBER: _ClassVar[int]
+        bank_code: str
+        account_number: str
+        beneficiary_name: str
+        payment_reference: str
+        def __init__(self, bank_code: _Optional[str] = ..., account_number: _Optional[str] = ..., beneficiary_name: _Optional[str] = ..., payment_reference: _Optional[str] = ...) -> None: ...
+    class IndonesianBankTransfer(_message.Message):
+        __slots__ = ("account", "mobile", "email", "beneficiary_name", "payment_reference")
+        class Account(_message.Message):
+            __slots__ = ("bank_code", "account_number")
+            BANK_CODE_FIELD_NUMBER: _ClassVar[int]
+            ACCOUNT_NUMBER_FIELD_NUMBER: _ClassVar[int]
+            bank_code: str
+            account_number: str
+            def __init__(self, bank_code: _Optional[str] = ..., account_number: _Optional[str] = ...) -> None: ...
+        ACCOUNT_FIELD_NUMBER: _ClassVar[int]
+        MOBILE_FIELD_NUMBER: _ClassVar[int]
+        EMAIL_FIELD_NUMBER: _ClassVar[int]
+        BENEFICIARY_NAME_FIELD_NUMBER: _ClassVar[int]
+        PAYMENT_REFERENCE_FIELD_NUMBER: _ClassVar[int]
+        account: PaymentDetails.IndonesianBankTransfer.Account
+        mobile: str
+        email: str
+        beneficiary_name: str
+        payment_reference: str
+        def __init__(self, account: _Optional[_Union[PaymentDetails.IndonesianBankTransfer.Account, _Mapping]] = ..., mobile: _Optional[str] = ..., email: _Optional[str] = ..., beneficiary_name: _Optional[str] = ..., payment_reference: _Optional[str] = ...) -> None: ...
+    class IndonesianEWallet(_message.Message):
+        __slots__ = ("provider", "mobile_number", "beneficiary_name", "payment_reference")
+        PROVIDER_FIELD_NUMBER: _ClassVar[int]
+        MOBILE_NUMBER_FIELD_NUMBER: _ClassVar[int]
+        BENEFICIARY_NAME_FIELD_NUMBER: _ClassVar[int]
+        PAYMENT_REFERENCE_FIELD_NUMBER: _ClassVar[int]
+        provider: str
+        mobile_number: str
+        beneficiary_name: str
+        payment_reference: str
+        def __init__(self, provider: _Optional[str] = ..., mobile_number: _Optional[str] = ..., beneficiary_name: _Optional[str] = ..., payment_reference: _Optional[str] = ...) -> None: ...
     SEPA_FIELD_NUMBER: _ClassVar[int]
     SWIFT_FIELD_NUMBER: _ClassVar[int]
     ACH_FIELD_NUMBER: _ClassVar[int]
@@ -557,6 +700,14 @@ class PaymentDetails(_message.Message):
     COLOMBIAN_ACH_FIELD_NUMBER: _ClassVar[int]
     COLOMBIAN_BREB_FIELD_NUMBER: _ClassVar[int]
     GIP_FIELD_NUMBER: _ClassVar[int]
+    UAEFTS_FIELD_NUMBER: _ClassVar[int]
+    VIETQR_FIELD_NUMBER: _ClassVar[int]
+    NAPAS_FIELD_NUMBER: _ClassVar[int]
+    FAST_FIELD_NUMBER: _ClassVar[int]
+    PROMPTPAY_FIELD_NUMBER: _ClassVar[int]
+    THAI_BANK_TRANSFER_FIELD_NUMBER: _ClassVar[int]
+    INDONESIAN_BANK_TRANSFER_FIELD_NUMBER: _ClassVar[int]
+    INDONESIAN_E_WALLET_FIELD_NUMBER: _ClassVar[int]
     sepa: PaymentDetails.Sepa
     swift: PaymentDetails.Swift
     ach: PaymentDetails.Ach
@@ -581,4 +732,12 @@ class PaymentDetails(_message.Message):
     colombian_ach: PaymentDetails.ColombianAch
     colombian_breb: PaymentDetails.ColombianBreb
     gip: PaymentDetails.Gip
-    def __init__(self, sepa: _Optional[_Union[PaymentDetails.Sepa, _Mapping]] = ..., swift: _Optional[_Union[PaymentDetails.Swift, _Mapping]] = ..., ach: _Optional[_Union[PaymentDetails.Ach, _Mapping]] = ..., domestic_wire: _Optional[_Union[PaymentDetails.DomesticWire, _Mapping]] = ..., fps: _Optional[_Union[PaymentDetails.Fps, _Mapping]] = ..., mpesa: _Optional[_Union[PaymentDetails.MPesa, _Mapping]] = ..., gcash: _Optional[_Union[PaymentDetails.GCash, _Mapping]] = ..., indian_bank_transfer: _Optional[_Union[PaymentDetails.IndianBankTransfer, _Mapping]] = ..., pesonet: _Optional[_Union[PaymentDetails.Pesonet, _Mapping]] = ..., instapay: _Optional[_Union[PaymentDetails.Instapay, _Mapping]] = ..., pakistan_bank_transfer: _Optional[_Union[PaymentDetails.PakistanBankTransfer, _Mapping]] = ..., pakistan_mobile_wallet: _Optional[_Union[PaymentDetails.PakistanMobileWallet, _Mapping]] = ..., pix: _Optional[_Union[PaymentDetails.Pix, _Mapping]] = ..., african_mobile_money: _Optional[_Union[PaymentDetails.AfricanMobileMoney, _Mapping]] = ..., naps: _Optional[_Union[PaymentDetails.Cnaps, _Mapping]] = ..., nip: _Optional[_Union[PaymentDetails.Nip, _Mapping]] = ..., rtp: _Optional[_Union[PaymentDetails.Rtp, _Mapping]] = ..., chilean_bank_transfer: _Optional[_Union[PaymentDetails.ChileanBankTransfer, _Mapping]] = ..., peru_bank_transfer: _Optional[_Union[PaymentDetails.PeruBankTransfer, _Mapping]] = ..., argentinian_bank_transfer: _Optional[_Union[PaymentDetails.ArgentinianBankTransfer, _Mapping]] = ..., mexican_bank_transfer: _Optional[_Union[PaymentDetails.MexicanBankTransfer, _Mapping]] = ..., colombian_ach: _Optional[_Union[PaymentDetails.ColombianAch, _Mapping]] = ..., colombian_breb: _Optional[_Union[PaymentDetails.ColombianBreb, _Mapping]] = ..., gip: _Optional[_Union[PaymentDetails.Gip, _Mapping]] = ...) -> None: ...
+    uaefts: PaymentDetails.Uaefts
+    vietqr: PaymentDetails.VietQr
+    napas: PaymentDetails.Napas
+    fast: PaymentDetails.Fast
+    promptpay: PaymentDetails.PromptPay
+    thai_bank_transfer: PaymentDetails.ThaiBankTransfer
+    indonesian_bank_transfer: PaymentDetails.IndonesianBankTransfer
+    indonesian_e_wallet: PaymentDetails.IndonesianEWallet
+    def __init__(self, sepa: _Optional[_Union[PaymentDetails.Sepa, _Mapping]] = ..., swift: _Optional[_Union[PaymentDetails.Swift, _Mapping]] = ..., ach: _Optional[_Union[PaymentDetails.Ach, _Mapping]] = ..., domestic_wire: _Optional[_Union[PaymentDetails.DomesticWire, _Mapping]] = ..., fps: _Optional[_Union[PaymentDetails.Fps, _Mapping]] = ..., mpesa: _Optional[_Union[PaymentDetails.MPesa, _Mapping]] = ..., gcash: _Optional[_Union[PaymentDetails.GCash, _Mapping]] = ..., indian_bank_transfer: _Optional[_Union[PaymentDetails.IndianBankTransfer, _Mapping]] = ..., pesonet: _Optional[_Union[PaymentDetails.Pesonet, _Mapping]] = ..., instapay: _Optional[_Union[PaymentDetails.Instapay, _Mapping]] = ..., pakistan_bank_transfer: _Optional[_Union[PaymentDetails.PakistanBankTransfer, _Mapping]] = ..., pakistan_mobile_wallet: _Optional[_Union[PaymentDetails.PakistanMobileWallet, _Mapping]] = ..., pix: _Optional[_Union[PaymentDetails.Pix, _Mapping]] = ..., african_mobile_money: _Optional[_Union[PaymentDetails.AfricanMobileMoney, _Mapping]] = ..., naps: _Optional[_Union[PaymentDetails.Cnaps, _Mapping]] = ..., nip: _Optional[_Union[PaymentDetails.Nip, _Mapping]] = ..., rtp: _Optional[_Union[PaymentDetails.Rtp, _Mapping]] = ..., chilean_bank_transfer: _Optional[_Union[PaymentDetails.ChileanBankTransfer, _Mapping]] = ..., peru_bank_transfer: _Optional[_Union[PaymentDetails.PeruBankTransfer, _Mapping]] = ..., argentinian_bank_transfer: _Optional[_Union[PaymentDetails.ArgentinianBankTransfer, _Mapping]] = ..., mexican_bank_transfer: _Optional[_Union[PaymentDetails.MexicanBankTransfer, _Mapping]] = ..., colombian_ach: _Optional[_Union[PaymentDetails.ColombianAch, _Mapping]] = ..., colombian_breb: _Optional[_Union[PaymentDetails.ColombianBreb, _Mapping]] = ..., gip: _Optional[_Union[PaymentDetails.Gip, _Mapping]] = ..., uaefts: _Optional[_Union[PaymentDetails.Uaefts, _Mapping]] = ..., vietqr: _Optional[_Union[PaymentDetails.VietQr, _Mapping]] = ..., napas: _Optional[_Union[PaymentDetails.Napas, _Mapping]] = ..., fast: _Optional[_Union[PaymentDetails.Fast, _Mapping]] = ..., promptpay: _Optional[_Union[PaymentDetails.PromptPay, _Mapping]] = ..., thai_bank_transfer: _Optional[_Union[PaymentDetails.ThaiBankTransfer, _Mapping]] = ..., indonesian_bank_transfer: _Optional[_Union[PaymentDetails.IndonesianBankTransfer, _Mapping]] = ..., indonesian_e_wallet: _Optional[_Union[PaymentDetails.IndonesianEWallet, _Mapping]] = ...) -> None: ...

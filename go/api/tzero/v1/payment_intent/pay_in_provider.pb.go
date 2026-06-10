@@ -230,8 +230,7 @@ type GetPaymentDetailsRequest_TravelRuleData struct {
 	// *
 	// Beneficiary provider travel rule data.
 	BeneficiaryProvider *ivms.LegalPerson `protobuf:"bytes,30,opt,name=beneficiary_provider,json=beneficiaryProvider,proto3" json:"beneficiary_provider,omitempty"`
-	// *
-	// Optional travel rule data of the payer
+	// no validation: ivms101.Person opaque to protovalidate; structural checks delegated to travel-rule layer
 	Payer         *ivms.Person `protobuf:"bytes,40,opt,name=payer,proto3,oneof" json:"payer,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -386,15 +385,15 @@ var File_tzero_v1_payment_intent_pay_in_provider_proto protoreflect.FileDescript
 
 const file_tzero_v1_payment_intent_pay_in_provider_proto_rawDesc = "" +
 	"\n" +
-	"-tzero/v1/payment_intent/pay_in_provider.proto\x12\x17tzero.v1.payment_intent\x1a\x1ctzero/v1/common/common.proto\x1a$tzero/v1/common/payment_method.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1divms101/v1/ivms/ivms101.proto\"\xc2\x05\n" +
+	"-tzero/v1/payment_intent/pay_in_provider.proto\x12\x17tzero.v1.payment_intent\x1a\x1ctzero/v1/common/common.proto\x1a$tzero/v1/common/payment_method.proto\x1a\x1bbuf/validate/validate.proto\x1a\x1divms101/v1/ivms/ivms101.proto\"\x8e\x06\n" +
 	"\x18GetPaymentDetailsRequest\x123\n" +
 	"\x11payment_intent_id\x18\n" +
-	" \x01(\x04B\a\xbaH\x042\x02 \x00R\x0fpaymentIntentId\x12+\n" +
-	"\x11confirmation_code\x18\x14 \x01(\tR\x10confirmationCode\x12U\n" +
-	"\x0fpayment_methods\x18\x1e \x03(\x0e2\".tzero.v1.common.PaymentMethodTypeB\b\xbaH\x05\x92\x01\x02\b\x01R\x0epaymentMethods\x120\n" +
+	" \x01(\x04B\a\xbaH\x042\x02 \x00R\x0fpaymentIntentId\x126\n" +
+	"\x11confirmation_code\x18\x14 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18@R\x10confirmationCode\x12^\n" +
+	"\x0fpayment_methods\x18\x1e \x03(\x0e2\".tzero.v1.common.PaymentMethodTypeB\x11\xbaH\x0e\x92\x01\v\b\x01\"\a\x82\x01\x04\x10\x01 \x00R\x0epaymentMethods\x120\n" +
 	"\bcurrency\x18( \x01(\tB\x14\xbaH\x11r\x0f2\n" +
-	"^[A-Z]{3}$\x98\x01\x03R\bcurrency\x128\n" +
-	"\x06amount\x182 \x01(\v2\x18.tzero.v1.common.DecimalB\x06\xbaH\x03\xc8\x01\x01R\x06amount\x12i\n" +
+	"^[A-Z]{3}$\x98\x01\x03R\bcurrency\x12p\n" +
+	"\x06amount\x182 \x01(\v2\x18.tzero.v1.common.DecimalB>\xbaH;\xba\x015\x12 amount must be greater than zero\x1a\x11this.unscaled > 0\xc8\x01\x01R\x06amount\x12i\n" +
 	"\vtravel_rule\x18< \x01(\v2@.tzero.v1.payment_intent.GetPaymentDetailsRequest.TravelRuleDataB\x06\xbaH\x03\xc8\x01\x01R\n" +
 	"travelRule\x12?\n" +
 	"\x17beneficiary_provider_id\x18F \x01(\rB\a\xbaH\x04*\x02 \x00R\x15beneficiaryProviderId\x1a\xd4\x01\n" +
