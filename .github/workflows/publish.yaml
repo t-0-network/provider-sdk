@@ -310,6 +310,15 @@ jobs:
     # 2vcpu is sufficient — most time is spent polling Maven Central for deployment status
     runs-on: blacksmith-2vcpu-ubuntu-2404
     steps:
+      - name: Generate GitHub App Token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ vars.CI_APP_ID }}
+          private-key: ${{ secrets.CI_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: provider-sdk
+
       - name: Checkout
         uses: actions/checkout@v6
         with:
@@ -351,10 +360,15 @@ jobs:
           MAVEN_CENTRAL_USERNAME: ${{ vars.OSSRH_USERNAME }}
           MAVEN_CENTRAL_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
 
+      # Runs even if "Publish to Maven Central" failed — e.g. the version was already
+      # published in a prior/duplicate deployment (Central rejects re-publishing an existing
+      # version). The CLI jar must still reach the GitHub Release regardless. Uses the App
+      # token, not GITHUB_TOKEN, which the releases API now rejects (same fix as release.yaml).
       - name: Upload provider-init.jar to GitHub Release
+        if: ${{ !cancelled() }}
         working-directory: java
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           cp cli/build/libs/provider-init-${VERSION}.jar cli/build/libs/provider-init.jar
