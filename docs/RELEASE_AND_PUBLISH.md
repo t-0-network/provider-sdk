@@ -31,7 +31,8 @@ Triggered by `gh workflow run release.yaml -f bump=<patch|minor|major> --ref mas
    5. **Validate updated files** — re-greps every package-level, runtime-constant, and starter-template version site and confirms they all equal the calculated version. Any mismatch fails the release before tagging.
    6. **Commit and tag** — single commit `Release X.Y.Z`, root tag `vX.Y.Z`.
    7. **Create GitHub Release** — `vX.Y.Z` with that title.
-   8. **Push Go module tags** — `go/vX.Y.Z`, `go/starter/vX.Y.Z`, `go/starter/template/vX.Y.Z`. Required because Go modules version per-directory.
+
+   (The `go/*` module tags are **not** created here — they're created by `publish.yaml`'s `publish-go` job, right before it warms the proxy. See below.)
 
 3. **Tag push triggers `publish.yaml`** automatically (next section).
 
@@ -75,7 +76,7 @@ Inlined per-job (rather than as a single shared `validate-versions` job) so each
 
 | Job | Runner | Validates | Then |
 |---|---|---|---|
-| `publish-go` | blacksmith | `go/sdkversion/version.go` matches tag | `go list -m` against `proxy.golang.org` to warm the module proxy for the three Go module tags. No artifact upload — Go modules are served from the git tag itself. |
+| `publish-go` | blacksmith | `go/sdkversion/version.go` matches tag | Creates + pushes the three Go module tags (`go/vX.Y.Z`, `go/starter/vX.Y.Z`, `go/starter/template/vX.Y.Z`), then `go list -m` against `proxy.golang.org` to warm the module proxy. Tags are created here (not in `release.yaml`) so they exist before the proxy is first queried — otherwise the proxy negative-caches a 404. No artifact upload — Go modules are served from the git tag itself. |
 | `publish-node-sdk` | **`ubuntu-latest`** (npm provenance requires GitHub-hosted) | `node/sdk/src/version.ts` + `node/sdk/package.json` match tag | `npm publish --provenance --access public`. |
 | `publish-node-starter` | **`ubuntu-latest`** | `node/starter/package.json` matches tag | `npm publish --provenance --access public`. |
 | `publish-python-sdk` | blacksmith, env `pypi-sdk` | `_version.py` + `pyproject.toml` match tag | `uv build --package t0-provider-sdk` then `uv publish --trusted-publishing always`. |
@@ -104,6 +105,6 @@ Both gates are necessary and inexpensive (each is a few greps).
 ## Operating notes
 
 - **Never trigger `publish.yaml` manually.** It will refuse to publish if the tag doesn't match the runtime constants, but it will also try to actually publish to npm / PyPI / Maven Central / NuGet on success — there's no "dry run" mode.
-- **Never `git tag vX.Y.Z` by hand.** The release workflow creates the four tags in a coordinated push (`vX.Y.Z`, `go/vX.Y.Z`, `go/starter/vX.Y.Z`, `go/starter/template/vX.Y.Z`).
+- **Never `git tag vX.Y.Z` by hand.** `release.yaml` pushes the root `vX.Y.Z` tag (which triggers publish); `publish.yaml`'s `publish-go` job then creates the three `go/*` module tags. Don't create any of them manually.
 - **Re-running a failed publish job:** safe for idempotent steps (Go module proxy warm-up, JitPack verify). For npm/PyPI/Maven Central/NuGet, the registry rejects duplicate version uploads, so a re-run after a successful publish will fail loudly — that's the intended behaviour. If a publish job partially failed, fix the cause and ask the user before re-running.
 - **`provider-init.jar` upload:** `publish-java` writes the file to the existing GitHub Release with `--clobber`. The Release was created earlier by `release.yaml`.
