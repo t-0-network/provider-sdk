@@ -362,11 +362,13 @@ jobs:
       # --- Commit, tag, and release ---
       # git-auto-commit-action commits the version bump and pushes the v<version> tag (as the
       # github-actions bot — it sets its own identity), which triggers publish.yaml. We then
-      # create the GitHub Release for that tag with `gh` + the App token. The App token is the
-      # one real fix over the previous setup: the default GITHUB_TOKEN started getting HTTP 401
-      # from the releases API (it worked through 1.1.19, broke at 1.1.20). Finally we push the
-      # go/* module tags that the Go proxy resolves — there is no GitHub-release equivalent for
-      # those, so they have to be plain git tags.
+      # create the GitHub Release for that tag with `gh` + the App token — NOT the default
+      # GITHUB_TOKEN, which the releases API now rejects with HTTP 401 (it worked through 1.1.19,
+      # broke at 1.1.20).
+      #
+      # The go/* Go module tags are NOT created here. They live in publish.yaml's "Publish Go"
+      # job, created right before it warms the Go proxy — so the proxy is never asked to resolve
+      # a version before its tag exists (that ordering gap is what 404'd Go on 1.1.20).
       - name: Commit version bump
         uses: stefanzweifel/git-auto-commit-action@v7
         with:
@@ -381,11 +383,3 @@ jobs:
             --verify-tag \
             --title "${{ steps.version.outputs.version }}" \
             --notes "Release ${{ steps.version.outputs.version }}"
-
-      - name: Create Go module tags
-        run: |
-          VERSION="${{ steps.version.outputs.version }}"
-          git tag "go/v${VERSION}"
-          git tag "go/starter/v${VERSION}"
-          git tag "go/starter/template/v${VERSION}"
-          git push origin "go/v${VERSION}" "go/starter/v${VERSION}" "go/starter/template/v${VERSION}"

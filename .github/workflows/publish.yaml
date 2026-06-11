@@ -135,9 +135,20 @@ jobs:
     needs: [build-go, build-node, build-java, build-python, build-csharp]
     runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
+      - name: Generate GitHub App Token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          app-id: ${{ vars.CI_APP_ID }}
+          private-key: ${{ secrets.CI_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: provider-sdk
+
       - name: Checkout
         uses: actions/checkout@v6
         with:
+          # App token so the `git push` of the module tags below is authenticated.
+          token: ${{ steps.app-token.outputs.token }}
           show-progress: false
 
       - name: Setup Go
@@ -152,6 +163,18 @@ jobs:
           RUNTIME=$(grep 'const Version = ' go/sdkversion/version.go | sed 's/.*"\(.*\)".*/\1/')
           [ "$RUNTIME" = "$VERSION" ] || { echo "::error::go/sdkversion/version.go has $RUNTIME, tag is v$VERSION"; exit 1; }
           echo "Go SDK runtime version $RUNTIME matches tag v$VERSION"
+
+      # Create the go/* module tags here, right before warming the proxy, so the proxy is never
+      # asked to resolve a version before its tag exists (the gap that 404'd Go on 1.1.20, and
+      # whose negative cache then lingered). Lightweight tags need no git identity; re-running
+      # this job is safe — re-pushing an identical tag is a no-op.
+      - name: Create and push Go module tags
+        run: |
+          VERSION="${GITHUB_REF#refs/tags/v}"
+          git tag "go/v${VERSION}"
+          git tag "go/starter/v${VERSION}"
+          git tag "go/starter/template/v${VERSION}"
+          git push origin "go/v${VERSION}" "go/starter/v${VERSION}" "go/starter/template/v${VERSION}"
 
       - name: Request GOPROXY update
         run: |
