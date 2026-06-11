@@ -176,12 +176,25 @@ jobs:
           git tag "go/starter/template/v${VERSION}"
           git push origin "go/v${VERSION}" "go/starter/v${VERSION}" "go/starter/template/v${VERSION}"
 
+      # A freshly pushed tag can take a moment to become visible to proxy.golang.org, so retry
+      # each module a few times before failing.
       - name: Request GOPROXY update
         run: |
           VERSION="${GITHUB_REF#refs/tags/v}"
-          GOPROXY=proxy.golang.org go list -m "github.com/t-0-network/provider-sdk/go@v${VERSION}"
-          GOPROXY=proxy.golang.org go list -m "github.com/t-0-network/provider-sdk/go/starter@v${VERSION}"
-          GOPROXY=proxy.golang.org go list -m "github.com/t-0-network/provider-sdk/go/starter/template@v${VERSION}"
+          warm() {
+            for attempt in 1 2 3 4 5; do
+              if GOPROXY=proxy.golang.org go list -m "$1@v${VERSION}"; then
+                return 0
+              fi
+              echo "proxy not ready for $1@v${VERSION} (attempt ${attempt}/5); retrying in 10s..."
+              sleep 10
+            done
+            echo "::error::proxy.golang.org did not serve $1@v${VERSION} after 5 attempts"
+            return 1
+          }
+          warm "github.com/t-0-network/provider-sdk/go"
+          warm "github.com/t-0-network/provider-sdk/go/starter"
+          warm "github.com/t-0-network/provider-sdk/go/starter/template"
 
   publish-node-sdk:
     name: Publish Node SDK
