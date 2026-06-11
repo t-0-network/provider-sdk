@@ -165,9 +165,9 @@ jobs:
           echo "Go SDK runtime version $RUNTIME matches tag v$VERSION"
 
       # Create the go/* module tags here, right before warming the proxy, so the proxy is never
-      # asked to resolve a version before its tag exists (the gap that 404'd Go on 1.1.20, and
-      # whose negative cache then lingered). Lightweight tags need no git identity; re-running
-      # this job is safe — re-pushing an identical tag is a no-op.
+      # asked to resolve a version before its tag exists (otherwise it negative-caches the 404).
+      # Lightweight tags need no git identity; re-running this job is safe — re-pushing an
+      # identical tag is a no-op.
       - name: Create and push Go module tags
         run: |
           VERSION="${GITHUB_REF#refs/tags/v}"
