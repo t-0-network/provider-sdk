@@ -28,8 +28,8 @@
     }
   },
   "dependencies": {
-    "@bufbuild/protobuf": "^2.11.0",
-    "@bufbuild/protovalidate": "^1.1.1",
+    "@bufbuild/protobuf": "^2.12.0",
+    "@bufbuild/protovalidate": "^1.2.0",
     "@connectrpc/connect": "^2.1.1",
     "@connectrpc/connect-node": "^2.1.1",
     "@connectrpc/connect-web": "^2.1.1",
@@ -38,10 +38,10 @@
     "@noble/hashes": "^2.2.0"
   },
   "devDependencies": {
-    "@bufbuild/protoc-gen-es": "^2.11.0",
-    "@types/node": "^25.6.0",
+    "@bufbuild/protoc-gen-es": "^2.12.0",
+    "@types/node": "^25.9.1",
     "dotenv": "^17.4.2",
-    "tsx": "^4.21.0",
+    "tsx": "^4.22.3",
     "typescript": "^6.0.3"
   },
   "scripts": {

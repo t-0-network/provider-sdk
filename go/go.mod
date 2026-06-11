@@ -5,7 +5,7 @@ go 1.25.0
 require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20260415201107-50325440f8f2.1
 	buf.build/go/protovalidate v1.2.0
-	connectrpc.com/connect v1.19.2
+	connectrpc.com/connect v1.20.0
 	connectrpc.com/validate v0.6.0
 	github.com/btcsuite/btcd/btcec/v2 v2.3.6
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.1
