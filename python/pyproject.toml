@@ -25,7 +25,7 @@ strict = true
 
 [dependency-groups]
 dev = [
-    "protoc-gen-connectrpc>=0.10.0",
+    "protoc-gen-connectrpc>=0.10.1",
     "pytest>=9.0.3",
     "pytest-asyncio>=1.4.0",
     "ruff>=0.15.16",
