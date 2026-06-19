@@ -171,7 +171,6 @@ type PaymentIntentUpdateRequest_FundsReceived struct {
 	// *
 	// Pay-in's rail-native reference (SEPA EndToEndId, SWIFT UETR, PIX e2e_id), forwarded from ConfirmFundsReceived.
 	// Reconcile against your records; serves as the anchor for dispute resolution.
-	// See docs/tech/TRANSACTION_REFERENCE.md.
 	TransactionReference string `protobuf:"bytes,50,opt,name=transaction_reference,json=transactionReference,proto3" json:"transaction_reference,omitempty"`
 	// *
 	// Travel rule data of the pay-in provider's legal entity that received the funds.

@@ -29,10 +29,10 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
             "JXR6ZXJvL3YxL2NvbW1vbi9wYXltZW50X3JlY2VpcHQucHJvdG8aHHR6ZXJv",
             "L3YxL2NvbW1vbi9jb21tb24ucHJvdG8aHWl2bXMxMDEvdjEvaXZtcy9pdm1z",
             "MTAxLnByb3RvGh9nb29nbGUvcHJvdG9idWYvdGltZXN0YW1wLnByb3RvGhti",
-            "dWYvdmFsaWRhdGUvdmFsaWRhdGUucHJvdG8i5woKGkFwcGVuZExlZGdlckVu",
+            "dWYvdmFsaWRhdGUvdmFsaWRhdGUucHJvdG8i0A4KGkFwcGVuZExlZGdlckVu",
             "dHJpZXNSZXF1ZXN0EmYKDHRyYW5zYWN0aW9ucxgUIAMoCzI4LnR6ZXJvLnYx",
             "LnBheW1lbnQuQXBwZW5kTGVkZ2VyRW50cmllc1JlcXVlc3QuVHJhbnNhY3Rp",
-            "b25CCLpIBZIBAggBUgx0cmFuc2FjdGlvbnMaxAUKC1RyYW5zYWN0aW9uEi4K",
+            "b25CCLpIBZIBAggBUgx0cmFuc2FjdGlvbnMarQkKC1RyYW5zYWN0aW9uEi4K",
             "DnRyYW5zYWN0aW9uX2lkGAogASgEQge6SAQyAiAAUg10cmFuc2FjdGlvbklk",
             "ElwKB2VudHJpZXMYHiADKAsyOC50emVyby52MS5wYXltZW50LkFwcGVuZExl",
             "ZGdlckVudHJpZXNSZXF1ZXN0LkxlZGdlckVudHJ5Qgi6SAWSAQIIAVIHZW50",
@@ -43,129 +43,141 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
             "dGlvbi5Qcm92aWRlclNldHRsZW1lbnRIAFIScHJvdmlkZXJTZXR0bGVtZW50",
             "EnAKDmZlZV9zZXR0bGVtZW50GJYBIAEoCzJGLnR6ZXJvLnYxLnBheW1lbnQu",
             "QXBwZW5kTGVkZ2VyRW50cmllc1JlcXVlc3QuVHJhbnNhY3Rpb24uRmVlU2V0",
-            "dGxlbWVudEgAUg1mZWVTZXR0bGVtZW50GjAKBlBheW91dBImCgpwYXltZW50",
-            "X2lkGAogASgEQge6SAQyAiAAUglwYXltZW50SWQaQgoSUHJvdmlkZXJTZXR0",
-            "bGVtZW50EiwKDXNldHRsZW1lbnRfaWQYCiABKARCB7pIBDICIABSDHNldHRs",
-            "ZW1lbnRJZBpECg1GZWVTZXR0bGVtZW50EjMKEWZlZV9zZXR0bGVtZW50X2lk",
-            "GAogASgEQge6SAQyAiAAUg9mZWVTZXR0bGVtZW50SWRCHAoTdHJhbnNhY3Rp",
-            "b25fZGV0YWlscxIFukgCCAEa9gEKC0xlZGdlckVudHJ5EigKEGFjY291bnRf",
-            "b3duZXJfaWQYCiABKA1SDmFjY291bnRPd25lcklkElsKDGFjY291bnRfdHlw",
-            "ZRgUIAEoDjI4LnR6ZXJvLnYxLnBheW1lbnQuQXBwZW5kTGVkZ2VyRW50cmll",
-            "c1JlcXVlc3QuQWNjb3VudFR5cGVSC2FjY291bnRUeXBlEi4KBWRlYml0GCgg",
-            "ASgLMhgudHplcm8udjEuY29tbW9uLkRlY2ltYWxSBWRlYml0EjAKBmNyZWRp",
-            "dBgyIAEoCzIYLnR6ZXJvLnYxLmNvbW1vbi5EZWNpbWFsUgZjcmVkaXQioAIK",
-            "C0FjY291bnRUeXBlEhwKGEFDQ09VTlRfVFlQRV9VTlNQRUNJRklFRBAAEhgK",
-            "FEFDQ09VTlRfVFlQRV9CQUxBTkNFEBQSFwoTQUNDT1VOVF9UWVBFX1BBWV9J",
-            "ThAoEhgKFEFDQ09VTlRfVFlQRV9QQVlfT1VUEDISHAoYQUNDT1VOVF9UWVBF",
-            "X0ZFRV9FWFBFTlNFEDwSHgoaQUNDT1VOVF9UWVBFX1NFVFRMRU1FTlRfSU4Q",
-            "UBIfChtBQ0NPVU5UX1RZUEVfU0VUVExFTUVOVF9PVVQQWhIiCh5BQ0NPVU5U",
-            "X1RZUEVfUEFZTUVOVF9JTlRFTlRfSU4QZBIjCh9BQ0NPVU5UX1RZUEVfUEFZ",
-            "TUVOVF9JTlRFTlRfT1VUEG4iHQobQXBwZW5kTGVkZ2VyRW50cmllc1Jlc3Bv",
-            "bnNlIp8FCg1QYXlvdXRSZXF1ZXN0Eh0KCnBheW1lbnRfaWQYCiABKARSCXBh",
-            "eW1lbnRJZBIfCglwYXlvdXRfaWQYFCABKARCAhgBUghwYXlvdXRJZBIaCghj",
-            "dXJyZW5jeRgeIAEoCVIIY3VycmVuY3kSJgoPY2xpZW50X3F1b3RlX2lkGCgg",
-            "ASgJUg1jbGllbnRRdW90ZUlkEjAKBmFtb3VudBgyIAEoCzIYLnR6ZXJvLnYx",
-            "LmNvbW1vbi5EZWNpbWFsUgZhbW91bnQSSwoOcGF5b3V0X2RldGFpbHMYPCAB",
-            "KAsyHy50emVyby52MS5jb21tb24uUGF5bWVudERldGFpbHNIAFINcGF5b3V0",
-            "RGV0YWlsc4gBARIrChJwYXlfaW5fcHJvdmlkZXJfaWQYUCABKA1SD3BheUlu",
-            "UHJvdmlkZXJJZBJhChB0cmF2ZWxfcnVsZV9kYXRhGMgBIAEoCzIuLnR6ZXJv",
-            "LnYxLnBheW1lbnQuUGF5b3V0UmVxdWVzdC5UcmF2ZWxSdWxlRGF0YUIGukgD",
-            "yAEBUg50cmF2ZWxSdWxlRGF0YRrnAQoOVHJhdmVsUnVsZURhdGESOQoKb3Jp",
-            "Z2luYXRvchgKIAMoCzIPLml2bXMxMDEuUGVyc29uQgi6SAWSAQIIAVIKb3Jp",
-            "Z2luYXRvchI7CgtiZW5lZmljaWFyeRgUIAMoCzIPLml2bXMxMDEuUGVyc29u",
-            "Qgi6SAWSAQIIAVILYmVuZWZpY2lhcnkSRQoTb3JpZ2luYXRvcl9wcm92aWRl",
-            "chgeIAEoCzIPLml2bXMxMDEuUGVyc29uSABSEm9yaWdpbmF0b3JQcm92aWRl",
-            "cogBAUIWChRfb3JpZ2luYXRvcl9wcm92aWRlckIRCg9fcGF5b3V0X2RldGFp",
-            "bHMi2QQKDlBheW91dFJlc3BvbnNlElwKJGJlbmVmaWNpYXJ5X3Byb3ZpZGVy",
-            "X2xlZ2FsX2VudGl0eV9pZBgKIAEoDUIHukgEKgIgAEgBUiBiZW5lZmljaWFy",
-            "eVByb3ZpZGVyTGVnYWxFbnRpdHlJZIgBARJHCghhY2NlcHRlZBgUIAEoCzIp",
-            "LnR6ZXJvLnYxLnBheW1lbnQuUGF5b3V0UmVzcG9uc2UuQWNjZXB0ZWRIAFII",
-            "YWNjZXB0ZWQSQQoGZmFpbGVkGB4gASgLMicudHplcm8udjEucGF5bWVudC5Q",
-            "YXlvdXRSZXNwb25zZS5GYWlsZWRIAFIGZmFpbGVkElsKEG1hbnVhbF9hbWxf",
-            "Y2hlY2sYKCABKAsyLy50emVyby52MS5wYXltZW50LlBheW91dFJlc3BvbnNl",
-            "Lk1hbnVhbEFtbENoZWNrSABSDm1hbnVhbEFtbENoZWNrGgoKCEFjY2VwdGVk",
-            "GhAKDk1hbnVhbEFtbENoZWNrGqcBCgZGYWlsZWQSRgoGcmVhc29uGAogASgO",
-            "Mi4udHplcm8udjEucGF5bWVudC5QYXlvdXRSZXNwb25zZS5GYWlsZWQuUmVh",
+            "dGxlbWVudEgAUg1mZWVTZXR0bGVtZW50EncKEXBpX2Z1bmRzX3JlY2VpdmVk",
+            "GKABIAEoCzJILnR6ZXJvLnYxLnBheW1lbnQuQXBwZW5kTGVkZ2VyRW50cmll",
+            "c1JlcXVlc3QuVHJhbnNhY3Rpb24uUGlGdW5kc1JlY2VpdmVkSABSD3BpRnVu",
+            "ZHNSZWNlaXZlZBowCgZQYXlvdXQSJgoKcGF5bWVudF9pZBgKIAEoBEIHukgE",
+            "MgIgAFIJcGF5bWVudElkGkIKElByb3ZpZGVyU2V0dGxlbWVudBIsCg1zZXR0",
+            "bGVtZW50X2lkGAogASgEQge6SAQyAiAAUgxzZXR0bGVtZW50SWQaRAoNRmVl",
+            "U2V0dGxlbWVudBIzChFmZWVfc2V0dGxlbWVudF9pZBgKIAEoBEIHukgEMgIg",
+            "AFIPZmVlU2V0dGxlbWVudElkGu0CCg9QaUZ1bmRzUmVjZWl2ZWQSMwoRcGF5",
+            "bWVudF9pbnRlbnRfaWQYCiABKARCB7pIBDICIABSD3BheW1lbnRJbnRlbnRJ",
+            "ZBIrChJwYXlfaW5fcHJvdmlkZXJfaWQYFCABKA1SD3BheUluUHJvdmlkZXJJ",
+            "ZBI2ChdiZW5lZmljaWFyeV9wcm92aWRlcl9pZBgeIAEoDVIVYmVuZWZpY2lh",
+            "cnlQcm92aWRlcklkEkUKEXNldHRsZW1lbnRfYW1vdW50GCggASgLMhgudHpl",
+            "cm8udjEuY29tbW9uLkRlY2ltYWxSEHNldHRsZW1lbnRBbW91bnQSQQoPYmVu",
+            "ZWZpY2lhcnlfZmVlGDIgASgLMhgudHplcm8udjEuY29tbW9uLkRlY2ltYWxS",
+            "DmJlbmVmaWNpYXJ5RmVlEjYKCnBheV9pbl9mZWUYPCABKAsyGC50emVyby52",
+            "MS5jb21tb24uRGVjaW1hbFIIcGF5SW5GZWVCHAoTdHJhbnNhY3Rpb25fZGV0",
+            "YWlscxIFukgCCAEa9gEKC0xlZGdlckVudHJ5EigKEGFjY291bnRfb3duZXJf",
+            "aWQYCiABKA1SDmFjY291bnRPd25lcklkElsKDGFjY291bnRfdHlwZRgUIAEo",
+            "DjI4LnR6ZXJvLnYxLnBheW1lbnQuQXBwZW5kTGVkZ2VyRW50cmllc1JlcXVl",
+            "c3QuQWNjb3VudFR5cGVSC2FjY291bnRUeXBlEi4KBWRlYml0GCggASgLMhgu",
+            "dHplcm8udjEuY29tbW9uLkRlY2ltYWxSBWRlYml0EjAKBmNyZWRpdBgyIAEo",
+            "CzIYLnR6ZXJvLnYxLmNvbW1vbi5EZWNpbWFsUgZjcmVkaXQioAIKC0FjY291",
+            "bnRUeXBlEhwKGEFDQ09VTlRfVFlQRV9VTlNQRUNJRklFRBAAEhgKFEFDQ09V",
+            "TlRfVFlQRV9CQUxBTkNFEBQSFwoTQUNDT1VOVF9UWVBFX1BBWV9JThAoEhgK",
+            "FEFDQ09VTlRfVFlQRV9QQVlfT1VUEDISHAoYQUNDT1VOVF9UWVBFX0ZFRV9F",
+            "WFBFTlNFEDwSHgoaQUNDT1VOVF9UWVBFX1NFVFRMRU1FTlRfSU4QUBIfChtB",
+            "Q0NPVU5UX1RZUEVfU0VUVExFTUVOVF9PVVQQWhIiCh5BQ0NPVU5UX1RZUEVf",
+            "UEFZTUVOVF9JTlRFTlRfSU4QZBIjCh9BQ0NPVU5UX1RZUEVfUEFZTUVOVF9J",
+            "TlRFTlRfT1VUEG4iHQobQXBwZW5kTGVkZ2VyRW50cmllc1Jlc3BvbnNlIp8F",
+            "Cg1QYXlvdXRSZXF1ZXN0Eh0KCnBheW1lbnRfaWQYCiABKARSCXBheW1lbnRJ",
+            "ZBIfCglwYXlvdXRfaWQYFCABKARCAhgBUghwYXlvdXRJZBIaCghjdXJyZW5j",
+            "eRgeIAEoCVIIY3VycmVuY3kSJgoPY2xpZW50X3F1b3RlX2lkGCggASgJUg1j",
+            "bGllbnRRdW90ZUlkEjAKBmFtb3VudBgyIAEoCzIYLnR6ZXJvLnYxLmNvbW1v",
+            "bi5EZWNpbWFsUgZhbW91bnQSSwoOcGF5b3V0X2RldGFpbHMYPCABKAsyHy50",
+            "emVyby52MS5jb21tb24uUGF5bWVudERldGFpbHNIAFINcGF5b3V0RGV0YWls",
+            "c4gBARIrChJwYXlfaW5fcHJvdmlkZXJfaWQYUCABKA1SD3BheUluUHJvdmlk",
+            "ZXJJZBJhChB0cmF2ZWxfcnVsZV9kYXRhGMgBIAEoCzIuLnR6ZXJvLnYxLnBh",
+            "eW1lbnQuUGF5b3V0UmVxdWVzdC5UcmF2ZWxSdWxlRGF0YUIGukgDyAEBUg50",
+            "cmF2ZWxSdWxlRGF0YRrnAQoOVHJhdmVsUnVsZURhdGESOQoKb3JpZ2luYXRv",
+            "chgKIAMoCzIPLml2bXMxMDEuUGVyc29uQgi6SAWSAQIIAVIKb3JpZ2luYXRv",
+            "chI7CgtiZW5lZmljaWFyeRgUIAMoCzIPLml2bXMxMDEuUGVyc29uQgi6SAWS",
+            "AQIIAVILYmVuZWZpY2lhcnkSRQoTb3JpZ2luYXRvcl9wcm92aWRlchgeIAEo",
+            "CzIPLml2bXMxMDEuUGVyc29uSABSEm9yaWdpbmF0b3JQcm92aWRlcogBAUIW",
+            "ChRfb3JpZ2luYXRvcl9wcm92aWRlckIRCg9fcGF5b3V0X2RldGFpbHMi2QQK",
+            "DlBheW91dFJlc3BvbnNlElwKJGJlbmVmaWNpYXJ5X3Byb3ZpZGVyX2xlZ2Fs",
+            "X2VudGl0eV9pZBgKIAEoDUIHukgEKgIgAEgBUiBiZW5lZmljaWFyeVByb3Zp",
+            "ZGVyTGVnYWxFbnRpdHlJZIgBARJHCghhY2NlcHRlZBgUIAEoCzIpLnR6ZXJv",
+            "LnYxLnBheW1lbnQuUGF5b3V0UmVzcG9uc2UuQWNjZXB0ZWRIAFIIYWNjZXB0",
+            "ZWQSQQoGZmFpbGVkGB4gASgLMicudHplcm8udjEucGF5bWVudC5QYXlvdXRS",
+            "ZXNwb25zZS5GYWlsZWRIAFIGZmFpbGVkElsKEG1hbnVhbF9hbWxfY2hlY2sY",
+            "KCABKAsyLy50emVyby52MS5wYXltZW50LlBheW91dFJlc3BvbnNlLk1hbnVh",
+            "bEFtbENoZWNrSABSDm1hbnVhbEFtbENoZWNrGgoKCEFjY2VwdGVkGhAKDk1h",
+            "bnVhbEFtbENoZWNrGqcBCgZGYWlsZWQSRgoGcmVhc29uGAogASgOMi4udHpl",
+            "cm8udjEucGF5bWVudC5QYXlvdXRSZXNwb25zZS5GYWlsZWQuUmVhc29uUgZy",
+            "ZWFzb24SJwoHZGV0YWlscxgUIAEoCUIIukgFcgMYgAhIAFIHZGV0YWlsc4gB",
+            "ASIgCgZSZWFzb24SFgoSUkVBU09OX1VOU1BFQ0lGSUVEEABCCgoIX2RldGFp",
+            "bHNCDwoGcmVzdWx0EgW6SAIIAUInCiVfYmVuZWZpY2lhcnlfcHJvdmlkZXJf",
+            "bGVnYWxfZW50aXR5X2lkIqIKChRVcGRhdGVQYXltZW50UmVxdWVzdBIdCgpw",
+            "YXltZW50X2lkGAUgASgEUglwYXltZW50SWQSKgoRcGF5bWVudF9jbGllbnRf",
+            "aWQYCiABKAlSD3BheW1lbnRDbGllbnRJZBJNCghhY2NlcHRlZBgUIAEoCzIv",
+            "LnR6ZXJvLnYxLnBheW1lbnQuVXBkYXRlUGF5bWVudFJlcXVlc3QuQWNjZXB0",
+            "ZWRIAFIIYWNjZXB0ZWQSRwoGZmFpbGVkGB4gASgLMi0udHplcm8udjEucGF5",
+            "bWVudC5VcGRhdGVQYXltZW50UmVxdWVzdC5GYWlsZWRIAFIGZmFpbGVkElAK",
+            "CWNvbmZpcm1lZBgoIAEoCzIwLnR6ZXJvLnYxLnBheW1lbnQuVXBkYXRlUGF5",
+            "bWVudFJlcXVlc3QuQ29uZmlybWVkSABSCWNvbmZpcm1lZBJhChBtYW51YWxf",
+            "YW1sX2NoZWNrGDIgASgLMjUudHplcm8udjEucGF5bWVudC5VcGRhdGVQYXlt",
+            "ZW50UmVxdWVzdC5NYW51YWxBbWxDaGVja0gAUg5tYW51YWxBbWxDaGVjaxqZ",
+            "AgoIQWNjZXB0ZWQSPQoNcGF5b3V0X2Ftb3VudBgKIAEoCzIYLnR6ZXJvLnYx",
+            "LmNvbW1vbi5EZWNpbWFsUgxwYXlvdXRBbW91bnQScAoQdHJhdmVsX3J1bGVf",
+            "ZGF0YRgUIAEoCzI+LnR6ZXJvLnYxLnBheW1lbnQuVXBkYXRlUGF5bWVudFJl",
+            "cXVlc3QuQWNjZXB0ZWQuVHJhdmVsUnVsZURhdGFCBrpIA8gBAVIOdHJhdmVs",
+            "UnVsZURhdGEaXAoOVHJhdmVsUnVsZURhdGESSgoUYmVuZWZpY2lhcnlfcHJv",
+            "dmlkZXIYCiABKAsyDy5pdm1zMTAxLlBlcnNvbkIGukgDyAEBUhNiZW5lZmlj",
+            "aWFyeVByb3ZpZGVyGpwDCgZGYWlsZWQSTAoGcmVhc29uGAogASgOMjQudHpl",
+            "cm8udjEucGF5bWVudC5VcGRhdGVQYXltZW50UmVxdWVzdC5GYWlsZWQuUmVh",
             "c29uUgZyZWFzb24SJwoHZGV0YWlscxgUIAEoCUIIukgFcgMYgAhIAFIHZGV0",
-            "YWlsc4gBASIgCgZSZWFzb24SFgoSUkVBU09OX1VOU1BFQ0lGSUVEEABCCgoI",
-            "X2RldGFpbHNCDwoGcmVzdWx0EgW6SAIIAUInCiVfYmVuZWZpY2lhcnlfcHJv",
-            "dmlkZXJfbGVnYWxfZW50aXR5X2lkIqIKChRVcGRhdGVQYXltZW50UmVxdWVz",
-            "dBIdCgpwYXltZW50X2lkGAUgASgEUglwYXltZW50SWQSKgoRcGF5bWVudF9j",
-            "bGllbnRfaWQYCiABKAlSD3BheW1lbnRDbGllbnRJZBJNCghhY2NlcHRlZBgU",
-            "IAEoCzIvLnR6ZXJvLnYxLnBheW1lbnQuVXBkYXRlUGF5bWVudFJlcXVlc3Qu",
-            "QWNjZXB0ZWRIAFIIYWNjZXB0ZWQSRwoGZmFpbGVkGB4gASgLMi0udHplcm8u",
-            "djEucGF5bWVudC5VcGRhdGVQYXltZW50UmVxdWVzdC5GYWlsZWRIAFIGZmFp",
-            "bGVkElAKCWNvbmZpcm1lZBgoIAEoCzIwLnR6ZXJvLnYxLnBheW1lbnQuVXBk",
-            "YXRlUGF5bWVudFJlcXVlc3QuQ29uZmlybWVkSABSCWNvbmZpcm1lZBJhChBt",
-            "YW51YWxfYW1sX2NoZWNrGDIgASgLMjUudHplcm8udjEucGF5bWVudC5VcGRh",
-            "dGVQYXltZW50UmVxdWVzdC5NYW51YWxBbWxDaGVja0gAUg5tYW51YWxBbWxD",
-            "aGVjaxqZAgoIQWNjZXB0ZWQSPQoNcGF5b3V0X2Ftb3VudBgKIAEoCzIYLnR6",
-            "ZXJvLnYxLmNvbW1vbi5EZWNpbWFsUgxwYXlvdXRBbW91bnQScAoQdHJhdmVs",
-            "X3J1bGVfZGF0YRgUIAEoCzI+LnR6ZXJvLnYxLnBheW1lbnQuVXBkYXRlUGF5",
-            "bWVudFJlcXVlc3QuQWNjZXB0ZWQuVHJhdmVsUnVsZURhdGFCBrpIA8gBAVIO",
-            "dHJhdmVsUnVsZURhdGEaXAoOVHJhdmVsUnVsZURhdGESSgoUYmVuZWZpY2lh",
-            "cnlfcHJvdmlkZXIYCiABKAsyDy5pdm1zMTAxLlBlcnNvbkIGukgDyAEBUhNi",
-            "ZW5lZmljaWFyeVByb3ZpZGVyGpwDCgZGYWlsZWQSTAoGcmVhc29uGAogASgO",
-            "MjQudHplcm8udjEucGF5bWVudC5VcGRhdGVQYXltZW50UmVxdWVzdC5GYWls",
-            "ZWQuUmVhc29uUgZyZWFzb24SJwoHZGV0YWlscxgUIAEoCUIIukgFcgMYgAhI",
-            "AFIHZGV0YWlsc4gBASKOAgoGUmVhc29uEhYKElJFQVNPTl9VTlNQRUNJRklF",
-            "RBAAEiYKIlJFQVNPTl9OT19RVU9URV9BRlRFUl9BTUxfQVBQUk9WQUwQARIs",
-            "CihSRUFTT05fUVVPVEVfUkVKRUNURURfQUZURVJfQU1MX0FQUFJPVkFMEAIS",
-            "IAocUkVBU09OX0FNTF9SSVNLX0NIRUNLX0ZBSUxFRBADEjMKL1JFQVNPTl9D",
-            "UkVESVRfTElNSVRfRVhDRUVERURfQUZURVJfQU1MX0FQUFJPVkFMEAQSIgoe",
-            "UkVBU09OX1JFSkVDVEVEX0JZX0JFTkVGSUNJQVJZEAUSGwoXUkVBU09OX0ZJ",
-            "TkFMSVpFX0ZBSUxVUkUQBkIKCghfZGV0YWlscxqTAQoJQ29uZmlybWVkEjoK",
-            "C3BhaWRfb3V0X2F0GAogASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFt",
-            "cFIJcGFpZE91dEF0Ej4KB3JlY2VpcHQYFCABKAsyHy50emVyby52MS5jb21t",
-            "b24uUGF5bWVudFJlY2VpcHRIAFIHcmVjZWlwdIgBAUIKCghfcmVjZWlwdBoQ",
-            "Cg5NYW51YWxBbWxDaGVja0IPCgZyZXN1bHQSBbpIAggBIhcKFVVwZGF0ZVBh",
-            "eW1lbnRSZXNwb25zZSKOAwoSVXBkYXRlTGltaXRSZXF1ZXN0EkIKBmxpbWl0",
-            "cxgKIAMoCzIqLnR6ZXJvLnYxLnBheW1lbnQuVXBkYXRlTGltaXRSZXF1ZXN0",
-            "LkxpbWl0UgZsaW1pdHMaswIKBUxpbWl0EhgKB3ZlcnNpb24YCiABKANSB3Zl",
-            "cnNpb24SJQoOY291bnRlcnBhcnRfaWQYDyABKAVSDWNvdW50ZXJwYXJ0SWQS",
-            "OwoMcGF5b3V0X2xpbWl0GBQgASgLMhgudHplcm8udjEuY29tbW9uLkRlY2lt",
-            "YWxSC3BheW91dExpbWl0EjsKDGNyZWRpdF9saW1pdBgeIAEoCzIYLnR6ZXJv",
-            "LnYxLmNvbW1vbi5EZWNpbWFsUgtjcmVkaXRMaW1pdBI7CgxjcmVkaXRfdXNh",
-            "Z2UYKCABKAsyGC50emVyby52MS5jb21tb24uRGVjaW1hbFILY3JlZGl0VXNh",
-            "Z2USMgoHcmVzZXJ2ZRgyIAEoCzIYLnR6ZXJvLnYxLmNvbW1vbi5EZWNpbWFs",
-            "UgdyZXNlcnZlIhUKE1VwZGF0ZUxpbWl0UmVzcG9uc2Ui6gIKGkFwcHJvdmVQ",
-            "YXltZW50UXVvdGVSZXF1ZXN0EiYKCnBheW1lbnRfaWQYCiABKARCB7pIBDIC",
-            "IABSCXBheW1lbnRJZBInChBwYXlfb3V0X3F1b3RlX2lkGBQgASgDUg1wYXlP",
-            "dXRRdW90ZUlkEjoKDHBheV9vdXRfcmF0ZRgeIAEoCzIYLnR6ZXJvLnYxLmNv",
-            "bW1vbi5EZWNpbWFsUgpwYXlPdXRSYXRlEj4KDnBheV9vdXRfYW1vdW50GCgg",
-            "ASgLMhgudHplcm8udjEuY29tbW9uLkRlY2ltYWxSDHBheU91dEFtb3VudBJF",
-            "ChFzZXR0bGVtZW50X2Ftb3VudBgyIAEoCzIYLnR6ZXJvLnYxLmNvbW1vbi5E",
-            "ZWNpbWFsUhBzZXR0bGVtZW50QW1vdW50EjgKC3BheV9vdXRfZml4GDwgASgL",
-            "MhgudHplcm8udjEuY29tbW9uLkRlY2ltYWxSCXBheU91dEZpeCLyAQobQXBw",
-            "cm92ZVBheW1lbnRRdW90ZVJlc3BvbnNlElQKCGFjY2VwdGVkGAogASgLMjYu",
-            "dHplcm8udjEucGF5bWVudC5BcHByb3ZlUGF5bWVudFF1b3RlUmVzcG9uc2Uu",
-            "QWNjZXB0ZWRIAFIIYWNjZXB0ZWQSVAoIcmVqZWN0ZWQYFCABKAsyNi50emVy",
-            "by52MS5wYXltZW50LkFwcHJvdmVQYXltZW50UXVvdGVSZXNwb25zZS5SZWpl",
-            "Y3RlZEgAUghyZWplY3RlZBoKCghBY2NlcHRlZBoKCghSZWplY3RlZEIPCgZy",
-            "ZXN1bHQSBbpIAggBMp4ECg9Qcm92aWRlclNlcnZpY2USUAoGUGF5T3V0Eh8u",
-            "dHplcm8udjEucGF5bWVudC5QYXlvdXRSZXF1ZXN0GiAudHplcm8udjEucGF5",
-            "bWVudC5QYXlvdXRSZXNwb25zZSIDkAICEmUKDVVwZGF0ZVBheW1lbnQSJi50",
-            "emVyby52MS5wYXltZW50LlVwZGF0ZVBheW1lbnRSZXF1ZXN0GicudHplcm8u",
-            "djEucGF5bWVudC5VcGRhdGVQYXltZW50UmVzcG9uc2UiA5ACAhJfCgtVcGRh",
-            "dGVMaW1pdBIkLnR6ZXJvLnYxLnBheW1lbnQuVXBkYXRlTGltaXRSZXF1ZXN0",
-            "GiUudHplcm8udjEucGF5bWVudC5VcGRhdGVMaW1pdFJlc3BvbnNlIgOQAgIS",
-            "dwoTQXBwZW5kTGVkZ2VyRW50cmllcxIsLnR6ZXJvLnYxLnBheW1lbnQuQXBw",
-            "ZW5kTGVkZ2VyRW50cmllc1JlcXVlc3QaLS50emVyby52MS5wYXltZW50LkFw",
-            "cGVuZExlZGdlckVudHJpZXNSZXNwb25zZSIDkAICEngKFEFwcHJvdmVQYXlt",
-            "ZW50UXVvdGVzEiwudHplcm8udjEucGF5bWVudC5BcHByb3ZlUGF5bWVudFF1",
-            "b3RlUmVxdWVzdBotLnR6ZXJvLnYxLnBheW1lbnQuQXBwcm92ZVBheW1lbnRR",
-            "dW90ZVJlc3BvbnNlIgOQAgJC1wEKFGNvbS50emVyby52MS5wYXltZW50Qg1Q",
-            "cm92aWRlclByb3RvUAFaO2dpdGh1Yi5jb20vdC0wLW5ldHdvcmsvcHJvdmlk",
-            "ZXItc2RrL2dvL2FwaS90emVyby92MS9wYXltZW50ogIDVFZQqgIjVDAuUHJv",
-            "dmlkZXJTZGsuQXBpLlR6ZXJvLlYxLlBheW1lbnTKAhBUemVyb1xWMVxQYXlt",
-            "ZW504gIcVHplcm9cVjFcUGF5bWVudFxHUEJNZXRhZGF0YeoCElR6ZXJvOjpW",
-            "MTo6UGF5bWVudGIGcHJvdG8z"));
+            "YWlsc4gBASKOAgoGUmVhc29uEhYKElJFQVNPTl9VTlNQRUNJRklFRBAAEiYK",
+            "IlJFQVNPTl9OT19RVU9URV9BRlRFUl9BTUxfQVBQUk9WQUwQARIsCihSRUFT",
+            "T05fUVVPVEVfUkVKRUNURURfQUZURVJfQU1MX0FQUFJPVkFMEAISIAocUkVB",
+            "U09OX0FNTF9SSVNLX0NIRUNLX0ZBSUxFRBADEjMKL1JFQVNPTl9DUkVESVRf",
+            "TElNSVRfRVhDRUVERURfQUZURVJfQU1MX0FQUFJPVkFMEAQSIgoeUkVBU09O",
+            "X1JFSkVDVEVEX0JZX0JFTkVGSUNJQVJZEAUSGwoXUkVBU09OX0ZJTkFMSVpF",
+            "X0ZBSUxVUkUQBkIKCghfZGV0YWlscxqTAQoJQ29uZmlybWVkEjoKC3BhaWRf",
+            "b3V0X2F0GAogASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcFIJcGFp",
+            "ZE91dEF0Ej4KB3JlY2VpcHQYFCABKAsyHy50emVyby52MS5jb21tb24uUGF5",
+            "bWVudFJlY2VpcHRIAFIHcmVjZWlwdIgBAUIKCghfcmVjZWlwdBoQCg5NYW51",
+            "YWxBbWxDaGVja0IPCgZyZXN1bHQSBbpIAggBIhcKFVVwZGF0ZVBheW1lbnRS",
+            "ZXNwb25zZSKOAwoSVXBkYXRlTGltaXRSZXF1ZXN0EkIKBmxpbWl0cxgKIAMo",
+            "CzIqLnR6ZXJvLnYxLnBheW1lbnQuVXBkYXRlTGltaXRSZXF1ZXN0LkxpbWl0",
+            "UgZsaW1pdHMaswIKBUxpbWl0EhgKB3ZlcnNpb24YCiABKANSB3ZlcnNpb24S",
+            "JQoOY291bnRlcnBhcnRfaWQYDyABKAVSDWNvdW50ZXJwYXJ0SWQSOwoMcGF5",
+            "b3V0X2xpbWl0GBQgASgLMhgudHplcm8udjEuY29tbW9uLkRlY2ltYWxSC3Bh",
+            "eW91dExpbWl0EjsKDGNyZWRpdF9saW1pdBgeIAEoCzIYLnR6ZXJvLnYxLmNv",
+            "bW1vbi5EZWNpbWFsUgtjcmVkaXRMaW1pdBI7CgxjcmVkaXRfdXNhZ2UYKCAB",
+            "KAsyGC50emVyby52MS5jb21tb24uRGVjaW1hbFILY3JlZGl0VXNhZ2USMgoH",
+            "cmVzZXJ2ZRgyIAEoCzIYLnR6ZXJvLnYxLmNvbW1vbi5EZWNpbWFsUgdyZXNl",
+            "cnZlIhUKE1VwZGF0ZUxpbWl0UmVzcG9uc2Ui6gIKGkFwcHJvdmVQYXltZW50",
+            "UXVvdGVSZXF1ZXN0EiYKCnBheW1lbnRfaWQYCiABKARCB7pIBDICIABSCXBh",
+            "eW1lbnRJZBInChBwYXlfb3V0X3F1b3RlX2lkGBQgASgDUg1wYXlPdXRRdW90",
+            "ZUlkEjoKDHBheV9vdXRfcmF0ZRgeIAEoCzIYLnR6ZXJvLnYxLmNvbW1vbi5E",
+            "ZWNpbWFsUgpwYXlPdXRSYXRlEj4KDnBheV9vdXRfYW1vdW50GCggASgLMhgu",
+            "dHplcm8udjEuY29tbW9uLkRlY2ltYWxSDHBheU91dEFtb3VudBJFChFzZXR0",
+            "bGVtZW50X2Ftb3VudBgyIAEoCzIYLnR6ZXJvLnYxLmNvbW1vbi5EZWNpbWFs",
+            "UhBzZXR0bGVtZW50QW1vdW50EjgKC3BheV9vdXRfZml4GDwgASgLMhgudHpl",
+            "cm8udjEuY29tbW9uLkRlY2ltYWxSCXBheU91dEZpeCLyAQobQXBwcm92ZVBh",
+            "eW1lbnRRdW90ZVJlc3BvbnNlElQKCGFjY2VwdGVkGAogASgLMjYudHplcm8u",
+            "djEucGF5bWVudC5BcHByb3ZlUGF5bWVudFF1b3RlUmVzcG9uc2UuQWNjZXB0",
+            "ZWRIAFIIYWNjZXB0ZWQSVAoIcmVqZWN0ZWQYFCABKAsyNi50emVyby52MS5w",
+            "YXltZW50LkFwcHJvdmVQYXltZW50UXVvdGVSZXNwb25zZS5SZWplY3RlZEgA",
+            "UghyZWplY3RlZBoKCghBY2NlcHRlZBoKCghSZWplY3RlZEIPCgZyZXN1bHQS",
+            "BbpIAggBMp4ECg9Qcm92aWRlclNlcnZpY2USUAoGUGF5T3V0Eh8udHplcm8u",
+            "djEucGF5bWVudC5QYXlvdXRSZXF1ZXN0GiAudHplcm8udjEucGF5bWVudC5Q",
+            "YXlvdXRSZXNwb25zZSIDkAICEmUKDVVwZGF0ZVBheW1lbnQSJi50emVyby52",
+            "MS5wYXltZW50LlVwZGF0ZVBheW1lbnRSZXF1ZXN0GicudHplcm8udjEucGF5",
+            "bWVudC5VcGRhdGVQYXltZW50UmVzcG9uc2UiA5ACAhJfCgtVcGRhdGVMaW1p",
+            "dBIkLnR6ZXJvLnYxLnBheW1lbnQuVXBkYXRlTGltaXRSZXF1ZXN0GiUudHpl",
+            "cm8udjEucGF5bWVudC5VcGRhdGVMaW1pdFJlc3BvbnNlIgOQAgISdwoTQXBw",
+            "ZW5kTGVkZ2VyRW50cmllcxIsLnR6ZXJvLnYxLnBheW1lbnQuQXBwZW5kTGVk",
+            "Z2VyRW50cmllc1JlcXVlc3QaLS50emVyby52MS5wYXltZW50LkFwcGVuZExl",
+            "ZGdlckVudHJpZXNSZXNwb25zZSIDkAICEngKFEFwcHJvdmVQYXltZW50UXVv",
+            "dGVzEiwudHplcm8udjEucGF5bWVudC5BcHByb3ZlUGF5bWVudFF1b3RlUmVx",
+            "dWVzdBotLnR6ZXJvLnYxLnBheW1lbnQuQXBwcm92ZVBheW1lbnRRdW90ZVJl",
+            "c3BvbnNlIgOQAgJC1wEKFGNvbS50emVyby52MS5wYXltZW50Qg1Qcm92aWRl",
+            "clByb3RvUAFaO2dpdGh1Yi5jb20vdC0wLW5ldHdvcmsvcHJvdmlkZXItc2Rr",
+            "L2dvL2FwaS90emVyby92MS9wYXltZW50ogIDVFZQqgIjVDAuUHJvdmlkZXJT",
+            "ZGsuQXBpLlR6ZXJvLlYxLlBheW1lbnTKAhBUemVyb1xWMVxQYXltZW504gIc",
+            "VHplcm9cVjFcUGF5bWVudFxHUEJNZXRhZGF0YeoCElR6ZXJvOjpWMTo6UGF5",
+            "bWVudGIGcHJvdG8z"));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { global::T0.ProviderSdk.Api.Tzero.V1.Common.PaymentMethodReflection.Descriptor, global::T0.ProviderSdk.Api.Tzero.V1.Common.PaymentReceiptReflection.Descriptor, global::T0.ProviderSdk.Api.Tzero.V1.Common.CommonReflection.Descriptor, global::T0.ProviderSdk.Api.Ivms101.V1.Ivms.Ivms101Reflection.Descriptor, global::Google.Protobuf.WellKnownTypes.TimestampReflection.Descriptor, global::Buf.Validate.ValidateReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(null, null, new pbr::GeneratedClrTypeInfo[] {
-            new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.AppendLedgerEntriesRequest), global::T0.ProviderSdk.Api.Tzero.V1.Payment.AppendLedgerEntriesRequest.Parser, new[]{ "Transactions" }, null, new[]{ typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.AppendLedgerEntriesRequest.Types.AccountType) }, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.AppendLedgerEntriesRequest.Types.Transaction), global::T0.ProviderSdk.Api.Tzero.V1.Payment.AppendLedgerEntriesRequest.Types.Transaction.Parser, new[]{ "TransactionId", "Entries", "Payout", "ProviderSettlement", "FeeSettlement" }, new[]{ "TransactionDetails" }, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.AppendLedgerEntriesRequest.Types.Transaction.Types.Payout), global::T0.ProviderSdk.Api.Tzero.V1.Payment.AppendLedgerEntriesRequest.Types.Transaction.Types.Payout.Parser, new[]{ "PaymentId" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.AppendLedgerEntriesRequest), global::T0.ProviderSdk.Api.Tzero.V1.Payment.AppendLedgerEntriesRequest.Parser, new[]{ "Transactions" }, null, new[]{ typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.AppendLedgerEntriesRequest.Types.AccountType) }, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.AppendLedgerEntriesRequest.Types.Transaction), global::T0.ProviderSdk.Api.Tzero.V1.Payment.AppendLedgerEntriesRequest.Types.Transaction.Parser, new[]{ "TransactionId", "Entries", "Payout", "ProviderSettlement", "FeeSettlement", "PiFundsReceived" }, new[]{ "TransactionDetails" }, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.AppendLedgerEntriesRequest.Types.Transaction.Types.Payout), global::T0.ProviderSdk.Api.Tzero.V1.Payment.AppendLedgerEntriesRequest.Types.Transaction.Types.Payout.Parser, new[]{ "PaymentId" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.AppendLedgerEntriesRequest.Types.Transaction.Types.ProviderSettlement), global::T0.ProviderSdk.Api.Tzero.V1.Payment.AppendLedgerEntriesRequest.Types.Transaction.Types.ProviderSettlement.Parser, new[]{ "SettlementId" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.AppendLedgerEntriesRequest.Types.Transaction.Types.FeeSettlement), global::T0.ProviderSdk.Api.Tzero.V1.Payment.AppendLedgerEntriesRequest.Types.Transaction.Types.FeeSettlement.Parser, new[]{ "FeeSettlementId" }, null, null, null, null)}),
+            new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.AppendLedgerEntriesRequest.Types.Transaction.Types.FeeSettlement), global::T0.ProviderSdk.Api.Tzero.V1.Payment.AppendLedgerEntriesRequest.Types.Transaction.Types.FeeSettlement.Parser, new[]{ "FeeSettlementId" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.AppendLedgerEntriesRequest.Types.Transaction.Types.PiFundsReceived), global::T0.ProviderSdk.Api.Tzero.V1.Payment.AppendLedgerEntriesRequest.Types.Transaction.Types.PiFundsReceived.Parser, new[]{ "PaymentIntentId", "PayInProviderId", "BeneficiaryProviderId", "SettlementAmount", "BeneficiaryFee", "PayInFee" }, null, null, null, null)}),
             new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.AppendLedgerEntriesRequest.Types.LedgerEntry), global::T0.ProviderSdk.Api.Tzero.V1.Payment.AppendLedgerEntriesRequest.Types.LedgerEntry.Parser, new[]{ "AccountOwnerId", "AccountType", "Debit", "Credit" }, null, null, null, null)}),
             new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.AppendLedgerEntriesResponse), global::T0.ProviderSdk.Api.Tzero.V1.Payment.AppendLedgerEntriesResponse.Parser, null, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.PayoutRequest), global::T0.ProviderSdk.Api.Tzero.V1.Payment.PayoutRequest.Parser, new[]{ "PaymentId", "PayoutId", "Currency", "ClientQuoteId", "Amount", "PayoutDetails", "PayInProviderId", "TravelRuleData" }, new[]{ "PayoutDetails" }, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.PayoutRequest.Types.TravelRuleData), global::T0.ProviderSdk.Api.Tzero.V1.Payment.PayoutRequest.Types.TravelRuleData.Parser, new[]{ "Originator", "Beneficiary", "OriginatorProvider" }, new[]{ "OriginatorProvider" }, null, null, null)}),
@@ -445,6 +457,9 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
             case TransactionDetailsOneofCase.FeeSettlement:
               FeeSettlement = other.FeeSettlement.Clone();
               break;
+            case TransactionDetailsOneofCase.PiFundsReceived:
+              PiFundsReceived = other.PiFundsReceived.Clone();
+              break;
           }
 
           _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
@@ -525,6 +540,18 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
           }
         }
 
+        /// <summary>Field number for the "pi_funds_received" field.</summary>
+        public const int PiFundsReceivedFieldNumber = 160;
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        public global::T0.ProviderSdk.Api.Tzero.V1.Payment.AppendLedgerEntriesRequest.Types.Transaction.Types.PiFundsReceived PiFundsReceived {
+          get { return transactionDetailsCase_ == TransactionDetailsOneofCase.PiFundsReceived ? (global::T0.ProviderSdk.Api.Tzero.V1.Payment.AppendLedgerEntriesRequest.Types.Transaction.Types.PiFundsReceived) transactionDetails_ : null; }
+          set {
+            transactionDetails_ = value;
+            transactionDetailsCase_ = value == null ? TransactionDetailsOneofCase.None : TransactionDetailsOneofCase.PiFundsReceived;
+          }
+        }
+
         private object transactionDetails_;
         /// <summary>Enum of possible cases for the "transaction_details" oneof.</summary>
         public enum TransactionDetailsOneofCase {
@@ -532,6 +559,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
           Payout = 130,
           ProviderSettlement = 140,
           FeeSettlement = 150,
+          PiFundsReceived = 160,
         }
         private TransactionDetailsOneofCase transactionDetailsCase_ = TransactionDetailsOneofCase.None;
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -567,6 +595,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
           if (!object.Equals(Payout, other.Payout)) return false;
           if (!object.Equals(ProviderSettlement, other.ProviderSettlement)) return false;
           if (!object.Equals(FeeSettlement, other.FeeSettlement)) return false;
+          if (!object.Equals(PiFundsReceived, other.PiFundsReceived)) return false;
           if (TransactionDetailsCase != other.TransactionDetailsCase) return false;
           return Equals(_unknownFields, other._unknownFields);
         }
@@ -580,6 +609,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
           if (transactionDetailsCase_ == TransactionDetailsOneofCase.Payout) hash ^= Payout.GetHashCode();
           if (transactionDetailsCase_ == TransactionDetailsOneofCase.ProviderSettlement) hash ^= ProviderSettlement.GetHashCode();
           if (transactionDetailsCase_ == TransactionDetailsOneofCase.FeeSettlement) hash ^= FeeSettlement.GetHashCode();
+          if (transactionDetailsCase_ == TransactionDetailsOneofCase.PiFundsReceived) hash ^= PiFundsReceived.GetHashCode();
           hash ^= (int) transactionDetailsCase_;
           if (_unknownFields != null) {
             hash ^= _unknownFields.GetHashCode();
@@ -616,6 +646,10 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
             output.WriteRawTag(178, 9);
             output.WriteMessage(FeeSettlement);
           }
+          if (transactionDetailsCase_ == TransactionDetailsOneofCase.PiFundsReceived) {
+            output.WriteRawTag(130, 10);
+            output.WriteMessage(PiFundsReceived);
+          }
           if (_unknownFields != null) {
             _unknownFields.WriteTo(output);
           }
@@ -643,6 +677,10 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
             output.WriteRawTag(178, 9);
             output.WriteMessage(FeeSettlement);
           }
+          if (transactionDetailsCase_ == TransactionDetailsOneofCase.PiFundsReceived) {
+            output.WriteRawTag(130, 10);
+            output.WriteMessage(PiFundsReceived);
+          }
           if (_unknownFields != null) {
             _unknownFields.WriteTo(ref output);
           }
@@ -665,6 +703,9 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
           }
           if (transactionDetailsCase_ == TransactionDetailsOneofCase.FeeSettlement) {
             size += 2 + pb::CodedOutputStream.ComputeMessageSize(FeeSettlement);
+          }
+          if (transactionDetailsCase_ == TransactionDetailsOneofCase.PiFundsReceived) {
+            size += 2 + pb::CodedOutputStream.ComputeMessageSize(PiFundsReceived);
           }
           if (_unknownFields != null) {
             size += _unknownFields.CalculateSize();
@@ -700,6 +741,12 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
                 FeeSettlement = new global::T0.ProviderSdk.Api.Tzero.V1.Payment.AppendLedgerEntriesRequest.Types.Transaction.Types.FeeSettlement();
               }
               FeeSettlement.MergeFrom(other.FeeSettlement);
+              break;
+            case TransactionDetailsOneofCase.PiFundsReceived:
+              if (PiFundsReceived == null) {
+                PiFundsReceived = new global::T0.ProviderSdk.Api.Tzero.V1.Payment.AppendLedgerEntriesRequest.Types.Transaction.Types.PiFundsReceived();
+              }
+              PiFundsReceived.MergeFrom(other.PiFundsReceived);
               break;
           }
 
@@ -757,6 +804,15 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
                 FeeSettlement = subBuilder;
                 break;
               }
+              case 1282: {
+                global::T0.ProviderSdk.Api.Tzero.V1.Payment.AppendLedgerEntriesRequest.Types.Transaction.Types.PiFundsReceived subBuilder = new global::T0.ProviderSdk.Api.Tzero.V1.Payment.AppendLedgerEntriesRequest.Types.Transaction.Types.PiFundsReceived();
+                if (transactionDetailsCase_ == TransactionDetailsOneofCase.PiFundsReceived) {
+                  subBuilder.MergeFrom(PiFundsReceived);
+                }
+                input.ReadMessage(subBuilder);
+                PiFundsReceived = subBuilder;
+                break;
+              }
             }
           }
         #endif
@@ -809,6 +865,15 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
                 }
                 input.ReadMessage(subBuilder);
                 FeeSettlement = subBuilder;
+                break;
+              }
+              case 1282: {
+                global::T0.ProviderSdk.Api.Tzero.V1.Payment.AppendLedgerEntriesRequest.Types.Transaction.Types.PiFundsReceived subBuilder = new global::T0.ProviderSdk.Api.Tzero.V1.Payment.AppendLedgerEntriesRequest.Types.Transaction.Types.PiFundsReceived();
+                if (transactionDetailsCase_ == TransactionDetailsOneofCase.PiFundsReceived) {
+                  subBuilder.MergeFrom(PiFundsReceived);
+                }
+                input.ReadMessage(subBuilder);
+                PiFundsReceived = subBuilder;
                 break;
               }
             }
@@ -1406,6 +1471,433 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
                     break;
                   case 80: {
                     FeeSettlementId = input.ReadUInt64();
+                    break;
+                  }
+                }
+              }
+            }
+            #endif
+
+          }
+
+          /// <summary>
+          ///*
+          /// Funds were received from the payer by the pay-in provider, creating the
+          /// inter-provider obligation to settle. The descriptor fields mirror values
+          /// the entries already encode; the entries remain authoritative for balances.
+          /// Only payment_intent_id is guaranteed non-zero; the remaining descriptor
+          /// fields may be zero-valued.
+          /// </summary>
+          [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
+          public sealed partial class PiFundsReceived : pb::IMessage<PiFundsReceived>
+          #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+              , pb::IBufferMessage
+          #endif
+          {
+            private static readonly pb::MessageParser<PiFundsReceived> _parser = new pb::MessageParser<PiFundsReceived>(() => new PiFundsReceived());
+            private pb::UnknownFieldSet _unknownFields;
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public static pb::MessageParser<PiFundsReceived> Parser { get { return _parser; } }
+
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public static pbr::MessageDescriptor Descriptor {
+              get { return global::T0.ProviderSdk.Api.Tzero.V1.Payment.AppendLedgerEntriesRequest.Types.Transaction.Descriptor.NestedTypes[3]; }
+            }
+
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            pbr::MessageDescriptor pb::IMessage.Descriptor {
+              get { return Descriptor; }
+            }
+
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public PiFundsReceived() {
+              OnConstruction();
+            }
+
+            partial void OnConstruction();
+
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public PiFundsReceived(PiFundsReceived other) : this() {
+              paymentIntentId_ = other.paymentIntentId_;
+              payInProviderId_ = other.payInProviderId_;
+              beneficiaryProviderId_ = other.beneficiaryProviderId_;
+              settlementAmount_ = other.settlementAmount_ != null ? other.settlementAmount_.Clone() : null;
+              beneficiaryFee_ = other.beneficiaryFee_ != null ? other.beneficiaryFee_.Clone() : null;
+              payInFee_ = other.payInFee_ != null ? other.payInFee_.Clone() : null;
+              _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
+            }
+
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public PiFundsReceived Clone() {
+              return new PiFundsReceived(this);
+            }
+
+            /// <summary>Field number for the "payment_intent_id" field.</summary>
+            public const int PaymentIntentIdFieldNumber = 10;
+            private ulong paymentIntentId_;
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public ulong PaymentIntentId {
+              get { return paymentIntentId_; }
+              set {
+                paymentIntentId_ = value;
+              }
+            }
+
+            /// <summary>Field number for the "pay_in_provider_id" field.</summary>
+            public const int PayInProviderIdFieldNumber = 20;
+            private uint payInProviderId_;
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public uint PayInProviderId {
+              get { return payInProviderId_; }
+              set {
+                payInProviderId_ = value;
+              }
+            }
+
+            /// <summary>Field number for the "beneficiary_provider_id" field.</summary>
+            public const int BeneficiaryProviderIdFieldNumber = 30;
+            private uint beneficiaryProviderId_;
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public uint BeneficiaryProviderId {
+              get { return beneficiaryProviderId_; }
+              set {
+                beneficiaryProviderId_ = value;
+              }
+            }
+
+            /// <summary>Field number for the "settlement_amount" field.</summary>
+            public const int SettlementAmountFieldNumber = 40;
+            private global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal settlementAmount_;
+            /// <summary>
+            /// no validation: descriptor mirror of the entries, which are authoritative for balances
+            /// </summary>
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal SettlementAmount {
+              get { return settlementAmount_; }
+              set {
+                settlementAmount_ = value;
+              }
+            }
+
+            /// <summary>Field number for the "beneficiary_fee" field.</summary>
+            public const int BeneficiaryFeeFieldNumber = 50;
+            private global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal beneficiaryFee_;
+            /// <summary>
+            /// no validation: descriptor mirror of the entries, which are authoritative for balances
+            /// </summary>
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal BeneficiaryFee {
+              get { return beneficiaryFee_; }
+              set {
+                beneficiaryFee_ = value;
+              }
+            }
+
+            /// <summary>Field number for the "pay_in_fee" field.</summary>
+            public const int PayInFeeFieldNumber = 60;
+            private global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal payInFee_;
+            /// <summary>
+            /// no validation: descriptor mirror of the entries, which are authoritative for balances
+            /// </summary>
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal PayInFee {
+              get { return payInFee_; }
+              set {
+                payInFee_ = value;
+              }
+            }
+
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public override bool Equals(object other) {
+              return Equals(other as PiFundsReceived);
+            }
+
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public bool Equals(PiFundsReceived other) {
+              if (ReferenceEquals(other, null)) {
+                return false;
+              }
+              if (ReferenceEquals(other, this)) {
+                return true;
+              }
+              if (PaymentIntentId != other.PaymentIntentId) return false;
+              if (PayInProviderId != other.PayInProviderId) return false;
+              if (BeneficiaryProviderId != other.BeneficiaryProviderId) return false;
+              if (!object.Equals(SettlementAmount, other.SettlementAmount)) return false;
+              if (!object.Equals(BeneficiaryFee, other.BeneficiaryFee)) return false;
+              if (!object.Equals(PayInFee, other.PayInFee)) return false;
+              return Equals(_unknownFields, other._unknownFields);
+            }
+
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public override int GetHashCode() {
+              int hash = 1;
+              if (PaymentIntentId != 0UL) hash ^= PaymentIntentId.GetHashCode();
+              if (PayInProviderId != 0) hash ^= PayInProviderId.GetHashCode();
+              if (BeneficiaryProviderId != 0) hash ^= BeneficiaryProviderId.GetHashCode();
+              if (settlementAmount_ != null) hash ^= SettlementAmount.GetHashCode();
+              if (beneficiaryFee_ != null) hash ^= BeneficiaryFee.GetHashCode();
+              if (payInFee_ != null) hash ^= PayInFee.GetHashCode();
+              if (_unknownFields != null) {
+                hash ^= _unknownFields.GetHashCode();
+              }
+              return hash;
+            }
+
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public override string ToString() {
+              return pb::JsonFormatter.ToDiagnosticString(this);
+            }
+
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public void WriteTo(pb::CodedOutputStream output) {
+            #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+              output.WriteRawMessage(this);
+            #else
+              if (PaymentIntentId != 0UL) {
+                output.WriteRawTag(80);
+                output.WriteUInt64(PaymentIntentId);
+              }
+              if (PayInProviderId != 0) {
+                output.WriteRawTag(160, 1);
+                output.WriteUInt32(PayInProviderId);
+              }
+              if (BeneficiaryProviderId != 0) {
+                output.WriteRawTag(240, 1);
+                output.WriteUInt32(BeneficiaryProviderId);
+              }
+              if (settlementAmount_ != null) {
+                output.WriteRawTag(194, 2);
+                output.WriteMessage(SettlementAmount);
+              }
+              if (beneficiaryFee_ != null) {
+                output.WriteRawTag(146, 3);
+                output.WriteMessage(BeneficiaryFee);
+              }
+              if (payInFee_ != null) {
+                output.WriteRawTag(226, 3);
+                output.WriteMessage(PayInFee);
+              }
+              if (_unknownFields != null) {
+                _unknownFields.WriteTo(output);
+              }
+            #endif
+            }
+
+            #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+              if (PaymentIntentId != 0UL) {
+                output.WriteRawTag(80);
+                output.WriteUInt64(PaymentIntentId);
+              }
+              if (PayInProviderId != 0) {
+                output.WriteRawTag(160, 1);
+                output.WriteUInt32(PayInProviderId);
+              }
+              if (BeneficiaryProviderId != 0) {
+                output.WriteRawTag(240, 1);
+                output.WriteUInt32(BeneficiaryProviderId);
+              }
+              if (settlementAmount_ != null) {
+                output.WriteRawTag(194, 2);
+                output.WriteMessage(SettlementAmount);
+              }
+              if (beneficiaryFee_ != null) {
+                output.WriteRawTag(146, 3);
+                output.WriteMessage(BeneficiaryFee);
+              }
+              if (payInFee_ != null) {
+                output.WriteRawTag(226, 3);
+                output.WriteMessage(PayInFee);
+              }
+              if (_unknownFields != null) {
+                _unknownFields.WriteTo(ref output);
+              }
+            }
+            #endif
+
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public int CalculateSize() {
+              int size = 0;
+              if (PaymentIntentId != 0UL) {
+                size += 1 + pb::CodedOutputStream.ComputeUInt64Size(PaymentIntentId);
+              }
+              if (PayInProviderId != 0) {
+                size += 2 + pb::CodedOutputStream.ComputeUInt32Size(PayInProviderId);
+              }
+              if (BeneficiaryProviderId != 0) {
+                size += 2 + pb::CodedOutputStream.ComputeUInt32Size(BeneficiaryProviderId);
+              }
+              if (settlementAmount_ != null) {
+                size += 2 + pb::CodedOutputStream.ComputeMessageSize(SettlementAmount);
+              }
+              if (beneficiaryFee_ != null) {
+                size += 2 + pb::CodedOutputStream.ComputeMessageSize(BeneficiaryFee);
+              }
+              if (payInFee_ != null) {
+                size += 2 + pb::CodedOutputStream.ComputeMessageSize(PayInFee);
+              }
+              if (_unknownFields != null) {
+                size += _unknownFields.CalculateSize();
+              }
+              return size;
+            }
+
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public void MergeFrom(PiFundsReceived other) {
+              if (other == null) {
+                return;
+              }
+              if (other.PaymentIntentId != 0UL) {
+                PaymentIntentId = other.PaymentIntentId;
+              }
+              if (other.PayInProviderId != 0) {
+                PayInProviderId = other.PayInProviderId;
+              }
+              if (other.BeneficiaryProviderId != 0) {
+                BeneficiaryProviderId = other.BeneficiaryProviderId;
+              }
+              if (other.settlementAmount_ != null) {
+                if (settlementAmount_ == null) {
+                  SettlementAmount = new global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal();
+                }
+                SettlementAmount.MergeFrom(other.SettlementAmount);
+              }
+              if (other.beneficiaryFee_ != null) {
+                if (beneficiaryFee_ == null) {
+                  BeneficiaryFee = new global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal();
+                }
+                BeneficiaryFee.MergeFrom(other.BeneficiaryFee);
+              }
+              if (other.payInFee_ != null) {
+                if (payInFee_ == null) {
+                  PayInFee = new global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal();
+                }
+                PayInFee.MergeFrom(other.PayInFee);
+              }
+              _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
+            }
+
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public void MergeFrom(pb::CodedInputStream input) {
+            #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+              input.ReadRawMessage(this);
+            #else
+              uint tag;
+              while ((tag = input.ReadTag()) != 0) {
+              if ((tag & 7) == 4) {
+                // Abort on any end group tag.
+                return;
+              }
+              switch(tag) {
+                  default:
+                    _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
+                    break;
+                  case 80: {
+                    PaymentIntentId = input.ReadUInt64();
+                    break;
+                  }
+                  case 160: {
+                    PayInProviderId = input.ReadUInt32();
+                    break;
+                  }
+                  case 240: {
+                    BeneficiaryProviderId = input.ReadUInt32();
+                    break;
+                  }
+                  case 322: {
+                    if (settlementAmount_ == null) {
+                      SettlementAmount = new global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal();
+                    }
+                    input.ReadMessage(SettlementAmount);
+                    break;
+                  }
+                  case 402: {
+                    if (beneficiaryFee_ == null) {
+                      BeneficiaryFee = new global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal();
+                    }
+                    input.ReadMessage(BeneficiaryFee);
+                    break;
+                  }
+                  case 482: {
+                    if (payInFee_ == null) {
+                      PayInFee = new global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal();
+                    }
+                    input.ReadMessage(PayInFee);
+                    break;
+                  }
+                }
+              }
+            #endif
+            }
+
+            #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            void pb::IBufferMessage.InternalMergeFrom(ref pb::ParseContext input) {
+              uint tag;
+              while ((tag = input.ReadTag()) != 0) {
+              if ((tag & 7) == 4) {
+                // Abort on any end group tag.
+                return;
+              }
+              switch(tag) {
+                  default:
+                    _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
+                    break;
+                  case 80: {
+                    PaymentIntentId = input.ReadUInt64();
+                    break;
+                  }
+                  case 160: {
+                    PayInProviderId = input.ReadUInt32();
+                    break;
+                  }
+                  case 240: {
+                    BeneficiaryProviderId = input.ReadUInt32();
+                    break;
+                  }
+                  case 322: {
+                    if (settlementAmount_ == null) {
+                      SettlementAmount = new global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal();
+                    }
+                    input.ReadMessage(SettlementAmount);
+                    break;
+                  }
+                  case 402: {
+                    if (beneficiaryFee_ == null) {
+                      BeneficiaryFee = new global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal();
+                    }
+                    input.ReadMessage(BeneficiaryFee);
+                    break;
+                  }
+                  case 482: {
+                    if (payInFee_ == null) {
+                      PayInFee = new global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal();
+                    }
+                    input.ReadMessage(PayInFee);
                     break;
                   }
                 }

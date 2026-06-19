@@ -241,7 +241,9 @@ func (x *PaymentReceipt_Sepa) GetBankingTransactionReferenceId() string {
 }
 
 type PaymentReceipt_Swift struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// SWIFT end-to-end transaction reference (UETR), a UUID.
+	Uetr          *string `protobuf:"bytes,10,opt,name=uetr,proto3,oneof" json:"uetr,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -274,6 +276,13 @@ func (x *PaymentReceipt_Swift) ProtoReflect() protoreflect.Message {
 // Deprecated: Use PaymentReceipt_Swift.ProtoReflect.Descriptor instead.
 func (*PaymentReceipt_Swift) Descriptor() ([]byte, []int) {
 	return file_tzero_v1_common_payment_receipt_proto_rawDescGZIP(), []int{0, 2}
+}
+
+func (x *PaymentReceipt_Swift) GetUetr() string {
+	if x != nil && x.Uetr != nil {
+		return *x.Uetr
+	}
+	return ""
 }
 
 type PaymentReceipt_Pix struct {
@@ -368,7 +377,7 @@ var File_tzero_v1_common_payment_receipt_proto protoreflect.FileDescriptor
 
 const file_tzero_v1_common_payment_receipt_proto_rawDesc = "" +
 	"\n" +
-	"%tzero/v1/common/payment_receipt.proto\x12\x0ftzero.v1.common\x1a\x1bbuf/validate/validate.proto\"\xae\x05\n" +
+	"%tzero/v1/common/payment_receipt.proto\x12\x0ftzero.v1.common\x1a\x1bbuf/validate/validate.proto\"\xda\x05\n" +
 	"\x0ePaymentReceipt\x12:\n" +
 	"\x04sepa\x18\n" +
 	" \x01(\v2$.tzero.v1.common.PaymentReceipt.SepaH\x00R\x04sepa\x12=\n" +
@@ -383,8 +392,11 @@ const file_tzero_v1_common_payment_receipt_proto_rawDesc = "" +
 	"\x04Sepa\x12W\n" +
 	" banking_transaction_reference_id\x18\n" +
 	" \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18#H\x00R\x1dbankingTransactionReferenceId\x88\x01\x01B#\n" +
-	"!_banking_transaction_reference_id\x1a\a\n" +
-	"\x05Swift\x1a7\n" +
+	"!_banking_transaction_reference_id\x1a3\n" +
+	"\x05Swift\x12!\n" +
+	"\x04uetr\x18\n" +
+	" \x01(\tB\b\xbaH\x05r\x03\xb0\x01\x01H\x00R\x04uetr\x88\x01\x01B\a\n" +
+	"\x05_uetr\x1a7\n" +
 	"\x03Pix\x12%\n" +
 	"\x06e2e_id\x18\n" +
 	" \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18#H\x00R\x05e2eId\x88\x01\x01B\t\n" +
@@ -443,6 +455,7 @@ func file_tzero_v1_common_payment_receipt_proto_init() {
 		(*PaymentReceipt_Nip_)(nil),
 	}
 	file_tzero_v1_common_payment_receipt_proto_msgTypes[2].OneofWrappers = []any{}
+	file_tzero_v1_common_payment_receipt_proto_msgTypes[3].OneofWrappers = []any{}
 	file_tzero_v1_common_payment_receipt_proto_msgTypes[4].OneofWrappers = []any{}
 	file_tzero_v1_common_payment_receipt_proto_msgTypes[5].OneofWrappers = []any{}
 	type x struct{}

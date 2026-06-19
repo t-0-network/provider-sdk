@@ -109,7 +109,6 @@ export type PaymentIntentUpdateRequest_FundsReceived = Message<"tzero.v1.payment
    * *
    * Pay-in's rail-native reference (SEPA EndToEndId, SWIFT UETR, PIX e2e_id), forwarded from ConfirmFundsReceived.
    * Reconcile against your records; serves as the anchor for dispute resolution.
-   * See docs/tech/TRANSACTION_REFERENCE.md.
    *
    * @generated from field: string transaction_reference = 50;
    */

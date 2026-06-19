@@ -19,8 +19,10 @@ class PaymentReceipt(_message.Message):
         banking_transaction_reference_id: str
         def __init__(self, banking_transaction_reference_id: _Optional[str] = ...) -> None: ...
     class Swift(_message.Message):
-        __slots__ = ()
-        def __init__(self) -> None: ...
+        __slots__ = ("uetr",)
+        UETR_FIELD_NUMBER: _ClassVar[int]
+        uetr: str
+        def __init__(self, uetr: _Optional[str] = ...) -> None: ...
     class Pix(_message.Message):
         __slots__ = ("e2e_id",)
         E2E_ID_FIELD_NUMBER: _ClassVar[int]

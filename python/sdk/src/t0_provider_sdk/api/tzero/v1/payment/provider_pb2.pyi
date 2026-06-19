@@ -38,7 +38,7 @@ class AppendLedgerEntriesRequest(_message.Message):
     ACCOUNT_TYPE_PAYMENT_INTENT_IN: AppendLedgerEntriesRequest.AccountType
     ACCOUNT_TYPE_PAYMENT_INTENT_OUT: AppendLedgerEntriesRequest.AccountType
     class Transaction(_message.Message):
-        __slots__ = ("transaction_id", "entries", "payout", "provider_settlement", "fee_settlement")
+        __slots__ = ("transaction_id", "entries", "payout", "provider_settlement", "fee_settlement", "pi_funds_received")
         class Payout(_message.Message):
             __slots__ = ("payment_id",)
             PAYMENT_ID_FIELD_NUMBER: _ClassVar[int]
@@ -54,17 +54,34 @@ class AppendLedgerEntriesRequest(_message.Message):
             FEE_SETTLEMENT_ID_FIELD_NUMBER: _ClassVar[int]
             fee_settlement_id: int
             def __init__(self, fee_settlement_id: _Optional[int] = ...) -> None: ...
+        class PiFundsReceived(_message.Message):
+            __slots__ = ("payment_intent_id", "pay_in_provider_id", "beneficiary_provider_id", "settlement_amount", "beneficiary_fee", "pay_in_fee")
+            PAYMENT_INTENT_ID_FIELD_NUMBER: _ClassVar[int]
+            PAY_IN_PROVIDER_ID_FIELD_NUMBER: _ClassVar[int]
+            BENEFICIARY_PROVIDER_ID_FIELD_NUMBER: _ClassVar[int]
+            SETTLEMENT_AMOUNT_FIELD_NUMBER: _ClassVar[int]
+            BENEFICIARY_FEE_FIELD_NUMBER: _ClassVar[int]
+            PAY_IN_FEE_FIELD_NUMBER: _ClassVar[int]
+            payment_intent_id: int
+            pay_in_provider_id: int
+            beneficiary_provider_id: int
+            settlement_amount: _common_pb2.Decimal
+            beneficiary_fee: _common_pb2.Decimal
+            pay_in_fee: _common_pb2.Decimal
+            def __init__(self, payment_intent_id: _Optional[int] = ..., pay_in_provider_id: _Optional[int] = ..., beneficiary_provider_id: _Optional[int] = ..., settlement_amount: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ..., beneficiary_fee: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ..., pay_in_fee: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ...) -> None: ...
         TRANSACTION_ID_FIELD_NUMBER: _ClassVar[int]
         ENTRIES_FIELD_NUMBER: _ClassVar[int]
         PAYOUT_FIELD_NUMBER: _ClassVar[int]
         PROVIDER_SETTLEMENT_FIELD_NUMBER: _ClassVar[int]
         FEE_SETTLEMENT_FIELD_NUMBER: _ClassVar[int]
+        PI_FUNDS_RECEIVED_FIELD_NUMBER: _ClassVar[int]
         transaction_id: int
         entries: _containers.RepeatedCompositeFieldContainer[AppendLedgerEntriesRequest.LedgerEntry]
         payout: AppendLedgerEntriesRequest.Transaction.Payout
         provider_settlement: AppendLedgerEntriesRequest.Transaction.ProviderSettlement
         fee_settlement: AppendLedgerEntriesRequest.Transaction.FeeSettlement
-        def __init__(self, transaction_id: _Optional[int] = ..., entries: _Optional[_Iterable[_Union[AppendLedgerEntriesRequest.LedgerEntry, _Mapping]]] = ..., payout: _Optional[_Union[AppendLedgerEntriesRequest.Transaction.Payout, _Mapping]] = ..., provider_settlement: _Optional[_Union[AppendLedgerEntriesRequest.Transaction.ProviderSettlement, _Mapping]] = ..., fee_settlement: _Optional[_Union[AppendLedgerEntriesRequest.Transaction.FeeSettlement, _Mapping]] = ...) -> None: ...
+        pi_funds_received: AppendLedgerEntriesRequest.Transaction.PiFundsReceived
+        def __init__(self, transaction_id: _Optional[int] = ..., entries: _Optional[_Iterable[_Union[AppendLedgerEntriesRequest.LedgerEntry, _Mapping]]] = ..., payout: _Optional[_Union[AppendLedgerEntriesRequest.Transaction.Payout, _Mapping]] = ..., provider_settlement: _Optional[_Union[AppendLedgerEntriesRequest.Transaction.ProviderSettlement, _Mapping]] = ..., fee_settlement: _Optional[_Union[AppendLedgerEntriesRequest.Transaction.FeeSettlement, _Mapping]] = ..., pi_funds_received: _Optional[_Union[AppendLedgerEntriesRequest.Transaction.PiFundsReceived, _Mapping]] = ...) -> None: ...
     class LedgerEntry(_message.Message):
         __slots__ = ("account_owner_id", "account_type", "debit", "credit")
         ACCOUNT_OWNER_ID_FIELD_NUMBER: _ClassVar[int]

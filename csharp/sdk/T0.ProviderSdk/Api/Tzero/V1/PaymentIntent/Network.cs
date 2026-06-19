@@ -4574,7 +4574,6 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
     ///*
     /// Pay-in's rail-native reference (SEPA EndToEndId, SWIFT UETR, PIX e2e_id) — do not generate.
     /// Forwarded to the beneficiary for end-to-end tracking and dispute resolution.
-    /// See docs/tech/TRANSACTION_REFERENCE.md.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
