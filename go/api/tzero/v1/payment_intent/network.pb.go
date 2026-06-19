@@ -698,7 +698,6 @@ type ConfirmFundsReceivedRequest struct {
 	// *
 	// Pay-in's rail-native reference (SEPA EndToEndId, SWIFT UETR, PIX e2e_id) — do not generate.
 	// Forwarded to the beneficiary for end-to-end tracking and dispute resolution.
-	// See docs/tech/TRANSACTION_REFERENCE.md.
 	TransactionReference string `protobuf:"bytes,40,opt,name=transaction_reference,json=transactionReference,proto3" json:"transaction_reference,omitempty"`
 	// *
 	// Legal entity ID of the pay-in provider that received the funds.

@@ -25,7 +25,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Common {
       byte[] descriptorData = global::System.Convert.FromBase64String(
           string.Concat(
             "CiV0emVyby92MS9jb21tb24vcGF5bWVudF9yZWNlaXB0LnByb3RvEg90emVy",
-            "by52MS5jb21tb24aG2J1Zi92YWxpZGF0ZS92YWxpZGF0ZS5wcm90byKuBQoO",
+            "by52MS5jb21tb24aG2J1Zi92YWxpZGF0ZS92YWxpZGF0ZS5wcm90byLaBQoO",
             "UGF5bWVudFJlY2VpcHQSOgoEc2VwYRgKIAEoCzIkLnR6ZXJvLnYxLmNvbW1v",
             "bi5QYXltZW50UmVjZWlwdC5TZXBhSABSBHNlcGESPQoFc3dpZnQYHiABKAsy",
             "JS50emVyby52MS5jb21tb24uUGF5bWVudFJlY2VpcHQuU3dpZnRIAFIFc3dp",
@@ -36,23 +36,24 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Common {
             "EiYKCnNlc3Npb25faWQYCiABKAlCB7pIBHICGEBSCXNlc3Npb25JZBqEAQoE",
             "U2VwYRJXCiBiYW5raW5nX3RyYW5zYWN0aW9uX3JlZmVyZW5jZV9pZBgKIAEo",
             "CUIJukgGcgQQARgjSABSHWJhbmtpbmdUcmFuc2FjdGlvblJlZmVyZW5jZUlk",
-            "iAEBQiMKIV9iYW5raW5nX3RyYW5zYWN0aW9uX3JlZmVyZW5jZV9pZBoHCgVT",
-            "d2lmdBo3CgNQaXgSJQoGZTJlX2lkGAogASgJQgm6SAZyBBABGCNIAFIFZTJl",
-            "SWSIAQFCCQoHX2UyZV9pZBpsCgNGcHMSSAoYdHJhbnNhY3Rpb25fcmVmZXJl",
-            "bmNlX2lkGAogASgJQgm6SAZyBBABGCNIAFIWdHJhbnNhY3Rpb25SZWZlcmVu",
-            "Y2VJZIgBAUIbChlfdHJhbnNhY3Rpb25fcmVmZXJlbmNlX2lkQhAKB2RldGFp",
-            "bHMSBbpIAggBQtcBChNjb20udHplcm8udjEuY29tbW9uQhNQYXltZW50UmVj",
-            "ZWlwdFByb3RvUAFaOmdpdGh1Yi5jb20vdC0wLW5ldHdvcmsvcHJvdmlkZXIt",
-            "c2RrL2dvL2FwaS90emVyby92MS9jb21tb26iAgNUVkOqAiJUMC5Qcm92aWRl",
-            "clNkay5BcGkuVHplcm8uVjEuQ29tbW9uygIPVHplcm9cVjFcQ29tbW9u4gIb",
-            "VHplcm9cVjFcQ29tbW9uXEdQQk1ldGFkYXRh6gIRVHplcm86OlYxOjpDb21t",
-            "b25iBnByb3RvMw=="));
+            "iAEBQiMKIV9iYW5raW5nX3RyYW5zYWN0aW9uX3JlZmVyZW5jZV9pZBozCgVT",
+            "d2lmdBIhCgR1ZXRyGAogASgJQgi6SAVyA7ABAUgAUgR1ZXRyiAEBQgcKBV91",
+            "ZXRyGjcKA1BpeBIlCgZlMmVfaWQYCiABKAlCCbpIBnIEEAEYI0gAUgVlMmVJ",
+            "ZIgBAUIJCgdfZTJlX2lkGmwKA0ZwcxJIChh0cmFuc2FjdGlvbl9yZWZlcmVu",
+            "Y2VfaWQYCiABKAlCCbpIBnIEEAEYI0gAUhZ0cmFuc2FjdGlvblJlZmVyZW5j",
+            "ZUlkiAEBQhsKGV90cmFuc2FjdGlvbl9yZWZlcmVuY2VfaWRCEAoHZGV0YWls",
+            "cxIFukgCCAFC1wEKE2NvbS50emVyby52MS5jb21tb25CE1BheW1lbnRSZWNl",
+            "aXB0UHJvdG9QAVo6Z2l0aHViLmNvbS90LTAtbmV0d29yay9wcm92aWRlci1z",
+            "ZGsvZ28vYXBpL3R6ZXJvL3YxL2NvbW1vbqICA1RWQ6oCIlQwLlByb3ZpZGVy",
+            "U2RrLkFwaS5UemVyby5WMS5Db21tb27KAg9UemVyb1xWMVxDb21tb27iAhtU",
+            "emVyb1xWMVxDb21tb25cR1BCTWV0YWRhdGHqAhFUemVybzo6VjE6OkNvbW1v",
+            "bmIGcHJvdG8z"));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { global::Buf.Validate.ValidateReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(null, null, new pbr::GeneratedClrTypeInfo[] {
             new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Common.PaymentReceipt), global::T0.ProviderSdk.Api.Tzero.V1.Common.PaymentReceipt.Parser, new[]{ "Sepa", "Swift", "Pix", "Fps", "Nip" }, new[]{ "Details" }, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Common.PaymentReceipt.Types.Nip), global::T0.ProviderSdk.Api.Tzero.V1.Common.PaymentReceipt.Types.Nip.Parser, new[]{ "SessionId" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Common.PaymentReceipt.Types.Sepa), global::T0.ProviderSdk.Api.Tzero.V1.Common.PaymentReceipt.Types.Sepa.Parser, new[]{ "BankingTransactionReferenceId" }, new[]{ "BankingTransactionReferenceId" }, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Common.PaymentReceipt.Types.Swift), global::T0.ProviderSdk.Api.Tzero.V1.Common.PaymentReceipt.Types.Swift.Parser, null, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Common.PaymentReceipt.Types.Swift), global::T0.ProviderSdk.Api.Tzero.V1.Common.PaymentReceipt.Types.Swift.Parser, new[]{ "Uetr" }, new[]{ "Uetr" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Common.PaymentReceipt.Types.Pix), global::T0.ProviderSdk.Api.Tzero.V1.Common.PaymentReceipt.Types.Pix.Parser, new[]{ "E2EId" }, new[]{ "E2EId" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Common.PaymentReceipt.Types.Fps), global::T0.ProviderSdk.Api.Tzero.V1.Common.PaymentReceipt.Types.Fps.Parser, new[]{ "TransactionReferenceId" }, new[]{ "TransactionReferenceId" }, null, null, null)})
           }));
@@ -962,6 +963,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Common {
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
         public Swift(Swift other) : this() {
+          uetr_ = other.uetr_;
           _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
         }
 
@@ -969,6 +971,35 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Common {
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
         public Swift Clone() {
           return new Swift(this);
+        }
+
+        /// <summary>Field number for the "uetr" field.</summary>
+        public const int UetrFieldNumber = 10;
+        private readonly static string UetrDefaultValue = "";
+
+        private string uetr_;
+        /// <summary>
+        /// SWIFT end-to-end transaction reference (UETR), a UUID.
+        /// </summary>
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        public string Uetr {
+          get { return uetr_ ?? UetrDefaultValue; }
+          set {
+            uetr_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+          }
+        }
+        /// <summary>Gets whether the "uetr" field is set</summary>
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        public bool HasUetr {
+          get { return uetr_ != null; }
+        }
+        /// <summary>Clears the value of the "uetr" field</summary>
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        public void ClearUetr() {
+          uetr_ = null;
         }
 
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -986,6 +1017,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Common {
           if (ReferenceEquals(other, this)) {
             return true;
           }
+          if (Uetr != other.Uetr) return false;
           return Equals(_unknownFields, other._unknownFields);
         }
 
@@ -993,6 +1025,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Common {
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
         public override int GetHashCode() {
           int hash = 1;
+          if (HasUetr) hash ^= Uetr.GetHashCode();
           if (_unknownFields != null) {
             hash ^= _unknownFields.GetHashCode();
           }
@@ -1011,6 +1044,10 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Common {
         #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
           output.WriteRawMessage(this);
         #else
+          if (HasUetr) {
+            output.WriteRawTag(82);
+            output.WriteString(Uetr);
+          }
           if (_unknownFields != null) {
             _unknownFields.WriteTo(output);
           }
@@ -1021,6 +1058,10 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Common {
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
         void pb::IBufferMessage.InternalWriteTo(ref pb::WriteContext output) {
+          if (HasUetr) {
+            output.WriteRawTag(82);
+            output.WriteString(Uetr);
+          }
           if (_unknownFields != null) {
             _unknownFields.WriteTo(ref output);
           }
@@ -1031,6 +1072,9 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Common {
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
         public int CalculateSize() {
           int size = 0;
+          if (HasUetr) {
+            size += 1 + pb::CodedOutputStream.ComputeStringSize(Uetr);
+          }
           if (_unknownFields != null) {
             size += _unknownFields.CalculateSize();
           }
@@ -1042,6 +1086,9 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Common {
         public void MergeFrom(Swift other) {
           if (other == null) {
             return;
+          }
+          if (other.HasUetr) {
+            Uetr = other.Uetr;
           }
           _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
         }
@@ -1062,6 +1109,10 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Common {
               default:
                 _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, input);
                 break;
+              case 82: {
+                Uetr = input.ReadString();
+                break;
+              }
             }
           }
         #endif
@@ -1081,6 +1132,10 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Common {
               default:
                 _unknownFields = pb::UnknownFieldSet.MergeFieldFrom(_unknownFields, ref input);
                 break;
+              case 82: {
+                Uetr = input.ReadString();
+                break;
+              }
             }
           }
         }
