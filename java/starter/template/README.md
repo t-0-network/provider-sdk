@@ -115,6 +115,70 @@ Or build a JAR:
 java -jar build/libs/*.jar
 ```
 
+## Configuring logging
+
+The SDK uses SLF4J. By default it logs through the logger named
+`network.t0.sdk.provider.ResponseValidationInterceptor`. The starter `Main.java`
+overrides this by calling `.withLogger(LoggerFactory.getLogger("provider"))` on
+`ProviderServer.Builder` — swap the logger argument for your own logging
+configuration.
+
+### What gets logged
+
+The SDK writes a single `ERROR`-level event when one of its safety-net
+interceptors triggers:
+
+- **Response validation failure** — your handler returned a message that fails
+  protovalidate. The event carries structured fields: `rpc_method`,
+  `response_type`, `violations`, `sdk_version`. The wire response is still
+  `Status.INTERNAL` with description `response validation failed: <details>`,
+  so this log line is the only signal you get during development. Wrap your
+  responses with `Validate.check(...)` (see `PaymentHandler.java`) to surface
+  the failure in your own call frame instead.
+- **Signature verification failure** — incoming requests with an invalid
+  signature are rejected with `Status.UNAUTHENTICATED`. These currently log
+  through `network.t0.sdk.provider.SignatureVerificationInterceptor` (a
+  separate SLF4J logger name). Future SDK versions will route them through
+  the same logger you pass via `withLogger(...)`, so it is worth configuring
+  both logger names today if you want consistent routing.
+
+### Routing logs to a file with JSON encoding (logback)
+
+If you use logback, drop the following into `src/main/resources/logback.xml`
+to send the SDK's logger to stdout in JSON, and your application's logs to
+stderr in plain text:
+
+```xml
+<configuration>
+    <appender name="STDOUT_JSON" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder class="ch.qos.logback.classic.encoder.JsonEncoder"/>
+    </appender>
+
+    <appender name="STDERR" class="ch.qos.logback.core.ConsoleAppender">
+        <target>System.err</target>
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} %-5level %logger{36} - %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!-- SDK safety-net log line (the logger name passed to withLogger above) -->
+    <logger name="provider" level="ERROR" additivity="false">
+        <appender-ref ref="STDOUT_JSON"/>
+    </logger>
+
+    <root level="INFO">
+        <appender-ref ref="STDERR"/>
+    </root>
+</configuration>
+```
+
+The JSON encoder picks up the SLF4J `KeyValuePair`s emitted by the SDK
+(`rpc_method`, `response_type`, `violations`, `sdk_version`) as top-level
+fields, so they are directly indexable by your log aggregator.
+
+If you do not configure SLF4J yourself, logback's default config writes plain
+text to stderr — same as the rest of the application.
+
 ## Testing
 
 Run unit tests:

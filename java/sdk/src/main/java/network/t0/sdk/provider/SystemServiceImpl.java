@@ -22,7 +22,7 @@ import java.util.Properties;
  */
 final class SystemServiceImpl extends SystemServiceGrpc.SystemServiceImplBase {
 
-    private static final String SDK_VERSION = loadSdkVersion();
+    static final String SDK_VERSION = loadSdkVersion();
 
     private final List<String> services;
 
@@ -46,7 +46,7 @@ final class SystemServiceImpl extends SystemServiceGrpc.SystemServiceImplBase {
         responseObserver.onCompleted();
     }
 
-    private static String loadSdkVersion() {
+    static String loadSdkVersion() {
         try (InputStream in = SystemServiceImpl.class.getResourceAsStream("/META-INF/sdk-version.properties")) {
             if (in == null) {
                 return "unknown";

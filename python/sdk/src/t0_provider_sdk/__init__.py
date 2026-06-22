@@ -33,3 +33,7 @@ from pathlib import Path
 _api_dir = str(Path(__file__).parent / "api")
 if _api_dir not in sys.path:
     sys.path.insert(0, _api_dir)
+
+from t0_provider_sdk.provider.validate import validate  # noqa: E402
+
+__all__ = ["validate"]

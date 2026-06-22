@@ -8,10 +8,12 @@ import {
     NetworkService,
     PayoutRequest,
     PayoutResponse,
+    PayoutResponseSchema,
     UpdateLimitRequest,
     UpdateLimitResponse,
     UpdatePaymentRequest,
     UpdatePaymentResponse,
+    validate,
 } from "@t-0/provider-sdk";
 
 /*
@@ -49,12 +51,16 @@ const CreateProviderService = (networkClient: Client<typeof NetworkService>) => 
                 })
             }, 2000);
             // optional: if your provider has multiple legal entities, set beneficiaryProviderLegalEntityId
-            return {
+            // `validate(...)` checks the response against buf.validate rules and surfaces
+            // any violation here, in your own code, instead of as an opaque Code.Internal
+            // from the SDK's safety-net interceptor. Catch it to map invalid output into
+            // a domain-level failure (e.g. the `failed` arm of `PayoutResponse.result`).
+            return validate(PayoutResponseSchema, {
                 result: {
                     case: "accepted",
                     value: {},
                 },
-            } as PayoutResponse
+            } as PayoutResponse)
         },
 
         async updateLimit(req: UpdateLimitRequest, _: HandlerContext) {

@@ -120,6 +120,53 @@ describe('Validation interceptor', () => {
     });
   });
 
+  it('calls custom logger with structured fields on invalid response', async () => {
+    const calls: Array<{ msg: string; fields?: Record<string, unknown> }> = [];
+    const spyLogger = {
+      error: (msg: string, fields?: Record<string, unknown>) => {
+        calls.push({ msg, fields });
+      },
+    };
+    const customInterceptor = createValidationInterceptor(spyLogger);
+    const handler = customInterceptor((req: any) =>
+      Promise.resolve({ stream: false, header: new Headers(), trailer: new Headers(), message: create(DecimalSchema, { exponent: 100 }) })
+    );
+    await assert.rejects(
+      () => handler(makeReq(create(DecimalSchema, { exponent: 2 }))),
+      (err: any) => {
+        // Wire behavior preserved: still Code.Internal with same wording.
+        assert.ok(err instanceof ConnectError);
+        assert.equal(err.code, Code.Internal);
+        assert.match(err.message, /response validation failed/);
+        return true;
+      },
+    );
+    assert.equal(calls.length, 1, 'logger.error should be called exactly once');
+    assert.equal(calls[0].msg, 'response validation failed');
+    const fields = calls[0].fields!;
+    assert.equal(fields.rpc_method, 'test.Service/Test');
+    assert.equal(fields.response_type, DecimalSchema.typeName);
+    assert.ok(Array.isArray(fields.violations));
+    assert.ok((fields.violations as unknown[]).length > 0, 'at least one violation reported');
+    assert.equal(typeof fields.sdk_version, 'string');
+  });
+
+  it('custom logger is NOT called on valid response', async () => {
+    const calls: Array<{ msg: string; fields?: Record<string, unknown> }> = [];
+    const spyLogger = {
+      error: (msg: string, fields?: Record<string, unknown>) => {
+        calls.push({ msg, fields });
+      },
+    };
+    const customInterceptor = createValidationInterceptor(spyLogger);
+    const handler = customInterceptor((req: any) =>
+      Promise.resolve({ stream: false, header: new Headers(), trailer: new Headers(), message: create(DecimalSchema, { exponent: 2 }) })
+    );
+    const resp = await handler(makeReq(create(DecimalSchema, { exponent: 2 })));
+    assert.equal(resp.message.exponent, 2);
+    assert.equal(calls.length, 0, 'logger.error should not be called on success');
+  });
+
   it('passes valid response through', async () => {
     const handler = interceptor((req: any) =>
       Promise.resolve({ stream: false, header: new Headers(), trailer: new Headers(), message: create(DecimalSchema, { exponent: 2 }) })

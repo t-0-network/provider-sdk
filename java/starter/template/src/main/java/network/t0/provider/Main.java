@@ -139,6 +139,9 @@ public class Main {
                     .withService(payInHandler)
                     // Phase 3B — Beneficiary Provider role. Remove if you are only a pay-in provider.
                     .withService(beneficiaryHandler)
+                    // SDK safety-net log line for response-validation failures routes through this
+                    // SLF4J logger. Swap for your own logger to integrate with your logging stack.
+                    .withLogger(LoggerFactory.getLogger("provider"))
                     .start();
 
             log.info("Step 1.1: Provider server initialized on port {}", server.getPort());

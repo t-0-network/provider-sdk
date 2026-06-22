@@ -8,6 +8,7 @@ any generated ConnectRPC service application class.
 
 from __future__ import annotations
 
+import logging
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from typing import Any, TypeVar
@@ -87,6 +88,7 @@ def handler(
 def new_asgi_app(
     network_public_key: str,
     *build_handlers: BuildHandler,
+    logger: logging.Logger | None = None,
 ) -> ASGIApp:
     """Create a composite ASGI app with signature verification.
 
@@ -96,12 +98,15 @@ def new_asgi_app(
         network_public_key: Hex-encoded T-0 Network public key for signature verification.
             Pass empty string to disable signature verification.
         *build_handlers: Handler builders created via handler().
+        logger: Optional logger used by the response-validation interceptor when
+            it catches an invalid response. Defaults to
+            ``logging.getLogger("t0_provider_sdk")``.
 
     Returns:
         An ASGI application with signature verification middleware.
     """
     default_options = _HandlerOptions(
-        interceptors=[SignatureErrorInterceptor(), ValidationInterceptor()],
+        interceptors=[SignatureErrorInterceptor(), ValidationInterceptor(logger=logger)],
     )
 
     # Build all service handlers
@@ -167,6 +172,7 @@ def handler_sync(
 def new_wsgi_app(
     network_public_key: str,
     *build_handlers: BuildHandlerSync,
+    logger: logging.Logger | None = None,
 ) -> WSGIApp:
     """Create a composite WSGI app with signature verification.
 
@@ -176,12 +182,15 @@ def new_wsgi_app(
         network_public_key: Hex-encoded T-0 Network public key for signature verification.
             Pass empty string to disable signature verification.
         *build_handlers: Handler builders created via handler_sync().
+        logger: Optional logger used by the response-validation interceptor when
+            it catches an invalid response. Defaults to
+            ``logging.getLogger("t0_provider_sdk")``.
 
     Returns:
         A WSGI application with signature verification middleware.
     """
     default_options = _HandlerOptions(
-        interceptors=[SignatureErrorInterceptorSync(), ValidationInterceptorSync()],
+        interceptors=[SignatureErrorInterceptorSync(), ValidationInterceptorSync(logger=logger)],
     )
 
     # Build all service handlers

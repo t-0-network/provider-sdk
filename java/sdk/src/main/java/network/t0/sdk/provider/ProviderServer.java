@@ -175,6 +175,7 @@ public final class ProviderServer implements Closeable {
         private int maxInboundMetadataSize = 8192; // 8KB default
         private long handshakeTimeout = 120;
         private TimeUnit handshakeTimeoutUnit = TimeUnit.SECONDS;
+        private Logger sdkLogger = LoggerFactory.getLogger(ResponseValidationInterceptor.class);
 
         private Builder(int port, String networkPublicKey) {
             if (port < 0 || port > 65535) {
@@ -235,6 +236,26 @@ public final class ProviderServer implements Closeable {
         }
 
         /**
+         * Sets the SLF4J logger used by the SDK's safety-net interceptors
+         * (currently the {@link ResponseValidationInterceptor}).
+         *
+         * <p>Defaults to {@code LoggerFactory.getLogger(ResponseValidationInterceptor.class)}.
+         * Providers can override this to route SDK log output through their own
+         * SLF4J configuration (e.g. a provider-specific logger name or a JSON encoder).
+         *
+         * @param logger the SLF4J logger to use; must not be null
+         * @return this builder
+         * @throws IllegalArgumentException if {@code logger} is null
+         */
+        public Builder withLogger(Logger logger) {
+            if (logger == null) {
+                throw new IllegalArgumentException("logger must not be null");
+            }
+            this.sdkLogger = logger;
+            return this;
+        }
+
+        /**
          * Sets the handshake timeout.
          *
          * @param timeout the timeout value
@@ -287,7 +308,7 @@ public final class ProviderServer implements Closeable {
             SignatureVerificationInterceptor verificationInterceptor =
                     new SignatureVerificationInterceptor(networkPublicKey);
             ResponseValidationInterceptor validationInterceptor =
-                    new ResponseValidationInterceptor();
+                    new ResponseValidationInterceptor(sdkLogger);
 
             NettyServerBuilder builder = NettyServerBuilder.forPort(port)
                     .maxInboundMessageSize(maxInboundMessageSize)

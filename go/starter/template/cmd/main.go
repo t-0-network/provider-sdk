@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"log"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
@@ -111,8 +112,14 @@ func startProviderServer(
 	networkClient paymentconnect.NetworkServiceClient,
 	paymentIntentClient payment_intentconnect.PaymentIntentServiceClient,
 ) func() {
-	providerServiceHandler, err := provider.NewHttpHandler(
+	// Replace slog.Default() with your own *slog.Logger (e.g. JSON to a file,
+	// or an slog.Handler bridge to zap / zerolog) to route SDK diagnostics
+	// such as response-validation failures into your log pipeline.
+	providerServiceHandler, err := provider.NewHttpHandlerWithOptions(
 		config.NetworkPublicKey,
+		[]provider.HttpHandlerOption{
+			provider.WithLogger(slog.Default()),
+		},
 		provider.Handler(paymentconnect.NewProviderServiceHandler,
 			paymentconnect.ProviderServiceHandler(handler.NewProviderServiceImplementation(networkClient))),
 		// Phase 3A — Pay-In Provider role. Remove if you are only a beneficiary.

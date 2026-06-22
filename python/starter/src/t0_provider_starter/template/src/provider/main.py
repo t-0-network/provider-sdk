@@ -98,6 +98,9 @@ def create_provider_app(
     provider_service = ProviderServiceImplementation(network_client)
     pay_in_service = PayInProviderServiceImplementation(payment_intent_client)
     beneficiary_service = BeneficiaryServiceImplementation()
+    # Pass an explicit logger so SDK-side response-validation failures land in
+    # your application's logs. Swap in structlog / a custom handler as needed
+    # (see README "Configuring logging").
     return new_asgi_app(
         config.network_public_key,
         handler(ProviderServiceASGIApplication, provider_service),
@@ -105,6 +108,7 @@ def create_provider_app(
         handler(PayInProviderServiceASGIApplication, pay_in_service),
         # Phase 3B — Beneficiary Provider role. Remove if you are only a pay-in provider.
         handler(BeneficiaryServiceASGIApplication, beneficiary_service),
+        logger=logging.getLogger("provider"),
     )
 
 
