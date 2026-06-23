@@ -423,7 +423,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
         private global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal settlementAmount_;
         /// <summary>
         ///*
-        /// The settlement amount credited to your balance.
+        /// The settlement amount credited to the beneficiary balance.
         /// This is calculated as: (source_amount / rate) - fix
         ///
         /// Note: Fees are NOT deducted from this amount. Fees are tracked
@@ -493,7 +493,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
         /// <summary>
         ///*
         /// Pay-in's rail-native reference (SEPA EndToEndId, SWIFT UETR, PIX e2e_id), forwarded from ConfirmFundsReceived.
-        /// Reconcile against your records; serves as the anchor for dispute resolution.
+        /// Reconcile against the beneficiary's records; serves as the anchor for dispute resolution.
         /// </summary>
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -527,8 +527,8 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
         /// <summary>
         ///*
         /// Flat USD surcharge retained by the pay-in provider per transfer.
-        /// Already subtracted from settlement_amount. Surface to beneficiaries that
-        /// need to audit the settlement math: settlement = (payment_amount / rate) - fix.
+        /// Already subtracted from settlement_amount.
+        /// Settlement is computed as (payment_amount / rate) - fix.
         /// </summary>
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]

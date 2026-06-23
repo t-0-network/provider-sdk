@@ -43,8 +43,7 @@ type BeneficiaryServiceClient interface {
 	// *
 	// PaymentIntentUpdate notifies the beneficiary provider of status changes.
 	//
-	// Idempotency: This endpoint must be idempotent. The network may retry
-	// delivery in case of failures or timeouts.
+	// Delivery is retried on failure or timeout; handling must be idempotent.
 	PaymentIntentUpdate(context.Context, *connect.Request[payment_intent.PaymentIntentUpdateRequest]) (*connect.Response[payment_intent.PaymentIntentUpdateResponse], error)
 }
 
@@ -85,8 +84,7 @@ type BeneficiaryServiceHandler interface {
 	// *
 	// PaymentIntentUpdate notifies the beneficiary provider of status changes.
 	//
-	// Idempotency: This endpoint must be idempotent. The network may retry
-	// delivery in case of failures or timeouts.
+	// Delivery is retried on failure or timeout; handling must be idempotent.
 	PaymentIntentUpdate(context.Context, *connect.Request[payment_intent.PaymentIntentUpdateRequest]) (*connect.Response[payment_intent.PaymentIntentUpdateResponse], error)
 }
 

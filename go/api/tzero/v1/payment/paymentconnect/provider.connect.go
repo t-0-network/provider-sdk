@@ -52,25 +52,23 @@ const (
 // ProviderServiceClient is a client for the tzero.v1.payment.ProviderService service.
 type ProviderServiceClient interface {
 	// *
-	// Network instructs the provider to execute a payout to the recipient.
+	// Execute a payout to the recipient.
 	// This method should be idempotent, meaning that multiple calls with the same parameters will have no additional effect.
 	PayOut(context.Context, *connect.Request[payment.PayoutRequest]) (*connect.Response[payment.PayoutResponse], error)
 	// *
-	// Network provides an update on the status of a payment. This can be either a success or a failure.
+	// Reports the current status of a payment — either a success or a failure.
 	// This method should be idempotent, meaning that multiple calls with the same parameters will have no additional effect.
 	UpdatePayment(context.Context, *connect.Request[payment.UpdatePaymentRequest]) (*connect.Response[payment.UpdatePaymentResponse], error)
 	// *
-	// This rpc is used to notify the provider about the changes in credit limit and/or credit usage.
+	// Delivers updated credit limit and credit usage.
 	UpdateLimit(context.Context, *connect.Request[payment.UpdateLimitRequest]) (*connect.Response[payment.UpdateLimitResponse], error)
 	// *
-	// Network can send all the updates about ledger entries of the provider's accounts. It can be used to
+	// Carries ledger-entry updates for the provider's accounts. It can be used to
 	// keep track of the provider's exposure to other participants and other important financial events. (see the list in the message below)
 	AppendLedgerEntries(context.Context, *connect.Request[payment.AppendLedgerEntriesRequest]) (*connect.Response[payment.AppendLedgerEntriesResponse], error)
 	// *
-	// Pay-in provider approves the final pay-out quotes.
-	// This is the "Last Look" endpoint - it must be called after manual AML check completes
-	// (if one was required). It allows pay-in provider to verify and approve final rates
-	// before payment is executed.
+	// Approves the final pay-out quotes — the "Last Look" before payment executes.
+	// Applies after a manual AML check completes, when one was required.
 	ApprovePaymentQuotes(context.Context, *connect.Request[payment.ApprovePaymentQuoteRequest]) (*connect.Response[payment.ApprovePaymentQuoteResponse], error)
 }
 
@@ -160,25 +158,23 @@ func (c *providerServiceClient) ApprovePaymentQuotes(ctx context.Context, req *c
 // ProviderServiceHandler is an implementation of the tzero.v1.payment.ProviderService service.
 type ProviderServiceHandler interface {
 	// *
-	// Network instructs the provider to execute a payout to the recipient.
+	// Execute a payout to the recipient.
 	// This method should be idempotent, meaning that multiple calls with the same parameters will have no additional effect.
 	PayOut(context.Context, *connect.Request[payment.PayoutRequest]) (*connect.Response[payment.PayoutResponse], error)
 	// *
-	// Network provides an update on the status of a payment. This can be either a success or a failure.
+	// Reports the current status of a payment — either a success or a failure.
 	// This method should be idempotent, meaning that multiple calls with the same parameters will have no additional effect.
 	UpdatePayment(context.Context, *connect.Request[payment.UpdatePaymentRequest]) (*connect.Response[payment.UpdatePaymentResponse], error)
 	// *
-	// This rpc is used to notify the provider about the changes in credit limit and/or credit usage.
+	// Delivers updated credit limit and credit usage.
 	UpdateLimit(context.Context, *connect.Request[payment.UpdateLimitRequest]) (*connect.Response[payment.UpdateLimitResponse], error)
 	// *
-	// Network can send all the updates about ledger entries of the provider's accounts. It can be used to
+	// Carries ledger-entry updates for the provider's accounts. It can be used to
 	// keep track of the provider's exposure to other participants and other important financial events. (see the list in the message below)
 	AppendLedgerEntries(context.Context, *connect.Request[payment.AppendLedgerEntriesRequest]) (*connect.Response[payment.AppendLedgerEntriesResponse], error)
 	// *
-	// Pay-in provider approves the final pay-out quotes.
-	// This is the "Last Look" endpoint - it must be called after manual AML check completes
-	// (if one was required). It allows pay-in provider to verify and approve final rates
-	// before payment is executed.
+	// Approves the final pay-out quotes — the "Last Look" before payment executes.
+	// Applies after a manual AML check completes, when one was required.
 	ApprovePaymentQuotes(context.Context, *connect.Request[payment.ApprovePaymentQuoteRequest]) (*connect.Response[payment.ApprovePaymentQuoteResponse], error)
 }
 

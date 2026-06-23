@@ -45,9 +45,8 @@ export type GetPaymentDetailsRequest = Message<"tzero.v1.payment_intent.GetPayme
 
   /**
    * *
-   * Payment methods being requested.
-   * The provider should return PaymentDetails for the methods in the request. All the payment methods will be taken
-   * from the quotes submitted by pay-in provider.
+   * Payment methods to return PaymentDetails for.
+   * Each is drawn from a previously submitted quote.
    *
    * @generated from field: repeated tzero.v1.common.PaymentMethodType payment_methods = 30;
    */
@@ -81,8 +80,7 @@ export type GetPaymentDetailsRequest = Message<"tzero.v1.payment_intent.GetPayme
   /**
    * *
    * The T-0 provider ID of the beneficiary provider (the FI the funds are
-   * destined for). Stable, opaque identifier — pay-in providers can use this
-   * directly to resolve the beneficiary in their own systems.
+   * destined for). Stable, opaque identifier for the beneficiary.
    *
    * @generated from field: uint32 beneficiary_provider_id = 70;
    */
@@ -170,11 +168,9 @@ export const GetPaymentDetailsResponseSchema: GenMessage<GetPaymentDetailsRespon
 export type GetPaymentDetailsResponse_Details = Message<"tzero.v1.payment_intent.GetPaymentDetailsResponse.Details"> & {
   /**
    * *
-   * Payment details for each supported payment method.
-   *
-   * Each PaymentDetails contains the information needed for an end-user
-   * to send a payment (e.g., bank account details, mobile money number) and payment reference,
-   * which can be used by pay-in provider to identify incoming payment.
+   * Payment details for each supported payment method. Each entry carries the
+   * information an end-user needs to send a payment (bank account, mobile money,
+   * etc.) plus a payment reference that identifies the incoming payment.
    *
    * @generated from field: repeated tzero.v1.common.PaymentDetails payment_details = 10;
    */
@@ -207,8 +203,7 @@ export const GetPaymentDetailsResponse_RejectionSchema: GenMessage<GetPaymentDet
 
 /**
  * *
- * PayInProviderService must be implemented by pay-in providers to participate
- * in the Payment Intent flow.
+ * Pay-in provider surface for the Payment Intent flow.
  *
  * Pay-in providers are those who:
  * - Receive fiat payments from end-users
@@ -216,20 +211,16 @@ export const GetPaymentDetailsResponse_RejectionSchema: GenMessage<GetPaymentDet
  * - Confirm when payments are received via ConfirmFundsReceived
  * - Settles periodically with the beneficiary provider
  *
- * The network calls this service to obtain payment details that will be
- * presented to end-users for making payments.
+ * Provides the payment details presented to end-users for making payments.
  *
  * @generated from service tzero.v1.payment_intent.PayInProviderService
  */
 export const PayInProviderService: GenService<{
   /**
    * *
-   * GetPaymentDetails returns payment details for the end-user.
-   *
-   * Called by the network during CreatePaymentIntent processing.
-   * The provider should return payment details (bank accounts, mobile money info, etc.)
-   * that the end-user can use to send funds. The payment details should contain payment reference,
-   * so that on receiving payment from a payer, the pay-in provider can identify which payment intent this payment belongs to
+   * Returns the payment details (bank account, mobile money, etc.) an end-user uses
+   * to send funds. The details must carry a payment reference that ties an incoming
+   * payment back to its payment intent.
    *
    * @generated from rpc tzero.v1.payment_intent.PayInProviderService.GetPaymentDetails
    */

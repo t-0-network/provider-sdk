@@ -153,7 +153,7 @@ func (*PaymentIntentUpdateResponse) Descriptor() ([]byte, []int) {
 type PaymentIntentUpdateRequest_FundsReceived struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// *
-	// The settlement amount credited to your balance.
+	// The settlement amount credited to the beneficiary balance.
 	// This is calculated as: (source_amount / rate) - fix
 	//
 	// Note: Fees are NOT deducted from this amount. Fees are tracked
@@ -170,7 +170,7 @@ type PaymentIntentUpdateRequest_FundsReceived struct {
 	PaymentMethod common.PaymentMethodType `protobuf:"varint,40,opt,name=payment_method,json=paymentMethod,proto3,enum=tzero.v1.common.PaymentMethodType" json:"payment_method,omitempty"`
 	// *
 	// Pay-in's rail-native reference (SEPA EndToEndId, SWIFT UETR, PIX e2e_id), forwarded from ConfirmFundsReceived.
-	// Reconcile against your records; serves as the anchor for dispute resolution.
+	// Reconcile against the beneficiary's records; serves as the anchor for dispute resolution.
 	TransactionReference string `protobuf:"bytes,50,opt,name=transaction_reference,json=transactionReference,proto3" json:"transaction_reference,omitempty"`
 	// *
 	// Travel rule data of the pay-in provider's legal entity that received the funds.
@@ -178,8 +178,8 @@ type PaymentIntentUpdateRequest_FundsReceived struct {
 	TravelRuleData *PaymentIntentUpdateRequest_FundsReceived_TravelRuleData `protobuf:"bytes,60,opt,name=travel_rule_data,json=travelRuleData,proto3" json:"travel_rule_data,omitempty"`
 	// *
 	// Flat USD surcharge retained by the pay-in provider per transfer.
-	// Already subtracted from settlement_amount. Surface to beneficiaries that
-	// need to audit the settlement math: settlement = (payment_amount / rate) - fix.
+	// Already subtracted from settlement_amount.
+	// Settlement is computed as (payment_amount / rate) - fix.
 	Fix           *common.Decimal `protobuf:"bytes,70,opt,name=fix,proto3" json:"fix,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

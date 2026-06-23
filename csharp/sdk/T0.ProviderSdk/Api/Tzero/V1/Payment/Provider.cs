@@ -2480,7 +2480,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
     private ulong paymentId_;
     /// <summary>
     ///*
-    /// payment id assigned by the network (provider should store this id to provide details in UpdatePayout later)
+    /// Payment id assigned by the network. Store it to reference this payment in FinalizePayout later.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -2564,8 +2564,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
     private global::T0.ProviderSdk.Api.Tzero.V1.Common.PaymentDetails payoutDetails_;
     /// <summary>
     ///*
-    /// payout_method is the payment method for the payout, e.g. bank transfer, crypto transfer, etc.
-    /// This is used to specify how the payout should be made.
+    /// Payment details specifying how the payout should be made (bank transfer, crypto transfer, etc.).
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -3027,7 +3026,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
         /// <summary>
         ///*
         /// IVMS101 travel rule data of the originating provider's legal entity.
-        /// Resolved by the network from the entity specified in CreatePaymentRequest.
+        /// Taken from the originator entity in the corresponding CreatePaymentRequest.
         /// </summary>
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]

@@ -42,12 +42,9 @@ const (
 // service.
 type PayInProviderServiceClient interface {
 	// *
-	// GetPaymentDetails returns payment details for the end-user.
-	//
-	// Called by the network during CreatePaymentIntent processing.
-	// The provider should return payment details (bank accounts, mobile money info, etc.)
-	// that the end-user can use to send funds. The payment details should contain payment reference,
-	// so that on receiving payment from a payer, the pay-in provider can identify which payment intent this payment belongs to
+	// Returns the payment details (bank account, mobile money, etc.) an end-user uses
+	// to send funds. The details must carry a payment reference that ties an incoming
+	// payment back to its payment intent.
 	GetPaymentDetails(context.Context, *connect.Request[payment_intent.GetPaymentDetailsRequest]) (*connect.Response[payment_intent.GetPaymentDetailsResponse], error)
 }
 
@@ -87,12 +84,9 @@ func (c *payInProviderServiceClient) GetPaymentDetails(ctx context.Context, req 
 // tzero.v1.payment_intent.PayInProviderService service.
 type PayInProviderServiceHandler interface {
 	// *
-	// GetPaymentDetails returns payment details for the end-user.
-	//
-	// Called by the network during CreatePaymentIntent processing.
-	// The provider should return payment details (bank accounts, mobile money info, etc.)
-	// that the end-user can use to send funds. The payment details should contain payment reference,
-	// so that on receiving payment from a payer, the pay-in provider can identify which payment intent this payment belongs to
+	// Returns the payment details (bank account, mobile money, etc.) an end-user uses
+	// to send funds. The details must carry a payment reference that ties an incoming
+	// payment back to its payment intent.
 	GetPaymentDetails(context.Context, *connect.Request[payment_intent.GetPaymentDetailsRequest]) (*connect.Response[payment_intent.GetPaymentDetailsResponse], error)
 }
 

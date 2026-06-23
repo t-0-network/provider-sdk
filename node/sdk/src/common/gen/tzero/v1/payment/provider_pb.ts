@@ -68,8 +68,7 @@ export type AppendLedgerEntriesRequest_Transaction = Message<"tzero.v1.payment.A
 
   /**
    * *
-   * transaction_details is a oneof field that contains details about the transaction.
-   * It can be one of the following: PayIn, PayoutReservation, Payout, ProviderSettlement, FeeSettlement, PayoutReservationRelease.
+   * Identifies which kind of transaction these ledger entries describe.
    *
    * @generated from oneof tzero.v1.payment.AppendLedgerEntriesRequest.Transaction.transaction_details
    */
@@ -336,7 +335,7 @@ export const AppendLedgerEntriesResponseSchema: GenMessage<AppendLedgerEntriesRe
 export type PayoutRequest = Message<"tzero.v1.payment.PayoutRequest"> & {
   /**
    * *
-   * payment id assigned by the network (provider should store this id to provide details in UpdatePayout later)
+   * Payment id assigned by the network. Store it to reference this payment in FinalizePayout later.
    *
    * @generated from field: uint64 payment_id = 10;
    */
@@ -380,8 +379,7 @@ export type PayoutRequest = Message<"tzero.v1.payment.PayoutRequest"> & {
 
   /**
    * *
-   * payout_method is the payment method for the payout, e.g. bank transfer, crypto transfer, etc.
-   * This is used to specify how the payout should be made.
+   * Payment details specifying how the payout should be made (bank transfer, crypto transfer, etc.).
    *
    * @generated from field: optional tzero.v1.common.PaymentDetails payout_details = 60;
    */
@@ -432,7 +430,7 @@ export type PayoutRequest_TravelRuleData = Message<"tzero.v1.payment.PayoutReque
   /**
    * *
    * IVMS101 travel rule data of the originating provider's legal entity.
-   * Resolved by the network from the entity specified in CreatePaymentRequest.
+   * Taken from the originator entity in the corresponding CreatePaymentRequest.
    *
    * @generated from field: optional ivms101.Person originator_provider = 30;
    */
@@ -1018,7 +1016,7 @@ export const ApprovePaymentQuoteResponse_RejectedSchema: GenMessage<ApprovePayme
 
 /**
  * *
- * This service must be implemented by the provider.
+ * Provider surface for executing payouts and receiving payment, limit, and ledger updates.
  *
  * All methods of this service must be idempotent, meaning they are safe to retry and multiple calls with the same parameters must not have additional effect.
  *
@@ -1027,7 +1025,7 @@ export const ApprovePaymentQuoteResponse_RejectedSchema: GenMessage<ApprovePayme
 export const ProviderService: GenService<{
   /**
    * *
-   * Network instructs the provider to execute a payout to the recipient.
+   * Execute a payout to the recipient.
    * This method should be idempotent, meaning that multiple calls with the same parameters will have no additional effect.
    *
    * @generated from rpc tzero.v1.payment.ProviderService.PayOut
@@ -1039,7 +1037,7 @@ export const ProviderService: GenService<{
   },
   /**
    * *
-   * Network provides an update on the status of a payment. This can be either a success or a failure.
+   * Reports the current status of a payment — either a success or a failure.
    * This method should be idempotent, meaning that multiple calls with the same parameters will have no additional effect.
    *
    * @generated from rpc tzero.v1.payment.ProviderService.UpdatePayment
@@ -1051,7 +1049,7 @@ export const ProviderService: GenService<{
   },
   /**
    * *
-   * This rpc is used to notify the provider about the changes in credit limit and/or credit usage.
+   * Delivers updated credit limit and credit usage.
    *
    * @generated from rpc tzero.v1.payment.ProviderService.UpdateLimit
    */
@@ -1062,7 +1060,7 @@ export const ProviderService: GenService<{
   },
   /**
    * *
-   * Network can send all the updates about ledger entries of the provider's accounts. It can be used to
+   * Carries ledger-entry updates for the provider's accounts. It can be used to
    * keep track of the provider's exposure to other participants and other important financial events. (see the list in the message below)
    *
    * @generated from rpc tzero.v1.payment.ProviderService.AppendLedgerEntries
@@ -1074,10 +1072,8 @@ export const ProviderService: GenService<{
   },
   /**
    * *
-   * Pay-in provider approves the final pay-out quotes.
-   * This is the "Last Look" endpoint - it must be called after manual AML check completes
-   * (if one was required). It allows pay-in provider to verify and approve final rates
-   * before payment is executed.
+   * Approves the final pay-out quotes — the "Last Look" before payment executes.
+   * Applies after a manual AML check completes, when one was required.
    *
    * @generated from rpc tzero.v1.payment.ProviderService.ApprovePaymentQuotes
    */

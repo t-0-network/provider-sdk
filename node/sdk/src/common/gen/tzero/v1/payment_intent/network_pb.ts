@@ -106,7 +106,7 @@ export type UpdateQuoteRequest_Quote_Band = Message<"tzero.v1.payment_intent.Upd
   clientQuoteId: string;
 
   /**
-   * max amount of USD this quote is applicable for. Please look into documentation for valid amounts.
+   * Maximum amount of USD this band applies to.
    *
    * @generated from field: tzero.v1.common.Decimal max_amount = 40;
    */
@@ -276,7 +276,6 @@ export type GetQuoteResponse_Success_IndicativeQuote = Message<"tzero.v1.payment
   /**
    * *
    * The T-0 provider ID of the pay-in provider offering this quote.
-   * Providers can use this to identify counterparties.
    *
    * @generated from field: uint32 provider_id = 20;
    */
@@ -346,7 +345,6 @@ export type PaymentIntentPayInDetails = Message<"tzero.v1.payment_intent.Payment
   /**
    * *
    * The T-0 provider ID of the pay-in provider offering this quote.
-   * Providers can use this to identify counterparties.
    *
    * @generated from field: uint32 provider_id = 20;
    */
@@ -366,7 +364,7 @@ export type PaymentIntentPayInDetails = Message<"tzero.v1.payment_intent.Payment
    * *
    * Indicative exchange rate USD/XXX (base currency is always USD).
    *
-   * Resolved live from the network's current quote snapshot on every call,
+   * Reflects the current quote on every call,
    * including idempotent retries. The binding rate is locked in at
    * ConfirmFundsReceived and may differ.
    *
@@ -379,7 +377,7 @@ export type PaymentIntentPayInDetails = Message<"tzero.v1.payment_intent.Payment
    * Indicative fixed charge in USD retained by the pay-in provider per transfer.
    * Settlement is calculated as (amount / indicative_rate) - indicative_fix.
    *
-   * Resolved live from the network's current quote snapshot on every call,
+   * Reflects the current quote on every call,
    * including idempotent retries. The binding fix is locked in at
    * ConfirmFundsReceived and may differ.
    *
@@ -535,7 +533,7 @@ export type CreatePaymentIntentResponse_Success = Message<"tzero.v1.payment_inte
    * *
    * Unique identifier for this payment intent.
    * Store this ID to correlate with:
-   * - PaymentIntentUpdate notifications you'll receive
+   * - PaymentIntentUpdate notifications delivered later
    *
    * @generated from field: uint64 payment_intent_id = 10;
    */
@@ -544,13 +542,12 @@ export type CreatePaymentIntentResponse_Success = Message<"tzero.v1.payment_inte
   /**
    * *
    * Available payment options for the end-user.
-   * Present these options to your user so they can choose how to pay.
+   * Present these options to the end-user so they can choose how to pay.
    * Each entry contains the payment details needed to complete the payment.
    *
    * Indicative rate/fix are resolved live on every call, including idempotent
-   * retries. The set of options (provider, payment_method, payment_details)
-   * is fixed at first call; individual options whose underlying quote has
-   * lapsed are omitted on retry.
+   * retries. The set of options is fixed at first call; individual options
+   * whose underlying quote has lapsed are omitted on retry.
    *
    * @generated from field: repeated tzero.v1.payment_intent.PaymentIntentPayInDetails pay_in_details = 20;
    */
@@ -640,12 +637,9 @@ export type ConfirmFundsReceivedRequest = Message<"tzero.v1.payment_intent.Confi
 
   /**
    * *
-   * Confirmation code received in the get payment details along with the payment_intent_id.
-   * This prevents accidental confirmation of the wrong payment intent. The network
-   * generates this as a UUID at CreatePaymentIntent time; non-UUID strings still pass
-   * field-level length validation here and surface as a REJECT_REASON_CONFIRMATION_CODE_MISMATCH
-   * at the orchestrator (preserving the "wrong code is a domain reject, not a transport error"
-   * contract).
+   * Confirmation code received in the GetPaymentDetails response along with the payment_intent_id.
+   * Guards against confirming the wrong payment intent; a mismatch is rejected with
+   * REJECT_REASON_CONFIRMATION_CODE_MISMATCH.
    *
    * @generated from field: string confirmation_code = 20;
    */
@@ -753,8 +747,8 @@ export type ConfirmFundsReceivedResponse_Accept = Message<"tzero.v1.payment_inte
   /**
    * *
    * Flat USD charge retained by the pay-in provider per transfer,
-   * already subtracted from settlement_amount. Surfaced so the pay-in
-   * provider can audit the settlement formula: settlement = (payment_amount / rate) − fix.
+   * already subtracted from settlement_amount.
+   * Settlement is computed as (payment_amount / rate) − fix.
    *
    * @generated from field: tzero.v1.common.Decimal fix = 30;
    */
@@ -823,10 +817,9 @@ export enum ConfirmFundsReceivedResponse_Reject_Reason {
 
   /**
    * *
-   * The (pay-in provider, payment method) tuple was not offered on
-   * this intent. Either the intent was rejected during creation,
-   * or this provider's GetPaymentDetails response was invalid for
-   * the requested method.
+   * The requested payment method was not offered on this intent — either the
+   * intent was rejected at creation, or no valid payment details were returned
+   * for the method. Retry with a method from the returned options.
    *
    * @generated from enum value: REJECT_REASON_NO_VALID_OFFER = 50;
    */
@@ -859,8 +852,6 @@ export const ConfirmFundsReceivedResponse_Reject_ReasonSchema: GenEnum<ConfirmFu
  * 2. End-user pays via one of the returned payment options
  * 3. Pay-in provider confirms funds received
  * 4. Settlement will happen periodically between providers
- *
- * This service is hosted by the T-0 Network and called by providers.
  *
  * @generated from service tzero.v1.payment_intent.PaymentIntentService
  */
@@ -898,9 +889,7 @@ export const PaymentIntentService: GenService<{
    * *
    * CreatePaymentIntent initiates a new payment intent.
    *
-   * Called by the beneficiary provider (the one who will receive the settlement).
-   * The network finds suitable pay-in providers, retrieves their payment details,
-   * and returns available payment options to present to the end-user.
+   * Returns the available payment options to present to the end-user.
    *
    * The returned payment_intent_id must be stored by the beneficiary provider
    * to correlate with the PaymentIntentUpdate notification received later.

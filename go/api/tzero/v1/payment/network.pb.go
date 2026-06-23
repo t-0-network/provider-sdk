@@ -360,7 +360,7 @@ type GetQuoteResponse struct {
 	// *
 	// All best quotes from providers with credit lines.
 	// Each quote is the best rate for that provider for the requested amount.
-	// Includes has_sufficient_credit flag to indicate if quote can be executed immediately.
+	// Each quote indicates whether it can be executed immediately.
 	// Always returned alongside success/failure - providers can compare alternatives or see options when no executable quote exists.
 	AllQuotes     []*GetQuoteResponse_ProviderQuote `protobuf:"bytes,40,rep,name=all_quotes,json=allQuotes,proto3" json:"all_quotes,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -435,8 +435,8 @@ type isGetQuoteResponse_Result interface {
 
 type GetQuoteResponse_Success_ struct {
 	// *
-	// Success response - the network found a suitable quote for the provided parameters and with available credit or pre-settlement option.
-	// The returned quoteId can be used later to call the create payment endpoint.
+	// A suitable quote was found for the provided parameters, with available credit or pre-settlement option.
+	// Use the returned quoteId to call CreatePayment.
 	Success *GetQuoteResponse_Success `protobuf:"bytes,20,opt,name=success,proto3,oneof"`
 }
 
@@ -457,7 +457,7 @@ type CreatePaymentRequest struct {
 	Amount          *PaymentAmount                       `protobuf:"bytes,30,opt,name=amount,proto3" json:"amount,omitempty"`                                            // payment amount - should be either pay-out amount or settlement amount
 	Currency        string                               `protobuf:"bytes,40,opt,name=currency,proto3" json:"currency,omitempty"`                                        // pay-out currency
 	PaymentDetails  *common.PaymentDetails               `protobuf:"bytes,50,opt,name=payment_details,json=paymentDetails,proto3" json:"payment_details,omitempty"`      // pay-out payment details
-	QuoteId         *QuoteId                             `protobuf:"bytes,60,opt,name=quote_id,json=quoteId,proto3,oneof" json:"quote_id,omitempty"`                     // if specified, must be a valid quoteId that was previously returned by the GetPayoutQuote method otherwise last available quote will be used
+	QuoteId         *QuoteId                             `protobuf:"bytes,60,opt,name=quote_id,json=quoteId,proto3,oneof" json:"quote_id,omitempty"`                     // if specified, must be a valid quoteId that was previously returned by GetQuote otherwise last available quote will be used
 	TravelRuleData  *CreatePaymentRequest_TravelRuleData `protobuf:"bytes,100,opt,name=travel_rule_data,json=travelRuleData,proto3" json:"travel_rule_data,omitempty"`   // travel rule data
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
@@ -678,8 +678,8 @@ type isCreatePaymentResponse_Result interface {
 
 type CreatePaymentResponse_Accepted_ struct {
 	// *
-	// Accepted response - the payment was accepted by the network and it's going to be passed to payout provider.
-	// Means the network found a suitable quote for the payout currency and amount.
+	// The payment was accepted and will be passed to the payout provider.
+	// A suitable quote was found for the pay-out currency and amount.
 	Accepted *CreatePaymentResponse_Accepted `protobuf:"bytes,20,opt,name=accepted,proto3,oneof"`
 }
 
@@ -694,8 +694,8 @@ type CreatePaymentResponse_SettlementRequired_ struct {
 
 type CreatePaymentResponse_Failure_ struct {
 	// *
-	// Failure response - means the payment was not accepted, e.g. the network could not find a suitable quote for the
-	// payout currency and amount, or the credit limit is exceeded for the available quotes.
+	// The payment was not accepted — e.g. no suitable quote exists for the pay-out
+	// currency and amount, or the credit limit is exceeded for the available quotes.
 	Failure *CreatePaymentResponse_Failure `protobuf:"bytes,30,opt,name=failure,proto3,oneof"`
 }
 
@@ -1281,7 +1281,7 @@ func (x *UpdateQuoteRequest_Quote) GetTimestamp() *timestamppb.Timestamp {
 type UpdateQuoteRequest_Quote_Band struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	ClientQuoteId string                 `protobuf:"bytes,10,opt,name=client_quote_id,json=clientQuoteId,proto3" json:"client_quote_id,omitempty"` // unique client generated id for this band
-	MaxAmount     *common.Decimal        `protobuf:"bytes,40,opt,name=max_amount,json=maxAmount,proto3" json:"max_amount,omitempty"`               // max amount of USD this quote is applicable for. Please look into documentation for valid amounts.
+	MaxAmount     *common.Decimal        `protobuf:"bytes,40,opt,name=max_amount,json=maxAmount,proto3" json:"max_amount,omitempty"`               // Maximum amount of USD this band applies to.
 	Rate          *common.Decimal        `protobuf:"bytes,50,opt,name=rate,proto3" json:"rate,omitempty"`                                          // USD/currency rate
 	// *
 	// Fixed charge in USD applied per transfer on top of the exchange rate.
@@ -1586,7 +1586,7 @@ type GetQuoteResponse_ProviderQuote_Settlement struct {
 	Amount           *common.Decimal        `protobuf:"bytes,10,opt,name=amount,proto3" json:"amount,omitempty"`                                             // Settlement amount required for this payment
 	CreditLimit      *common.Decimal        `protobuf:"bytes,20,opt,name=credit_limit,json=creditLimit,proto3" json:"credit_limit,omitempty"`                // Total credit limit from payout provider
 	TotalUsed        *common.Decimal        `protobuf:"bytes,30,opt,name=total_used,json=totalUsed,proto3" json:"total_used,omitempty"`                      // Total amount used from credit line (completed + reserved)
-	PrefundingAmount *common.Decimal        `protobuf:"bytes,50,opt,name=prefunding_amount,json=prefundingAmount,proto3" json:"prefunding_amount,omitempty"` // Additional funding needed before payment can proceed (amount - max_executable)
+	PrefundingAmount *common.Decimal        `protobuf:"bytes,50,opt,name=prefunding_amount,json=prefundingAmount,proto3" json:"prefunding_amount,omitempty"` // Additional funding needed before this quote can be executed
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }

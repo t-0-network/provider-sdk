@@ -10,7 +10,7 @@ using grpc = global::Grpc.Core;
 namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
   /// <summary>
   ///*
-  /// This service must be implemented by the provider.
+  /// Provider surface for executing payouts and receiving payment, limit, and ledger updates.
   ///
   /// All methods of this service must be idempotent, meaning they are safe to retry and multiple calls with the same parameters must not have additional effect.
   /// </summary>
@@ -124,7 +124,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
     {
       /// <summary>
       ///*
-      /// Network instructs the provider to execute a payout to the recipient.
+      /// Execute a payout to the recipient.
       /// This method should be idempotent, meaning that multiple calls with the same parameters will have no additional effect.
       /// </summary>
       /// <param name="request">The request received from the client.</param>
@@ -138,7 +138,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
 
       /// <summary>
       ///*
-      /// Network provides an update on the status of a payment. This can be either a success or a failure.
+      /// Reports the current status of a payment — either a success or a failure.
       /// This method should be idempotent, meaning that multiple calls with the same parameters will have no additional effect.
       /// </summary>
       /// <param name="request">The request received from the client.</param>
@@ -152,7 +152,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
 
       /// <summary>
       ///*
-      /// This rpc is used to notify the provider about the changes in credit limit and/or credit usage.
+      /// Delivers updated credit limit and credit usage.
       /// </summary>
       /// <param name="request">The request received from the client.</param>
       /// <param name="context">The context of the server-side call handler being invoked.</param>
@@ -165,7 +165,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
 
       /// <summary>
       ///*
-      /// Network can send all the updates about ledger entries of the provider's accounts. It can be used to
+      /// Carries ledger-entry updates for the provider's accounts. It can be used to
       /// keep track of the provider's exposure to other participants and other important financial events. (see the list in the message below)
       /// </summary>
       /// <param name="request">The request received from the client.</param>
@@ -179,10 +179,8 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
 
       /// <summary>
       ///*
-      /// Pay-in provider approves the final pay-out quotes.
-      /// This is the "Last Look" endpoint - it must be called after manual AML check completes
-      /// (if one was required). It allows pay-in provider to verify and approve final rates
-      /// before payment is executed.
+      /// Approves the final pay-out quotes — the "Last Look" before payment executes.
+      /// Applies after a manual AML check completes, when one was required.
       /// </summary>
       /// <param name="request">The request received from the client.</param>
       /// <param name="context">The context of the server-side call handler being invoked.</param>
@@ -224,7 +222,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
 
       /// <summary>
       ///*
-      /// Network instructs the provider to execute a payout to the recipient.
+      /// Execute a payout to the recipient.
       /// This method should be idempotent, meaning that multiple calls with the same parameters will have no additional effect.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
@@ -239,7 +237,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
       }
       /// <summary>
       ///*
-      /// Network instructs the provider to execute a payout to the recipient.
+      /// Execute a payout to the recipient.
       /// This method should be idempotent, meaning that multiple calls with the same parameters will have no additional effect.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
@@ -252,7 +250,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
       }
       /// <summary>
       ///*
-      /// Network instructs the provider to execute a payout to the recipient.
+      /// Execute a payout to the recipient.
       /// This method should be idempotent, meaning that multiple calls with the same parameters will have no additional effect.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
@@ -267,7 +265,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
       }
       /// <summary>
       ///*
-      /// Network instructs the provider to execute a payout to the recipient.
+      /// Execute a payout to the recipient.
       /// This method should be idempotent, meaning that multiple calls with the same parameters will have no additional effect.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
@@ -280,7 +278,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
       }
       /// <summary>
       ///*
-      /// Network provides an update on the status of a payment. This can be either a success or a failure.
+      /// Reports the current status of a payment — either a success or a failure.
       /// This method should be idempotent, meaning that multiple calls with the same parameters will have no additional effect.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
@@ -295,7 +293,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
       }
       /// <summary>
       ///*
-      /// Network provides an update on the status of a payment. This can be either a success or a failure.
+      /// Reports the current status of a payment — either a success or a failure.
       /// This method should be idempotent, meaning that multiple calls with the same parameters will have no additional effect.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
@@ -308,7 +306,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
       }
       /// <summary>
       ///*
-      /// Network provides an update on the status of a payment. This can be either a success or a failure.
+      /// Reports the current status of a payment — either a success or a failure.
       /// This method should be idempotent, meaning that multiple calls with the same parameters will have no additional effect.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
@@ -323,7 +321,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
       }
       /// <summary>
       ///*
-      /// Network provides an update on the status of a payment. This can be either a success or a failure.
+      /// Reports the current status of a payment — either a success or a failure.
       /// This method should be idempotent, meaning that multiple calls with the same parameters will have no additional effect.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
@@ -336,7 +334,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
       }
       /// <summary>
       ///*
-      /// This rpc is used to notify the provider about the changes in credit limit and/or credit usage.
+      /// Delivers updated credit limit and credit usage.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
@@ -350,7 +348,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
       }
       /// <summary>
       ///*
-      /// This rpc is used to notify the provider about the changes in credit limit and/or credit usage.
+      /// Delivers updated credit limit and credit usage.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="options">The options for the call.</param>
@@ -362,7 +360,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
       }
       /// <summary>
       ///*
-      /// This rpc is used to notify the provider about the changes in credit limit and/or credit usage.
+      /// Delivers updated credit limit and credit usage.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
@@ -376,7 +374,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
       }
       /// <summary>
       ///*
-      /// This rpc is used to notify the provider about the changes in credit limit and/or credit usage.
+      /// Delivers updated credit limit and credit usage.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="options">The options for the call.</param>
@@ -388,7 +386,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
       }
       /// <summary>
       ///*
-      /// Network can send all the updates about ledger entries of the provider's accounts. It can be used to
+      /// Carries ledger-entry updates for the provider's accounts. It can be used to
       /// keep track of the provider's exposure to other participants and other important financial events. (see the list in the message below)
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
@@ -403,7 +401,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
       }
       /// <summary>
       ///*
-      /// Network can send all the updates about ledger entries of the provider's accounts. It can be used to
+      /// Carries ledger-entry updates for the provider's accounts. It can be used to
       /// keep track of the provider's exposure to other participants and other important financial events. (see the list in the message below)
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
@@ -416,7 +414,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
       }
       /// <summary>
       ///*
-      /// Network can send all the updates about ledger entries of the provider's accounts. It can be used to
+      /// Carries ledger-entry updates for the provider's accounts. It can be used to
       /// keep track of the provider's exposure to other participants and other important financial events. (see the list in the message below)
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
@@ -431,7 +429,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
       }
       /// <summary>
       ///*
-      /// Network can send all the updates about ledger entries of the provider's accounts. It can be used to
+      /// Carries ledger-entry updates for the provider's accounts. It can be used to
       /// keep track of the provider's exposure to other participants and other important financial events. (see the list in the message below)
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
@@ -444,10 +442,8 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
       }
       /// <summary>
       ///*
-      /// Pay-in provider approves the final pay-out quotes.
-      /// This is the "Last Look" endpoint - it must be called after manual AML check completes
-      /// (if one was required). It allows pay-in provider to verify and approve final rates
-      /// before payment is executed.
+      /// Approves the final pay-out quotes — the "Last Look" before payment executes.
+      /// Applies after a manual AML check completes, when one was required.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
@@ -461,10 +457,8 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
       }
       /// <summary>
       ///*
-      /// Pay-in provider approves the final pay-out quotes.
-      /// This is the "Last Look" endpoint - it must be called after manual AML check completes
-      /// (if one was required). It allows pay-in provider to verify and approve final rates
-      /// before payment is executed.
+      /// Approves the final pay-out quotes — the "Last Look" before payment executes.
+      /// Applies after a manual AML check completes, when one was required.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="options">The options for the call.</param>
@@ -476,10 +470,8 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
       }
       /// <summary>
       ///*
-      /// Pay-in provider approves the final pay-out quotes.
-      /// This is the "Last Look" endpoint - it must be called after manual AML check completes
-      /// (if one was required). It allows pay-in provider to verify and approve final rates
-      /// before payment is executed.
+      /// Approves the final pay-out quotes — the "Last Look" before payment executes.
+      /// Applies after a manual AML check completes, when one was required.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
@@ -493,10 +485,8 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
       }
       /// <summary>
       ///*
-      /// Pay-in provider approves the final pay-out quotes.
-      /// This is the "Last Look" endpoint - it must be called after manual AML check completes
-      /// (if one was required). It allows pay-in provider to verify and approve final rates
-      /// before payment is executed.
+      /// Approves the final pay-out quotes — the "Last Look" before payment executes.
+      /// Applies after a manual AML check completes, when one was required.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="options">The options for the call.</param>

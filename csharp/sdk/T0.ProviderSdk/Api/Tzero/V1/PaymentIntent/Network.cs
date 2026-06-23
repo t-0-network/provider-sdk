@@ -816,7 +816,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
             public const int MaxAmountFieldNumber = 40;
             private global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal maxAmount_;
             /// <summary>
-            /// max amount of USD this quote is applicable for. Please look into documentation for valid amounts.
+            /// Maximum amount of USD this band applies to.
             /// </summary>
             [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
             [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -2167,7 +2167,6 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
             /// <summary>
             ///*
             /// The T-0 provider ID of the pay-in provider offering this quote.
-            /// Providers can use this to identify counterparties.
             /// </summary>
             [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
             [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -2697,7 +2696,6 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
     /// <summary>
     ///*
     /// The T-0 provider ID of the pay-in provider offering this quote.
-    /// Providers can use this to identify counterparties.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -2733,7 +2731,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
     ///*
     /// Indicative exchange rate USD/XXX (base currency is always USD).
     ///
-    /// Resolved live from the network's current quote snapshot on every call,
+    /// Reflects the current quote on every call,
     /// including idempotent retries. The binding rate is locked in at
     /// ConfirmFundsReceived and may differ.
     /// </summary>
@@ -2754,7 +2752,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
     /// Indicative fixed charge in USD retained by the pay-in provider per transfer.
     /// Settlement is calculated as (amount / indicative_rate) - indicative_fix.
     ///
-    /// Resolved live from the network's current quote snapshot on every call,
+    /// Reflects the current quote on every call,
     /// including idempotent retries. The binding fix is locked in at
     /// ConfirmFundsReceived and may differ.
     /// </summary>
@@ -4033,7 +4031,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
         ///*
         /// Unique identifier for this payment intent.
         /// Store this ID to correlate with:
-        /// - PaymentIntentUpdate notifications you'll receive
+        /// - PaymentIntentUpdate notifications delivered later
         /// </summary>
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -4052,13 +4050,12 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
         /// <summary>
         ///*
         /// Available payment options for the end-user.
-        /// Present these options to your user so they can choose how to pay.
+        /// Present these options to the end-user so they can choose how to pay.
         /// Each entry contains the payment details needed to complete the payment.
         ///
         /// Indicative rate/fix are resolved live on every call, including idempotent
-        /// retries. The set of options (provider, payment_method, payment_details)
-        /// is fixed at first call; individual options whose underlying quote has
-        /// lapsed are omitted on retry.
+        /// retries. The set of options is fixed at first call; individual options
+        /// whose underlying quote has lapsed are omitted on retry.
         /// </summary>
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -4534,12 +4531,9 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
     private string confirmationCode_ = "";
     /// <summary>
     ///*
-    /// Confirmation code received in the get payment details along with the payment_intent_id.
-    /// This prevents accidental confirmation of the wrong payment intent. The network
-    /// generates this as a UUID at CreatePaymentIntent time; non-UUID strings still pass
-    /// field-level length validation here and surface as a REJECT_REASON_CONFIRMATION_CODE_MISMATCH
-    /// at the orchestrator (preserving the "wrong code is a domain reject, not a transport error"
-    /// contract).
+    /// Confirmation code received in the GetPaymentDetails response along with the payment_intent_id.
+    /// Guards against confirming the wrong payment intent; a mismatch is rejected with
+    /// REJECT_REASON_CONFIRMATION_CODE_MISMATCH.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -5253,8 +5247,8 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
         /// <summary>
         ///*
         /// Flat USD charge retained by the pay-in provider per transfer,
-        /// already subtracted from settlement_amount. Surfaced so the pay-in
-        /// provider can audit the settlement formula: settlement = (payment_amount / rate) − fix.
+        /// already subtracted from settlement_amount.
+        /// Settlement is computed as (payment_amount / rate) − fix.
         /// </summary>
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -5699,10 +5693,9 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
             [pbr::OriginalName("REJECT_REASON_AMOUNT_TOO_SMALL")] RejectReasonAmountTooSmall = 40,
             /// <summary>
             ///*
-            /// The (pay-in provider, payment method) tuple was not offered on
-            /// this intent. Either the intent was rejected during creation,
-            /// or this provider's GetPaymentDetails response was invalid for
-            /// the requested method.
+            /// The requested payment method was not offered on this intent — either the
+            /// intent was rejected at creation, or no valid payment details were returned
+            /// for the method. Retry with a method from the returned options.
             /// </summary>
             [pbr::OriginalName("REJECT_REASON_NO_VALID_OFFER")] RejectReasonNoValidOffer = 50,
             /// <summary>
