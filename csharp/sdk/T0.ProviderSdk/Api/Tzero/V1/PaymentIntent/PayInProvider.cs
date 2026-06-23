@@ -171,9 +171,8 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
     private readonly pbc::RepeatedField<global::T0.ProviderSdk.Api.Tzero.V1.Common.PaymentMethodType> paymentMethods_ = new pbc::RepeatedField<global::T0.ProviderSdk.Api.Tzero.V1.Common.PaymentMethodType>();
     /// <summary>
     ///*
-    /// Payment methods being requested.
-    /// The provider should return PaymentDetails for the methods in the request. All the payment methods will be taken
-    /// from the quotes submitted by pay-in provider.
+    /// Payment methods to return PaymentDetails for.
+    /// Each is drawn from a previously submitted quote.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -236,8 +235,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
     /// <summary>
     ///*
     /// The T-0 provider ID of the beneficiary provider (the FI the funds are
-    /// destined for). Stable, opaque identifier — pay-in providers can use this
-    /// directly to resolve the beneficiary in their own systems.
+    /// destined for). Stable, opaque identifier for the beneficiary.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -1195,11 +1193,9 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
         private readonly pbc::RepeatedField<global::T0.ProviderSdk.Api.Tzero.V1.Common.PaymentDetails> paymentDetails_ = new pbc::RepeatedField<global::T0.ProviderSdk.Api.Tzero.V1.Common.PaymentDetails>();
         /// <summary>
         ///*
-        /// Payment details for each supported payment method.
-        ///
-        /// Each PaymentDetails contains the information needed for an end-user
-        /// to send a payment (e.g., bank account details, mobile money number) and payment reference,
-        /// which can be used by pay-in provider to identify incoming payment.
+        /// Payment details for each supported payment method. Each entry carries the
+        /// information an end-user needs to send a payment (bank account, mobile money,
+        /// etc.) plus a payment reference that identifies the incoming payment.
         /// </summary>
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]

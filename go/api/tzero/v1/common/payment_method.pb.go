@@ -82,6 +82,10 @@ const (
 	PaymentMethodType_PAYMENT_METHOD_TYPE_INDONESIAN_BANK_TRANSFER PaymentMethodType = 330
 	// Indonesian e-wallet - GoPay, OVO, DANA, ShopeePay, LinkAja, etc. (Indonesia)
 	PaymentMethodType_PAYMENT_METHOD_TYPE_INDONESIAN_E_WALLET PaymentMethodType = 340
+	// Provider-defined envelope: payment details whose structure is defined by the
+	// provider and agreed with the requester off-network. The payload is opaque and
+	// forwarded to the provider without interpretation.
+	PaymentMethodType_PAYMENT_METHOD_TYPE_PROVIDER_DEFINED PaymentMethodType = 350
 )
 
 // Enum value maps for PaymentMethodType.
@@ -120,6 +124,7 @@ var (
 		320: "PAYMENT_METHOD_TYPE_THAI_BANK_TRANSFER",
 		330: "PAYMENT_METHOD_TYPE_INDONESIAN_BANK_TRANSFER",
 		340: "PAYMENT_METHOD_TYPE_INDONESIAN_E_WALLET",
+		350: "PAYMENT_METHOD_TYPE_PROVIDER_DEFINED",
 	}
 	PaymentMethodType_value = map[string]int32{
 		"PAYMENT_METHOD_TYPE_UNSPECIFIED":               0,
@@ -155,6 +160,7 @@ var (
 		"PAYMENT_METHOD_TYPE_THAI_BANK_TRANSFER":        320,
 		"PAYMENT_METHOD_TYPE_INDONESIAN_BANK_TRANSFER":  330,
 		"PAYMENT_METHOD_TYPE_INDONESIAN_E_WALLET":       340,
+		"PAYMENT_METHOD_TYPE_PROVIDER_DEFINED":          350,
 	}
 )
 
@@ -1059,6 +1065,7 @@ type PaymentDetails struct {
 	//	*PaymentDetails_ThaiBankTransfer_
 	//	*PaymentDetails_IndonesianBankTransfer_
 	//	*PaymentDetails_IndonesianEWallet_
+	//	*PaymentDetails_ProviderDefined_
 	Details       isPaymentDetails_Details `protobuf_oneof:"details"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1390,6 +1397,15 @@ func (x *PaymentDetails) GetIndonesianEWallet() *PaymentDetails_IndonesianEWalle
 	return nil
 }
 
+func (x *PaymentDetails) GetProviderDefined() *PaymentDetails_ProviderDefined {
+	if x != nil {
+		if x, ok := x.Details.(*PaymentDetails_ProviderDefined_); ok {
+			return x.ProviderDefined
+		}
+	}
+	return nil
+}
+
 type isPaymentDetails_Details interface {
 	isPaymentDetails_Details()
 }
@@ -1585,6 +1601,11 @@ type PaymentDetails_IndonesianEWallet_ struct {
 	IndonesianEWallet *PaymentDetails_IndonesianEWallet `protobuf:"bytes,340,opt,name=indonesian_e_wallet,json=indonesianEWallet,proto3,oneof"`
 }
 
+type PaymentDetails_ProviderDefined_ struct {
+	// Provider-defined opaque envelope - format agreed off-network
+	ProviderDefined *PaymentDetails_ProviderDefined `protobuf:"bytes,350,opt,name=provider_defined,json=providerDefined,proto3,oneof"`
+}
+
 func (*PaymentDetails_Sepa_) isPaymentDetails_Details() {}
 
 func (*PaymentDetails_Swift_) isPaymentDetails_Details() {}
@@ -1648,6 +1669,8 @@ func (*PaymentDetails_ThaiBankTransfer_) isPaymentDetails_Details() {}
 func (*PaymentDetails_IndonesianBankTransfer_) isPaymentDetails_Details() {}
 
 func (*PaymentDetails_IndonesianEWallet_) isPaymentDetails_Details() {}
+
+func (*PaymentDetails_ProviderDefined_) isPaymentDetails_Details() {}
 
 type PaymentDetails_Sepa struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
@@ -4302,6 +4325,57 @@ func (x *PaymentDetails_IndonesianEWallet) GetPaymentReference() string {
 	return ""
 }
 
+// *
+// Provider-defined envelope for payment details that intentionally stay outside
+// the Network protocol. The provider and requester agree the payload format
+// off-network (JSON, protobuf bytes, YAML, XML, a barcode/auth-code instruction
+// format, or any other provider-specific encoding). The payload is opaque and
+// forwarded to the provider without interpretation.
+type PaymentDetails_ProviderDefined struct {
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Opaque provider-defined payload; maximum 10 KiB. Format agreed off-network.
+	Payload       []byte `protobuf:"bytes,10,opt,name=payload,proto3" json:"payload,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
+}
+
+func (x *PaymentDetails_ProviderDefined) Reset() {
+	*x = PaymentDetails_ProviderDefined{}
+	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[33]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *PaymentDetails_ProviderDefined) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*PaymentDetails_ProviderDefined) ProtoMessage() {}
+
+func (x *PaymentDetails_ProviderDefined) ProtoReflect() protoreflect.Message {
+	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[33]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use PaymentDetails_ProviderDefined.ProtoReflect.Descriptor instead.
+func (*PaymentDetails_ProviderDefined) Descriptor() ([]byte, []int) {
+	return file_tzero_v1_common_payment_method_proto_rawDescGZIP(), []int{0, 32}
+}
+
+func (x *PaymentDetails_ProviderDefined) GetPayload() []byte {
+	if x != nil {
+		return x.Payload
+	}
+	return nil
+}
+
 type PaymentDetails_IndianBankTransfer_AccountIFSC struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Beneficiary bank account number
@@ -4314,7 +4388,7 @@ type PaymentDetails_IndianBankTransfer_AccountIFSC struct {
 
 func (x *PaymentDetails_IndianBankTransfer_AccountIFSC) Reset() {
 	*x = PaymentDetails_IndianBankTransfer_AccountIFSC{}
-	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[33]
+	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[34]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4326,7 +4400,7 @@ func (x *PaymentDetails_IndianBankTransfer_AccountIFSC) String() string {
 func (*PaymentDetails_IndianBankTransfer_AccountIFSC) ProtoMessage() {}
 
 func (x *PaymentDetails_IndianBankTransfer_AccountIFSC) ProtoReflect() protoreflect.Message {
-	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[33]
+	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[34]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4369,7 +4443,7 @@ type PaymentDetails_IndianBankTransfer_IMPS struct {
 
 func (x *PaymentDetails_IndianBankTransfer_IMPS) Reset() {
 	*x = PaymentDetails_IndianBankTransfer_IMPS{}
-	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[34]
+	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[35]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4381,7 +4455,7 @@ func (x *PaymentDetails_IndianBankTransfer_IMPS) String() string {
 func (*PaymentDetails_IndianBankTransfer_IMPS) ProtoMessage() {}
 
 func (x *PaymentDetails_IndianBankTransfer_IMPS) ProtoReflect() protoreflect.Message {
-	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[34]
+	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[35]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4423,7 +4497,7 @@ type PaymentDetails_Swift_IntermediaryBank struct {
 
 func (x *PaymentDetails_Swift_IntermediaryBank) Reset() {
 	*x = PaymentDetails_Swift_IntermediaryBank{}
-	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[35]
+	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[36]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4435,7 +4509,7 @@ func (x *PaymentDetails_Swift_IntermediaryBank) String() string {
 func (*PaymentDetails_Swift_IntermediaryBank) ProtoMessage() {}
 
 func (x *PaymentDetails_Swift_IntermediaryBank) ProtoReflect() protoreflect.Message {
-	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[35]
+	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[36]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4482,7 +4556,7 @@ type PaymentDetails_Cnaps_Business struct {
 
 func (x *PaymentDetails_Cnaps_Business) Reset() {
 	*x = PaymentDetails_Cnaps_Business{}
-	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[36]
+	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[37]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4494,7 +4568,7 @@ func (x *PaymentDetails_Cnaps_Business) String() string {
 func (*PaymentDetails_Cnaps_Business) ProtoMessage() {}
 
 func (x *PaymentDetails_Cnaps_Business) ProtoReflect() protoreflect.Message {
-	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[36]
+	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[37]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4527,7 +4601,7 @@ type PaymentDetails_Cnaps_Person struct {
 
 func (x *PaymentDetails_Cnaps_Person) Reset() {
 	*x = PaymentDetails_Cnaps_Person{}
-	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[37]
+	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[38]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4539,7 +4613,7 @@ func (x *PaymentDetails_Cnaps_Person) String() string {
 func (*PaymentDetails_Cnaps_Person) ProtoMessage() {}
 
 func (x *PaymentDetails_Cnaps_Person) ProtoReflect() protoreflect.Message {
-	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[37]
+	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[38]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4578,7 +4652,7 @@ type PaymentDetails_Fast_Proxy struct {
 
 func (x *PaymentDetails_Fast_Proxy) Reset() {
 	*x = PaymentDetails_Fast_Proxy{}
-	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[38]
+	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[39]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4590,7 +4664,7 @@ func (x *PaymentDetails_Fast_Proxy) String() string {
 func (*PaymentDetails_Fast_Proxy) ProtoMessage() {}
 
 func (x *PaymentDetails_Fast_Proxy) ProtoReflect() protoreflect.Message {
-	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[38]
+	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[39]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4632,7 +4706,7 @@ type PaymentDetails_IndonesianBankTransfer_Account struct {
 
 func (x *PaymentDetails_IndonesianBankTransfer_Account) Reset() {
 	*x = PaymentDetails_IndonesianBankTransfer_Account{}
-	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[39]
+	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[40]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -4644,7 +4718,7 @@ func (x *PaymentDetails_IndonesianBankTransfer_Account) String() string {
 func (*PaymentDetails_IndonesianBankTransfer_Account) ProtoMessage() {}
 
 func (x *PaymentDetails_IndonesianBankTransfer_Account) ProtoReflect() protoreflect.Message {
-	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[39]
+	mi := &file_tzero_v1_common_payment_method_proto_msgTypes[40]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -4695,7 +4769,7 @@ var File_tzero_v1_common_payment_method_proto protoreflect.FileDescriptor
 
 const file_tzero_v1_common_payment_method_proto_rawDesc = "" +
 	"\n" +
-	"$tzero/v1/common/payment_method.proto\x12\x0ftzero.v1.common\x1a\x1bbuf/validate/validate.proto\x1a google/protobuf/descriptor.proto\"\x81}\n" +
+	"$tzero/v1/common/payment_method.proto\x12\x0ftzero.v1.common\x1a\x1bbuf/validate/validate.proto\x1a google/protobuf/descriptor.proto\"\xa0~\n" +
 	"\x0ePaymentDetails\x12:\n" +
 	"\x04sepa\x18\n" +
 	" \x01(\v2$.tzero.v1.common.PaymentDetails.SepaH\x00R\x04sepa\x12=\n" +
@@ -4729,7 +4803,8 @@ const file_tzero_v1_common_payment_method_proto_rawDesc = "" +
 	"\tpromptpay\x18\xb6\x02 \x01(\v2).tzero.v1.common.PaymentDetails.PromptPayH\x00R\tpromptpay\x12a\n" +
 	"\x12thai_bank_transfer\x18\xc0\x02 \x01(\v20.tzero.v1.common.PaymentDetails.ThaiBankTransferH\x00R\x10thaiBankTransfer\x12s\n" +
 	"\x18indonesian_bank_transfer\x18\xca\x02 \x01(\v26.tzero.v1.common.PaymentDetails.IndonesianBankTransferH\x00R\x16indonesianBankTransfer\x12d\n" +
-	"\x13indonesian_e_wallet\x18\xd4\x02 \x01(\v21.tzero.v1.common.PaymentDetails.IndonesianEWalletH\x00R\x11indonesianEWallet\x1a\xb5\x01\n" +
+	"\x13indonesian_e_wallet\x18\xd4\x02 \x01(\v21.tzero.v1.common.PaymentDetails.IndonesianEWalletH\x00R\x11indonesianEWallet\x12]\n" +
+	"\x10provider_defined\x18\xde\x02 \x01(\v2/.tzero.v1.common.PaymentDetails.ProviderDefinedH\x00R\x0fproviderDefined\x1a\xb5\x01\n" +
 	"\x04Sepa\x12:\n" +
 	"\x04iban\x18\x14 \x01(\tB&\xbaH#r!\x10\x0f\x18\"2\x1b^[A-Z]{2}[0-9]{2}[A-Z0-9]+$R\x04iban\x124\n" +
 	"\x10beneficiary_name\x18\x1e \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18FR\x0fbeneficiaryName\x125\n" +
@@ -5152,8 +5227,13 @@ const file_tzero_v1_common_payment_method_proto_rawDesc = "" +
 	"\x10beneficiary_name\x18\x1e \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\x8c\x01R\x0fbeneficiaryName\x12:\n" +
 	"\x11payment_reference\x18( \x01(\tB\b\xbaH\x05r\x03\x18\x8c\x01H\x00R\x10paymentReference\x88\x01\x01:\x05\x88\xa6\x1d\xd4\x02B\x14\n" +
-	"\x12_payment_referenceB\x10\n" +
-	"\adetails\x12\x05\xbaH\x02\b\x01*\xf9\t\n" +
+	"\x12_payment_reference\x1a>\n" +
+	"\x0fProviderDefined\x12$\n" +
+	"\apayload\x18\n" +
+	" \x01(\fB\n" +
+	"\xbaH\az\x05\x10\x01\x18\x80PR\apayload:\x05\x88\xa6\x1d\xde\x02B\x10\n" +
+	"\adetails\x12\x05\xbaH\x02\b\x01*\xa4\n" +
+	"\n" +
 	"\x11PaymentMethodType\x12#\n" +
 	"\x1fPAYMENT_METHOD_TYPE_UNSPECIFIED\x10\x00\x12\x1c\n" +
 	"\x18PAYMENT_METHOD_TYPE_SEPA\x10\n" +
@@ -5188,7 +5268,8 @@ const file_tzero_v1_common_payment_method_proto_rawDesc = "" +
 	"\x1dPAYMENT_METHOD_TYPE_PROMPTPAY\x10\xb6\x02\x12+\n" +
 	"&PAYMENT_METHOD_TYPE_THAI_BANK_TRANSFER\x10\xc0\x02\x121\n" +
 	",PAYMENT_METHOD_TYPE_INDONESIAN_BANK_TRANSFER\x10\xca\x02\x12,\n" +
-	"'PAYMENT_METHOD_TYPE_INDONESIAN_E_WALLET\x10\xd4\x02:u\n" +
+	"'PAYMENT_METHOD_TYPE_INDONESIAN_E_WALLET\x10\xd4\x02\x12)\n" +
+	"$PAYMENT_METHOD_TYPE_PROVIDER_DEFINED\x10\xde\x02:u\n" +
 	"\x13payment_method_type\x12\x1f.google.protobuf.MessageOptions\x18\xe1\xd4\x03 \x01(\x0e2\".tzero.v1.common.PaymentMethodTypeR\x11paymentMethodTypeB\xd6\x01\n" +
 	"\x13com.tzero.v1.commonB\x12PaymentMethodProtoP\x01Z:github.com/t-0-network/provider-sdk/go/api/tzero/v1/common\xa2\x02\x03TVC\xaa\x02\"T0.ProviderSdk.Api.Tzero.V1.Common\xca\x02\x0fTzero\\V1\\Common\xe2\x02\x1bTzero\\V1\\Common\\GPBMetadata\xea\x02\x11Tzero::V1::Commonb\x06proto3"
 
@@ -5205,7 +5286,7 @@ func file_tzero_v1_common_payment_method_proto_rawDescGZIP() []byte {
 }
 
 var file_tzero_v1_common_payment_method_proto_enumTypes = make([]protoimpl.EnumInfo, 16)
-var file_tzero_v1_common_payment_method_proto_msgTypes = make([]protoimpl.MessageInfo, 40)
+var file_tzero_v1_common_payment_method_proto_msgTypes = make([]protoimpl.MessageInfo, 41)
 var file_tzero_v1_common_payment_method_proto_goTypes = []any{
 	(PaymentMethodType)(0),                                          // 0: tzero.v1.common.PaymentMethodType
 	(PaymentDetails_AfricanMobileMoney_Network)(0),                  // 1: tzero.v1.common.PaymentDetails.AfricanMobileMoney.Network
@@ -5256,14 +5337,15 @@ var file_tzero_v1_common_payment_method_proto_goTypes = []any{
 	(*PaymentDetails_ThaiBankTransfer)(nil),                         // 46: tzero.v1.common.PaymentDetails.ThaiBankTransfer
 	(*PaymentDetails_IndonesianBankTransfer)(nil),                   // 47: tzero.v1.common.PaymentDetails.IndonesianBankTransfer
 	(*PaymentDetails_IndonesianEWallet)(nil),                        // 48: tzero.v1.common.PaymentDetails.IndonesianEWallet
-	(*PaymentDetails_IndianBankTransfer_AccountIFSC)(nil),           // 49: tzero.v1.common.PaymentDetails.IndianBankTransfer.AccountIFSC
-	(*PaymentDetails_IndianBankTransfer_IMPS)(nil),                  // 50: tzero.v1.common.PaymentDetails.IndianBankTransfer.IMPS
-	(*PaymentDetails_Swift_IntermediaryBank)(nil),                   // 51: tzero.v1.common.PaymentDetails.Swift.IntermediaryBank
-	(*PaymentDetails_Cnaps_Business)(nil),                           // 52: tzero.v1.common.PaymentDetails.Cnaps.Business
-	(*PaymentDetails_Cnaps_Person)(nil),                             // 53: tzero.v1.common.PaymentDetails.Cnaps.Person
-	(*PaymentDetails_Fast_Proxy)(nil),                               // 54: tzero.v1.common.PaymentDetails.Fast.Proxy
-	(*PaymentDetails_IndonesianBankTransfer_Account)(nil),           // 55: tzero.v1.common.PaymentDetails.IndonesianBankTransfer.Account
-	(*descriptorpb.MessageOptions)(nil),                             // 56: google.protobuf.MessageOptions
+	(*PaymentDetails_ProviderDefined)(nil),                          // 49: tzero.v1.common.PaymentDetails.ProviderDefined
+	(*PaymentDetails_IndianBankTransfer_AccountIFSC)(nil),           // 50: tzero.v1.common.PaymentDetails.IndianBankTransfer.AccountIFSC
+	(*PaymentDetails_IndianBankTransfer_IMPS)(nil),                  // 51: tzero.v1.common.PaymentDetails.IndianBankTransfer.IMPS
+	(*PaymentDetails_Swift_IntermediaryBank)(nil),                   // 52: tzero.v1.common.PaymentDetails.Swift.IntermediaryBank
+	(*PaymentDetails_Cnaps_Business)(nil),                           // 53: tzero.v1.common.PaymentDetails.Cnaps.Business
+	(*PaymentDetails_Cnaps_Person)(nil),                             // 54: tzero.v1.common.PaymentDetails.Cnaps.Person
+	(*PaymentDetails_Fast_Proxy)(nil),                               // 55: tzero.v1.common.PaymentDetails.Fast.Proxy
+	(*PaymentDetails_IndonesianBankTransfer_Account)(nil),           // 56: tzero.v1.common.PaymentDetails.IndonesianBankTransfer.Account
+	(*descriptorpb.MessageOptions)(nil),                             // 57: google.protobuf.MessageOptions
 }
 var file_tzero_v1_common_payment_method_proto_depIdxs = []int32{
 	17, // 0: tzero.v1.common.PaymentDetails.sepa:type_name -> tzero.v1.common.PaymentDetails.Sepa
@@ -5298,35 +5380,36 @@ var file_tzero_v1_common_payment_method_proto_depIdxs = []int32{
 	46, // 29: tzero.v1.common.PaymentDetails.thai_bank_transfer:type_name -> tzero.v1.common.PaymentDetails.ThaiBankTransfer
 	47, // 30: tzero.v1.common.PaymentDetails.indonesian_bank_transfer:type_name -> tzero.v1.common.PaymentDetails.IndonesianBankTransfer
 	48, // 31: tzero.v1.common.PaymentDetails.indonesian_e_wallet:type_name -> tzero.v1.common.PaymentDetails.IndonesianEWallet
-	1,  // 32: tzero.v1.common.PaymentDetails.AfricanMobileMoney.network:type_name -> tzero.v1.common.PaymentDetails.AfricanMobileMoney.Network
-	49, // 33: tzero.v1.common.PaymentDetails.IndianBankTransfer.account_ifsc:type_name -> tzero.v1.common.PaymentDetails.IndianBankTransfer.AccountIFSC
-	50, // 34: tzero.v1.common.PaymentDetails.IndianBankTransfer.imps:type_name -> tzero.v1.common.PaymentDetails.IndianBankTransfer.IMPS
-	2,  // 35: tzero.v1.common.PaymentDetails.IndianBankTransfer.beneficiary_type:type_name -> tzero.v1.common.PaymentDetails.IndianBankTransfer.BeneficiaryType
-	51, // 36: tzero.v1.common.PaymentDetails.Swift.intermediary_bank:type_name -> tzero.v1.common.PaymentDetails.Swift.IntermediaryBank
-	3,  // 37: tzero.v1.common.PaymentDetails.Ach.account_type:type_name -> tzero.v1.common.PaymentDetails.Ach.AchAccountType
-	4,  // 38: tzero.v1.common.PaymentDetails.PakistanMobileWallet.wallet_provider:type_name -> tzero.v1.common.PaymentDetails.PakistanMobileWallet.PakistanWalletProvider
-	5,  // 39: tzero.v1.common.PaymentDetails.Pix.key_type:type_name -> tzero.v1.common.PaymentDetails.Pix.KeyType
-	52, // 40: tzero.v1.common.PaymentDetails.Cnaps.business:type_name -> tzero.v1.common.PaymentDetails.Cnaps.Business
-	53, // 41: tzero.v1.common.PaymentDetails.Cnaps.person:type_name -> tzero.v1.common.PaymentDetails.Cnaps.Person
-	6,  // 42: tzero.v1.common.PaymentDetails.Rtp.account_type:type_name -> tzero.v1.common.PaymentDetails.Rtp.RtpAccountType
-	7,  // 43: tzero.v1.common.PaymentDetails.ChileanBankTransfer.account_type:type_name -> tzero.v1.common.PaymentDetails.ChileanBankTransfer.AccountType
-	8,  // 44: tzero.v1.common.PaymentDetails.PeruBankTransfer.document_type:type_name -> tzero.v1.common.PaymentDetails.PeruBankTransfer.DocumentType
-	9,  // 45: tzero.v1.common.PaymentDetails.PeruBankTransfer.account_type:type_name -> tzero.v1.common.PaymentDetails.PeruBankTransfer.AccountType
-	10, // 46: tzero.v1.common.PaymentDetails.ColombianAch.document_type:type_name -> tzero.v1.common.PaymentDetails.ColombianAch.DocumentType
-	11, // 47: tzero.v1.common.PaymentDetails.ColombianAch.account_type:type_name -> tzero.v1.common.PaymentDetails.ColombianAch.AccountType
-	12, // 48: tzero.v1.common.PaymentDetails.ColombianBreb.document_type:type_name -> tzero.v1.common.PaymentDetails.ColombianBreb.DocumentType
-	13, // 49: tzero.v1.common.PaymentDetails.ColombianBreb.account_type:type_name -> tzero.v1.common.PaymentDetails.ColombianBreb.AccountType
-	54, // 50: tzero.v1.common.PaymentDetails.Fast.proxy:type_name -> tzero.v1.common.PaymentDetails.Fast.Proxy
-	15, // 51: tzero.v1.common.PaymentDetails.PromptPay.proxy_type:type_name -> tzero.v1.common.PaymentDetails.PromptPay.ProxyType
-	55, // 52: tzero.v1.common.PaymentDetails.IndonesianBankTransfer.account:type_name -> tzero.v1.common.PaymentDetails.IndonesianBankTransfer.Account
-	14, // 53: tzero.v1.common.PaymentDetails.Fast.Proxy.proxy_type:type_name -> tzero.v1.common.PaymentDetails.Fast.Proxy.ProxyType
-	56, // 54: tzero.v1.common.payment_method_type:extendee -> google.protobuf.MessageOptions
-	0,  // 55: tzero.v1.common.payment_method_type:type_name -> tzero.v1.common.PaymentMethodType
-	56, // [56:56] is the sub-list for method output_type
-	56, // [56:56] is the sub-list for method input_type
-	55, // [55:56] is the sub-list for extension type_name
-	54, // [54:55] is the sub-list for extension extendee
-	0,  // [0:54] is the sub-list for field type_name
+	49, // 32: tzero.v1.common.PaymentDetails.provider_defined:type_name -> tzero.v1.common.PaymentDetails.ProviderDefined
+	1,  // 33: tzero.v1.common.PaymentDetails.AfricanMobileMoney.network:type_name -> tzero.v1.common.PaymentDetails.AfricanMobileMoney.Network
+	50, // 34: tzero.v1.common.PaymentDetails.IndianBankTransfer.account_ifsc:type_name -> tzero.v1.common.PaymentDetails.IndianBankTransfer.AccountIFSC
+	51, // 35: tzero.v1.common.PaymentDetails.IndianBankTransfer.imps:type_name -> tzero.v1.common.PaymentDetails.IndianBankTransfer.IMPS
+	2,  // 36: tzero.v1.common.PaymentDetails.IndianBankTransfer.beneficiary_type:type_name -> tzero.v1.common.PaymentDetails.IndianBankTransfer.BeneficiaryType
+	52, // 37: tzero.v1.common.PaymentDetails.Swift.intermediary_bank:type_name -> tzero.v1.common.PaymentDetails.Swift.IntermediaryBank
+	3,  // 38: tzero.v1.common.PaymentDetails.Ach.account_type:type_name -> tzero.v1.common.PaymentDetails.Ach.AchAccountType
+	4,  // 39: tzero.v1.common.PaymentDetails.PakistanMobileWallet.wallet_provider:type_name -> tzero.v1.common.PaymentDetails.PakistanMobileWallet.PakistanWalletProvider
+	5,  // 40: tzero.v1.common.PaymentDetails.Pix.key_type:type_name -> tzero.v1.common.PaymentDetails.Pix.KeyType
+	53, // 41: tzero.v1.common.PaymentDetails.Cnaps.business:type_name -> tzero.v1.common.PaymentDetails.Cnaps.Business
+	54, // 42: tzero.v1.common.PaymentDetails.Cnaps.person:type_name -> tzero.v1.common.PaymentDetails.Cnaps.Person
+	6,  // 43: tzero.v1.common.PaymentDetails.Rtp.account_type:type_name -> tzero.v1.common.PaymentDetails.Rtp.RtpAccountType
+	7,  // 44: tzero.v1.common.PaymentDetails.ChileanBankTransfer.account_type:type_name -> tzero.v1.common.PaymentDetails.ChileanBankTransfer.AccountType
+	8,  // 45: tzero.v1.common.PaymentDetails.PeruBankTransfer.document_type:type_name -> tzero.v1.common.PaymentDetails.PeruBankTransfer.DocumentType
+	9,  // 46: tzero.v1.common.PaymentDetails.PeruBankTransfer.account_type:type_name -> tzero.v1.common.PaymentDetails.PeruBankTransfer.AccountType
+	10, // 47: tzero.v1.common.PaymentDetails.ColombianAch.document_type:type_name -> tzero.v1.common.PaymentDetails.ColombianAch.DocumentType
+	11, // 48: tzero.v1.common.PaymentDetails.ColombianAch.account_type:type_name -> tzero.v1.common.PaymentDetails.ColombianAch.AccountType
+	12, // 49: tzero.v1.common.PaymentDetails.ColombianBreb.document_type:type_name -> tzero.v1.common.PaymentDetails.ColombianBreb.DocumentType
+	13, // 50: tzero.v1.common.PaymentDetails.ColombianBreb.account_type:type_name -> tzero.v1.common.PaymentDetails.ColombianBreb.AccountType
+	55, // 51: tzero.v1.common.PaymentDetails.Fast.proxy:type_name -> tzero.v1.common.PaymentDetails.Fast.Proxy
+	15, // 52: tzero.v1.common.PaymentDetails.PromptPay.proxy_type:type_name -> tzero.v1.common.PaymentDetails.PromptPay.ProxyType
+	56, // 53: tzero.v1.common.PaymentDetails.IndonesianBankTransfer.account:type_name -> tzero.v1.common.PaymentDetails.IndonesianBankTransfer.Account
+	14, // 54: tzero.v1.common.PaymentDetails.Fast.Proxy.proxy_type:type_name -> tzero.v1.common.PaymentDetails.Fast.Proxy.ProxyType
+	57, // 55: tzero.v1.common.payment_method_type:extendee -> google.protobuf.MessageOptions
+	0,  // 56: tzero.v1.common.payment_method_type:type_name -> tzero.v1.common.PaymentMethodType
+	57, // [57:57] is the sub-list for method output_type
+	57, // [57:57] is the sub-list for method input_type
+	56, // [56:57] is the sub-list for extension type_name
+	55, // [55:56] is the sub-list for extension extendee
+	0,  // [0:55] is the sub-list for field type_name
 }
 
 func init() { file_tzero_v1_common_payment_method_proto_init() }
@@ -5367,6 +5450,7 @@ func file_tzero_v1_common_payment_method_proto_init() {
 		(*PaymentDetails_ThaiBankTransfer_)(nil),
 		(*PaymentDetails_IndonesianBankTransfer_)(nil),
 		(*PaymentDetails_IndonesianEWallet_)(nil),
+		(*PaymentDetails_ProviderDefined_)(nil),
 	}
 	file_tzero_v1_common_payment_method_proto_msgTypes[6].OneofWrappers = []any{
 		(*PaymentDetails_IndianBankTransfer_AccountIfsc)(nil),
@@ -5409,7 +5493,7 @@ func file_tzero_v1_common_payment_method_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_tzero_v1_common_payment_method_proto_rawDesc), len(file_tzero_v1_common_payment_method_proto_rawDesc)),
 			NumEnums:      16,
-			NumMessages:   40,
+			NumMessages:   41,
 			NumExtensions: 1,
 			NumServices:   0,
 		},

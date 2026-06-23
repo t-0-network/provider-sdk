@@ -93,10 +93,9 @@ const (
 	// settlement (pay_in / rate − fix) at every active quote.
 	ConfirmFundsReceivedResponse_Reject_REJECT_REASON_AMOUNT_TOO_SMALL ConfirmFundsReceivedResponse_Reject_Reason = 40
 	// *
-	// The (pay-in provider, payment method) tuple was not offered on
-	// this intent. Either the intent was rejected during creation,
-	// or this provider's GetPaymentDetails response was invalid for
-	// the requested method.
+	// The requested payment method was not offered on this intent — either the
+	// intent was rejected at creation, or no valid payment details were returned
+	// for the method. Retry with a method from the returned options.
 	ConfirmFundsReceivedResponse_Reject_REJECT_REASON_NO_VALID_OFFER ConfirmFundsReceivedResponse_Reject_Reason = 50
 	// *
 	// Transaction_reference is already attached to a different pay-in
@@ -402,7 +401,6 @@ type PaymentIntentPayInDetails struct {
 	PaymentMethod common.PaymentMethodType `protobuf:"varint,10,opt,name=payment_method,json=paymentMethod,proto3,enum=tzero.v1.common.PaymentMethodType" json:"payment_method,omitempty"`
 	// *
 	// The T-0 provider ID of the pay-in provider offering this quote.
-	// Providers can use this to identify counterparties.
 	ProviderId uint32 `protobuf:"varint,20,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"`
 	// *
 	// Payment details for the end-user to make the payment.
@@ -412,7 +410,7 @@ type PaymentIntentPayInDetails struct {
 	// *
 	// Indicative exchange rate USD/XXX (base currency is always USD).
 	//
-	// Resolved live from the network's current quote snapshot on every call,
+	// Reflects the current quote on every call,
 	// including idempotent retries. The binding rate is locked in at
 	// ConfirmFundsReceived and may differ.
 	IndicativeRate *common.Decimal `protobuf:"bytes,40,opt,name=indicative_rate,json=indicativeRate,proto3" json:"indicative_rate,omitempty"`
@@ -420,7 +418,7 @@ type PaymentIntentPayInDetails struct {
 	// Indicative fixed charge in USD retained by the pay-in provider per transfer.
 	// Settlement is calculated as (amount / indicative_rate) - indicative_fix.
 	//
-	// Resolved live from the network's current quote snapshot on every call,
+	// Reflects the current quote on every call,
 	// including idempotent retries. The binding fix is locked in at
 	// ConfirmFundsReceived and may differ.
 	IndicativeFix *common.Decimal `protobuf:"bytes,50,opt,name=indicative_fix,json=indicativeFix,proto3" json:"indicative_fix,omitempty"`
@@ -684,12 +682,9 @@ type ConfirmFundsReceivedRequest struct {
 	// Must be a valid, pending payment intent.
 	PaymentIntentId uint64 `protobuf:"varint,10,opt,name=payment_intent_id,json=paymentIntentId,proto3" json:"payment_intent_id,omitempty"`
 	// *
-	// Confirmation code received in the get payment details along with the payment_intent_id.
-	// This prevents accidental confirmation of the wrong payment intent. The network
-	// generates this as a UUID at CreatePaymentIntent time; non-UUID strings still pass
-	// field-level length validation here and surface as a REJECT_REASON_CONFIRMATION_CODE_MISMATCH
-	// at the orchestrator (preserving the "wrong code is a domain reject, not a transport error"
-	// contract).
+	// Confirmation code received in the GetPaymentDetails response along with the payment_intent_id.
+	// Guards against confirming the wrong payment intent; a mismatch is rejected with
+	// REJECT_REASON_CONFIRMATION_CODE_MISMATCH.
 	ConfirmationCode string `protobuf:"bytes,20,opt,name=confirmation_code,json=confirmationCode,proto3" json:"confirmation_code,omitempty"`
 	// *
 	// The payment method used by the end-user.
@@ -944,7 +939,7 @@ type UpdateQuoteRequest_Quote_Band struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// unique client generated id for this band
 	ClientQuoteId string `protobuf:"bytes,10,opt,name=client_quote_id,json=clientQuoteId,proto3" json:"client_quote_id,omitempty"`
-	// max amount of USD this quote is applicable for. Please look into documentation for valid amounts.
+	// Maximum amount of USD this band applies to.
 	MaxAmount *common.Decimal `protobuf:"bytes,40,opt,name=max_amount,json=maxAmount,proto3" json:"max_amount,omitempty"`
 	// USD/currency rate
 	Rate *common.Decimal `protobuf:"bytes,50,opt,name=rate,proto3" json:"rate,omitempty"`
@@ -1124,7 +1119,6 @@ type GetQuoteResponse_Success_IndicativeQuote struct {
 	PaymentMethod common.PaymentMethodType `protobuf:"varint,10,opt,name=payment_method,json=paymentMethod,proto3,enum=tzero.v1.common.PaymentMethodType" json:"payment_method,omitempty"`
 	// *
 	// The T-0 provider ID of the pay-in provider offering this quote.
-	// Providers can use this to identify counterparties.
 	ProviderId uint32 `protobuf:"varint,20,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"`
 	// *
 	// Indicative exchange rate USD/XXX (base currency is always USD).
@@ -1263,17 +1257,16 @@ type CreatePaymentIntentResponse_Success struct {
 	// *
 	// Unique identifier for this payment intent.
 	// Store this ID to correlate with:
-	// - PaymentIntentUpdate notifications you'll receive
+	// - PaymentIntentUpdate notifications delivered later
 	PaymentIntentId uint64 `protobuf:"varint,10,opt,name=payment_intent_id,json=paymentIntentId,proto3" json:"payment_intent_id,omitempty"`
 	// *
 	// Available payment options for the end-user.
-	// Present these options to your user so they can choose how to pay.
+	// Present these options to the end-user so they can choose how to pay.
 	// Each entry contains the payment details needed to complete the payment.
 	//
 	// Indicative rate/fix are resolved live on every call, including idempotent
-	// retries. The set of options (provider, payment_method, payment_details)
-	// is fixed at first call; individual options whose underlying quote has
-	// lapsed are omitted on retry.
+	// retries. The set of options is fixed at first call; individual options
+	// whose underlying quote has lapsed are omitted on retry.
 	PayInDetails  []*PaymentIntentPayInDetails `protobuf:"bytes,20,rep,name=pay_in_details,json=payInDetails,proto3" json:"pay_in_details,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1388,8 +1381,8 @@ type ConfirmFundsReceivedResponse_Accept struct {
 	Rate *common.Decimal `protobuf:"bytes,20,opt,name=rate,proto3" json:"rate,omitempty"`
 	// *
 	// Flat USD charge retained by the pay-in provider per transfer,
-	// already subtracted from settlement_amount. Surfaced so the pay-in
-	// provider can audit the settlement formula: settlement = (payment_amount / rate) − fix.
+	// already subtracted from settlement_amount.
+	// Settlement is computed as (payment_amount / rate) − fix.
 	Fix           *common.Decimal `protobuf:"bytes,30,opt,name=fix,proto3" json:"fix,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

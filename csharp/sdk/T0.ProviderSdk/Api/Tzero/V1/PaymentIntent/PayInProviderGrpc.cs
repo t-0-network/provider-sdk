@@ -10,8 +10,7 @@ using grpc = global::Grpc.Core;
 namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
   /// <summary>
   ///*
-  /// PayInProviderService must be implemented by pay-in providers to participate
-  /// in the Payment Intent flow.
+  /// Pay-in provider surface for the Payment Intent flow.
   ///
   /// Pay-in providers are those who:
   /// - Receive fiat payments from end-users
@@ -19,8 +18,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
   /// - Confirm when payments are received via ConfirmFundsReceived
   /// - Settles periodically with the beneficiary provider
   ///
-  /// The network calls this service to obtain payment details that will be
-  /// presented to end-users for making payments.
+  /// Provides the payment details presented to end-users for making payments.
   /// </summary>
   public static partial class PayInProviderService
   {
@@ -84,12 +82,9 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
     {
       /// <summary>
       ///*
-      /// GetPaymentDetails returns payment details for the end-user.
-      ///
-      /// Called by the network during CreatePaymentIntent processing.
-      /// The provider should return payment details (bank accounts, mobile money info, etc.)
-      /// that the end-user can use to send funds. The payment details should contain payment reference,
-      /// so that on receiving payment from a payer, the pay-in provider can identify which payment intent this payment belongs to
+      /// Returns the payment details (bank account, mobile money, etc.) an end-user uses
+      /// to send funds. The details must carry a payment reference that ties an incoming
+      /// payment back to its payment intent.
       /// </summary>
       /// <param name="request">The request received from the client.</param>
       /// <param name="context">The context of the server-side call handler being invoked.</param>
@@ -131,12 +126,9 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
 
       /// <summary>
       ///*
-      /// GetPaymentDetails returns payment details for the end-user.
-      ///
-      /// Called by the network during CreatePaymentIntent processing.
-      /// The provider should return payment details (bank accounts, mobile money info, etc.)
-      /// that the end-user can use to send funds. The payment details should contain payment reference,
-      /// so that on receiving payment from a payer, the pay-in provider can identify which payment intent this payment belongs to
+      /// Returns the payment details (bank account, mobile money, etc.) an end-user uses
+      /// to send funds. The details must carry a payment reference that ties an incoming
+      /// payment back to its payment intent.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
@@ -150,12 +142,9 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
       }
       /// <summary>
       ///*
-      /// GetPaymentDetails returns payment details for the end-user.
-      ///
-      /// Called by the network during CreatePaymentIntent processing.
-      /// The provider should return payment details (bank accounts, mobile money info, etc.)
-      /// that the end-user can use to send funds. The payment details should contain payment reference,
-      /// so that on receiving payment from a payer, the pay-in provider can identify which payment intent this payment belongs to
+      /// Returns the payment details (bank account, mobile money, etc.) an end-user uses
+      /// to send funds. The details must carry a payment reference that ties an incoming
+      /// payment back to its payment intent.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="options">The options for the call.</param>
@@ -167,12 +156,9 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
       }
       /// <summary>
       ///*
-      /// GetPaymentDetails returns payment details for the end-user.
-      ///
-      /// Called by the network during CreatePaymentIntent processing.
-      /// The provider should return payment details (bank accounts, mobile money info, etc.)
-      /// that the end-user can use to send funds. The payment details should contain payment reference,
-      /// so that on receiving payment from a payer, the pay-in provider can identify which payment intent this payment belongs to
+      /// Returns the payment details (bank account, mobile money, etc.) an end-user uses
+      /// to send funds. The details must carry a payment reference that ties an incoming
+      /// payment back to its payment intent.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
@@ -186,12 +172,9 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
       }
       /// <summary>
       ///*
-      /// GetPaymentDetails returns payment details for the end-user.
-      ///
-      /// Called by the network during CreatePaymentIntent processing.
-      /// The provider should return payment details (bank accounts, mobile money info, etc.)
-      /// that the end-user can use to send funds. The payment details should contain payment reference,
-      /// so that on receiving payment from a payer, the pay-in provider can identify which payment intent this payment belongs to
+      /// Returns the payment details (bank account, mobile money, etc.) an end-user uses
+      /// to send funds. The details must carry a payment reference that ties an incoming
+      /// payment back to its payment intent.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="options">The options for the call.</param>

@@ -911,7 +911,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
             public const int MaxAmountFieldNumber = 40;
             private global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal maxAmount_;
             /// <summary>
-            /// max amount of USD this quote is applicable for. Please look into documentation for valid amounts.
+            /// Maximum amount of USD this band applies to.
             /// </summary>
             [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
             [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -1755,8 +1755,8 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
     public const int SuccessFieldNumber = 20;
     /// <summary>
     ///*
-    /// Success response - the network found a suitable quote for the provided parameters and with available credit or pre-settlement option.
-    /// The returned quoteId can be used later to call the create payment endpoint.
+    /// A suitable quote was found for the provided parameters, with available credit or pre-settlement option.
+    /// Use the returned quoteId to call CreatePayment.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -1794,7 +1794,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
     ///*
     /// All best quotes from providers with credit lines.
     /// Each quote is the best rate for that provider for the requested amount.
-    /// Includes has_sufficient_credit flag to indicate if quote can be executed immediately.
+    /// Each quote indicates whether it can be executed immediately.
     /// Always returned alongside success/failure - providers can compare alternatives or see options when no executable quote exists.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
@@ -3321,7 +3321,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
             public const int PrefundingAmountFieldNumber = 50;
             private global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal prefundingAmount_;
             /// <summary>
-            /// Additional funding needed before payment can proceed (amount - max_executable)
+            /// Additional funding needed before this quote can be executed
             /// </summary>
             [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
             [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -3705,7 +3705,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
     public const int QuoteIdFieldNumber = 60;
     private global::T0.ProviderSdk.Api.Tzero.V1.Payment.QuoteId quoteId_;
     /// <summary>
-    /// if specified, must be a valid quoteId that was previously returned by the GetPayoutQuote method otherwise last available quote will be used
+    /// if specified, must be a valid quoteId that was previously returned by GetQuote otherwise last available quote will be used
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -4635,8 +4635,8 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
     public const int AcceptedFieldNumber = 20;
     /// <summary>
     ///*
-    /// Accepted response - the payment was accepted by the network and it's going to be passed to payout provider.
-    /// Means the network found a suitable quote for the payout currency and amount.
+    /// The payment was accepted and will be passed to the payout provider.
+    /// A suitable quote was found for the pay-out currency and amount.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -4670,8 +4670,8 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
     public const int FailureFieldNumber = 30;
     /// <summary>
     ///*
-    /// Failure response - means the payment was not accepted, e.g. the network could not find a suitable quote for the
-    /// payout currency and amount, or the credit limit is exceeded for the available quotes.
+    /// The payment was not accepted — e.g. no suitable quote exists for the pay-out
+    /// currency and amount, or the credit limit is exceeded for the available quotes.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]

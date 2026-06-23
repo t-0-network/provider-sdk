@@ -70,7 +70,7 @@ export const PaymentIntentUpdateRequestSchema: GenMessage<PaymentIntentUpdateReq
 export type PaymentIntentUpdateRequest_FundsReceived = Message<"tzero.v1.payment_intent.PaymentIntentUpdateRequest.FundsReceived"> & {
   /**
    * *
-   * The settlement amount credited to your balance.
+   * The settlement amount credited to the beneficiary balance.
    * This is calculated as: (source_amount / rate) - fix
    *
    * Note: Fees are NOT deducted from this amount. Fees are tracked
@@ -108,7 +108,7 @@ export type PaymentIntentUpdateRequest_FundsReceived = Message<"tzero.v1.payment
   /**
    * *
    * Pay-in's rail-native reference (SEPA EndToEndId, SWIFT UETR, PIX e2e_id), forwarded from ConfirmFundsReceived.
-   * Reconcile against your records; serves as the anchor for dispute resolution.
+   * Reconcile against the beneficiary's records; serves as the anchor for dispute resolution.
    *
    * @generated from field: string transaction_reference = 50;
    */
@@ -126,8 +126,8 @@ export type PaymentIntentUpdateRequest_FundsReceived = Message<"tzero.v1.payment
   /**
    * *
    * Flat USD surcharge retained by the pay-in provider per transfer.
-   * Already subtracted from settlement_amount. Surface to beneficiaries that
-   * need to audit the settlement math: settlement = (payment_amount / rate) - fix.
+   * Already subtracted from settlement_amount.
+   * Settlement is computed as (payment_amount / rate) - fix.
    *
    * @generated from field: tzero.v1.common.Decimal fix = 70;
    */
@@ -181,15 +181,14 @@ export const PaymentIntentUpdateResponseSchema: GenMessage<PaymentIntentUpdateRe
 
 /**
  * *
- * BeneficiaryService must be implemented by beneficiary providers to receive
- * notifications about payment intent status changes.
+ * Beneficiary provider surface for payment intent status notifications.
  *
  * Beneficiary providers are those who:
  * - Create payment intents via CreatePaymentIntent
  * - Receive settlement (in settlement currency via configured blockchain network)
  * - Need to be notified of payment status changes
  *
- * The network calls this service to notify the beneficiary when:
+ * Notifications are delivered when:
  * - Funds have been received from the payer by pay-in provider
  *
  * @generated from service tzero.v1.payment_intent.BeneficiaryService
@@ -199,8 +198,7 @@ export const BeneficiaryService: GenService<{
    * *
    * PaymentIntentUpdate notifies the beneficiary provider of status changes.
    *
-   * Idempotency: This endpoint must be idempotent. The network may retry
-   * delivery in case of failures or timeouts.
+   * Delivery is retried on failure or timeout; handling must be idempotent.
    *
    * @generated from rpc tzero.v1.payment_intent.BeneficiaryService.PaymentIntentUpdate
    */

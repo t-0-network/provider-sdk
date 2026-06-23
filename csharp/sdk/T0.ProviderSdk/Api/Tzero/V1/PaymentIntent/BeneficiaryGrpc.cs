@@ -10,15 +10,14 @@ using grpc = global::Grpc.Core;
 namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
   /// <summary>
   ///*
-  /// BeneficiaryService must be implemented by beneficiary providers to receive
-  /// notifications about payment intent status changes.
+  /// Beneficiary provider surface for payment intent status notifications.
   ///
   /// Beneficiary providers are those who:
   /// - Create payment intents via CreatePaymentIntent
   /// - Receive settlement (in settlement currency via configured blockchain network)
   /// - Need to be notified of payment status changes
   ///
-  /// The network calls this service to notify the beneficiary when:
+  /// Notifications are delivered when:
   /// - Funds have been received from the payer by pay-in provider
   /// </summary>
   public static partial class BeneficiaryService
@@ -85,8 +84,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
       ///*
       /// PaymentIntentUpdate notifies the beneficiary provider of status changes.
       ///
-      /// Idempotency: This endpoint must be idempotent. The network may retry
-      /// delivery in case of failures or timeouts.
+      /// Delivery is retried on failure or timeout; handling must be idempotent.
       /// </summary>
       /// <param name="request">The request received from the client.</param>
       /// <param name="context">The context of the server-side call handler being invoked.</param>
@@ -130,8 +128,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
       ///*
       /// PaymentIntentUpdate notifies the beneficiary provider of status changes.
       ///
-      /// Idempotency: This endpoint must be idempotent. The network may retry
-      /// delivery in case of failures or timeouts.
+      /// Delivery is retried on failure or timeout; handling must be idempotent.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
@@ -147,8 +144,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
       ///*
       /// PaymentIntentUpdate notifies the beneficiary provider of status changes.
       ///
-      /// Idempotency: This endpoint must be idempotent. The network may retry
-      /// delivery in case of failures or timeouts.
+      /// Delivery is retried on failure or timeout; handling must be idempotent.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="options">The options for the call.</param>
@@ -162,8 +158,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
       ///*
       /// PaymentIntentUpdate notifies the beneficiary provider of status changes.
       ///
-      /// Idempotency: This endpoint must be idempotent. The network may retry
-      /// delivery in case of failures or timeouts.
+      /// Delivery is retried on failure or timeout; handling must be idempotent.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
@@ -179,8 +174,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
       ///*
       /// PaymentIntentUpdate notifies the beneficiary provider of status changes.
       ///
-      /// Idempotency: This endpoint must be idempotent. The network may retry
-      /// delivery in case of failures or timeouts.
+      /// Delivery is retried on failure or timeout; handling must be idempotent.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="options">The options for the call.</param>

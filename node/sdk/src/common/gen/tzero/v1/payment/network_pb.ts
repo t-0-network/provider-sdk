@@ -114,7 +114,7 @@ export type UpdateQuoteRequest_Quote_Band = Message<"tzero.v1.payment.UpdateQuot
   clientQuoteId: string;
 
   /**
-   * max amount of USD this quote is applicable for. Please look into documentation for valid amounts.
+   * Maximum amount of USD this band applies to.
    *
    * @generated from field: tzero.v1.common.Decimal max_amount = 40;
    */
@@ -209,8 +209,8 @@ export type GetQuoteResponse = Message<"tzero.v1.payment.GetQuoteResponse"> & {
   result: {
     /**
      * *
-     * Success response - the network found a suitable quote for the provided parameters and with available credit or pre-settlement option.
-     * The returned quoteId can be used later to call the create payment endpoint.
+     * A suitable quote was found for the provided parameters, with available credit or pre-settlement option.
+     * Use the returned quoteId to call CreatePayment.
      *
      * @generated from field: tzero.v1.payment.GetQuoteResponse.Success success = 20;
      */
@@ -232,7 +232,7 @@ export type GetQuoteResponse = Message<"tzero.v1.payment.GetQuoteResponse"> & {
    * *
    * All best quotes from providers with credit lines.
    * Each quote is the best rate for that provider for the requested amount.
-   * Includes has_sufficient_credit flag to indicate if quote can be executed immediately.
+   * Each quote indicates whether it can be executed immediately.
    * Always returned alongside success/failure - providers can compare alternatives or see options when no executable quote exists.
    *
    * @generated from field: repeated tzero.v1.payment.GetQuoteResponse.ProviderQuote all_quotes = 40;
@@ -449,7 +449,7 @@ export type GetQuoteResponse_ProviderQuote_Settlement = Message<"tzero.v1.paymen
   totalUsed?: Decimal | undefined;
 
   /**
-   * Additional funding needed before payment can proceed (amount - max_executable)
+   * Additional funding needed before this quote can be executed
    *
    * @generated from field: tzero.v1.common.Decimal prefunding_amount = 50;
    */
@@ -496,7 +496,7 @@ export type CreatePaymentRequest = Message<"tzero.v1.payment.CreatePaymentReques
   paymentDetails?: PaymentDetails | undefined;
 
   /**
-   * if specified, must be a valid quoteId that was previously returned by the GetPayoutQuote method otherwise last available quote will be used
+   * if specified, must be a valid quoteId that was previously returned by GetQuote otherwise last available quote will be used
    *
    * @generated from field: optional tzero.v1.payment.QuoteId quote_id = 60;
    */
@@ -599,8 +599,8 @@ export type CreatePaymentResponse = Message<"tzero.v1.payment.CreatePaymentRespo
   result: {
     /**
      * *
-     * Accepted response - the payment was accepted by the network and it's going to be passed to payout provider.
-     * Means the network found a suitable quote for the payout currency and amount.
+     * The payment was accepted and will be passed to the payout provider.
+     * A suitable quote was found for the pay-out currency and amount.
      *
      * @generated from field: tzero.v1.payment.CreatePaymentResponse.Accepted accepted = 20;
      */
@@ -620,8 +620,8 @@ export type CreatePaymentResponse = Message<"tzero.v1.payment.CreatePaymentRespo
   } | {
     /**
      * *
-     * Failure response - means the payment was not accepted, e.g. the network could not find a suitable quote for the
-     * payout currency and amount, or the credit limit is exceeded for the available quotes.
+     * The payment was not accepted — e.g. no suitable quote exists for the pay-out
+     * currency and amount, or the credit limit is exceeded for the available quotes.
      *
      * @generated from field: tzero.v1.payment.CreatePaymentResponse.Failure failure = 30;
      */
@@ -1134,7 +1134,7 @@ export const QuoteTypeSchema: GenEnum<QuoteType> = /*@__PURE__*/
 
 /**
  * *
- * This service is used by provider to interact with the Network, e.g. push quotes and initiate payments.
+ * Network surface for publishing quotes and initiating pay-out payments.
  *
  * All methods of this service are idempotent, meaning they are safe to retry and multiple calls with the same parameters will have no additional effect.
  *
@@ -1143,8 +1143,8 @@ export const QuoteTypeSchema: GenEnum<QuoteType> = /*@__PURE__*/
 export const NetworkService: GenService<{
   /**
    * *
-   * Used by the provider to publish pay-in and pay-out quotes (FX rates) into the network.
-   * These quotes include tiered pricing bands and an expiration timestamp.
+   * Publishes pay-in and pay-out quotes (FX rates) into the network.
+   * Quotes carry tiered pricing bands and an expiration timestamp.
    *
    * @generated from rpc tzero.v1.payment.NetworkService.UpdateQuote
    */
@@ -1169,9 +1169,8 @@ export const NetworkService: GenService<{
    * *
    * Submit a request to create a new payment for the specified pay-out currency.
    * QuoteId is the optional parameter.
-   * If the quoteID is specified, it must be a valid quoteId that was previously returned by the GetPayoutQuote method.
-   * If the quoteId is not specified, the network will try to find a suitable quote for the payout currency and amount,
-   * same way as GetPayoutQuote rpc.
+   * If the quoteId is specified, it must be a valid quoteId previously returned by GetQuote.
+   * If the quoteId is not specified, a suitable quote is selected for the pay-out currency and amount, as GetQuote does.
    *
    * @generated from rpc tzero.v1.payment.NetworkService.CreatePayment
    */
@@ -1182,8 +1181,8 @@ export const NetworkService: GenService<{
   },
   /**
    * *
-   * Inform the network that a payout has been completed. This endpoint is called by the payout
-   * provider, specifying the payment ID and payout ID, which was provided when the payout request was made to this provider.
+   * Informs the network that a payout has been completed, specifying the payment ID and payout ID
+   * from the original payout request.
    * deprecated, use the FinalizePayout rpc instead.
    *
    * @generated from rpc tzero.v1.payment.NetworkService.ConfirmPayout
@@ -1195,6 +1194,11 @@ export const NetworkService: GenService<{
     output: typeof ConfirmPayoutResponseSchema;
   },
   /**
+   * *
+   * Report the final outcome of a payout to the network, identified by the payment id from the
+   * original PayoutRequest, as either success (with an optional receipt) or failure with a reason.
+   * Supersedes the deprecated ConfirmPayout, which could only signal completion.
+   *
    * @generated from rpc tzero.v1.payment.NetworkService.FinalizePayout
    */
   finalizePayout: {
@@ -1204,9 +1208,8 @@ export const NetworkService: GenService<{
   },
   /**
    * *
-   * Pay-out provider reports the result of manual AML check.
-   * This endpoint is called after the manual AML check is completed. The network will find the new best quotes for the
-   * payment and will return the updated settlement/payout amount along with the updated quotes in the response.
+   * Reports the result of a manual AML check on a payment.
+   * On approval, the response carries the updated settlement/payout amount and quotes.
    *
    * @generated from rpc tzero.v1.payment.NetworkService.CompleteManualAmlCheck
    */

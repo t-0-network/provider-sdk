@@ -283,7 +283,7 @@ func (*AppendLedgerEntriesResponse) Descriptor() ([]byte, []int) {
 type PayoutRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// *
-	// payment id assigned by the network (provider should store this id to provide details in UpdatePayout later)
+	// Payment id assigned by the network. Store it to reference this payment in FinalizePayout later.
 	PaymentId uint64 `protobuf:"varint,10,opt,name=payment_id,json=paymentId,proto3" json:"payment_id,omitempty"`
 	// *
 	// payout_id is deprecated now, since it's 1->1 mapping between payout_id and payment_id
@@ -303,8 +303,7 @@ type PayoutRequest struct {
 	// This is the amount that should be paid out to the recipient.
 	Amount *common.Decimal `protobuf:"bytes,50,opt,name=amount,proto3" json:"amount,omitempty"`
 	// *
-	// payout_method is the payment method for the payout, e.g. bank transfer, crypto transfer, etc.
-	// This is used to specify how the payout should be made.
+	// Payment details specifying how the payout should be made (bank transfer, crypto transfer, etc.).
 	PayoutDetails *common.PaymentDetails `protobuf:"bytes,60,opt,name=payout_details,json=payoutDetails,proto3,oneof" json:"payout_details,omitempty"`
 	// *
 	// Pay-in provider id which initiated the pay out.
@@ -963,8 +962,7 @@ type AppendLedgerEntriesRequest_Transaction struct {
 	// Each entry represents a financial event that occurred in the provider's accounts.
 	Entries []*AppendLedgerEntriesRequest_LedgerEntry `protobuf:"bytes,30,rep,name=entries,proto3" json:"entries,omitempty"`
 	// *
-	// transaction_details is a oneof field that contains details about the transaction.
-	// It can be one of the following: PayIn, PayoutReservation, Payout, ProviderSettlement, FeeSettlement, PayoutReservationRelease.
+	// Identifies which kind of transaction these ledger entries describe.
 	//
 	// Types that are valid to be assigned to TransactionDetails:
 	//
@@ -1408,7 +1406,7 @@ type PayoutRequest_TravelRuleData struct {
 	Beneficiary []*ivms.Person `protobuf:"bytes,20,rep,name=beneficiary,proto3" json:"beneficiary,omitempty"`
 	// *
 	// IVMS101 travel rule data of the originating provider's legal entity.
-	// Resolved by the network from the entity specified in CreatePaymentRequest.
+	// Taken from the originator entity in the corresponding CreatePaymentRequest.
 	OriginatorProvider *ivms.Person `protobuf:"bytes,30,opt,name=originator_provider,json=originatorProvider,proto3,oneof" json:"originator_provider,omitempty"`
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache

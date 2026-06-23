@@ -55,8 +55,8 @@ const (
 // NetworkServiceClient is a client for the tzero.v1.payment.NetworkService service.
 type NetworkServiceClient interface {
 	// *
-	// Used by the provider to publish pay-in and pay-out quotes (FX rates) into the network.
-	// These quotes include tiered pricing bands and an expiration timestamp.
+	// Publishes pay-in and pay-out quotes (FX rates) into the network.
+	// Quotes carry tiered pricing bands and an expiration timestamp.
 	UpdateQuote(context.Context, *connect.Request[payment.UpdateQuoteRequest]) (*connect.Response[payment.UpdateQuoteResponse], error)
 	// *
 	// Request the best available quote for a payout in a specific currency, for a given amount.
@@ -65,22 +65,24 @@ type NetworkServiceClient interface {
 	// *
 	// Submit a request to create a new payment for the specified pay-out currency.
 	// QuoteId is the optional parameter.
-	// If the quoteID is specified, it must be a valid quoteId that was previously returned by the GetPayoutQuote method.
-	// If the quoteId is not specified, the network will try to find a suitable quote for the payout currency and amount,
-	// same way as GetPayoutQuote rpc.
+	// If the quoteId is specified, it must be a valid quoteId previously returned by GetQuote.
+	// If the quoteId is not specified, a suitable quote is selected for the pay-out currency and amount, as GetQuote does.
 	CreatePayment(context.Context, *connect.Request[payment.CreatePaymentRequest]) (*connect.Response[payment.CreatePaymentResponse], error)
 	// *
-	// Inform the network that a payout has been completed. This endpoint is called by the payout
-	// provider, specifying the payment ID and payout ID, which was provided when the payout request was made to this provider.
+	// Informs the network that a payout has been completed, specifying the payment ID and payout ID
+	// from the original payout request.
 	// deprecated, use the FinalizePayout rpc instead.
 	//
 	// Deprecated: do not use.
 	ConfirmPayout(context.Context, *connect.Request[payment.ConfirmPayoutRequest]) (*connect.Response[payment.ConfirmPayoutResponse], error)
+	// *
+	// Report the final outcome of a payout to the network, identified by the payment id from the
+	// original PayoutRequest, as either success (with an optional receipt) or failure with a reason.
+	// Supersedes the deprecated ConfirmPayout, which could only signal completion.
 	FinalizePayout(context.Context, *connect.Request[payment.FinalizePayoutRequest]) (*connect.Response[payment.FinalizePayoutResponse], error)
 	// *
-	// Pay-out provider reports the result of manual AML check.
-	// This endpoint is called after the manual AML check is completed. The network will find the new best quotes for the
-	// payment and will return the updated settlement/payout amount along with the updated quotes in the response.
+	// Reports the result of a manual AML check on a payment.
+	// On approval, the response carries the updated settlement/payout amount and quotes.
 	CompleteManualAmlCheck(context.Context, *connect.Request[payment.CompleteManualAmlCheckRequest]) (*connect.Response[payment.CompleteManualAmlCheckResponse], error)
 }
 
@@ -185,8 +187,8 @@ func (c *networkServiceClient) CompleteManualAmlCheck(ctx context.Context, req *
 // NetworkServiceHandler is an implementation of the tzero.v1.payment.NetworkService service.
 type NetworkServiceHandler interface {
 	// *
-	// Used by the provider to publish pay-in and pay-out quotes (FX rates) into the network.
-	// These quotes include tiered pricing bands and an expiration timestamp.
+	// Publishes pay-in and pay-out quotes (FX rates) into the network.
+	// Quotes carry tiered pricing bands and an expiration timestamp.
 	UpdateQuote(context.Context, *connect.Request[payment.UpdateQuoteRequest]) (*connect.Response[payment.UpdateQuoteResponse], error)
 	// *
 	// Request the best available quote for a payout in a specific currency, for a given amount.
@@ -195,22 +197,24 @@ type NetworkServiceHandler interface {
 	// *
 	// Submit a request to create a new payment for the specified pay-out currency.
 	// QuoteId is the optional parameter.
-	// If the quoteID is specified, it must be a valid quoteId that was previously returned by the GetPayoutQuote method.
-	// If the quoteId is not specified, the network will try to find a suitable quote for the payout currency and amount,
-	// same way as GetPayoutQuote rpc.
+	// If the quoteId is specified, it must be a valid quoteId previously returned by GetQuote.
+	// If the quoteId is not specified, a suitable quote is selected for the pay-out currency and amount, as GetQuote does.
 	CreatePayment(context.Context, *connect.Request[payment.CreatePaymentRequest]) (*connect.Response[payment.CreatePaymentResponse], error)
 	// *
-	// Inform the network that a payout has been completed. This endpoint is called by the payout
-	// provider, specifying the payment ID and payout ID, which was provided when the payout request was made to this provider.
+	// Informs the network that a payout has been completed, specifying the payment ID and payout ID
+	// from the original payout request.
 	// deprecated, use the FinalizePayout rpc instead.
 	//
 	// Deprecated: do not use.
 	ConfirmPayout(context.Context, *connect.Request[payment.ConfirmPayoutRequest]) (*connect.Response[payment.ConfirmPayoutResponse], error)
+	// *
+	// Report the final outcome of a payout to the network, identified by the payment id from the
+	// original PayoutRequest, as either success (with an optional receipt) or failure with a reason.
+	// Supersedes the deprecated ConfirmPayout, which could only signal completion.
 	FinalizePayout(context.Context, *connect.Request[payment.FinalizePayoutRequest]) (*connect.Response[payment.FinalizePayoutResponse], error)
 	// *
-	// Pay-out provider reports the result of manual AML check.
-	// This endpoint is called after the manual AML check is completed. The network will find the new best quotes for the
-	// payment and will return the updated settlement/payout amount along with the updated quotes in the response.
+	// Reports the result of a manual AML check on a payment.
+	// On approval, the response carries the updated settlement/payout amount and quotes.
 	CompleteManualAmlCheck(context.Context, *connect.Request[payment.CompleteManualAmlCheckRequest]) (*connect.Response[payment.CompleteManualAmlCheckResponse], error)
 }
 

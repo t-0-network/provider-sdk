@@ -66,9 +66,7 @@ type PaymentIntentServiceClient interface {
 	// *
 	// CreatePaymentIntent initiates a new payment intent.
 	//
-	// Called by the beneficiary provider (the one who will receive the settlement).
-	// The network finds suitable pay-in providers, retrieves their payment details,
-	// and returns available payment options to present to the end-user.
+	// Returns the available payment options to present to the end-user.
 	//
 	// The returned payment_intent_id must be stored by the beneficiary provider
 	// to correlate with the PaymentIntentUpdate notification received later.
@@ -171,9 +169,7 @@ type PaymentIntentServiceHandler interface {
 	// *
 	// CreatePaymentIntent initiates a new payment intent.
 	//
-	// Called by the beneficiary provider (the one who will receive the settlement).
-	// The network finds suitable pay-in providers, retrieves their payment details,
-	// and returns available payment options to present to the end-user.
+	// Returns the available payment options to present to the end-user.
 	//
 	// The returned payment_intent_id must be stored by the beneficiary provider
 	// to correlate with the PaymentIntentUpdate notification received later.

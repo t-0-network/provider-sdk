@@ -35,9 +35,8 @@ type GetPaymentDetailsRequest struct {
 	// confirmation of the wrong payment intent
 	ConfirmationCode string `protobuf:"bytes,20,opt,name=confirmation_code,json=confirmationCode,proto3" json:"confirmation_code,omitempty"`
 	// *
-	// Payment methods being requested.
-	// The provider should return PaymentDetails for the methods in the request. All the payment methods will be taken
-	// from the quotes submitted by pay-in provider.
+	// Payment methods to return PaymentDetails for.
+	// Each is drawn from a previously submitted quote.
 	PaymentMethods []common.PaymentMethodType `protobuf:"varint,30,rep,packed,name=payment_methods,json=paymentMethods,proto3,enum=tzero.v1.common.PaymentMethodType" json:"payment_methods,omitempty"`
 	// *
 	// The currency for the pay-in.
@@ -51,8 +50,7 @@ type GetPaymentDetailsRequest struct {
 	TravelRule *GetPaymentDetailsRequest_TravelRuleData `protobuf:"bytes,60,opt,name=travel_rule,json=travelRule,proto3" json:"travel_rule,omitempty"`
 	// *
 	// The T-0 provider ID of the beneficiary provider (the FI the funds are
-	// destined for). Stable, opaque identifier — pay-in providers can use this
-	// directly to resolve the beneficiary in their own systems.
+	// destined for). Stable, opaque identifier for the beneficiary.
 	BeneficiaryProviderId uint32 `protobuf:"varint,70,opt,name=beneficiary_provider_id,json=beneficiaryProviderId,proto3" json:"beneficiary_provider_id,omitempty"`
 	unknownFields         protoimpl.UnknownFields
 	sizeCache             protoimpl.SizeCache
@@ -290,11 +288,9 @@ func (x *GetPaymentDetailsRequest_TravelRuleData) GetPayer() *ivms.Person {
 type GetPaymentDetailsResponse_Details struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// *
-	// Payment details for each supported payment method.
-	//
-	// Each PaymentDetails contains the information needed for an end-user
-	// to send a payment (e.g., bank account details, mobile money number) and payment reference,
-	// which can be used by pay-in provider to identify incoming payment.
+	// Payment details for each supported payment method. Each entry carries the
+	// information an end-user needs to send a payment (bank account, mobile money,
+	// etc.) plus a payment reference that identifies the incoming payment.
 	PaymentDetails []*common.PaymentDetails `protobuf:"bytes,10,rep,name=payment_details,json=paymentDetails,proto3" json:"payment_details,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache

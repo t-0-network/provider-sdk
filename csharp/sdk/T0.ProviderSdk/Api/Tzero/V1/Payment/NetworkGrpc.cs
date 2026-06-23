@@ -10,7 +10,7 @@ using grpc = global::Grpc.Core;
 namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
   /// <summary>
   ///*
-  /// This service is used by provider to interact with the Network, e.g. push quotes and initiate payments.
+  /// Network surface for publishing quotes and initiating pay-out payments.
   ///
   /// All methods of this service are idempotent, meaning they are safe to retry and multiple calls with the same parameters will have no additional effect.
   /// </summary>
@@ -136,8 +136,8 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
     {
       /// <summary>
       ///*
-      /// Used by the provider to publish pay-in and pay-out quotes (FX rates) into the network.
-      /// These quotes include tiered pricing bands and an expiration timestamp.
+      /// Publishes pay-in and pay-out quotes (FX rates) into the network.
+      /// Quotes carry tiered pricing bands and an expiration timestamp.
       /// </summary>
       /// <param name="request">The request received from the client.</param>
       /// <param name="context">The context of the server-side call handler being invoked.</param>
@@ -166,9 +166,8 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
       ///*
       /// Submit a request to create a new payment for the specified pay-out currency.
       /// QuoteId is the optional parameter.
-      /// If the quoteID is specified, it must be a valid quoteId that was previously returned by the GetPayoutQuote method.
-      /// If the quoteId is not specified, the network will try to find a suitable quote for the payout currency and amount,
-      /// same way as GetPayoutQuote rpc.
+      /// If the quoteId is specified, it must be a valid quoteId previously returned by GetQuote.
+      /// If the quoteId is not specified, a suitable quote is selected for the pay-out currency and amount, as GetQuote does.
       /// </summary>
       /// <param name="request">The request received from the client.</param>
       /// <param name="context">The context of the server-side call handler being invoked.</param>
@@ -181,8 +180,8 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
 
       /// <summary>
       ///*
-      /// Inform the network that a payout has been completed. This endpoint is called by the payout
-      /// provider, specifying the payment ID and payout ID, which was provided when the payout request was made to this provider.
+      /// Informs the network that a payout has been completed, specifying the payment ID and payout ID
+      /// from the original payout request.
       /// deprecated, use the FinalizePayout rpc instead.
       /// </summary>
       /// <param name="request">The request received from the client.</param>
@@ -195,6 +194,15 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
         throw new grpc::RpcException(new grpc::Status(grpc::StatusCode.Unimplemented, ""));
       }
 
+      /// <summary>
+      ///*
+      /// Report the final outcome of a payout to the network, identified by the payment id from the
+      /// original PayoutRequest, as either success (with an optional receipt) or failure with a reason.
+      /// Supersedes the deprecated ConfirmPayout, which could only signal completion.
+      /// </summary>
+      /// <param name="request">The request received from the client.</param>
+      /// <param name="context">The context of the server-side call handler being invoked.</param>
+      /// <returns>The response to send back to the client (wrapped by a task).</returns>
       [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
       public virtual global::System.Threading.Tasks.Task<global::T0.ProviderSdk.Api.Tzero.V1.Payment.FinalizePayoutResponse> FinalizePayout(global::T0.ProviderSdk.Api.Tzero.V1.Payment.FinalizePayoutRequest request, grpc::ServerCallContext context)
       {
@@ -203,9 +211,8 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
 
       /// <summary>
       ///*
-      /// Pay-out provider reports the result of manual AML check.
-      /// This endpoint is called after the manual AML check is completed. The network will find the new best quotes for the
-      /// payment and will return the updated settlement/payout amount along with the updated quotes in the response.
+      /// Reports the result of a manual AML check on a payment.
+      /// On approval, the response carries the updated settlement/payout amount and quotes.
       /// </summary>
       /// <param name="request">The request received from the client.</param>
       /// <param name="context">The context of the server-side call handler being invoked.</param>
@@ -247,8 +254,8 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
 
       /// <summary>
       ///*
-      /// Used by the provider to publish pay-in and pay-out quotes (FX rates) into the network.
-      /// These quotes include tiered pricing bands and an expiration timestamp.
+      /// Publishes pay-in and pay-out quotes (FX rates) into the network.
+      /// Quotes carry tiered pricing bands and an expiration timestamp.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
@@ -262,8 +269,8 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
       }
       /// <summary>
       ///*
-      /// Used by the provider to publish pay-in and pay-out quotes (FX rates) into the network.
-      /// These quotes include tiered pricing bands and an expiration timestamp.
+      /// Publishes pay-in and pay-out quotes (FX rates) into the network.
+      /// Quotes carry tiered pricing bands and an expiration timestamp.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="options">The options for the call.</param>
@@ -275,8 +282,8 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
       }
       /// <summary>
       ///*
-      /// Used by the provider to publish pay-in and pay-out quotes (FX rates) into the network.
-      /// These quotes include tiered pricing bands and an expiration timestamp.
+      /// Publishes pay-in and pay-out quotes (FX rates) into the network.
+      /// Quotes carry tiered pricing bands and an expiration timestamp.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
@@ -290,8 +297,8 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
       }
       /// <summary>
       ///*
-      /// Used by the provider to publish pay-in and pay-out quotes (FX rates) into the network.
-      /// These quotes include tiered pricing bands and an expiration timestamp.
+      /// Publishes pay-in and pay-out quotes (FX rates) into the network.
+      /// Quotes carry tiered pricing bands and an expiration timestamp.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="options">The options for the call.</param>
@@ -361,9 +368,8 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
       ///*
       /// Submit a request to create a new payment for the specified pay-out currency.
       /// QuoteId is the optional parameter.
-      /// If the quoteID is specified, it must be a valid quoteId that was previously returned by the GetPayoutQuote method.
-      /// If the quoteId is not specified, the network will try to find a suitable quote for the payout currency and amount,
-      /// same way as GetPayoutQuote rpc.
+      /// If the quoteId is specified, it must be a valid quoteId previously returned by GetQuote.
+      /// If the quoteId is not specified, a suitable quote is selected for the pay-out currency and amount, as GetQuote does.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
@@ -379,9 +385,8 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
       ///*
       /// Submit a request to create a new payment for the specified pay-out currency.
       /// QuoteId is the optional parameter.
-      /// If the quoteID is specified, it must be a valid quoteId that was previously returned by the GetPayoutQuote method.
-      /// If the quoteId is not specified, the network will try to find a suitable quote for the payout currency and amount,
-      /// same way as GetPayoutQuote rpc.
+      /// If the quoteId is specified, it must be a valid quoteId previously returned by GetQuote.
+      /// If the quoteId is not specified, a suitable quote is selected for the pay-out currency and amount, as GetQuote does.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="options">The options for the call.</param>
@@ -395,9 +400,8 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
       ///*
       /// Submit a request to create a new payment for the specified pay-out currency.
       /// QuoteId is the optional parameter.
-      /// If the quoteID is specified, it must be a valid quoteId that was previously returned by the GetPayoutQuote method.
-      /// If the quoteId is not specified, the network will try to find a suitable quote for the payout currency and amount,
-      /// same way as GetPayoutQuote rpc.
+      /// If the quoteId is specified, it must be a valid quoteId previously returned by GetQuote.
+      /// If the quoteId is not specified, a suitable quote is selected for the pay-out currency and amount, as GetQuote does.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
@@ -413,9 +417,8 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
       ///*
       /// Submit a request to create a new payment for the specified pay-out currency.
       /// QuoteId is the optional parameter.
-      /// If the quoteID is specified, it must be a valid quoteId that was previously returned by the GetPayoutQuote method.
-      /// If the quoteId is not specified, the network will try to find a suitable quote for the payout currency and amount,
-      /// same way as GetPayoutQuote rpc.
+      /// If the quoteId is specified, it must be a valid quoteId previously returned by GetQuote.
+      /// If the quoteId is not specified, a suitable quote is selected for the pay-out currency and amount, as GetQuote does.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="options">The options for the call.</param>
@@ -427,8 +430,8 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
       }
       /// <summary>
       ///*
-      /// Inform the network that a payout has been completed. This endpoint is called by the payout
-      /// provider, specifying the payment ID and payout ID, which was provided when the payout request was made to this provider.
+      /// Informs the network that a payout has been completed, specifying the payment ID and payout ID
+      /// from the original payout request.
       /// deprecated, use the FinalizePayout rpc instead.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
@@ -444,8 +447,8 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
       }
       /// <summary>
       ///*
-      /// Inform the network that a payout has been completed. This endpoint is called by the payout
-      /// provider, specifying the payment ID and payout ID, which was provided when the payout request was made to this provider.
+      /// Informs the network that a payout has been completed, specifying the payment ID and payout ID
+      /// from the original payout request.
       /// deprecated, use the FinalizePayout rpc instead.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
@@ -459,8 +462,8 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
       }
       /// <summary>
       ///*
-      /// Inform the network that a payout has been completed. This endpoint is called by the payout
-      /// provider, specifying the payment ID and payout ID, which was provided when the payout request was made to this provider.
+      /// Informs the network that a payout has been completed, specifying the payment ID and payout ID
+      /// from the original payout request.
       /// deprecated, use the FinalizePayout rpc instead.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
@@ -476,8 +479,8 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
       }
       /// <summary>
       ///*
-      /// Inform the network that a payout has been completed. This endpoint is called by the payout
-      /// provider, specifying the payment ID and payout ID, which was provided when the payout request was made to this provider.
+      /// Informs the network that a payout has been completed, specifying the payment ID and payout ID
+      /// from the original payout request.
       /// deprecated, use the FinalizePayout rpc instead.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
@@ -489,21 +492,61 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
       {
         return CallInvoker.AsyncUnaryCall(__Method_ConfirmPayout, null, options, request);
       }
+      /// <summary>
+      ///*
+      /// Report the final outcome of a payout to the network, identified by the payment id from the
+      /// original PayoutRequest, as either success (with an optional receipt) or failure with a reason.
+      /// Supersedes the deprecated ConfirmPayout, which could only signal completion.
+      /// </summary>
+      /// <param name="request">The request to send to the server.</param>
+      /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
+      /// <param name="deadline">An optional deadline for the call. The call will be cancelled if deadline is hit.</param>
+      /// <param name="cancellationToken">An optional token for canceling the call.</param>
+      /// <returns>The response received from the server.</returns>
       [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
       public virtual global::T0.ProviderSdk.Api.Tzero.V1.Payment.FinalizePayoutResponse FinalizePayout(global::T0.ProviderSdk.Api.Tzero.V1.Payment.FinalizePayoutRequest request, grpc::Metadata headers = null, global::System.DateTime? deadline = null, global::System.Threading.CancellationToken cancellationToken = default(global::System.Threading.CancellationToken))
       {
         return FinalizePayout(request, new grpc::CallOptions(headers, deadline, cancellationToken));
       }
+      /// <summary>
+      ///*
+      /// Report the final outcome of a payout to the network, identified by the payment id from the
+      /// original PayoutRequest, as either success (with an optional receipt) or failure with a reason.
+      /// Supersedes the deprecated ConfirmPayout, which could only signal completion.
+      /// </summary>
+      /// <param name="request">The request to send to the server.</param>
+      /// <param name="options">The options for the call.</param>
+      /// <returns>The response received from the server.</returns>
       [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
       public virtual global::T0.ProviderSdk.Api.Tzero.V1.Payment.FinalizePayoutResponse FinalizePayout(global::T0.ProviderSdk.Api.Tzero.V1.Payment.FinalizePayoutRequest request, grpc::CallOptions options)
       {
         return CallInvoker.BlockingUnaryCall(__Method_FinalizePayout, null, options, request);
       }
+      /// <summary>
+      ///*
+      /// Report the final outcome of a payout to the network, identified by the payment id from the
+      /// original PayoutRequest, as either success (with an optional receipt) or failure with a reason.
+      /// Supersedes the deprecated ConfirmPayout, which could only signal completion.
+      /// </summary>
+      /// <param name="request">The request to send to the server.</param>
+      /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
+      /// <param name="deadline">An optional deadline for the call. The call will be cancelled if deadline is hit.</param>
+      /// <param name="cancellationToken">An optional token for canceling the call.</param>
+      /// <returns>The call object.</returns>
       [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
       public virtual grpc::AsyncUnaryCall<global::T0.ProviderSdk.Api.Tzero.V1.Payment.FinalizePayoutResponse> FinalizePayoutAsync(global::T0.ProviderSdk.Api.Tzero.V1.Payment.FinalizePayoutRequest request, grpc::Metadata headers = null, global::System.DateTime? deadline = null, global::System.Threading.CancellationToken cancellationToken = default(global::System.Threading.CancellationToken))
       {
         return FinalizePayoutAsync(request, new grpc::CallOptions(headers, deadline, cancellationToken));
       }
+      /// <summary>
+      ///*
+      /// Report the final outcome of a payout to the network, identified by the payment id from the
+      /// original PayoutRequest, as either success (with an optional receipt) or failure with a reason.
+      /// Supersedes the deprecated ConfirmPayout, which could only signal completion.
+      /// </summary>
+      /// <param name="request">The request to send to the server.</param>
+      /// <param name="options">The options for the call.</param>
+      /// <returns>The call object.</returns>
       [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
       public virtual grpc::AsyncUnaryCall<global::T0.ProviderSdk.Api.Tzero.V1.Payment.FinalizePayoutResponse> FinalizePayoutAsync(global::T0.ProviderSdk.Api.Tzero.V1.Payment.FinalizePayoutRequest request, grpc::CallOptions options)
       {
@@ -511,9 +554,8 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
       }
       /// <summary>
       ///*
-      /// Pay-out provider reports the result of manual AML check.
-      /// This endpoint is called after the manual AML check is completed. The network will find the new best quotes for the
-      /// payment and will return the updated settlement/payout amount along with the updated quotes in the response.
+      /// Reports the result of a manual AML check on a payment.
+      /// On approval, the response carries the updated settlement/payout amount and quotes.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
@@ -527,9 +569,8 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
       }
       /// <summary>
       ///*
-      /// Pay-out provider reports the result of manual AML check.
-      /// This endpoint is called after the manual AML check is completed. The network will find the new best quotes for the
-      /// payment and will return the updated settlement/payout amount along with the updated quotes in the response.
+      /// Reports the result of a manual AML check on a payment.
+      /// On approval, the response carries the updated settlement/payout amount and quotes.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="options">The options for the call.</param>
@@ -541,9 +582,8 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
       }
       /// <summary>
       ///*
-      /// Pay-out provider reports the result of manual AML check.
-      /// This endpoint is called after the manual AML check is completed. The network will find the new best quotes for the
-      /// payment and will return the updated settlement/payout amount along with the updated quotes in the response.
+      /// Reports the result of a manual AML check on a payment.
+      /// On approval, the response carries the updated settlement/payout amount and quotes.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
@@ -557,9 +597,8 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
       }
       /// <summary>
       ///*
-      /// Pay-out provider reports the result of manual AML check.
-      /// This endpoint is called after the manual AML check is completed. The network will find the new best quotes for the
-      /// payment and will return the updated settlement/payout amount along with the updated quotes in the response.
+      /// Reports the result of a manual AML check on a payment.
+      /// On approval, the response carries the updated settlement/payout amount and quotes.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="options">The options for the call.</param>

@@ -43,6 +43,7 @@ class PaymentMethodType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     PAYMENT_METHOD_TYPE_THAI_BANK_TRANSFER: _ClassVar[PaymentMethodType]
     PAYMENT_METHOD_TYPE_INDONESIAN_BANK_TRANSFER: _ClassVar[PaymentMethodType]
     PAYMENT_METHOD_TYPE_INDONESIAN_E_WALLET: _ClassVar[PaymentMethodType]
+    PAYMENT_METHOD_TYPE_PROVIDER_DEFINED: _ClassVar[PaymentMethodType]
 PAYMENT_METHOD_TYPE_UNSPECIFIED: PaymentMethodType
 PAYMENT_METHOD_TYPE_SEPA: PaymentMethodType
 PAYMENT_METHOD_TYPE_SWIFT: PaymentMethodType
@@ -76,11 +77,12 @@ PAYMENT_METHOD_TYPE_PROMPTPAY: PaymentMethodType
 PAYMENT_METHOD_TYPE_THAI_BANK_TRANSFER: PaymentMethodType
 PAYMENT_METHOD_TYPE_INDONESIAN_BANK_TRANSFER: PaymentMethodType
 PAYMENT_METHOD_TYPE_INDONESIAN_E_WALLET: PaymentMethodType
+PAYMENT_METHOD_TYPE_PROVIDER_DEFINED: PaymentMethodType
 PAYMENT_METHOD_TYPE_FIELD_NUMBER: _ClassVar[int]
 payment_method_type: _descriptor.FieldDescriptor
 
 class PaymentDetails(_message.Message):
-    __slots__ = ("sepa", "swift", "ach", "domestic_wire", "fps", "mpesa", "gcash", "indian_bank_transfer", "pesonet", "instapay", "pakistan_bank_transfer", "pakistan_mobile_wallet", "pix", "african_mobile_money", "naps", "nip", "rtp", "chilean_bank_transfer", "peru_bank_transfer", "argentinian_bank_transfer", "mexican_bank_transfer", "colombian_ach", "colombian_breb", "gip", "uaefts", "vietqr", "napas", "fast", "promptpay", "thai_bank_transfer", "indonesian_bank_transfer", "indonesian_e_wallet")
+    __slots__ = ("sepa", "swift", "ach", "domestic_wire", "fps", "mpesa", "gcash", "indian_bank_transfer", "pesonet", "instapay", "pakistan_bank_transfer", "pakistan_mobile_wallet", "pix", "african_mobile_money", "naps", "nip", "rtp", "chilean_bank_transfer", "peru_bank_transfer", "argentinian_bank_transfer", "mexican_bank_transfer", "colombian_ach", "colombian_breb", "gip", "uaefts", "vietqr", "napas", "fast", "promptpay", "thai_bank_transfer", "indonesian_bank_transfer", "indonesian_e_wallet", "provider_defined")
     class Sepa(_message.Message):
         __slots__ = ("iban", "beneficiary_name", "payment_reference")
         IBAN_FIELD_NUMBER: _ClassVar[int]
@@ -684,6 +686,11 @@ class PaymentDetails(_message.Message):
         beneficiary_name: str
         payment_reference: str
         def __init__(self, provider: _Optional[str] = ..., mobile_number: _Optional[str] = ..., beneficiary_name: _Optional[str] = ..., payment_reference: _Optional[str] = ...) -> None: ...
+    class ProviderDefined(_message.Message):
+        __slots__ = ("payload",)
+        PAYLOAD_FIELD_NUMBER: _ClassVar[int]
+        payload: bytes
+        def __init__(self, payload: _Optional[bytes] = ...) -> None: ...
     SEPA_FIELD_NUMBER: _ClassVar[int]
     SWIFT_FIELD_NUMBER: _ClassVar[int]
     ACH_FIELD_NUMBER: _ClassVar[int]
@@ -716,6 +723,7 @@ class PaymentDetails(_message.Message):
     THAI_BANK_TRANSFER_FIELD_NUMBER: _ClassVar[int]
     INDONESIAN_BANK_TRANSFER_FIELD_NUMBER: _ClassVar[int]
     INDONESIAN_E_WALLET_FIELD_NUMBER: _ClassVar[int]
+    PROVIDER_DEFINED_FIELD_NUMBER: _ClassVar[int]
     sepa: PaymentDetails.Sepa
     swift: PaymentDetails.Swift
     ach: PaymentDetails.Ach
@@ -748,4 +756,5 @@ class PaymentDetails(_message.Message):
     thai_bank_transfer: PaymentDetails.ThaiBankTransfer
     indonesian_bank_transfer: PaymentDetails.IndonesianBankTransfer
     indonesian_e_wallet: PaymentDetails.IndonesianEWallet
-    def __init__(self, sepa: _Optional[_Union[PaymentDetails.Sepa, _Mapping]] = ..., swift: _Optional[_Union[PaymentDetails.Swift, _Mapping]] = ..., ach: _Optional[_Union[PaymentDetails.Ach, _Mapping]] = ..., domestic_wire: _Optional[_Union[PaymentDetails.DomesticWire, _Mapping]] = ..., fps: _Optional[_Union[PaymentDetails.Fps, _Mapping]] = ..., mpesa: _Optional[_Union[PaymentDetails.MPesa, _Mapping]] = ..., gcash: _Optional[_Union[PaymentDetails.GCash, _Mapping]] = ..., indian_bank_transfer: _Optional[_Union[PaymentDetails.IndianBankTransfer, _Mapping]] = ..., pesonet: _Optional[_Union[PaymentDetails.Pesonet, _Mapping]] = ..., instapay: _Optional[_Union[PaymentDetails.Instapay, _Mapping]] = ..., pakistan_bank_transfer: _Optional[_Union[PaymentDetails.PakistanBankTransfer, _Mapping]] = ..., pakistan_mobile_wallet: _Optional[_Union[PaymentDetails.PakistanMobileWallet, _Mapping]] = ..., pix: _Optional[_Union[PaymentDetails.Pix, _Mapping]] = ..., african_mobile_money: _Optional[_Union[PaymentDetails.AfricanMobileMoney, _Mapping]] = ..., naps: _Optional[_Union[PaymentDetails.Cnaps, _Mapping]] = ..., nip: _Optional[_Union[PaymentDetails.Nip, _Mapping]] = ..., rtp: _Optional[_Union[PaymentDetails.Rtp, _Mapping]] = ..., chilean_bank_transfer: _Optional[_Union[PaymentDetails.ChileanBankTransfer, _Mapping]] = ..., peru_bank_transfer: _Optional[_Union[PaymentDetails.PeruBankTransfer, _Mapping]] = ..., argentinian_bank_transfer: _Optional[_Union[PaymentDetails.ArgentinianBankTransfer, _Mapping]] = ..., mexican_bank_transfer: _Optional[_Union[PaymentDetails.MexicanBankTransfer, _Mapping]] = ..., colombian_ach: _Optional[_Union[PaymentDetails.ColombianAch, _Mapping]] = ..., colombian_breb: _Optional[_Union[PaymentDetails.ColombianBreb, _Mapping]] = ..., gip: _Optional[_Union[PaymentDetails.Gip, _Mapping]] = ..., uaefts: _Optional[_Union[PaymentDetails.Uaefts, _Mapping]] = ..., vietqr: _Optional[_Union[PaymentDetails.VietQr, _Mapping]] = ..., napas: _Optional[_Union[PaymentDetails.Napas, _Mapping]] = ..., fast: _Optional[_Union[PaymentDetails.Fast, _Mapping]] = ..., promptpay: _Optional[_Union[PaymentDetails.PromptPay, _Mapping]] = ..., thai_bank_transfer: _Optional[_Union[PaymentDetails.ThaiBankTransfer, _Mapping]] = ..., indonesian_bank_transfer: _Optional[_Union[PaymentDetails.IndonesianBankTransfer, _Mapping]] = ..., indonesian_e_wallet: _Optional[_Union[PaymentDetails.IndonesianEWallet, _Mapping]] = ...) -> None: ...
+    provider_defined: PaymentDetails.ProviderDefined
+    def __init__(self, sepa: _Optional[_Union[PaymentDetails.Sepa, _Mapping]] = ..., swift: _Optional[_Union[PaymentDetails.Swift, _Mapping]] = ..., ach: _Optional[_Union[PaymentDetails.Ach, _Mapping]] = ..., domestic_wire: _Optional[_Union[PaymentDetails.DomesticWire, _Mapping]] = ..., fps: _Optional[_Union[PaymentDetails.Fps, _Mapping]] = ..., mpesa: _Optional[_Union[PaymentDetails.MPesa, _Mapping]] = ..., gcash: _Optional[_Union[PaymentDetails.GCash, _Mapping]] = ..., indian_bank_transfer: _Optional[_Union[PaymentDetails.IndianBankTransfer, _Mapping]] = ..., pesonet: _Optional[_Union[PaymentDetails.Pesonet, _Mapping]] = ..., instapay: _Optional[_Union[PaymentDetails.Instapay, _Mapping]] = ..., pakistan_bank_transfer: _Optional[_Union[PaymentDetails.PakistanBankTransfer, _Mapping]] = ..., pakistan_mobile_wallet: _Optional[_Union[PaymentDetails.PakistanMobileWallet, _Mapping]] = ..., pix: _Optional[_Union[PaymentDetails.Pix, _Mapping]] = ..., african_mobile_money: _Optional[_Union[PaymentDetails.AfricanMobileMoney, _Mapping]] = ..., naps: _Optional[_Union[PaymentDetails.Cnaps, _Mapping]] = ..., nip: _Optional[_Union[PaymentDetails.Nip, _Mapping]] = ..., rtp: _Optional[_Union[PaymentDetails.Rtp, _Mapping]] = ..., chilean_bank_transfer: _Optional[_Union[PaymentDetails.ChileanBankTransfer, _Mapping]] = ..., peru_bank_transfer: _Optional[_Union[PaymentDetails.PeruBankTransfer, _Mapping]] = ..., argentinian_bank_transfer: _Optional[_Union[PaymentDetails.ArgentinianBankTransfer, _Mapping]] = ..., mexican_bank_transfer: _Optional[_Union[PaymentDetails.MexicanBankTransfer, _Mapping]] = ..., colombian_ach: _Optional[_Union[PaymentDetails.ColombianAch, _Mapping]] = ..., colombian_breb: _Optional[_Union[PaymentDetails.ColombianBreb, _Mapping]] = ..., gip: _Optional[_Union[PaymentDetails.Gip, _Mapping]] = ..., uaefts: _Optional[_Union[PaymentDetails.Uaefts, _Mapping]] = ..., vietqr: _Optional[_Union[PaymentDetails.VietQr, _Mapping]] = ..., napas: _Optional[_Union[PaymentDetails.Napas, _Mapping]] = ..., fast: _Optional[_Union[PaymentDetails.Fast, _Mapping]] = ..., promptpay: _Optional[_Union[PaymentDetails.PromptPay, _Mapping]] = ..., thai_bank_transfer: _Optional[_Union[PaymentDetails.ThaiBankTransfer, _Mapping]] = ..., indonesian_bank_transfer: _Optional[_Union[PaymentDetails.IndonesianBankTransfer, _Mapping]] = ..., indonesian_e_wallet: _Optional[_Union[PaymentDetails.IndonesianEWallet, _Mapping]] = ..., provider_defined: _Optional[_Union[PaymentDetails.ProviderDefined, _Mapping]] = ...) -> None: ...
