@@ -24,7 +24,7 @@ jobs:
           repositories: provider-sdk
 
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           show-progress: false
           token: ${{ steps.app-token.outputs.token }}
