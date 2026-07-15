@@ -17,6 +17,8 @@ import CreateProviderService from "./service";
 import getQuote from "./get_quote";
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import submitPayment from "./submit_payment";
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+import completeManualAmlCheck from "./complete_manual_aml_check";
 import CreatePayInProviderService from "./payment_intent_pay_in_service";
 import CreateBeneficiaryService from "./payment_intent_beneficiary_service";
 import publishPaymentIntentQuotes from "./publish_payment_intent_quotes";
@@ -76,6 +78,9 @@ async function main() {
   // await submitPayment(networkClient)
 
   // TODO: Step 2.5 ask t-0 team to submit a payment which would trigger your payOut endpoint
+
+  // TODO: Step 2.6 (optional) if your payOut returns manualAmlCheck, report the check result by revisiting ./complete_manual_aml_check.ts uncommenting following line
+  // await completeManualAmlCheck(networkClient, paymentId)
 
   // ──────────────────────────────────────────────────────────────
   // Payment Intent Flow — Phase 3

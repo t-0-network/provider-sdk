@@ -45,6 +45,9 @@ public class PaymentHandler extends ProviderServiceGrpc.ProviderServiceImplBase 
             case MANUAL_AML_CHECK -> {
                 log.info("Payment {} requires manual AML check", request.getPaymentId());
                 // TODO: Handle manual AML check requirement
+                // This is the pay-in side notification: the pay-out provider is running a manual
+                // AML check. Once it approves, expect an approvePaymentQuotes "last look" call.
+                // The pay-out side of this flow is shown in internal/CompleteManualAmlCheck.java.
             }
             default -> log.warn("Unknown result type for payment {}", request.getPaymentId());
         }
@@ -68,6 +71,9 @@ public class PaymentHandler extends ProviderServiceGrpc.ProviderServiceImplBase 
 
         // Example: Accept the payout
         // optional: if your provider has multiple legal entities, set setBeneficiaryProviderLegalEntityId()
+        // Alternatively, if this payout needs a manual AML check first, respond with
+        // setManualAmlCheck(PayoutResponse.ManualAmlCheck.newBuilder().build()) instead of
+        // setAccepted(...), then report the outcome later (see internal/CompleteManualAmlCheck.java).
         responseObserver.onNext(PayoutResponse.newBuilder()
                 .setAccepted(PayoutResponse.Accepted.newBuilder().build())
                 .build());

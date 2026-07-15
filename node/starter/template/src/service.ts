@@ -48,6 +48,10 @@ const CreateProviderService = (networkClient: Client<typeof NetworkService>) => 
                     }
                 })
             }, 2000);
+            // optional: if the payout needs a manual AML check on your side, return manualAmlCheck
+            // instead of accepted, then report the result via ./complete_manual_aml_check.ts:
+            // return { result: { case: "manualAmlCheck", value: {} } } as PayoutResponse
+
             // optional: if your provider has multiple legal entities, set beneficiaryProviderLegalEntityId
             return {
                 result: {

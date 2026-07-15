@@ -59,6 +59,10 @@ class ProviderServiceSyncImplementation:
         )
 
         # optional: if your provider has multiple legal entities, set beneficiary_provider_legal_entity_id
+
+        # If this payout requires a manual AML check on your side, return
+        # PayoutResponse(manual_aml_check=PayoutResponse.ManualAmlCheck()) instead,
+        # then report the outcome later — see complete_manual_aml_check.py.
         return PayoutResponse()
 
     def update_limit(self, request: UpdateLimitRequest, ctx: RequestContext) -> UpdateLimitResponse:

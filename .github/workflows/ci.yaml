@@ -53,6 +53,13 @@ jobs:
         working-directory: go
         run: go test -v ./...
 
+      # The starter template is a nested Go module, so `go test ./...` above
+      # never compiles it. It pins the published SDK (no replace directive),
+      # so this validates the template against the released SDK.
+      - name: Build starter template
+        working-directory: go/starter/template
+        run: go build ./...
+
   node:
     name: Node
     runs-on: blacksmith-4vcpu-ubuntu-2404
@@ -197,3 +204,27 @@ jobs:
       - name: Test
         working-directory: csharp
         run: dotnet test --no-build
+
+      # The C# starter template lives as string constants in TemplateFiles.cs
+      # and is otherwise never compiled — without this guard, template code
+      # that doesn't build is only caught when a provider scaffolds a project.
+      # Generate a project and build it against the locally packed SDK so
+      # unreleased SDK changes are covered too.
+      - name: Pack SDK
+        working-directory: csharp/sdk/T0.ProviderSdk
+        run: dotnet pack -c Release -p:Version=0.0.0-ci -o ${{ runner.temp }}/nupkg
+
+      - name: Generate starter project
+        working-directory: ${{ runner.temp }}
+        run: dotnet run --project $GITHUB_WORKSPACE/csharp/starter/T0.ProviderStarter -- template-check --no-color
+
+      - name: Point generated project at local SDK
+        working-directory: ${{ runner.temp }}/template-check
+        run: |
+          dotnet new nugetconfig
+          dotnet nuget add source ${{ runner.temp }}/nupkg --name local-sdk --configfile nuget.config
+          dotnet add package T0.ProviderSdk --version 0.0.0-ci
+
+      - name: Build generated project
+        working-directory: ${{ runner.temp }}/template-check
+        run: dotnet build

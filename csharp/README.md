@@ -31,7 +31,8 @@ your-project/
 │   ├── PaymentHandler.cs        # ProviderService implementation (modify this)
 │   ├── QuotePublisher.cs        # Quote publishing logic (modify this)
 │   ├── GetQuote.cs              # Quote fetching utility
-│   └── SubmitPayment.cs         # Payment submission utility
+│   ├── SubmitPayment.cs         # Payment submission utility
+│   └── CompleteManualAmlCheck.cs # Manual AML check completion utility
 ├── Program.cs                   # Entry point
 ├── your-project.csproj          # Build configuration
 ├── appsettings.json             # ASP.NET Core configuration
@@ -73,6 +74,7 @@ your-project/
 3. Implement `PayOut` handler in `Services/PaymentHandler.cs`.
 4. Test payment submission using the included `SubmitPayment` utility.
 5. Coordinate with the T-0 team to test end-to-end payment flows.
+6. Optional: if your `PayOut` handler responds with a manual AML check, report the outcome using the included `CompleteManualAmlCheck` utility.
 
 ## Installation
 

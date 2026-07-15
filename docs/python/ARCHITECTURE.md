@@ -265,6 +265,7 @@ The provider calls these RPCs on the T-0 Network.
 | `UpdateQuote` | Publish pay-out and pay-in quotes with rate bands |
 | `GetQuote` | Request a quote for a specific currency and payment method |
 | `FinalizePayout` | Report the outcome of a payout (success with receipt or failure) |
+| `CompleteManualAmlCheck` | Report the outcome of a manual AML check for a payout (approved or rejected) |
 
 ### 2.4 Transport Protocol
 

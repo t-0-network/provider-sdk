@@ -54,6 +54,14 @@ func (s *ProviderServiceImplementation) PayOut(ctx context.Context, req *connect
 		return nil, err
 	}
 	// optional: if your provider has multiple legal entities, set BeneficiaryProviderLegalEntityId
+	// optional: if the payout requires a manual AML check, respond with ManualAmlCheck instead of
+	// the default (accepted) response, run the check out-of-band, then report the outcome via
+	// CompleteManualAmlCheck (see internal/complete_manual_aml_check.go):
+	// return connect.NewResponse(&payment.PayoutResponse{
+	// 	Result: &payment.PayoutResponse_ManualAmlCheck_{
+	// 		ManualAmlCheck: &payment.PayoutResponse_ManualAmlCheck{},
+	// 	},
+	// }), nil
 	return connect.NewResponse(&payment.PayoutResponse{}), nil
 }
 

@@ -26,6 +26,7 @@ your-project-name/
 │   ├── create_payment_intent.ts                  # Phase 3B: create a payment intent
 │   ├── confirm_funds_received.ts                 # Phase 3A: confirm funds received
 │   ├── submit_payment.ts                         # Phase 2: payment submission
+│   ├── complete_manual_aml_check.ts              # Phase 2: manual AML check completion
 │   └── lib.ts                                    # Utility functions
 ├── Dockerfile                                    # Docker configuration
 ├── .env                                          # Environment variables (with generated keys)
@@ -69,6 +70,7 @@ your-project-name/
 3. Implement `payOut` handler in `src/service.ts`.
 4. Test payment submission by uncommenting the `submitPayment` call in `src/index.ts`.
 5. Coordinate with the T-0 team to test end-to-end payment flows.
+6. (Optional) If your `payOut` handler responds with `manualAmlCheck`, report the check outcome via `src/complete_manual_aml_check.ts`.
 
 ### Phase 3: Payment Intent Flow
 
