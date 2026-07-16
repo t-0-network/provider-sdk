@@ -164,6 +164,12 @@ public static class TemplateFiles
                 logger.LogInformation("PayOut: payment_id={PaymentId}, currency={Currency}",
                     request.PaymentId, request.Currency);
 
+                // optional: if this payment needs a manual AML check on your side, respond with
+                // ManualAmlCheck here, before making the payout, and report the outcome later via
+                // CompleteManualAmlCheck (see Services/CompleteManualAmlCheck.cs). Do not finalize on
+                // this path — the payout only proceeds once the check is approved.
+                // return new PayoutResponse { ManualAmlCheck = new PayoutResponse.Types.ManualAmlCheck() };
+
                 // TODO: FinalizePayout should be called when your system completes the payout
                 await networkClient.FinalizePayoutAsync(new FinalizePayoutRequest
                 {
@@ -179,11 +185,6 @@ public static class TemplateFiles
                         }
                     }
                 });
-
-                // Alternatively, if this payment requires a manual AML check, respond with
-                // ManualAmlCheck instead of Accepted, then report the outcome later via
-                // CompleteManualAmlCheck (see Services/CompleteManualAmlCheck.cs):
-                // return new PayoutResponse { ManualAmlCheck = new PayoutResponse.Types.ManualAmlCheck() };
 
                 // optional: if your provider has multiple legal entities, set BeneficiaryProviderLegalEntityId
                 return new PayoutResponse { Accepted = new PayoutResponse.Types.Accepted() };

@@ -36,6 +36,16 @@ func (s *ProviderServiceImplementation) UpdatePayment(
 func (s *ProviderServiceImplementation) PayOut(ctx context.Context, req *connect.Request[payment.PayoutRequest],
 ) (*connect.Response[payment.PayoutResponse], error) {
 
+	// optional: if this payout requires a manual AML check on your side, return ManualAmlCheck here,
+	// before making the payout, and report the check outcome later via CompleteManualAmlCheck
+	// (see internal/complete_manual_aml_check.go). Do not finalize on this path — the payout only
+	// proceeds once the check is approved.
+	// return connect.NewResponse(&payment.PayoutResponse{
+	// 	Result: &payment.PayoutResponse_ManualAmlCheck_{
+	// 		ManualAmlCheck: &payment.PayoutResponse_ManualAmlCheck{},
+	// 	},
+	// }), nil
+
 	//TODO: FinalizePayout should be called when your system notifies that payout has been made successfully
 	_, err := s.networkClient.FinalizePayout(ctx, connect.NewRequest(&payment.FinalizePayoutRequest{
 		PaymentId: req.Msg.PaymentId,
@@ -54,15 +64,9 @@ func (s *ProviderServiceImplementation) PayOut(ctx context.Context, req *connect
 		return nil, err
 	}
 	// optional: if your provider has multiple legal entities, set BeneficiaryProviderLegalEntityId
-	// optional: if the payout requires a manual AML check, respond with ManualAmlCheck instead of
-	// the default (accepted) response, run the check out-of-band, then report the outcome via
-	// CompleteManualAmlCheck (see internal/complete_manual_aml_check.go):
-	// return connect.NewResponse(&payment.PayoutResponse{
-	// 	Result: &payment.PayoutResponse_ManualAmlCheck_{
-	// 		ManualAmlCheck: &payment.PayoutResponse_ManualAmlCheck{},
-	// 	},
-	// }), nil
-	return connect.NewResponse(&payment.PayoutResponse{}), nil
+	return connect.NewResponse(&payment.PayoutResponse{
+		Result: &payment.PayoutResponse_Accepted_{Accepted: &payment.PayoutResponse_Accepted{}},
+	}), nil
 }
 
 func (s *ProviderServiceImplementation) UpdateLimit(

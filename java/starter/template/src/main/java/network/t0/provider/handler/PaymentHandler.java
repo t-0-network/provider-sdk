@@ -64,6 +64,12 @@ public class PaymentHandler extends ProviderServiceGrpc.ProviderServiceImplBase 
                 request.getCurrency(),
                 request.getAmount());
 
+        // optional: if this payout needs a manual AML check on your side, respond with
+        // setManualAmlCheck(PayoutResponse.ManualAmlCheck.newBuilder().build()) here, before making
+        // the payout, and report the outcome later via CompleteManualAmlCheck.complete(...)
+        // (see internal/CompleteManualAmlCheck.java). Do not finalize on this path — the payout
+        // only proceeds once the check is approved.
+
         // TODO: Implement your payout logic here
         // 1. Validate the payout request
         // 2. Initiate the payout in your system
@@ -71,9 +77,6 @@ public class PaymentHandler extends ProviderServiceGrpc.ProviderServiceImplBase 
 
         // Example: Accept the payout
         // optional: if your provider has multiple legal entities, set setBeneficiaryProviderLegalEntityId()
-        // Alternatively, if this payout needs a manual AML check first, respond with
-        // setManualAmlCheck(PayoutResponse.ManualAmlCheck.newBuilder().build()) instead of
-        // setAccepted(...), then report the outcome later (see internal/CompleteManualAmlCheck.java).
         responseObserver.onNext(PayoutResponse.newBuilder()
                 .setAccepted(PayoutResponse.Accepted.newBuilder().build())
                 .build());

@@ -29,6 +29,12 @@ const CreateProviderService = (networkClient: Client<typeof NetworkService>) => 
             // TODO: Step 2.4 implement how you do payouts (payments initiated by your counterparts)
             console.log(`Received payout request ${req.paymentId}`)
 
+            // optional: if this payout needs a manual AML check on your side, return manualAmlCheck
+            // here, before making the payout, and report the result later via
+            // ./complete_manual_aml_check.ts. Do not finalize on this path — the payout only
+            // proceeds once the check is approved.
+            // return { result: { case: "manualAmlCheck", value: {} } } as PayoutResponse
+
             // TODO: finalizePayout should be called when your system completes (or fails) the payout
             setInterval(() => {
                 networkClient.finalizePayout({
@@ -48,10 +54,6 @@ const CreateProviderService = (networkClient: Client<typeof NetworkService>) => 
                     }
                 })
             }, 2000);
-            // optional: if the payout needs a manual AML check on your side, return manualAmlCheck
-            // instead of accepted, then report the result via ./complete_manual_aml_check.ts:
-            // return { result: { case: "manualAmlCheck", value: {} } } as PayoutResponse
-
             // optional: if your provider has multiple legal entities, set beneficiaryProviderLegalEntityId
             return {
                 result: {
