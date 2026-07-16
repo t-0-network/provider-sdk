@@ -43,6 +43,11 @@ class ProviderServiceSyncImplementation:
 
     # TODO: Step 2.4 implement how you do payouts (payments initiated by your counterparts)
     def pay_out(self, request: PayoutRequest, ctx: RequestContext) -> PayoutResponse:
+        # optional: if this payout requires a manual AML check on your side, return
+        # PayoutResponse(manual_aml_check=PayoutResponse.ManualAmlCheck()) here, before making the
+        # payout, and report the check outcome later via complete_manual_aml_check.py. Do not
+        # finalize on this path — the payout only proceeds once the check is approved.
+
         # TODO: FinalizePayout should be called when your system notifies
         # that payout has been made successfully
         self._network_client.finalize_payout(
@@ -59,7 +64,7 @@ class ProviderServiceSyncImplementation:
         )
 
         # optional: if your provider has multiple legal entities, set beneficiary_provider_legal_entity_id
-        return PayoutResponse()
+        return PayoutResponse(accepted=PayoutResponse.Accepted())
 
     def update_limit(self, request: UpdateLimitRequest, ctx: RequestContext) -> UpdateLimitResponse:
         # TODO: optionally implement handling of the notifications about

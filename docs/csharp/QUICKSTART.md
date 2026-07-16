@@ -53,6 +53,7 @@ await server.RunAsync();
 7. **Step 2.3** — Test payment submission via `SubmitPayment`
 8. **Step 2.4** — Implement `PayOut` handler
 9. **Step 2.5** — Ask T-0 team to test payout to your provider
+10. **Step 2.6 (optional)** — Complete manual AML checks via `CompleteManualAmlCheck` if your `PayOut` handler returns `ManualAmlCheck`
 
 ## PaymentIntent Support
 

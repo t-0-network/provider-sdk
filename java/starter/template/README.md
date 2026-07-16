@@ -42,6 +42,7 @@ Follow these steps in order to complete your integration:
 3. **Step 2.3** Test payment submission (uncomment in `Main.java`)
 4. **Step 2.4** Implement `payOut` in `PaymentHandler.java`
 5. **Step 2.5** Ask T-0 team to submit a test payment
+6. **Step 2.6** *(optional)* If your `payOut` responds with `manual_aml_check`, report the outcome via `internal/CompleteManualAmlCheck.java`
 
 ### Step 3: Payment Intent Flow
 
@@ -77,6 +78,7 @@ src/main/java/network/t0/provider/
     ├── PublishQuotes.java                   # Phase 1: payout quote publishing
     ├── GetQuote.java                        # Phase 1: quote retrieval
     ├── SubmitPayment.java                   # Phase 2: payment submission
+    ├── CompleteManualAmlCheck.java          # Phase 2: manual AML check completion (optional)
     ├── PublishPaymentIntentQuotes.java      # Phase 3A: pay-in quote publishing
     ├── GetPaymentIntentQuote.java           # Phase 3B: indicative quote retrieval
     ├── CreatePaymentIntent.java             # Phase 3B: create a payment intent

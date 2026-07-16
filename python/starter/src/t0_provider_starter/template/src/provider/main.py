@@ -48,6 +48,7 @@ from t0_provider_sdk.api.tzero.v1.payment_intent.pay_in_provider_connect import 
 from t0_provider_sdk.network.client import new_service_client
 from t0_provider_sdk.provider.handler import handler, new_asgi_app
 
+from provider.complete_manual_aml_check import complete_manual_aml_check  # noqa: F401
 from provider.config import Config, load_config
 from provider.create_payment_intent import create_payment_intent  # noqa: F401
 from provider.get_payment_intent_quote import get_payment_intent_quote
@@ -158,6 +159,8 @@ async def main() -> None:
     # TODO: Step 2.2 Deploy your integration and provide t-0 team with the base URL
     # TODO: Step 2.3 Test payment submission
     # TODO: Step 2.5 Ask t-0 team to submit a payment to test your payOut endpoint
+    # TODO: Step 2.6 (optional) Complete manual AML checks if your pay_out returns manual_aml_check
+    # await complete_manual_aml_check(network_client, payment_id)
 
     await server.serve()
 

@@ -26,7 +26,8 @@ my-provider/
 │   ├── publish_payment_intent_quotes.go       # Phase 3A: pay-in quote publishing
 │   ├── get_payment_intent_quote.go            # Phase 3B: indicative quote retrieval
 │   ├── create_payment_intent.go               # Phase 3B: create a payment intent
-│   └── confirm_funds_received.go              # Phase 3A: confirm funds received
+│   ├── confirm_funds_received.go              # Phase 3A: confirm funds received
+│   └── complete_manual_aml_check.go           # Phase 2: report a manual AML check outcome
 ├── .env                                       # Environment variables (with generated keys)
 ├── .env.example                               # Example environment file
 ├── .gitignore                                 # Git ignore rules
@@ -67,6 +68,7 @@ my-provider/
 2. Deploy your service and share the base URL with the T-0 team.
 3. Implement `PayOut` handler in `internal/handler/payment.go`.
 4. Coordinate with the T-0 team to test end-to-end payment flows.
+5. *(Optional)* If your `PayOut` handler responds with `manual_aml_check`, report the outcome of your AML check via `CompleteManualAmlCheck` (see `internal/complete_manual_aml_check.go`).
 
 ### Phase 3: Payment Intent Flow
 
