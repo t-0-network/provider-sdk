@@ -57,6 +57,7 @@ type NetworkServiceClient interface {
 	// *
 	// Publishes pay-in and pay-out quotes (FX rates) into the network.
 	// Quotes carry tiered pricing bands and an expiration timestamp.
+	// Full snapshot: omitted quotes are deleted.
 	UpdateQuote(context.Context, *connect.Request[payment.UpdateQuoteRequest]) (*connect.Response[payment.UpdateQuoteResponse], error)
 	// *
 	// Request the best available quote for a payout in a specific currency, for a given amount.
@@ -189,6 +190,7 @@ type NetworkServiceHandler interface {
 	// *
 	// Publishes pay-in and pay-out quotes (FX rates) into the network.
 	// Quotes carry tiered pricing bands and an expiration timestamp.
+	// Full snapshot: omitted quotes are deleted.
 	UpdateQuote(context.Context, *connect.Request[payment.UpdateQuoteRequest]) (*connect.Response[payment.UpdateQuoteResponse], error)
 	// *
 	// Request the best available quote for a payout in a specific currency, for a given amount.

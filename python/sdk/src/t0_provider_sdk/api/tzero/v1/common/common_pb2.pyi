@@ -11,6 +11,7 @@ class Blockchain(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
     BLOCKCHAIN_UNSPECIFIED: _ClassVar[Blockchain]
     BLOCKCHAIN_BSC: _ClassVar[Blockchain]
     BLOCKCHAIN_ETH: _ClassVar[Blockchain]
+    BLOCKCHAIN_POLYGON: _ClassVar[Blockchain]
     BLOCKCHAIN_TRON: _ClassVar[Blockchain]
 
 class Stablecoin(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
@@ -20,6 +21,7 @@ class Stablecoin(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
 BLOCKCHAIN_UNSPECIFIED: Blockchain
 BLOCKCHAIN_BSC: Blockchain
 BLOCKCHAIN_ETH: Blockchain
+BLOCKCHAIN_POLYGON: Blockchain
 BLOCKCHAIN_TRON: Blockchain
 STABLECOIN_UNSPECIFIED: Stablecoin
 STABLECOIN_USDT: Stablecoin

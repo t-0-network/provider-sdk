@@ -2095,7 +2095,6 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
           /// <summary>
           ///*
           /// Represents an indicative quote from a pay-in provider.
-          /// Contains the payment method, provider info, and indicative exchange rate.
           /// </summary>
           [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
           public sealed partial class IndicativeQuote : pb::IMessage<IndicativeQuote>
@@ -2622,7 +2621,6 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
   /// <summary>
   ///*
   /// Represents pay-in details for a payment intent option.
-  /// Contains the payment method, provider info, payment details, and indicative exchange rate.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class PaymentIntentPayInDetails : pb::IMessage<PaymentIntentPayInDetails>

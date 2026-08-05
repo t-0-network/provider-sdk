@@ -260,7 +260,6 @@ export const GetQuoteResponse_SuccessSchema: GenMessage<GetQuoteResponse_Success
 /**
  * *
  * Represents an indicative quote from a pay-in provider.
- * Contains the payment method, provider info, and indicative exchange rate.
  *
  * @generated from message tzero.v1.payment_intent.GetQuoteResponse.Success.IndicativeQuote
  */
@@ -328,7 +327,6 @@ export const GetQuoteResponse_QuoteNotFoundSchema: GenMessage<GetQuoteResponse_Q
 /**
  * *
  * Represents pay-in details for a payment intent option.
- * Contains the payment method, provider info, payment details, and indicative exchange rate.
  *
  * @generated from message tzero.v1.payment_intent.PaymentIntentPayInDetails
  */

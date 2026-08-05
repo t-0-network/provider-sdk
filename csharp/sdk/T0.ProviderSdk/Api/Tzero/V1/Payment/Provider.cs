@@ -29,10 +29,10 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
             "JXR6ZXJvL3YxL2NvbW1vbi9wYXltZW50X3JlY2VpcHQucHJvdG8aHHR6ZXJv",
             "L3YxL2NvbW1vbi9jb21tb24ucHJvdG8aHWl2bXMxMDEvdjEvaXZtcy9pdm1z",
             "MTAxLnByb3RvGh9nb29nbGUvcHJvdG9idWYvdGltZXN0YW1wLnByb3RvGhti",
-            "dWYvdmFsaWRhdGUvdmFsaWRhdGUucHJvdG8i0A4KGkFwcGVuZExlZGdlckVu",
+            "dWYvdmFsaWRhdGUvdmFsaWRhdGUucHJvdG8ioBMKGkFwcGVuZExlZGdlckVu",
             "dHJpZXNSZXF1ZXN0EmYKDHRyYW5zYWN0aW9ucxgUIAMoCzI4LnR6ZXJvLnYx",
             "LnBheW1lbnQuQXBwZW5kTGVkZ2VyRW50cmllc1JlcXVlc3QuVHJhbnNhY3Rp",
-            "b25CCLpIBZIBAggBUgx0cmFuc2FjdGlvbnMarQkKC1RyYW5zYWN0aW9uEi4K",
+            "b25CCLpIBZIBAggBUgx0cmFuc2FjdGlvbnMa/Q0KC1RyYW5zYWN0aW9uEi4K",
             "DnRyYW5zYWN0aW9uX2lkGAogASgEQge6SAQyAiAAUg10cmFuc2FjdGlvbklk",
             "ElwKB2VudHJpZXMYHiADKAsyOC50emVyby52MS5wYXltZW50LkFwcGVuZExl",
             "ZGdlckVudHJpZXNSZXF1ZXN0LkxlZGdlckVudHJ5Qgi6SAWSAQIIAVIHZW50",
@@ -47,136 +47,170 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
             "GKABIAEoCzJILnR6ZXJvLnYxLnBheW1lbnQuQXBwZW5kTGVkZ2VyRW50cmll",
             "c1JlcXVlc3QuVHJhbnNhY3Rpb24uUGlGdW5kc1JlY2VpdmVkSABSD3BpRnVu",
             "ZHNSZWNlaXZlZBowCgZQYXlvdXQSJgoKcGF5bWVudF9pZBgKIAEoBEIHukgE",
-            "MgIgAFIJcGF5bWVudElkGkIKElByb3ZpZGVyU2V0dGxlbWVudBIsCg1zZXR0",
-            "bGVtZW50X2lkGAogASgEQge6SAQyAiAAUgxzZXR0bGVtZW50SWQaRAoNRmVl",
-            "U2V0dGxlbWVudBIzChFmZWVfc2V0dGxlbWVudF9pZBgKIAEoBEIHukgEMgIg",
-            "AFIPZmVlU2V0dGxlbWVudElkGu0CCg9QaUZ1bmRzUmVjZWl2ZWQSMwoRcGF5",
-            "bWVudF9pbnRlbnRfaWQYCiABKARCB7pIBDICIABSD3BheW1lbnRJbnRlbnRJ",
-            "ZBIrChJwYXlfaW5fcHJvdmlkZXJfaWQYFCABKA1SD3BheUluUHJvdmlkZXJJ",
-            "ZBI2ChdiZW5lZmljaWFyeV9wcm92aWRlcl9pZBgeIAEoDVIVYmVuZWZpY2lh",
-            "cnlQcm92aWRlcklkEkUKEXNldHRsZW1lbnRfYW1vdW50GCggASgLMhgudHpl",
-            "cm8udjEuY29tbW9uLkRlY2ltYWxSEHNldHRsZW1lbnRBbW91bnQSQQoPYmVu",
-            "ZWZpY2lhcnlfZmVlGDIgASgLMhgudHplcm8udjEuY29tbW9uLkRlY2ltYWxS",
-            "DmJlbmVmaWNpYXJ5RmVlEjYKCnBheV9pbl9mZWUYPCABKAsyGC50emVyby52",
-            "MS5jb21tb24uRGVjaW1hbFIIcGF5SW5GZWVCHAoTdHJhbnNhY3Rpb25fZGV0",
-            "YWlscxIFukgCCAEa9gEKC0xlZGdlckVudHJ5EigKEGFjY291bnRfb3duZXJf",
-            "aWQYCiABKA1SDmFjY291bnRPd25lcklkElsKDGFjY291bnRfdHlwZRgUIAEo",
-            "DjI4LnR6ZXJvLnYxLnBheW1lbnQuQXBwZW5kTGVkZ2VyRW50cmllc1JlcXVl",
-            "c3QuQWNjb3VudFR5cGVSC2FjY291bnRUeXBlEi4KBWRlYml0GCggASgLMhgu",
-            "dHplcm8udjEuY29tbW9uLkRlY2ltYWxSBWRlYml0EjAKBmNyZWRpdBgyIAEo",
-            "CzIYLnR6ZXJvLnYxLmNvbW1vbi5EZWNpbWFsUgZjcmVkaXQioAIKC0FjY291",
-            "bnRUeXBlEhwKGEFDQ09VTlRfVFlQRV9VTlNQRUNJRklFRBAAEhgKFEFDQ09V",
-            "TlRfVFlQRV9CQUxBTkNFEBQSFwoTQUNDT1VOVF9UWVBFX1BBWV9JThAoEhgK",
-            "FEFDQ09VTlRfVFlQRV9QQVlfT1VUEDISHAoYQUNDT1VOVF9UWVBFX0ZFRV9F",
-            "WFBFTlNFEDwSHgoaQUNDT1VOVF9UWVBFX1NFVFRMRU1FTlRfSU4QUBIfChtB",
-            "Q0NPVU5UX1RZUEVfU0VUVExFTUVOVF9PVVQQWhIiCh5BQ0NPVU5UX1RZUEVf",
-            "UEFZTUVOVF9JTlRFTlRfSU4QZBIjCh9BQ0NPVU5UX1RZUEVfUEFZTUVOVF9J",
-            "TlRFTlRfT1VUEG4iHQobQXBwZW5kTGVkZ2VyRW50cmllc1Jlc3BvbnNlIp8F",
-            "Cg1QYXlvdXRSZXF1ZXN0Eh0KCnBheW1lbnRfaWQYCiABKARSCXBheW1lbnRJ",
-            "ZBIfCglwYXlvdXRfaWQYFCABKARCAhgBUghwYXlvdXRJZBIaCghjdXJyZW5j",
-            "eRgeIAEoCVIIY3VycmVuY3kSJgoPY2xpZW50X3F1b3RlX2lkGCggASgJUg1j",
-            "bGllbnRRdW90ZUlkEjAKBmFtb3VudBgyIAEoCzIYLnR6ZXJvLnYxLmNvbW1v",
-            "bi5EZWNpbWFsUgZhbW91bnQSSwoOcGF5b3V0X2RldGFpbHMYPCABKAsyHy50",
-            "emVyby52MS5jb21tb24uUGF5bWVudERldGFpbHNIAFINcGF5b3V0RGV0YWls",
-            "c4gBARIrChJwYXlfaW5fcHJvdmlkZXJfaWQYUCABKA1SD3BheUluUHJvdmlk",
-            "ZXJJZBJhChB0cmF2ZWxfcnVsZV9kYXRhGMgBIAEoCzIuLnR6ZXJvLnYxLnBh",
-            "eW1lbnQuUGF5b3V0UmVxdWVzdC5UcmF2ZWxSdWxlRGF0YUIGukgDyAEBUg50",
-            "cmF2ZWxSdWxlRGF0YRrnAQoOVHJhdmVsUnVsZURhdGESOQoKb3JpZ2luYXRv",
-            "chgKIAMoCzIPLml2bXMxMDEuUGVyc29uQgi6SAWSAQIIAVIKb3JpZ2luYXRv",
-            "chI7CgtiZW5lZmljaWFyeRgUIAMoCzIPLml2bXMxMDEuUGVyc29uQgi6SAWS",
-            "AQIIAVILYmVuZWZpY2lhcnkSRQoTb3JpZ2luYXRvcl9wcm92aWRlchgeIAEo",
-            "CzIPLml2bXMxMDEuUGVyc29uSABSEm9yaWdpbmF0b3JQcm92aWRlcogBAUIW",
-            "ChRfb3JpZ2luYXRvcl9wcm92aWRlckIRCg9fcGF5b3V0X2RldGFpbHMi2QQK",
-            "DlBheW91dFJlc3BvbnNlElwKJGJlbmVmaWNpYXJ5X3Byb3ZpZGVyX2xlZ2Fs",
-            "X2VudGl0eV9pZBgKIAEoDUIHukgEKgIgAEgBUiBiZW5lZmljaWFyeVByb3Zp",
-            "ZGVyTGVnYWxFbnRpdHlJZIgBARJHCghhY2NlcHRlZBgUIAEoCzIpLnR6ZXJv",
-            "LnYxLnBheW1lbnQuUGF5b3V0UmVzcG9uc2UuQWNjZXB0ZWRIAFIIYWNjZXB0",
-            "ZWQSQQoGZmFpbGVkGB4gASgLMicudHplcm8udjEucGF5bWVudC5QYXlvdXRS",
-            "ZXNwb25zZS5GYWlsZWRIAFIGZmFpbGVkElsKEG1hbnVhbF9hbWxfY2hlY2sY",
-            "KCABKAsyLy50emVyby52MS5wYXltZW50LlBheW91dFJlc3BvbnNlLk1hbnVh",
-            "bEFtbENoZWNrSABSDm1hbnVhbEFtbENoZWNrGgoKCEFjY2VwdGVkGhAKDk1h",
-            "bnVhbEFtbENoZWNrGqcBCgZGYWlsZWQSRgoGcmVhc29uGAogASgOMi4udHpl",
-            "cm8udjEucGF5bWVudC5QYXlvdXRSZXNwb25zZS5GYWlsZWQuUmVhc29uUgZy",
-            "ZWFzb24SJwoHZGV0YWlscxgUIAEoCUIIukgFcgMYgAhIAFIHZGV0YWlsc4gB",
-            "ASIgCgZSZWFzb24SFgoSUkVBU09OX1VOU1BFQ0lGSUVEEABCCgoIX2RldGFp",
-            "bHNCDwoGcmVzdWx0EgW6SAIIAUInCiVfYmVuZWZpY2lhcnlfcHJvdmlkZXJf",
-            "bGVnYWxfZW50aXR5X2lkIqIKChRVcGRhdGVQYXltZW50UmVxdWVzdBIdCgpw",
-            "YXltZW50X2lkGAUgASgEUglwYXltZW50SWQSKgoRcGF5bWVudF9jbGllbnRf",
-            "aWQYCiABKAlSD3BheW1lbnRDbGllbnRJZBJNCghhY2NlcHRlZBgUIAEoCzIv",
-            "LnR6ZXJvLnYxLnBheW1lbnQuVXBkYXRlUGF5bWVudFJlcXVlc3QuQWNjZXB0",
-            "ZWRIAFIIYWNjZXB0ZWQSRwoGZmFpbGVkGB4gASgLMi0udHplcm8udjEucGF5",
-            "bWVudC5VcGRhdGVQYXltZW50UmVxdWVzdC5GYWlsZWRIAFIGZmFpbGVkElAK",
-            "CWNvbmZpcm1lZBgoIAEoCzIwLnR6ZXJvLnYxLnBheW1lbnQuVXBkYXRlUGF5",
-            "bWVudFJlcXVlc3QuQ29uZmlybWVkSABSCWNvbmZpcm1lZBJhChBtYW51YWxf",
-            "YW1sX2NoZWNrGDIgASgLMjUudHplcm8udjEucGF5bWVudC5VcGRhdGVQYXlt",
-            "ZW50UmVxdWVzdC5NYW51YWxBbWxDaGVja0gAUg5tYW51YWxBbWxDaGVjaxqZ",
-            "AgoIQWNjZXB0ZWQSPQoNcGF5b3V0X2Ftb3VudBgKIAEoCzIYLnR6ZXJvLnYx",
-            "LmNvbW1vbi5EZWNpbWFsUgxwYXlvdXRBbW91bnQScAoQdHJhdmVsX3J1bGVf",
-            "ZGF0YRgUIAEoCzI+LnR6ZXJvLnYxLnBheW1lbnQuVXBkYXRlUGF5bWVudFJl",
-            "cXVlc3QuQWNjZXB0ZWQuVHJhdmVsUnVsZURhdGFCBrpIA8gBAVIOdHJhdmVs",
-            "UnVsZURhdGEaXAoOVHJhdmVsUnVsZURhdGESSgoUYmVuZWZpY2lhcnlfcHJv",
-            "dmlkZXIYCiABKAsyDy5pdm1zMTAxLlBlcnNvbkIGukgDyAEBUhNiZW5lZmlj",
-            "aWFyeVByb3ZpZGVyGpwDCgZGYWlsZWQSTAoGcmVhc29uGAogASgOMjQudHpl",
-            "cm8udjEucGF5bWVudC5VcGRhdGVQYXltZW50UmVxdWVzdC5GYWlsZWQuUmVh",
-            "c29uUgZyZWFzb24SJwoHZGV0YWlscxgUIAEoCUIIukgFcgMYgAhIAFIHZGV0",
-            "YWlsc4gBASKOAgoGUmVhc29uEhYKElJFQVNPTl9VTlNQRUNJRklFRBAAEiYK",
-            "IlJFQVNPTl9OT19RVU9URV9BRlRFUl9BTUxfQVBQUk9WQUwQARIsCihSRUFT",
-            "T05fUVVPVEVfUkVKRUNURURfQUZURVJfQU1MX0FQUFJPVkFMEAISIAocUkVB",
-            "U09OX0FNTF9SSVNLX0NIRUNLX0ZBSUxFRBADEjMKL1JFQVNPTl9DUkVESVRf",
-            "TElNSVRfRVhDRUVERURfQUZURVJfQU1MX0FQUFJPVkFMEAQSIgoeUkVBU09O",
-            "X1JFSkVDVEVEX0JZX0JFTkVGSUNJQVJZEAUSGwoXUkVBU09OX0ZJTkFMSVpF",
-            "X0ZBSUxVUkUQBkIKCghfZGV0YWlscxqTAQoJQ29uZmlybWVkEjoKC3BhaWRf",
-            "b3V0X2F0GAogASgLMhouZ29vZ2xlLnByb3RvYnVmLlRpbWVzdGFtcFIJcGFp",
-            "ZE91dEF0Ej4KB3JlY2VpcHQYFCABKAsyHy50emVyby52MS5jb21tb24uUGF5",
-            "bWVudFJlY2VpcHRIAFIHcmVjZWlwdIgBAUIKCghfcmVjZWlwdBoQCg5NYW51",
-            "YWxBbWxDaGVja0IPCgZyZXN1bHQSBbpIAggBIhcKFVVwZGF0ZVBheW1lbnRS",
-            "ZXNwb25zZSKOAwoSVXBkYXRlTGltaXRSZXF1ZXN0EkIKBmxpbWl0cxgKIAMo",
-            "CzIqLnR6ZXJvLnYxLnBheW1lbnQuVXBkYXRlTGltaXRSZXF1ZXN0LkxpbWl0",
-            "UgZsaW1pdHMaswIKBUxpbWl0EhgKB3ZlcnNpb24YCiABKANSB3ZlcnNpb24S",
-            "JQoOY291bnRlcnBhcnRfaWQYDyABKAVSDWNvdW50ZXJwYXJ0SWQSOwoMcGF5",
-            "b3V0X2xpbWl0GBQgASgLMhgudHplcm8udjEuY29tbW9uLkRlY2ltYWxSC3Bh",
-            "eW91dExpbWl0EjsKDGNyZWRpdF9saW1pdBgeIAEoCzIYLnR6ZXJvLnYxLmNv",
-            "bW1vbi5EZWNpbWFsUgtjcmVkaXRMaW1pdBI7CgxjcmVkaXRfdXNhZ2UYKCAB",
-            "KAsyGC50emVyby52MS5jb21tb24uRGVjaW1hbFILY3JlZGl0VXNhZ2USMgoH",
-            "cmVzZXJ2ZRgyIAEoCzIYLnR6ZXJvLnYxLmNvbW1vbi5EZWNpbWFsUgdyZXNl",
-            "cnZlIhUKE1VwZGF0ZUxpbWl0UmVzcG9uc2Ui6gIKGkFwcHJvdmVQYXltZW50",
-            "UXVvdGVSZXF1ZXN0EiYKCnBheW1lbnRfaWQYCiABKARCB7pIBDICIABSCXBh",
-            "eW1lbnRJZBInChBwYXlfb3V0X3F1b3RlX2lkGBQgASgDUg1wYXlPdXRRdW90",
-            "ZUlkEjoKDHBheV9vdXRfcmF0ZRgeIAEoCzIYLnR6ZXJvLnYxLmNvbW1vbi5E",
-            "ZWNpbWFsUgpwYXlPdXRSYXRlEj4KDnBheV9vdXRfYW1vdW50GCggASgLMhgu",
-            "dHplcm8udjEuY29tbW9uLkRlY2ltYWxSDHBheU91dEFtb3VudBJFChFzZXR0",
+            "MgIgAFIJcGF5bWVudElkGpMEChJQcm92aWRlclNldHRsZW1lbnQSLAoNc2V0",
+            "dGxlbWVudF9pZBgKIAEoBEIHukgEMgIgAFIMc2V0dGxlbWVudElkEjsKCmJs",
+            "b2NrY2hhaW4YFCABKA4yGy50emVyby52MS5jb21tb24uQmxvY2tjaGFpblIK",
+            "YmxvY2tjaGFpbhIXCgd0eF9oYXNoGB4gASgJUgZ0eEhhc2gSiQEKD29uX2No",
+            "YWluX2Ftb3VudBgoIAEoCzIYLnR6ZXJvLnYxLmNvbW1vbi5EZWNpbWFsQke6",
+            "SES6AT4SKW9uX2NoYWluX2Ftb3VudCBtdXN0IGJlIGdyZWF0ZXIgdGhhbiB6",
+            "ZXJvGhF0aGlzLnVuc2NhbGVkID4gMMgBAVINb25DaGFpbkFtb3VudBI1ChJz",
+            "ZW5kZXJfcHJvdmlkZXJfaWQYMiABKA1CB7pIBCoCIABSEHNlbmRlclByb3Zp",
+            "ZGVySWQSOQoUcmVjZWl2ZXJfcHJvdmlkZXJfaWQYPCABKA1CB7pIBCoCIABS",
+            "EnJlY2VpdmVyUHJvdmlkZXJJZBJ7CgphbW91bnRfdXNkGEYgASgLMhgudHpl",
+            "cm8udjEuY29tbW9uLkRlY2ltYWxCQrpIP7oBORIkYW1vdW50X3VzZCBtdXN0",
+            "IGJlIGdyZWF0ZXIgdGhhbiB6ZXJvGhF0aGlzLnVuc2NhbGVkID4gMMgBAVIJ",
+            "YW1vdW50VXNkGsEBCg1GZWVTZXR0bGVtZW50EjMKEWZlZV9zZXR0bGVtZW50",
+            "X2lkGAogASgEQge6SAQyAiAAUg9mZWVTZXR0bGVtZW50SWQSewoKYW1vdW50",
+            "X3VzZBgUIAEoCzIYLnR6ZXJvLnYxLmNvbW1vbi5EZWNpbWFsQkK6SD+6ATkS",
+            "JGFtb3VudF91c2QgbXVzdCBiZSBncmVhdGVyIHRoYW4gemVybxoRdGhpcy51",
+            "bnNjYWxlZCA+IDDIAQFSCWFtb3VudFVzZBrtAgoPUGlGdW5kc1JlY2VpdmVk",
+            "EjMKEXBheW1lbnRfaW50ZW50X2lkGAogASgEQge6SAQyAiAAUg9wYXltZW50",
+            "SW50ZW50SWQSKwoScGF5X2luX3Byb3ZpZGVyX2lkGBQgASgNUg9wYXlJblBy",
+            "b3ZpZGVySWQSNgoXYmVuZWZpY2lhcnlfcHJvdmlkZXJfaWQYHiABKA1SFWJl",
+            "bmVmaWNpYXJ5UHJvdmlkZXJJZBJFChFzZXR0bGVtZW50X2Ftb3VudBgoIAEo",
+            "CzIYLnR6ZXJvLnYxLmNvbW1vbi5EZWNpbWFsUhBzZXR0bGVtZW50QW1vdW50",
+            "EkEKD2JlbmVmaWNpYXJ5X2ZlZRgyIAEoCzIYLnR6ZXJvLnYxLmNvbW1vbi5E",
+            "ZWNpbWFsUg5iZW5lZmljaWFyeUZlZRI2CgpwYXlfaW5fZmVlGDwgASgLMhgu",
+            "dHplcm8udjEuY29tbW9uLkRlY2ltYWxSCHBheUluRmVlQhwKE3RyYW5zYWN0",
+            "aW9uX2RldGFpbHMSBbpIAggBGvYBCgtMZWRnZXJFbnRyeRIoChBhY2NvdW50",
+            "X293bmVyX2lkGAogASgNUg5hY2NvdW50T3duZXJJZBJbCgxhY2NvdW50X3R5",
+            "cGUYFCABKA4yOC50emVyby52MS5wYXltZW50LkFwcGVuZExlZGdlckVudHJp",
+            "ZXNSZXF1ZXN0LkFjY291bnRUeXBlUgthY2NvdW50VHlwZRIuCgVkZWJpdBgo",
+            "IAEoCzIYLnR6ZXJvLnYxLmNvbW1vbi5EZWNpbWFsUgVkZWJpdBIwCgZjcmVk",
+            "aXQYMiABKAsyGC50emVyby52MS5jb21tb24uRGVjaW1hbFIGY3JlZGl0IqAC",
+            "CgtBY2NvdW50VHlwZRIcChhBQ0NPVU5UX1RZUEVfVU5TUEVDSUZJRUQQABIY",
+            "ChRBQ0NPVU5UX1RZUEVfQkFMQU5DRRAUEhcKE0FDQ09VTlRfVFlQRV9QQVlf",
+            "SU4QKBIYChRBQ0NPVU5UX1RZUEVfUEFZX09VVBAyEhwKGEFDQ09VTlRfVFlQ",
+            "RV9GRUVfRVhQRU5TRRA8Eh4KGkFDQ09VTlRfVFlQRV9TRVRUTEVNRU5UX0lO",
+            "EFASHwobQUNDT1VOVF9UWVBFX1NFVFRMRU1FTlRfT1VUEFoSIgoeQUNDT1VO",
+            "VF9UWVBFX1BBWU1FTlRfSU5URU5UX0lOEGQSIwofQUNDT1VOVF9UWVBFX1BB",
+            "WU1FTlRfSU5URU5UX09VVBBuIh0KG0FwcGVuZExlZGdlckVudHJpZXNSZXNw",
+            "b25zZSKSBgoNUGF5b3V0UmVxdWVzdBImCgpwYXltZW50X2lkGAogASgEQge6",
+            "SAQyAiAAUglwYXltZW50SWQSHwoJcGF5b3V0X2lkGBQgASgEQgIYAVIIcGF5",
+            "b3V0SWQSMAoIY3VycmVuY3kYHiABKAlCFLpIEXIPMgpeW0EtWl17M30kmAED",
+            "UghjdXJyZW5jeRIxCg9jbGllbnRfcXVvdGVfaWQYKCABKAlCCbpIBnIEEAEY",
+            "QFINY2xpZW50UXVvdGVJZBJwCgZhbW91bnQYMiABKAsyGC50emVyby52MS5j",
+            "b21tb24uRGVjaW1hbEI+ukg7ugE1EiBhbW91bnQgbXVzdCBiZSBncmVhdGVy",
+            "IHRoYW4gemVybxoRdGhpcy51bnNjYWxlZCA+IDDIAQFSBmFtb3VudBJLCg5w",
+            "YXlvdXRfZGV0YWlscxg8IAEoCzIfLnR6ZXJvLnYxLmNvbW1vbi5QYXltZW50",
+            "RGV0YWlsc0gAUg1wYXlvdXREZXRhaWxziAEBEjQKEnBheV9pbl9wcm92aWRl",
+            "cl9pZBhQIAEoDUIHukgEKgIgAFIPcGF5SW5Qcm92aWRlcklkEmEKEHRyYXZl",
+            "bF9ydWxlX2RhdGEYyAEgASgLMi4udHplcm8udjEucGF5bWVudC5QYXlvdXRS",
+            "ZXF1ZXN0LlRyYXZlbFJ1bGVEYXRhQga6SAPIAQFSDnRyYXZlbFJ1bGVEYXRh",
+            "GucBCg5UcmF2ZWxSdWxlRGF0YRI5CgpvcmlnaW5hdG9yGAogAygLMg8uaXZt",
+            "czEwMS5QZXJzb25CCLpIBZIBAggBUgpvcmlnaW5hdG9yEjsKC2JlbmVmaWNp",
+            "YXJ5GBQgAygLMg8uaXZtczEwMS5QZXJzb25CCLpIBZIBAggBUgtiZW5lZmlj",
+            "aWFyeRJFChNvcmlnaW5hdG9yX3Byb3ZpZGVyGB4gASgLMg8uaXZtczEwMS5Q",
+            "ZXJzb25IAFISb3JpZ2luYXRvclByb3ZpZGVyiAEBQhYKFF9vcmlnaW5hdG9y",
+            "X3Byb3ZpZGVyQhEKD19wYXlvdXRfZGV0YWlscyLZBAoOUGF5b3V0UmVzcG9u",
+            "c2USXAokYmVuZWZpY2lhcnlfcHJvdmlkZXJfbGVnYWxfZW50aXR5X2lkGAog",
+            "ASgNQge6SAQqAiAASAFSIGJlbmVmaWNpYXJ5UHJvdmlkZXJMZWdhbEVudGl0",
+            "eUlkiAEBEkcKCGFjY2VwdGVkGBQgASgLMikudHplcm8udjEucGF5bWVudC5Q",
+            "YXlvdXRSZXNwb25zZS5BY2NlcHRlZEgAUghhY2NlcHRlZBJBCgZmYWlsZWQY",
+            "HiABKAsyJy50emVyby52MS5wYXltZW50LlBheW91dFJlc3BvbnNlLkZhaWxl",
+            "ZEgAUgZmYWlsZWQSWwoQbWFudWFsX2FtbF9jaGVjaxgoIAEoCzIvLnR6ZXJv",
+            "LnYxLnBheW1lbnQuUGF5b3V0UmVzcG9uc2UuTWFudWFsQW1sQ2hlY2tIAFIO",
+            "bWFudWFsQW1sQ2hlY2saCgoIQWNjZXB0ZWQaEAoOTWFudWFsQW1sQ2hlY2sa",
+            "pwEKBkZhaWxlZBJGCgZyZWFzb24YCiABKA4yLi50emVyby52MS5wYXltZW50",
+            "LlBheW91dFJlc3BvbnNlLkZhaWxlZC5SZWFzb25SBnJlYXNvbhInCgdkZXRh",
+            "aWxzGBQgASgJQgi6SAVyAxiACEgAUgdkZXRhaWxziAEBIiAKBlJlYXNvbhIW",
+            "ChJSRUFTT05fVU5TUEVDSUZJRUQQAEIKCghfZGV0YWlsc0IPCgZyZXN1bHQS",
+            "BbpIAggBQicKJV9iZW5lZmljaWFyeV9wcm92aWRlcl9sZWdhbF9lbnRpdHlf",
+            "aWQi7A0KFFVwZGF0ZVBheW1lbnRSZXF1ZXN0EjAKCnBheW1lbnRfaWQYBSAB",
+            "KARCEbpIDjIMGP//////////fyAAUglwYXltZW50SWQSNQoRcGF5bWVudF9j",
+            "bGllbnRfaWQYCiABKAlCCbpIBnIEEAEYQFIPcGF5bWVudENsaWVudElkEk0K",
+            "CGFjY2VwdGVkGBQgASgLMi8udHplcm8udjEucGF5bWVudC5VcGRhdGVQYXlt",
+            "ZW50UmVxdWVzdC5BY2NlcHRlZEgAUghhY2NlcHRlZBJHCgZmYWlsZWQYHiAB",
+            "KAsyLS50emVyby52MS5wYXltZW50LlVwZGF0ZVBheW1lbnRSZXF1ZXN0LkZh",
+            "aWxlZEgAUgZmYWlsZWQSUAoJY29uZmlybWVkGCggASgLMjAudHplcm8udjEu",
+            "cGF5bWVudC5VcGRhdGVQYXltZW50UmVxdWVzdC5Db25maXJtZWRIAFIJY29u",
+            "ZmlybWVkEmEKEG1hbnVhbF9hbWxfY2hlY2sYMiABKAsyNS50emVyby52MS5w",
+            "YXltZW50LlVwZGF0ZVBheW1lbnRSZXF1ZXN0Lk1hbnVhbEFtbENoZWNrSABS",
+            "Dm1hbnVhbEFtbENoZWNrGsUFCghBY2NlcHRlZBKEAQoNcGF5b3V0X2Ftb3Vu",
+            "dBgKIAEoCzIYLnR6ZXJvLnYxLmNvbW1vbi5EZWNpbWFsQkW6SEK6ATwSJ3Bh",
+            "eW91dF9hbW91bnQgbXVzdCBiZSBncmVhdGVyIHRoYW4gemVybxoRdGhpcy51",
+            "bnNjYWxlZCA+IDDIAQFSDHBheW91dEFtb3VudBJwChB0cmF2ZWxfcnVsZV9k",
+            "YXRhGBQgASgLMj4udHplcm8udjEucGF5bWVudC5VcGRhdGVQYXltZW50UmVx",
+            "dWVzdC5BY2NlcHRlZC5UcmF2ZWxSdWxlRGF0YUIGukgDyAEBUg50cmF2ZWxS",
+            "dWxlRGF0YRJqCgRyYXRlGB4gASgLMhgudHplcm8udjEuY29tbW9uLkRlY2lt",
+            "YWxCPLpIOboBMxIecmF0ZSBtdXN0IGJlIGdyZWF0ZXIgdGhhbiB6ZXJvGhF0",
+            "aGlzLnVuc2NhbGVkID4gMMgBAVIEcmF0ZRJjCgNmaXgYKCABKAsyGC50emVy",
+            "by52MS5jb21tb24uRGVjaW1hbEI3ukg0ugEuEhhmaXggbXVzdCBiZSBub24t",
+            "bmVnYXRpdmUaEnRoaXMudW5zY2FsZWQgPj0gMMgBAVIDZml4EpABChFzZXR0",
             "bGVtZW50X2Ftb3VudBgyIAEoCzIYLnR6ZXJvLnYxLmNvbW1vbi5EZWNpbWFs",
-            "UhBzZXR0bGVtZW50QW1vdW50EjgKC3BheV9vdXRfZml4GDwgASgLMhgudHpl",
-            "cm8udjEuY29tbW9uLkRlY2ltYWxSCXBheU91dEZpeCLyAQobQXBwcm92ZVBh",
-            "eW1lbnRRdW90ZVJlc3BvbnNlElQKCGFjY2VwdGVkGAogASgLMjYudHplcm8u",
-            "djEucGF5bWVudC5BcHByb3ZlUGF5bWVudFF1b3RlUmVzcG9uc2UuQWNjZXB0",
-            "ZWRIAFIIYWNjZXB0ZWQSVAoIcmVqZWN0ZWQYFCABKAsyNi50emVyby52MS5w",
-            "YXltZW50LkFwcHJvdmVQYXltZW50UXVvdGVSZXNwb25zZS5SZWplY3RlZEgA",
-            "UghyZWplY3RlZBoKCghBY2NlcHRlZBoKCghSZWplY3RlZEIPCgZyZXN1bHQS",
-            "BbpIAggBMp4ECg9Qcm92aWRlclNlcnZpY2USUAoGUGF5T3V0Eh8udHplcm8u",
-            "djEucGF5bWVudC5QYXlvdXRSZXF1ZXN0GiAudHplcm8udjEucGF5bWVudC5Q",
-            "YXlvdXRSZXNwb25zZSIDkAICEmUKDVVwZGF0ZVBheW1lbnQSJi50emVyby52",
-            "MS5wYXltZW50LlVwZGF0ZVBheW1lbnRSZXF1ZXN0GicudHplcm8udjEucGF5",
-            "bWVudC5VcGRhdGVQYXltZW50UmVzcG9uc2UiA5ACAhJfCgtVcGRhdGVMaW1p",
-            "dBIkLnR6ZXJvLnYxLnBheW1lbnQuVXBkYXRlTGltaXRSZXF1ZXN0GiUudHpl",
-            "cm8udjEucGF5bWVudC5VcGRhdGVMaW1pdFJlc3BvbnNlIgOQAgISdwoTQXBw",
-            "ZW5kTGVkZ2VyRW50cmllcxIsLnR6ZXJvLnYxLnBheW1lbnQuQXBwZW5kTGVk",
-            "Z2VyRW50cmllc1JlcXVlc3QaLS50emVyby52MS5wYXltZW50LkFwcGVuZExl",
-            "ZGdlckVudHJpZXNSZXNwb25zZSIDkAICEngKFEFwcHJvdmVQYXltZW50UXVv",
-            "dGVzEiwudHplcm8udjEucGF5bWVudC5BcHByb3ZlUGF5bWVudFF1b3RlUmVx",
-            "dWVzdBotLnR6ZXJvLnYxLnBheW1lbnQuQXBwcm92ZVBheW1lbnRRdW90ZVJl",
-            "c3BvbnNlIgOQAgJC1wEKFGNvbS50emVyby52MS5wYXltZW50Qg1Qcm92aWRl",
-            "clByb3RvUAFaO2dpdGh1Yi5jb20vdC0wLW5ldHdvcmsvcHJvdmlkZXItc2Rr",
-            "L2dvL2FwaS90emVyby92MS9wYXltZW50ogIDVFZQqgIjVDAuUHJvdmlkZXJT",
-            "ZGsuQXBpLlR6ZXJvLlYxLlBheW1lbnTKAhBUemVyb1xWMVxQYXltZW504gIc",
-            "VHplcm9cVjFcUGF5bWVudFxHUEJNZXRhZGF0YeoCElR6ZXJvOjpWMTo6UGF5",
-            "bWVudGIGcHJvdG8z"));
+            "Qkm6SEa6AUASK3NldHRsZW1lbnRfYW1vdW50IG11c3QgYmUgZ3JlYXRlciB0",
+            "aGFuIHplcm8aEXRoaXMudW5zY2FsZWQgPiAwyAEBUhBzZXR0bGVtZW50QW1v",
+            "dW50GlwKDlRyYXZlbFJ1bGVEYXRhEkoKFGJlbmVmaWNpYXJ5X3Byb3ZpZGVy",
+            "GAogASgLMg8uaXZtczEwMS5QZXJzb25CBrpIA8gBAVITYmVuZWZpY2lhcnlQ",
+            "cm92aWRlchqcAwoGRmFpbGVkEkwKBnJlYXNvbhgKIAEoDjI0LnR6ZXJvLnYx",
+            "LnBheW1lbnQuVXBkYXRlUGF5bWVudFJlcXVlc3QuRmFpbGVkLlJlYXNvblIG",
+            "cmVhc29uEicKB2RldGFpbHMYFCABKAlCCLpIBXIDGIAISABSB2RldGFpbHOI",
+            "AQEijgIKBlJlYXNvbhIWChJSRUFTT05fVU5TUEVDSUZJRUQQABImCiJSRUFT",
+            "T05fTk9fUVVPVEVfQUZURVJfQU1MX0FQUFJPVkFMEAESLAooUkVBU09OX1FV",
+            "T1RFX1JFSkVDVEVEX0FGVEVSX0FNTF9BUFBST1ZBTBACEiAKHFJFQVNPTl9B",
+            "TUxfUklTS19DSEVDS19GQUlMRUQQAxIzCi9SRUFTT05fQ1JFRElUX0xJTUlU",
+            "X0VYQ0VFREVEX0FGVEVSX0FNTF9BUFBST1ZBTBAEEiIKHlJFQVNPTl9SRUpF",
+            "Q1RFRF9CWV9CRU5FRklDSUFSWRAFEhsKF1JFQVNPTl9GSU5BTElaRV9GQUlM",
+            "VVJFEAZCCgoIX2RldGFpbHMakwEKCUNvbmZpcm1lZBI6CgtwYWlkX291dF9h",
+            "dBgKIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBSCXBhaWRPdXRB",
+            "dBI+CgdyZWNlaXB0GBQgASgLMh8udHplcm8udjEuY29tbW9uLlBheW1lbnRS",
+            "ZWNlaXB0SABSB3JlY2VpcHSIAQFCCgoIX3JlY2VpcHQaEAoOTWFudWFsQW1s",
+            "Q2hlY2tCDwoGcmVzdWx0EgW6SAIIASIXChVVcGRhdGVQYXltZW50UmVzcG9u",
+            "c2UiygMKElVwZGF0ZUxpbWl0UmVxdWVzdBJMCgZsaW1pdHMYCiADKAsyKi50",
+            "emVyby52MS5wYXltZW50LlVwZGF0ZUxpbWl0UmVxdWVzdC5MaW1pdEIIukgF",
+            "kgECCAFSBmxpbWl0cxrlAgoFTGltaXQSIQoHdmVyc2lvbhgKIAEoA0IHukgE",
+            "IgIoAFIHdmVyc2lvbhIuCg5jb3VudGVycGFydF9pZBgPIAEoBUIHukgEGgIg",
+            "AFINY291bnRlcnBhcnRJZBJDCgxwYXlvdXRfbGltaXQYFCABKAsyGC50emVy",
+            "by52MS5jb21tb24uRGVjaW1hbEIGukgDyAEBUgtwYXlvdXRMaW1pdBJDCgxj",
+            "cmVkaXRfbGltaXQYHiABKAsyGC50emVyby52MS5jb21tb24uRGVjaW1hbEIG",
+            "ukgDyAEBUgtjcmVkaXRMaW1pdBJDCgxjcmVkaXRfdXNhZ2UYKCABKAsyGC50",
+            "emVyby52MS5jb21tb24uRGVjaW1hbEIGukgDyAEBUgtjcmVkaXRVc2FnZRI6",
+            "CgdyZXNlcnZlGDIgASgLMhgudHplcm8udjEuY29tbW9uLkRlY2ltYWxCBrpI",
+            "A8gBAVIHcmVzZXJ2ZSIVChNVcGRhdGVMaW1pdFJlc3BvbnNlIpAFChpBcHBy",
+            "b3ZlUGF5bWVudFF1b3RlUmVxdWVzdBImCgpwYXltZW50X2lkGAogASgEQge6",
+            "SAQyAiAAUglwYXltZW50SWQSMAoQcGF5X291dF9xdW90ZV9pZBgUIAEoA0IH",
+            "ukgEIgIgAFINcGF5T3V0UXVvdGVJZBKAAQoMcGF5X291dF9yYXRlGB4gASgL",
+            "MhgudHplcm8udjEuY29tbW9uLkRlY2ltYWxCRLpIQboBOxImcGF5X291dF9y",
+            "YXRlIG11c3QgYmUgZ3JlYXRlciB0aGFuIHplcm8aEXRoaXMudW5zY2FsZWQg",
+            "PiAwyAEBUgpwYXlPdXRSYXRlEoYBCg5wYXlfb3V0X2Ftb3VudBgoIAEoCzIY",
+            "LnR6ZXJvLnYxLmNvbW1vbi5EZWNpbWFsQka6SEO6AT0SKHBheV9vdXRfYW1v",
+            "dW50IG11c3QgYmUgZ3JlYXRlciB0aGFuIHplcm8aEXRoaXMudW5zY2FsZWQg",
+            "PiAwyAEBUgxwYXlPdXRBbW91bnQSkAEKEXNldHRsZW1lbnRfYW1vdW50GDIg",
+            "ASgLMhgudHplcm8udjEuY29tbW9uLkRlY2ltYWxCSbpIRroBQBIrc2V0dGxl",
+            "bWVudF9hbW91bnQgbXVzdCBiZSBncmVhdGVyIHRoYW4gemVybxoRdGhpcy51",
+            "bnNjYWxlZCA+IDDIAQFSEHNldHRsZW1lbnRBbW91bnQSeQoLcGF5X291dF9m",
+            "aXgYPCABKAsyGC50emVyby52MS5jb21tb24uRGVjaW1hbEI/ukg8ugE2EiBw",
+            "YXlfb3V0X2ZpeCBtdXN0IGJlIG5vbi1uZWdhdGl2ZRoSdGhpcy51bnNjYWxl",
+            "ZCA+PSAwyAEBUglwYXlPdXRGaXgi8gEKG0FwcHJvdmVQYXltZW50UXVvdGVS",
+            "ZXNwb25zZRJUCghhY2NlcHRlZBgKIAEoCzI2LnR6ZXJvLnYxLnBheW1lbnQu",
+            "QXBwcm92ZVBheW1lbnRRdW90ZVJlc3BvbnNlLkFjY2VwdGVkSABSCGFjY2Vw",
+            "dGVkElQKCHJlamVjdGVkGBQgASgLMjYudHplcm8udjEucGF5bWVudC5BcHBy",
+            "b3ZlUGF5bWVudFF1b3RlUmVzcG9uc2UuUmVqZWN0ZWRIAFIIcmVqZWN0ZWQa",
+            "CgoIQWNjZXB0ZWQaCgoIUmVqZWN0ZWRCDwoGcmVzdWx0EgW6SAIIATKeBAoP",
+            "UHJvdmlkZXJTZXJ2aWNlElAKBlBheU91dBIfLnR6ZXJvLnYxLnBheW1lbnQu",
+            "UGF5b3V0UmVxdWVzdBogLnR6ZXJvLnYxLnBheW1lbnQuUGF5b3V0UmVzcG9u",
+            "c2UiA5ACAhJlCg1VcGRhdGVQYXltZW50EiYudHplcm8udjEucGF5bWVudC5V",
+            "cGRhdGVQYXltZW50UmVxdWVzdBonLnR6ZXJvLnYxLnBheW1lbnQuVXBkYXRl",
+            "UGF5bWVudFJlc3BvbnNlIgOQAgISXwoLVXBkYXRlTGltaXQSJC50emVyby52",
+            "MS5wYXltZW50LlVwZGF0ZUxpbWl0UmVxdWVzdBolLnR6ZXJvLnYxLnBheW1l",
+            "bnQuVXBkYXRlTGltaXRSZXNwb25zZSIDkAICEncKE0FwcGVuZExlZGdlckVu",
+            "dHJpZXMSLC50emVyby52MS5wYXltZW50LkFwcGVuZExlZGdlckVudHJpZXNS",
+            "ZXF1ZXN0Gi0udHplcm8udjEucGF5bWVudC5BcHBlbmRMZWRnZXJFbnRyaWVz",
+            "UmVzcG9uc2UiA5ACAhJ4ChRBcHByb3ZlUGF5bWVudFF1b3RlcxIsLnR6ZXJv",
+            "LnYxLnBheW1lbnQuQXBwcm92ZVBheW1lbnRRdW90ZVJlcXVlc3QaLS50emVy",
+            "by52MS5wYXltZW50LkFwcHJvdmVQYXltZW50UXVvdGVSZXNwb25zZSIDkAIC",
+            "QtcBChRjb20udHplcm8udjEucGF5bWVudEINUHJvdmlkZXJQcm90b1ABWjtn",
+            "aXRodWIuY29tL3QtMC1uZXR3b3JrL3Byb3ZpZGVyLXNkay9nby9hcGkvdHpl",
+            "cm8vdjEvcGF5bWVudKICA1RWUKoCI1QwLlByb3ZpZGVyU2RrLkFwaS5UemVy",
+            "by5WMS5QYXltZW50ygIQVHplcm9cVjFcUGF5bWVudOICHFR6ZXJvXFYxXFBh",
+            "eW1lbnRcR1BCTWV0YWRhdGHqAhJUemVybzo6VjE6OlBheW1lbnRiBnByb3Rv",
+            "Mw=="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { global::T0.ProviderSdk.Api.Tzero.V1.Common.PaymentMethodReflection.Descriptor, global::T0.ProviderSdk.Api.Tzero.V1.Common.PaymentReceiptReflection.Descriptor, global::T0.ProviderSdk.Api.Tzero.V1.Common.CommonReflection.Descriptor, global::T0.ProviderSdk.Api.Ivms101.V1.Ivms.Ivms101Reflection.Descriptor, global::Google.Protobuf.WellKnownTypes.TimestampReflection.Descriptor, global::Buf.Validate.ValidateReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(null, null, new pbr::GeneratedClrTypeInfo[] {
             new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.AppendLedgerEntriesRequest), global::T0.ProviderSdk.Api.Tzero.V1.Payment.AppendLedgerEntriesRequest.Parser, new[]{ "Transactions" }, null, new[]{ typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.AppendLedgerEntriesRequest.Types.AccountType) }, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.AppendLedgerEntriesRequest.Types.Transaction), global::T0.ProviderSdk.Api.Tzero.V1.Payment.AppendLedgerEntriesRequest.Types.Transaction.Parser, new[]{ "TransactionId", "Entries", "Payout", "ProviderSettlement", "FeeSettlement", "PiFundsReceived" }, new[]{ "TransactionDetails" }, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.AppendLedgerEntriesRequest.Types.Transaction.Types.Payout), global::T0.ProviderSdk.Api.Tzero.V1.Payment.AppendLedgerEntriesRequest.Types.Transaction.Types.Payout.Parser, new[]{ "PaymentId" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.AppendLedgerEntriesRequest.Types.Transaction.Types.ProviderSettlement), global::T0.ProviderSdk.Api.Tzero.V1.Payment.AppendLedgerEntriesRequest.Types.Transaction.Types.ProviderSettlement.Parser, new[]{ "SettlementId" }, null, null, null, null),
-            new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.AppendLedgerEntriesRequest.Types.Transaction.Types.FeeSettlement), global::T0.ProviderSdk.Api.Tzero.V1.Payment.AppendLedgerEntriesRequest.Types.Transaction.Types.FeeSettlement.Parser, new[]{ "FeeSettlementId" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.AppendLedgerEntriesRequest.Types.Transaction.Types.ProviderSettlement), global::T0.ProviderSdk.Api.Tzero.V1.Payment.AppendLedgerEntriesRequest.Types.Transaction.Types.ProviderSettlement.Parser, new[]{ "SettlementId", "Blockchain", "TxHash", "OnChainAmount", "SenderProviderId", "ReceiverProviderId", "AmountUsd" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.AppendLedgerEntriesRequest.Types.Transaction.Types.FeeSettlement), global::T0.ProviderSdk.Api.Tzero.V1.Payment.AppendLedgerEntriesRequest.Types.Transaction.Types.FeeSettlement.Parser, new[]{ "FeeSettlementId", "AmountUsd" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.AppendLedgerEntriesRequest.Types.Transaction.Types.PiFundsReceived), global::T0.ProviderSdk.Api.Tzero.V1.Payment.AppendLedgerEntriesRequest.Types.Transaction.Types.PiFundsReceived.Parser, new[]{ "PaymentIntentId", "PayInProviderId", "BeneficiaryProviderId", "SettlementAmount", "BeneficiaryFee", "PayInFee" }, null, null, null, null)}),
             new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.AppendLedgerEntriesRequest.Types.LedgerEntry), global::T0.ProviderSdk.Api.Tzero.V1.Payment.AppendLedgerEntriesRequest.Types.LedgerEntry.Parser, new[]{ "AccountOwnerId", "AccountType", "Debit", "Credit" }, null, null, null, null)}),
             new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.AppendLedgerEntriesResponse), global::T0.ProviderSdk.Api.Tzero.V1.Payment.AppendLedgerEntriesResponse.Parser, null, null, null, null, null),
@@ -184,7 +218,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
             new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.PayoutResponse), global::T0.ProviderSdk.Api.Tzero.V1.Payment.PayoutResponse.Parser, new[]{ "BeneficiaryProviderLegalEntityId", "Accepted", "Failed", "ManualAmlCheck" }, new[]{ "Result", "BeneficiaryProviderLegalEntityId" }, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.PayoutResponse.Types.Accepted), global::T0.ProviderSdk.Api.Tzero.V1.Payment.PayoutResponse.Types.Accepted.Parser, null, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.PayoutResponse.Types.ManualAmlCheck), global::T0.ProviderSdk.Api.Tzero.V1.Payment.PayoutResponse.Types.ManualAmlCheck.Parser, null, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.PayoutResponse.Types.Failed), global::T0.ProviderSdk.Api.Tzero.V1.Payment.PayoutResponse.Types.Failed.Parser, new[]{ "Reason", "Details" }, new[]{ "Details" }, new[]{ typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.PayoutResponse.Types.Failed.Types.Reason) }, null, null)}),
-            new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.UpdatePaymentRequest), global::T0.ProviderSdk.Api.Tzero.V1.Payment.UpdatePaymentRequest.Parser, new[]{ "PaymentId", "PaymentClientId", "Accepted", "Failed", "Confirmed", "ManualAmlCheck" }, new[]{ "Result" }, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.UpdatePaymentRequest.Types.Accepted), global::T0.ProviderSdk.Api.Tzero.V1.Payment.UpdatePaymentRequest.Types.Accepted.Parser, new[]{ "PayoutAmount", "TravelRuleData" }, null, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.UpdatePaymentRequest.Types.Accepted.Types.TravelRuleData), global::T0.ProviderSdk.Api.Tzero.V1.Payment.UpdatePaymentRequest.Types.Accepted.Types.TravelRuleData.Parser, new[]{ "BeneficiaryProvider" }, null, null, null, null)}),
+            new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.UpdatePaymentRequest), global::T0.ProviderSdk.Api.Tzero.V1.Payment.UpdatePaymentRequest.Parser, new[]{ "PaymentId", "PaymentClientId", "Accepted", "Failed", "Confirmed", "ManualAmlCheck" }, new[]{ "Result" }, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.UpdatePaymentRequest.Types.Accepted), global::T0.ProviderSdk.Api.Tzero.V1.Payment.UpdatePaymentRequest.Types.Accepted.Parser, new[]{ "PayoutAmount", "TravelRuleData", "Rate", "Fix", "SettlementAmount" }, null, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.UpdatePaymentRequest.Types.Accepted.Types.TravelRuleData), global::T0.ProviderSdk.Api.Tzero.V1.Payment.UpdatePaymentRequest.Types.Accepted.Types.TravelRuleData.Parser, new[]{ "BeneficiaryProvider" }, null, null, null, null)}),
             new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.UpdatePaymentRequest.Types.Failed), global::T0.ProviderSdk.Api.Tzero.V1.Payment.UpdatePaymentRequest.Types.Failed.Parser, new[]{ "Reason", "Details" }, new[]{ "Details" }, new[]{ typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.UpdatePaymentRequest.Types.Failed.Types.Reason) }, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.UpdatePaymentRequest.Types.Confirmed), global::T0.ProviderSdk.Api.Tzero.V1.Payment.UpdatePaymentRequest.Types.Confirmed.Parser, new[]{ "PaidOutAt", "Receipt" }, new[]{ "Receipt" }, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.Payment.UpdatePaymentRequest.Types.ManualAmlCheck), global::T0.ProviderSdk.Api.Tzero.V1.Payment.UpdatePaymentRequest.Types.ManualAmlCheck.Parser, null, null, null, null, null)}),
@@ -1084,6 +1118,14 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
 
           }
 
+          /// <summary>
+          ///*
+          /// An on-chain settlement between two providers. The on-chain fields let the
+          /// counterparty reconcile the settlement against the USDT transfer actually
+          /// sent. The settlement participants and USD amount below are authoritative;
+          /// the ledger entries remain authoritative for the resulting account balances.
+          /// Each recipient's counterparty is whichever provider id is not its own.
+          /// </summary>
           [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
           public sealed partial class ProviderSettlement : pb::IMessage<ProviderSettlement>
           #if !GOOGLE_PROTOBUF_REFSTRUCT_COMPATIBILITY_MODE
@@ -1120,6 +1162,12 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
             [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
             public ProviderSettlement(ProviderSettlement other) : this() {
               settlementId_ = other.settlementId_;
+              blockchain_ = other.blockchain_;
+              txHash_ = other.txHash_;
+              onChainAmount_ = other.onChainAmount_ != null ? other.onChainAmount_.Clone() : null;
+              senderProviderId_ = other.senderProviderId_;
+              receiverProviderId_ = other.receiverProviderId_;
+              amountUsd_ = other.amountUsd_ != null ? other.amountUsd_.Clone() : null;
               _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
             }
 
@@ -1141,6 +1189,102 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
               }
             }
 
+            /// <summary>Field number for the "blockchain" field.</summary>
+            public const int BlockchainFieldNumber = 20;
+            private global::T0.ProviderSdk.Api.Tzero.V1.Common.Blockchain blockchain_ = global::T0.ProviderSdk.Api.Tzero.V1.Common.Blockchain.Unspecified;
+            /// <summary>
+            /// no validation: observed settlement chain; informational reconciliation
+            /// descriptor. defined_only intentionally omitted: this flows network->provider
+            /// and the receiving provider may lag common.Blockchain, so defined_only would
+            /// reject an append carrying a newly-added chain.
+            /// </summary>
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public global::T0.ProviderSdk.Api.Tzero.V1.Common.Blockchain Blockchain {
+              get { return blockchain_; }
+              set {
+                blockchain_ = value;
+              }
+            }
+
+            /// <summary>Field number for the "tx_hash" field.</summary>
+            public const int TxHashFieldNumber = 30;
+            private string txHash_ = "";
+            /// <summary>
+            /// no validation: observed on-chain transaction hash; informational
+            /// descriptor for reconciliation, not a gating constraint
+            /// </summary>
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public string TxHash {
+              get { return txHash_; }
+              set {
+                txHash_ = pb::ProtoPreconditions.CheckNotNull(value, "value");
+              }
+            }
+
+            /// <summary>Field number for the "on_chain_amount" field.</summary>
+            public const int OnChainAmountFieldNumber = 40;
+            private global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal onChainAmount_;
+            /// <summary>
+            /// Observed on-chain (USDT) amount; differs from the settlement amount the
+            /// ledger entries encode (full precision vs. truncated to cents).
+            /// </summary>
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal OnChainAmount {
+              get { return onChainAmount_; }
+              set {
+                onChainAmount_ = value;
+              }
+            }
+
+            /// <summary>Field number for the "sender_provider_id" field.</summary>
+            public const int SenderProviderIdFieldNumber = 50;
+            private uint senderProviderId_;
+            /// <summary>
+            /// Provider whose ledger records this settlement as SETTLEMENT_OUT (the sender).
+            /// </summary>
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public uint SenderProviderId {
+              get { return senderProviderId_; }
+              set {
+                senderProviderId_ = value;
+              }
+            }
+
+            /// <summary>Field number for the "receiver_provider_id" field.</summary>
+            public const int ReceiverProviderIdFieldNumber = 60;
+            private uint receiverProviderId_;
+            /// <summary>
+            /// Provider whose ledger records this settlement as SETTLEMENT_IN (the receiver).
+            /// </summary>
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public uint ReceiverProviderId {
+              get { return receiverProviderId_; }
+              set {
+                receiverProviderId_ = value;
+              }
+            }
+
+            /// <summary>Field number for the "amount_usd" field.</summary>
+            public const int AmountUsdFieldNumber = 70;
+            private global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal amountUsd_;
+            /// <summary>
+            /// Settlement amount in USD, truncated to cents. Differs from on_chain_amount
+            /// (full-precision USDT); equals the settlement ledger leg's credit/debit.
+            /// </summary>
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal AmountUsd {
+              get { return amountUsd_; }
+              set {
+                amountUsd_ = value;
+              }
+            }
+
             [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
             [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
             public override bool Equals(object other) {
@@ -1157,6 +1301,12 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
                 return true;
               }
               if (SettlementId != other.SettlementId) return false;
+              if (Blockchain != other.Blockchain) return false;
+              if (TxHash != other.TxHash) return false;
+              if (!object.Equals(OnChainAmount, other.OnChainAmount)) return false;
+              if (SenderProviderId != other.SenderProviderId) return false;
+              if (ReceiverProviderId != other.ReceiverProviderId) return false;
+              if (!object.Equals(AmountUsd, other.AmountUsd)) return false;
               return Equals(_unknownFields, other._unknownFields);
             }
 
@@ -1165,6 +1315,12 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
             public override int GetHashCode() {
               int hash = 1;
               if (SettlementId != 0UL) hash ^= SettlementId.GetHashCode();
+              if (Blockchain != global::T0.ProviderSdk.Api.Tzero.V1.Common.Blockchain.Unspecified) hash ^= Blockchain.GetHashCode();
+              if (TxHash.Length != 0) hash ^= TxHash.GetHashCode();
+              if (onChainAmount_ != null) hash ^= OnChainAmount.GetHashCode();
+              if (SenderProviderId != 0) hash ^= SenderProviderId.GetHashCode();
+              if (ReceiverProviderId != 0) hash ^= ReceiverProviderId.GetHashCode();
+              if (amountUsd_ != null) hash ^= AmountUsd.GetHashCode();
               if (_unknownFields != null) {
                 hash ^= _unknownFields.GetHashCode();
               }
@@ -1187,6 +1343,30 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
                 output.WriteRawTag(80);
                 output.WriteUInt64(SettlementId);
               }
+              if (Blockchain != global::T0.ProviderSdk.Api.Tzero.V1.Common.Blockchain.Unspecified) {
+                output.WriteRawTag(160, 1);
+                output.WriteEnum((int) Blockchain);
+              }
+              if (TxHash.Length != 0) {
+                output.WriteRawTag(242, 1);
+                output.WriteString(TxHash);
+              }
+              if (onChainAmount_ != null) {
+                output.WriteRawTag(194, 2);
+                output.WriteMessage(OnChainAmount);
+              }
+              if (SenderProviderId != 0) {
+                output.WriteRawTag(144, 3);
+                output.WriteUInt32(SenderProviderId);
+              }
+              if (ReceiverProviderId != 0) {
+                output.WriteRawTag(224, 3);
+                output.WriteUInt32(ReceiverProviderId);
+              }
+              if (amountUsd_ != null) {
+                output.WriteRawTag(178, 4);
+                output.WriteMessage(AmountUsd);
+              }
               if (_unknownFields != null) {
                 _unknownFields.WriteTo(output);
               }
@@ -1201,6 +1381,30 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
                 output.WriteRawTag(80);
                 output.WriteUInt64(SettlementId);
               }
+              if (Blockchain != global::T0.ProviderSdk.Api.Tzero.V1.Common.Blockchain.Unspecified) {
+                output.WriteRawTag(160, 1);
+                output.WriteEnum((int) Blockchain);
+              }
+              if (TxHash.Length != 0) {
+                output.WriteRawTag(242, 1);
+                output.WriteString(TxHash);
+              }
+              if (onChainAmount_ != null) {
+                output.WriteRawTag(194, 2);
+                output.WriteMessage(OnChainAmount);
+              }
+              if (SenderProviderId != 0) {
+                output.WriteRawTag(144, 3);
+                output.WriteUInt32(SenderProviderId);
+              }
+              if (ReceiverProviderId != 0) {
+                output.WriteRawTag(224, 3);
+                output.WriteUInt32(ReceiverProviderId);
+              }
+              if (amountUsd_ != null) {
+                output.WriteRawTag(178, 4);
+                output.WriteMessage(AmountUsd);
+              }
               if (_unknownFields != null) {
                 _unknownFields.WriteTo(ref output);
               }
@@ -1213,6 +1417,24 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
               int size = 0;
               if (SettlementId != 0UL) {
                 size += 1 + pb::CodedOutputStream.ComputeUInt64Size(SettlementId);
+              }
+              if (Blockchain != global::T0.ProviderSdk.Api.Tzero.V1.Common.Blockchain.Unspecified) {
+                size += 2 + pb::CodedOutputStream.ComputeEnumSize((int) Blockchain);
+              }
+              if (TxHash.Length != 0) {
+                size += 2 + pb::CodedOutputStream.ComputeStringSize(TxHash);
+              }
+              if (onChainAmount_ != null) {
+                size += 2 + pb::CodedOutputStream.ComputeMessageSize(OnChainAmount);
+              }
+              if (SenderProviderId != 0) {
+                size += 2 + pb::CodedOutputStream.ComputeUInt32Size(SenderProviderId);
+              }
+              if (ReceiverProviderId != 0) {
+                size += 2 + pb::CodedOutputStream.ComputeUInt32Size(ReceiverProviderId);
+              }
+              if (amountUsd_ != null) {
+                size += 2 + pb::CodedOutputStream.ComputeMessageSize(AmountUsd);
               }
               if (_unknownFields != null) {
                 size += _unknownFields.CalculateSize();
@@ -1228,6 +1450,30 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
               }
               if (other.SettlementId != 0UL) {
                 SettlementId = other.SettlementId;
+              }
+              if (other.Blockchain != global::T0.ProviderSdk.Api.Tzero.V1.Common.Blockchain.Unspecified) {
+                Blockchain = other.Blockchain;
+              }
+              if (other.TxHash.Length != 0) {
+                TxHash = other.TxHash;
+              }
+              if (other.onChainAmount_ != null) {
+                if (onChainAmount_ == null) {
+                  OnChainAmount = new global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal();
+                }
+                OnChainAmount.MergeFrom(other.OnChainAmount);
+              }
+              if (other.SenderProviderId != 0) {
+                SenderProviderId = other.SenderProviderId;
+              }
+              if (other.ReceiverProviderId != 0) {
+                ReceiverProviderId = other.ReceiverProviderId;
+              }
+              if (other.amountUsd_ != null) {
+                if (amountUsd_ == null) {
+                  AmountUsd = new global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal();
+                }
+                AmountUsd.MergeFrom(other.AmountUsd);
               }
               _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
             }
@@ -1252,6 +1498,36 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
                     SettlementId = input.ReadUInt64();
                     break;
                   }
+                  case 160: {
+                    Blockchain = (global::T0.ProviderSdk.Api.Tzero.V1.Common.Blockchain) input.ReadEnum();
+                    break;
+                  }
+                  case 242: {
+                    TxHash = input.ReadString();
+                    break;
+                  }
+                  case 322: {
+                    if (onChainAmount_ == null) {
+                      OnChainAmount = new global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal();
+                    }
+                    input.ReadMessage(OnChainAmount);
+                    break;
+                  }
+                  case 400: {
+                    SenderProviderId = input.ReadUInt32();
+                    break;
+                  }
+                  case 480: {
+                    ReceiverProviderId = input.ReadUInt32();
+                    break;
+                  }
+                  case 562: {
+                    if (amountUsd_ == null) {
+                      AmountUsd = new global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal();
+                    }
+                    input.ReadMessage(AmountUsd);
+                    break;
+                  }
                 }
               }
             #endif
@@ -1273,6 +1549,36 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
                     break;
                   case 80: {
                     SettlementId = input.ReadUInt64();
+                    break;
+                  }
+                  case 160: {
+                    Blockchain = (global::T0.ProviderSdk.Api.Tzero.V1.Common.Blockchain) input.ReadEnum();
+                    break;
+                  }
+                  case 242: {
+                    TxHash = input.ReadString();
+                    break;
+                  }
+                  case 322: {
+                    if (onChainAmount_ == null) {
+                      OnChainAmount = new global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal();
+                    }
+                    input.ReadMessage(OnChainAmount);
+                    break;
+                  }
+                  case 400: {
+                    SenderProviderId = input.ReadUInt32();
+                    break;
+                  }
+                  case 480: {
+                    ReceiverProviderId = input.ReadUInt32();
+                    break;
+                  }
+                  case 562: {
+                    if (amountUsd_ == null) {
+                      AmountUsd = new global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal();
+                    }
+                    input.ReadMessage(AmountUsd);
                     break;
                   }
                 }
@@ -1318,6 +1624,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
             [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
             public FeeSettlement(FeeSettlement other) : this() {
               feeSettlementId_ = other.feeSettlementId_;
+              amountUsd_ = other.amountUsd_ != null ? other.amountUsd_.Clone() : null;
               _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
             }
 
@@ -1339,6 +1646,24 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
               }
             }
 
+            /// <summary>Field number for the "amount_usd" field.</summary>
+            public const int AmountUsdFieldNumber = 20;
+            private global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal amountUsd_;
+            /// <summary>
+            /// Fee settlement amount in USD, truncated to cents. Equals the
+            /// SETTLEMENT_OUT credit this fee produces. The fee always flows to the
+            /// network from the provider receiving this callback, so the descriptor
+            /// carries no provider_id.
+            /// </summary>
+            [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+            [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+            public global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal AmountUsd {
+              get { return amountUsd_; }
+              set {
+                amountUsd_ = value;
+              }
+            }
+
             [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
             [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
             public override bool Equals(object other) {
@@ -1355,6 +1680,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
                 return true;
               }
               if (FeeSettlementId != other.FeeSettlementId) return false;
+              if (!object.Equals(AmountUsd, other.AmountUsd)) return false;
               return Equals(_unknownFields, other._unknownFields);
             }
 
@@ -1363,6 +1689,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
             public override int GetHashCode() {
               int hash = 1;
               if (FeeSettlementId != 0UL) hash ^= FeeSettlementId.GetHashCode();
+              if (amountUsd_ != null) hash ^= AmountUsd.GetHashCode();
               if (_unknownFields != null) {
                 hash ^= _unknownFields.GetHashCode();
               }
@@ -1385,6 +1712,10 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
                 output.WriteRawTag(80);
                 output.WriteUInt64(FeeSettlementId);
               }
+              if (amountUsd_ != null) {
+                output.WriteRawTag(162, 1);
+                output.WriteMessage(AmountUsd);
+              }
               if (_unknownFields != null) {
                 _unknownFields.WriteTo(output);
               }
@@ -1399,6 +1730,10 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
                 output.WriteRawTag(80);
                 output.WriteUInt64(FeeSettlementId);
               }
+              if (amountUsd_ != null) {
+                output.WriteRawTag(162, 1);
+                output.WriteMessage(AmountUsd);
+              }
               if (_unknownFields != null) {
                 _unknownFields.WriteTo(ref output);
               }
@@ -1411,6 +1746,9 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
               int size = 0;
               if (FeeSettlementId != 0UL) {
                 size += 1 + pb::CodedOutputStream.ComputeUInt64Size(FeeSettlementId);
+              }
+              if (amountUsd_ != null) {
+                size += 2 + pb::CodedOutputStream.ComputeMessageSize(AmountUsd);
               }
               if (_unknownFields != null) {
                 size += _unknownFields.CalculateSize();
@@ -1426,6 +1764,12 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
               }
               if (other.FeeSettlementId != 0UL) {
                 FeeSettlementId = other.FeeSettlementId;
+              }
+              if (other.amountUsd_ != null) {
+                if (amountUsd_ == null) {
+                  AmountUsd = new global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal();
+                }
+                AmountUsd.MergeFrom(other.AmountUsd);
               }
               _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
             }
@@ -1450,6 +1794,13 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
                     FeeSettlementId = input.ReadUInt64();
                     break;
                   }
+                  case 162: {
+                    if (amountUsd_ == null) {
+                      AmountUsd = new global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal();
+                    }
+                    input.ReadMessage(AmountUsd);
+                    break;
+                  }
                 }
               }
             #endif
@@ -1471,6 +1822,13 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
                     break;
                   case 80: {
                     FeeSettlementId = input.ReadUInt64();
+                    break;
+                  }
+                  case 162: {
+                    if (amountUsd_ == null) {
+                      AmountUsd = new global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal();
+                    }
+                    input.ReadMessage(AmountUsd);
                     break;
                   }
                 }
@@ -4299,7 +4657,8 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
     private ulong paymentId_;
     /// <summary>
     ///*
-    /// payment_id is a payment id in the T-0 network.
+    /// payment_id is a payment id in the T-0 network. The upper bound is the largest
+    /// value the network assigns, so a provider can store it in a signed 64-bit column.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -4774,6 +5133,9 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
         public Accepted(Accepted other) : this() {
           payoutAmount_ = other.payoutAmount_ != null ? other.payoutAmount_.Clone() : null;
           travelRuleData_ = other.travelRuleData_ != null ? other.travelRuleData_.Clone() : null;
+          rate_ = other.rate_ != null ? other.rate_.Clone() : null;
+          fix_ = other.fix_ != null ? other.fix_.Clone() : null;
+          settlementAmount_ = other.settlementAmount_ != null ? other.settlementAmount_.Clone() : null;
           _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
         }
 
@@ -4810,6 +5172,51 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
           }
         }
 
+        /// <summary>Field number for the "rate" field.</summary>
+        public const int RateFieldNumber = 30;
+        private global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal rate_;
+        /// <summary>
+        ///* Exchange rate the network applied to this payout, pay-out currency per USD. 
+        /// </summary>
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        public global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal Rate {
+          get { return rate_; }
+          set {
+            rate_ = value;
+          }
+        }
+
+        /// <summary>Field number for the "fix" field.</summary>
+        public const int FixFieldNumber = 40;
+        private global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal fix_;
+        /// <summary>
+        ///* Fixed USD markup the network applied to this payout. 
+        /// </summary>
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        public global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal Fix {
+          get { return fix_; }
+          set {
+            fix_ = value;
+          }
+        }
+
+        /// <summary>Field number for the "settlement_amount" field.</summary>
+        public const int SettlementAmountFieldNumber = 50;
+        private global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal settlementAmount_;
+        /// <summary>
+        ///* Final USD obligation persisted by the network for this accepted payout. 
+        /// </summary>
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        public global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal SettlementAmount {
+          get { return settlementAmount_; }
+          set {
+            settlementAmount_ = value;
+          }
+        }
+
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
         public override bool Equals(object other) {
@@ -4827,6 +5234,9 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
           }
           if (!object.Equals(PayoutAmount, other.PayoutAmount)) return false;
           if (!object.Equals(TravelRuleData, other.TravelRuleData)) return false;
+          if (!object.Equals(Rate, other.Rate)) return false;
+          if (!object.Equals(Fix, other.Fix)) return false;
+          if (!object.Equals(SettlementAmount, other.SettlementAmount)) return false;
           return Equals(_unknownFields, other._unknownFields);
         }
 
@@ -4836,6 +5246,9 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
           int hash = 1;
           if (payoutAmount_ != null) hash ^= PayoutAmount.GetHashCode();
           if (travelRuleData_ != null) hash ^= TravelRuleData.GetHashCode();
+          if (rate_ != null) hash ^= Rate.GetHashCode();
+          if (fix_ != null) hash ^= Fix.GetHashCode();
+          if (settlementAmount_ != null) hash ^= SettlementAmount.GetHashCode();
           if (_unknownFields != null) {
             hash ^= _unknownFields.GetHashCode();
           }
@@ -4862,6 +5275,18 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
             output.WriteRawTag(162, 1);
             output.WriteMessage(TravelRuleData);
           }
+          if (rate_ != null) {
+            output.WriteRawTag(242, 1);
+            output.WriteMessage(Rate);
+          }
+          if (fix_ != null) {
+            output.WriteRawTag(194, 2);
+            output.WriteMessage(Fix);
+          }
+          if (settlementAmount_ != null) {
+            output.WriteRawTag(146, 3);
+            output.WriteMessage(SettlementAmount);
+          }
           if (_unknownFields != null) {
             _unknownFields.WriteTo(output);
           }
@@ -4880,6 +5305,18 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
             output.WriteRawTag(162, 1);
             output.WriteMessage(TravelRuleData);
           }
+          if (rate_ != null) {
+            output.WriteRawTag(242, 1);
+            output.WriteMessage(Rate);
+          }
+          if (fix_ != null) {
+            output.WriteRawTag(194, 2);
+            output.WriteMessage(Fix);
+          }
+          if (settlementAmount_ != null) {
+            output.WriteRawTag(146, 3);
+            output.WriteMessage(SettlementAmount);
+          }
           if (_unknownFields != null) {
             _unknownFields.WriteTo(ref output);
           }
@@ -4895,6 +5332,15 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
           }
           if (travelRuleData_ != null) {
             size += 2 + pb::CodedOutputStream.ComputeMessageSize(TravelRuleData);
+          }
+          if (rate_ != null) {
+            size += 2 + pb::CodedOutputStream.ComputeMessageSize(Rate);
+          }
+          if (fix_ != null) {
+            size += 2 + pb::CodedOutputStream.ComputeMessageSize(Fix);
+          }
+          if (settlementAmount_ != null) {
+            size += 2 + pb::CodedOutputStream.ComputeMessageSize(SettlementAmount);
           }
           if (_unknownFields != null) {
             size += _unknownFields.CalculateSize();
@@ -4919,6 +5365,24 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
               TravelRuleData = new global::T0.ProviderSdk.Api.Tzero.V1.Payment.UpdatePaymentRequest.Types.Accepted.Types.TravelRuleData();
             }
             TravelRuleData.MergeFrom(other.TravelRuleData);
+          }
+          if (other.rate_ != null) {
+            if (rate_ == null) {
+              Rate = new global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal();
+            }
+            Rate.MergeFrom(other.Rate);
+          }
+          if (other.fix_ != null) {
+            if (fix_ == null) {
+              Fix = new global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal();
+            }
+            Fix.MergeFrom(other.Fix);
+          }
+          if (other.settlementAmount_ != null) {
+            if (settlementAmount_ == null) {
+              SettlementAmount = new global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal();
+            }
+            SettlementAmount.MergeFrom(other.SettlementAmount);
           }
           _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
         }
@@ -4953,6 +5417,27 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
                 input.ReadMessage(TravelRuleData);
                 break;
               }
+              case 242: {
+                if (rate_ == null) {
+                  Rate = new global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal();
+                }
+                input.ReadMessage(Rate);
+                break;
+              }
+              case 322: {
+                if (fix_ == null) {
+                  Fix = new global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal();
+                }
+                input.ReadMessage(Fix);
+                break;
+              }
+              case 402: {
+                if (settlementAmount_ == null) {
+                  SettlementAmount = new global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal();
+                }
+                input.ReadMessage(SettlementAmount);
+                break;
+              }
             }
           }
         #endif
@@ -4984,6 +5469,27 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
                   TravelRuleData = new global::T0.ProviderSdk.Api.Tzero.V1.Payment.UpdatePaymentRequest.Types.Accepted.Types.TravelRuleData();
                 }
                 input.ReadMessage(TravelRuleData);
+                break;
+              }
+              case 242: {
+                if (rate_ == null) {
+                  Rate = new global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal();
+                }
+                input.ReadMessage(Rate);
+                break;
+              }
+              case 322: {
+                if (fix_ == null) {
+                  Fix = new global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal();
+                }
+                input.ReadMessage(Fix);
+                break;
+              }
+              case 402: {
+                if (settlementAmount_ == null) {
+                  SettlementAmount = new global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal();
+                }
+                input.ReadMessage(SettlementAmount);
                 break;
               }
             }
@@ -5546,7 +6052,10 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
         public const int PaidOutAtFieldNumber = 10;
         private global::Google.Protobuf.WellKnownTypes.Timestamp paidOutAt_;
         /// <summary>
-        /// time of the payout
+        ///*
+        /// Time of the payout. No validation: the field is absent when the exact payout time
+        /// is not known, so treat absence as unknown and fall back to the provider's own
+        /// recorded time for this update rather than rejecting the callback.
         /// </summary>
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -6367,9 +6876,8 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
         public const int PayoutLimitFieldNumber = 20;
         private global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal payoutLimit_;
         /// <summary>
-        ///*
-        /// payout_limit = credit_limit - credit_usage - reserve, negative value means credit limit is exceeded,
-        /// e.g. if counterparty decreased credit limit
+        /// Amounts are mirrored verbatim: required enforces presence, sign is not re-validated
+        /// (payout_limit and credit_usage are signed by design).
         /// </summary>
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -6950,6 +7458,9 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
     /// <summary>Field number for the "payment_id" field.</summary>
     public const int PaymentIdFieldNumber = 10;
     private ulong paymentId_;
+    /// <summary>
+    ///* Payment id assigned by the network, identifying the payment being re-priced. 
+    /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public ulong PaymentId {
@@ -6962,6 +7473,9 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
     /// <summary>Field number for the "pay_out_quote_id" field.</summary>
     public const int PayOutQuoteIdFieldNumber = 20;
     private long payOutQuoteId_;
+    /// <summary>
+    ///* Updated pay-out quote id the approval applies to. 
+    /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public long PayOutQuoteId {
@@ -6974,6 +7488,9 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
     /// <summary>Field number for the "pay_out_rate" field.</summary>
     public const int PayOutRateFieldNumber = 30;
     private global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal payOutRate_;
+    /// <summary>
+    ///* Exchange rate the network applied to this payout, pay-out currency per USD. 
+    /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal PayOutRate {
@@ -6986,6 +7503,9 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
     /// <summary>Field number for the "pay_out_amount" field.</summary>
     public const int PayOutAmountFieldNumber = 40;
     private global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal payOutAmount_;
+    /// <summary>
+    ///* Updated payout amount in the pay-out currency. 
+    /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal PayOutAmount {
@@ -6998,6 +7518,9 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
     /// <summary>Field number for the "settlement_amount" field.</summary>
     public const int SettlementAmountFieldNumber = 50;
     private global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal settlementAmount_;
+    /// <summary>
+    ///* Updated settlement amount in USD. 
+    /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal SettlementAmount {

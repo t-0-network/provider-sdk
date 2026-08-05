@@ -1673,10 +1673,12 @@ func (*PaymentDetails_IndonesianEWallet_) isPaymentDetails_Details() {}
 func (*PaymentDetails_ProviderDefined_) isPaymentDetails_Details() {}
 
 type PaymentDetails_Sepa struct {
-	state            protoimpl.MessageState `protogen:"open.v1"`
-	Iban             string                 `protobuf:"bytes,20,opt,name=iban,proto3" json:"iban,omitempty"`
-	BeneficiaryName  string                 `protobuf:"bytes,30,opt,name=beneficiary_name,json=beneficiaryName,proto3" json:"beneficiary_name,omitempty"`
-	PaymentReference string                 `protobuf:"bytes,40,opt,name=payment_reference,json=paymentReference,proto3" json:"payment_reference,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// Check digits are 98 minus a MOD-97-10 remainder, so they always fall in
+	// 02-98. The BBAN that follows is 11 to 30 characters.
+	Iban             string `protobuf:"bytes,20,opt,name=iban,proto3" json:"iban,omitempty"`
+	BeneficiaryName  string `protobuf:"bytes,30,opt,name=beneficiary_name,json=beneficiaryName,proto3" json:"beneficiary_name,omitempty"`
+	PaymentReference string `protobuf:"bytes,40,opt,name=payment_reference,json=paymentReference,proto3" json:"payment_reference,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -1733,13 +1735,17 @@ func (x *PaymentDetails_Sepa) GetPaymentReference() string {
 }
 
 type PaymentDetails_Fps struct {
-	state           protoimpl.MessageState `protogen:"open.v1"`
-	SortCode        string                 `protobuf:"bytes,10,opt,name=sort_code,json=sortCode,proto3" json:"sort_code,omitempty"`
-	AccountNumber   string                 `protobuf:"bytes,20,opt,name=account_number,json=accountNumber,proto3" json:"account_number,omitempty"`
-	BeneficiaryName string                 `protobuf:"bytes,30,opt,name=beneficiary_name,json=beneficiaryName,proto3" json:"beneficiary_name,omitempty"`
-	Reference       string                 `protobuf:"bytes,40,opt,name=reference,proto3" json:"reference,omitempty"`
-	unknownFields   protoimpl.UnknownFields
-	sizeCache       protoimpl.SizeCache
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	SortCode      string                 `protobuf:"bytes,10,opt,name=sort_code,json=sortCode,proto3" json:"sort_code,omitempty"`
+	AccountNumber string                 `protobuf:"bytes,20,opt,name=account_number,json=accountNumber,proto3" json:"account_number,omitempty"`
+	// Name registered on the destination account. Capped at the width of the FPS
+	// scheme's beneficiary account name field.
+	BeneficiaryName string `protobuf:"bytes,30,opt,name=beneficiary_name,json=beneficiaryName,proto3" json:"beneficiary_name,omitempty"`
+	// Capped at the width of the FPS scheme's reference information field, which is
+	// narrower than the beneficiary name field.
+	Reference     string `protobuf:"bytes,40,opt,name=reference,proto3" json:"reference,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *PaymentDetails_Fps) Reset() {
@@ -2114,7 +2120,8 @@ func (*PaymentDetails_IndianBankTransfer_Imps) isPaymentDetails_IndianBankTransf
 
 type PaymentDetails_Swift struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Beneficiary's bank SWIFT/BIC code (8 or 11 characters)
+	// Beneficiary's bank SWIFT/BIC code (8 or 11 characters). The party prefix is
+	// alphanumeric; the location code rejects the two positions no BIC can occupy.
 	SwiftCode string `protobuf:"bytes,10,opt,name=swift_code,json=swiftCode,proto3" json:"swift_code,omitempty"`
 	// Beneficiary's account number (format varies by country)
 	// Could be IBAN, account number, or other format
@@ -2229,8 +2236,10 @@ func (x *PaymentDetails_Swift) GetIntermediaryBank() *PaymentDetails_Swift_Inter
 }
 
 type PaymentDetails_Ach struct {
-	state             protoimpl.MessageState            `protogen:"open.v1"`
-	RoutingNumber     string                            `protobuf:"bytes,10,opt,name=routing_number,json=routingNumber,proto3" json:"routing_number,omitempty"`
+	state         protoimpl.MessageState `protogen:"open.v1"`
+	RoutingNumber string                 `protobuf:"bytes,10,opt,name=routing_number,json=routingNumber,proto3" json:"routing_number,omitempty"`
+	// The NACHA entry detail record defines the account number as alphanumeric;
+	// US account numbers containing letters are valid.
 	AccountNumber     string                            `protobuf:"bytes,20,opt,name=account_number,json=accountNumber,proto3" json:"account_number,omitempty"`
 	AccountHolderName string                            `protobuf:"bytes,30,opt,name=account_holder_name,json=accountHolderName,proto3" json:"account_holder_name,omitempty"`
 	AccountType       PaymentDetails_Ach_AchAccountType `protobuf:"varint,40,opt,name=account_type,json=accountType,proto3,enum=tzero.v1.common.PaymentDetails_Ach_AchAccountType" json:"account_type,omitempty"`
@@ -2310,8 +2319,9 @@ type PaymentDetails_DomesticWire struct {
 	BankName    string                 `protobuf:"bytes,10,opt,name=bank_name,json=bankName,proto3" json:"bank_name,omitempty"`
 	BankAddress string                 `protobuf:"bytes,20,opt,name=bank_address,json=bankAddress,proto3" json:"bank_address,omitempty"`
 	// ABA routing number (9 digits)
-	RoutingNumber      string `protobuf:"bytes,30,opt,name=routing_number,json=routingNumber,proto3" json:"routing_number,omitempty"`
-	AccountNumber      string `protobuf:"bytes,40,opt,name=account_number,json=accountNumber,proto3" json:"account_number,omitempty"`
+	RoutingNumber string `protobuf:"bytes,30,opt,name=routing_number,json=routingNumber,proto3" json:"routing_number,omitempty"`
+	AccountNumber string `protobuf:"bytes,40,opt,name=account_number,json=accountNumber,proto3" json:"account_number,omitempty"`
+	// Capped at the width of the ISO 20022 creditor name element Fedwire carries.
 	BeneficiaryName    string `protobuf:"bytes,50,opt,name=beneficiary_name,json=beneficiaryName,proto3" json:"beneficiary_name,omitempty"`
 	BeneficiaryAddress string `protobuf:"bytes,60,opt,name=beneficiary_address,json=beneficiaryAddress,proto3" json:"beneficiary_address,omitempty"`
 	WireReference      string `protobuf:"bytes,70,opt,name=wire_reference,json=wireReference,proto3" json:"wire_reference,omitempty"`
@@ -2404,7 +2414,9 @@ type PaymentDetails_Pesonet struct {
 	RecipientFinancialInstitution string `protobuf:"bytes,10,opt,name=recipient_financial_institution,json=recipientFinancialInstitution,proto3" json:"recipient_financial_institution,omitempty"`
 	// Recipient identifier:
 	// Account number (some banks also allow email/mobile).
-	RecipientIdentifier  string `protobuf:"bytes,20,opt,name=recipient_identifier,json=recipientIdentifier,proto3" json:"recipient_identifier,omitempty"`
+	RecipientIdentifier string `protobuf:"bytes,20,opt,name=recipient_identifier,json=recipientIdentifier,proto3" json:"recipient_identifier,omitempty"`
+	// Recipient account name: the name as registered on the account. Capped at the
+	// width of the ISO 20022 creditor name element PESONet carries.
 	RecipientAccountName string `protobuf:"bytes,30,opt,name=recipient_account_name,json=recipientAccountName,proto3" json:"recipient_account_name,omitempty"`
 	// Purpose of Transfer (Optional/Mandatory depending on bank)
 	PurposeOfTransfer *string `protobuf:"bytes,40,opt,name=purpose_of_transfer,json=purposeOfTransfer,proto3,oneof" json:"purpose_of_transfer,omitempty"`
@@ -2485,7 +2497,8 @@ type PaymentDetails_Instapay struct {
 	RecipientInstitution string `protobuf:"bytes,10,opt,name=recipient_institution,json=recipientInstitution,proto3" json:"recipient_institution,omitempty"`
 	// Recipient identifier (one of): Account number, or Mobile number, or Email address, or QR code (scanned/uploaded “InstaPay QR”).
 	RecipientIdentifier string `protobuf:"bytes,20,opt,name=recipient_identifier,json=recipientIdentifier,proto3" json:"recipient_identifier,omitempty"`
-	// Recipient account name: the name as registered on the account or wallet (may be auto-displayed but is logically required for correct routing/confirmation).
+	// Recipient account name: the name as registered on the account or wallet. Capped
+	// at the width of the ISO 20022 creditor name element InstaPay carries.
 	RecipientAccountName string `protobuf:"bytes,30,opt,name=recipient_account_name,json=recipientAccountName,proto3" json:"recipient_account_name,omitempty"`
 	// Purpose of Transfer (Optional/Mandatory depending on bank)
 	PurposeOfTransfer *string `protobuf:"bytes,40,opt,name=purpose_of_transfer,json=purposeOfTransfer,proto3,oneof" json:"purpose_of_transfer,omitempty"`
@@ -2552,10 +2565,9 @@ func (x *PaymentDetails_Instapay) GetPurposeOfTransfer() string {
 }
 
 // Pakistan Bank Transfer - Domestic transfers using Pakistani IBAN
-// Pakistan uses 24-character IBAN: PK + 2 check digits + 4-char bank code + 16-char account number
 type PaymentDetails_PakistanBankTransfer struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Pakistani IBAN (24 characters: PK + 2 check digits + 4-char bank identifier + 16-char account)
+	// Pakistani IBAN (24 characters: PK + 2 check digits + 4-letter bank identifier + 16-char alphanumeric account)
 	// Example: PK36SCBL0000001123456702
 	Iban string `protobuf:"bytes,10,opt,name=iban,proto3" json:"iban,omitempty"`
 	// Beneficiary's full name
@@ -3966,7 +3978,8 @@ type isPaymentDetails_Fast_Destination interface {
 }
 
 type PaymentDetails_Fast_Iban struct {
-	// Turkish IBAN (26 characters: TR + 24 digits).
+	// Turkish IBAN (26 characters: TR + 2 check digits + 5-digit bank code + 1 reserved digit
+	// + 16-char alphanumeric account).
 	Iban string `protobuf:"bytes,10,opt,name=iban,proto3,oneof"`
 }
 
@@ -4769,7 +4782,7 @@ var File_tzero_v1_common_payment_method_proto protoreflect.FileDescriptor
 
 const file_tzero_v1_common_payment_method_proto_rawDesc = "" +
 	"\n" +
-	"$tzero/v1/common/payment_method.proto\x12\x0ftzero.v1.common\x1a\x1bbuf/validate/validate.proto\x1a google/protobuf/descriptor.proto\"\xa0~\n" +
+	"$tzero/v1/common/payment_method.proto\x12\x0ftzero.v1.common\x1a\x1bbuf/validate/validate.proto\x1a google/protobuf/descriptor.proto\"\xac\x7f\n" +
 	"\x0ePaymentDetails\x12:\n" +
 	"\x04sepa\x18\n" +
 	" \x01(\v2$.tzero.v1.common.PaymentDetails.SepaH\x00R\x04sepa\x12=\n" +
@@ -4804,9 +4817,9 @@ const file_tzero_v1_common_payment_method_proto_rawDesc = "" +
 	"\x12thai_bank_transfer\x18\xc0\x02 \x01(\v20.tzero.v1.common.PaymentDetails.ThaiBankTransferH\x00R\x10thaiBankTransfer\x12s\n" +
 	"\x18indonesian_bank_transfer\x18\xca\x02 \x01(\v26.tzero.v1.common.PaymentDetails.IndonesianBankTransferH\x00R\x16indonesianBankTransfer\x12d\n" +
 	"\x13indonesian_e_wallet\x18\xd4\x02 \x01(\v21.tzero.v1.common.PaymentDetails.IndonesianEWalletH\x00R\x11indonesianEWallet\x12]\n" +
-	"\x10provider_defined\x18\xde\x02 \x01(\v2/.tzero.v1.common.PaymentDetails.ProviderDefinedH\x00R\x0fproviderDefined\x1a\xb5\x01\n" +
-	"\x04Sepa\x12:\n" +
-	"\x04iban\x18\x14 \x01(\tB&\xbaH#r!\x10\x0f\x18\"2\x1b^[A-Z]{2}[0-9]{2}[A-Z0-9]+$R\x04iban\x124\n" +
+	"\x10provider_defined\x18\xde\x02 \x01(\v2/.tzero.v1.common.PaymentDetails.ProviderDefinedH\x00R\x0fproviderDefined\x1a\xcd\x01\n" +
+	"\x04Sepa\x12R\n" +
+	"\x04iban\x18\x14 \x01(\tB>\xbaH;r9\x10\x0f\x18\"23^[A-Z]{2}(0[2-9]|[1-8][0-9]|9[0-8])[A-Z0-9]{11,30}$R\x04iban\x124\n" +
 	"\x10beneficiary_name\x18\x1e \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18FR\x0fbeneficiaryName\x125\n" +
 	"\x11payment_reference\x18( \x01(\tB\b\xbaH\x05r\x03\x18\x8c\x01R\x10paymentReference:\x04\x88\xa6\x1d\n" +
 	"\x1a\xf7\x01\n" +
@@ -4815,7 +4828,7 @@ const file_tzero_v1_common_payment_method_proto_rawDesc = "" +
 	" \x01(\tB2\xbaH/r-\x10\x06\x18\b2'^([0-9]{2}-[0-9]{2}-[0-9]{2}|[0-9]{6})$R\bsortCode\x12<\n" +
 	"\x0eaccount_number\x18\x14 \x01(\tB\x15\xbaH\x12r\x10\x10\b\x18\b2\n" +
 	"^[0-9]{8}$R\raccountNumber\x124\n" +
-	"\x10beneficiary_name\x18\x1e \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18\x12R\x0fbeneficiaryName\x12%\n" +
+	"\x10beneficiary_name\x18\x1e \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18(R\x0fbeneficiaryName\x12%\n" +
 	"\treference\x18( \x01(\tB\a\xbaH\x04r\x02\x18\x12R\treference:\x04\x88\xa6\x1dF\x1a\xd3\x01\n" +
 	"\x05MPesa\x12F\n" +
 	"\x11beneficiary_phone\x18\n" +
@@ -4871,11 +4884,11 @@ const file_tzero_v1_common_payment_method_proto_rawDesc = "" +
 	"\x1bBENEFICIARY_TYPE_INDIVIDUAL\x10\n" +
 	"\x12\x1c\n" +
 	"\x18BENEFICIARY_TYPE_COMPANY\x10\x14:\x04\x88\xa6\x1ddB\x0f\n" +
-	"\x06method\x12\x05\xbaH\x02\b\x01\x1a\xa8\x06\n" +
-	"\x05Swift\x12U\n" +
+	"\x06method\x12\x05\xbaH\x02\b\x01\x1a\xbe\x06\n" +
+	"\x05Swift\x12`\n" +
 	"\n" +
 	"swift_code\x18\n" +
-	" \x01(\tB6\xbaH3r1\x10\b\x18\v2+^[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}([A-Z0-9]{3})?$R\tswiftCode\x120\n" +
+	" \x01(\tBA\xbaH>r<\x10\b\x18\v26^[A-Z0-9]{4}[A-Z]{2}[A-Z2-9][A-NP-Z0-9]([A-Z0-9]{3})?$R\tswiftCode\x120\n" +
 	"\x0eaccount_number\x18\x14 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18\"R\raccountNumber\x125\n" +
 	"\x10beneficiary_name\x18\x1e \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\x8c\x01R\x0fbeneficiaryName\x12;\n" +
@@ -4888,19 +4901,19 @@ const file_tzero_v1_common_payment_method_proto_rawDesc = "" +
 	"^[A-Z]{2}$\x98\x01\x02R\vbankCountry\x12D\n" +
 	"\x10account_currency\x18P \x01(\tB\x14\xbaH\x11r\x0f2\n" +
 	"^[A-Z]{3}$\x98\x01\x03H\x00R\x0faccountCurrency\x88\x01\x01\x12c\n" +
-	"\x11intermediary_bank\x18Z \x01(\v26.tzero.v1.common.PaymentDetails.Swift.IntermediaryBankR\x10intermediaryBank\x1a\xc2\x01\n" +
-	"\x10IntermediaryBank\x12U\n" +
+	"\x11intermediary_bank\x18Z \x01(\v26.tzero.v1.common.PaymentDetails.Swift.IntermediaryBankR\x10intermediaryBank\x1a\xcd\x01\n" +
+	"\x10IntermediaryBank\x12`\n" +
 	"\n" +
-	"swift_code\x18\x01 \x01(\tB6\xbaH3r1\x10\b\x18\v2+^[A-Z]{4}[A-Z]{2}[A-Z0-9]{2}([A-Z0-9]{3})?$R\tswiftCode\x12'\n" +
+	"swift_code\x18\x01 \x01(\tBA\xbaH>r<\x10\b\x18\v26^[A-Z0-9]{4}[A-Z]{2}[A-Z2-9][A-NP-Z0-9]([A-Z0-9]{3})?$R\tswiftCode\x12'\n" +
 	"\tbank_name\x18\x02 \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\x8c\x01R\bbankName\x12.\n" +
 	"\x0eaccount_number\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x18\"R\raccountNumber:\x04\x88\xa6\x1d\x14B\x13\n" +
-	"\x11_account_currency\x1a\xc9\x03\n" +
+	"\x11_account_currency\x1a\xcc\x03\n" +
 	"\x03Ach\x12<\n" +
 	"\x0erouting_number\x18\n" +
 	" \x01(\tB\x15\xbaH\x12r\x10\x10\t\x18\t2\n" +
-	"^[0-9]{9}$R\rroutingNumber\x12:\n" +
-	"\x0eaccount_number\x18\x14 \x01(\tB\x13\xbaH\x10r\x0e\x10\x01\x18\x112\b^[0-9]+$R\raccountNumber\x129\n" +
+	"^[0-9]{9}$R\rroutingNumber\x12=\n" +
+	"\x0eaccount_number\x18\x14 \x01(\tB\x16\xbaH\x13r\x11\x10\x01\x18\x112\v^[A-Z0-9]+$R\raccountNumber\x129\n" +
 	"\x13account_holder_name\x18\x1e \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18FR\x11accountHolderName\x12_\n" +
 	"\faccount_type\x18( \x01(\x0e22.tzero.v1.common.PaymentDetails.Ach.AchAccountTypeB\b\xbaH\x05\x82\x01\x02 \x00R\vaccountType\x125\n" +
 	"\x11payment_reference\x182 \x01(\tB\b\xbaH\x05r\x03\x18\x8c\x01R\x10paymentReference\"o\n" +
@@ -4908,7 +4921,7 @@ const file_tzero_v1_common_payment_method_proto_rawDesc = "" +
 	"\x1cACH_ACCOUNT_TYPE_UNSPECIFIED\x10\x00\x12\x1d\n" +
 	"\x19ACH_ACCOUNT_TYPE_CHECKING\x10\n" +
 	"\x12\x1c\n" +
-	"\x18ACH_ACCOUNT_TYPE_SAVINGS\x10\x14:\x04\x88\xa6\x1d2\x1a\xff\x02\n" +
+	"\x18ACH_ACCOUNT_TYPE_SAVINGS\x10\x14:\x04\x88\xa6\x1d2\x1a\x80\x03\n" +
 	"\fDomesticWire\x12&\n" +
 	"\tbank_name\x18\n" +
 	" \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18FR\bbankName\x12-\n" +
@@ -4916,31 +4929,34 @@ const file_tzero_v1_common_payment_method_proto_rawDesc = "" +
 	"\xbaH\ar\x05\x10\x01\x18\x8c\x01R\vbankAddress\x12<\n" +
 	"\x0erouting_number\x18\x1e \x01(\tB\x15\xbaH\x12r\x10\x10\t\x18\t2\n" +
 	"^[0-9]{9}$R\rroutingNumber\x120\n" +
-	"\x0eaccount_number\x18( \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18\"R\raccountNumber\x124\n" +
-	"\x10beneficiary_name\x182 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18FR\x0fbeneficiaryName\x12;\n" +
+	"\x0eaccount_number\x18( \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18\"R\raccountNumber\x125\n" +
+	"\x10beneficiary_name\x182 \x01(\tB\n" +
+	"\xbaH\ar\x05\x10\x01\x18\x8c\x01R\x0fbeneficiaryName\x12;\n" +
 	"\x13beneficiary_address\x18< \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\x8c\x01R\x12beneficiaryAddress\x12/\n" +
-	"\x0ewire_reference\x18F \x01(\tB\b\xbaH\x05r\x03\x18\x8c\x01R\rwireReference:\x04\x88\xa6\x1d<\x1a\x9b\x03\n" +
+	"\x0ewire_reference\x18F \x01(\tB\b\xbaH\x05r\x03\x18\x8c\x01R\rwireReference:\x04\x88\xa6\x1d<\x1a\x9e\x03\n" +
 	"\aPesonet\x12Q\n" +
 	"\x1frecipient_financial_institution\x18\n" +
 	" \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18FR\x1drecipientFinancialInstitution\x12<\n" +
-	"\x14recipient_identifier\x18\x14 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18FR\x13recipientIdentifier\x12=\n" +
-	"\x16recipient_account_name\x18\x1e \x01(\tB\a\xbaH\x04r\x02\x18\x12R\x14recipientAccountName\x12=\n" +
+	"\x14recipient_identifier\x18\x14 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18FR\x13recipientIdentifier\x12@\n" +
+	"\x16recipient_account_name\x18\x1e \x01(\tB\n" +
+	"\xbaH\ar\x05\x10\x01\x18\x8c\x01R\x14recipientAccountName\x12=\n" +
 	"\x13purpose_of_transfer\x18( \x01(\tB\b\xbaH\x05r\x03\x18\x8c\x01H\x00R\x11purposeOfTransfer\x88\x01\x01\x12G\n" +
 	"\x17recipient_address_email\x182 \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\x80\x04H\x01R\x15recipientAddressEmail\x88\x01\x01:\x04\x88\xa6\x1dnB\x16\n" +
 	"\x14_purpose_of_transferB\x1a\n" +
-	"\x18_recipient_address_email\x1a\xa4\x02\n" +
+	"\x18_recipient_address_email\x1a\xa7\x02\n" +
 	"\bInstapay\x12>\n" +
 	"\x15recipient_institution\x18\n" +
 	" \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18FR\x14recipientInstitution\x12<\n" +
-	"\x14recipient_identifier\x18\x14 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18FR\x13recipientIdentifier\x12=\n" +
-	"\x16recipient_account_name\x18\x1e \x01(\tB\a\xbaH\x04r\x02\x182R\x14recipientAccountName\x12=\n" +
+	"\x14recipient_identifier\x18\x14 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18FR\x13recipientIdentifier\x12@\n" +
+	"\x16recipient_account_name\x18\x1e \x01(\tB\n" +
+	"\xbaH\ar\x05\x10\x01\x18\x8c\x01R\x14recipientAccountName\x12=\n" +
 	"\x13purpose_of_transfer\x18( \x01(\tB\b\xbaH\x05r\x03\x18\x8c\x01H\x00R\x11purposeOfTransfer\x88\x01\x01:\x04\x88\xa6\x1dxB\x16\n" +
-	"\x14_purpose_of_transfer\x1a\xa6\x02\n" +
-	"\x14PakistanBankTransfer\x12<\n" +
+	"\x14_purpose_of_transfer\x1a\xbb\x02\n" +
+	"\x14PakistanBankTransfer\x12Q\n" +
 	"\x04iban\x18\n" +
-	" \x01(\tB(\xbaH%r#\x10\x18\x18\x182\x1d^PK[0-9]{2}[A-Z]{4}[0-9]{16}$R\x04iban\x125\n" +
+	" \x01(\tB=\xbaH:r8\x10\x18\x18\x1822^PK(0[2-9]|[1-8][0-9]|9[0-8])[A-Z]{4}[A-Z0-9]{16}$R\x04iban\x125\n" +
 	"\x10beneficiary_name\x18\x14 \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\x8c\x01R\x0fbeneficiaryName\x12F\n" +
 	"\x10beneficiary_cnic\x18\x19 \x01(\tB\x16\xbaH\x13r\x11\x10\r\x18\r2\v^[0-9]{13}$H\x00R\x0fbeneficiaryCnic\x88\x01\x01\x125\n" +
@@ -5122,10 +5138,10 @@ const file_tzero_v1_common_payment_method_proto_rawDesc = "" +
 	"\x0eaccount_number\x18\x14 \x01(\tB\x13\xbaH\x10r\x0e\x10\x01\x18\x142\b^[0-9]+$R\raccountNumber\x12-\n" +
 	"\faccount_name\x18\x1e \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\x8c\x01R\vaccountName\x12&\n" +
-	"\treference\x18( \x01(\tB\b\xbaH\x05r\x03\x18\x8c\x01R\treference:\x05\x88\xa6\x1d\x84\x02\x1a\xfe\x01\n" +
-	"\x06Uaefts\x12+\n" +
+	"\treference\x18( \x01(\tB\b\xbaH\x05r\x03\x18\x8c\x01R\treference:\x05\x88\xa6\x1d\x84\x02\x1a\x98\x02\n" +
+	"\x06Uaefts\x12E\n" +
 	"\x04iban\x18\n" +
-	" \x01(\tB\x17\xbaH\x14r\x122\r^AE[0-9]{21}$\x98\x01\x17R\x04iban\x125\n" +
+	" \x01(\tB1\xbaH.r,2'^AE(0[2-9]|[1-8][0-9]|9[0-8])[0-9]{19}$\x98\x01\x17R\x04iban\x125\n" +
 	"\x10beneficiary_name\x18\x14 \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\x8c\x01R\x0fbeneficiaryName\x127\n" +
 	"\fpurpose_code\x18\x1e \x01(\tB\x14\xbaH\x11r\x0f2\n" +
@@ -5152,10 +5168,10 @@ const file_tzero_v1_common_payment_method_proto_rawDesc = "" +
 	"\xbaH\ar\x05\x10\x01\x18\x8c\x01R\x0fbeneficiaryName\x12:\n" +
 	"\x11payment_reference\x182 \x01(\tB\b\xbaH\x05r\x03\x18\x8c\x01H\x01R\x10paymentReference\x88\x01\x01:\x05\x88\xa6\x1d\xa2\x02B\x14\n" +
 	"\vdestination\x12\x05\xbaH\x02\b\x01B\x14\n" +
-	"\x12_payment_reference\x1a\xb8\x04\n" +
-	"\x04Fast\x12-\n" +
+	"\x12_payment_reference\x1a\xdd\x04\n" +
+	"\x04Fast\x12R\n" +
 	"\x04iban\x18\n" +
-	" \x01(\tB\x17\xbaH\x14r\x122\r^TR[0-9]{24}$\x98\x01\x1aH\x00R\x04iban\x12B\n" +
+	" \x01(\tB<\xbaH9r722^TR(0[2-9]|[1-8][0-9]|9[0-8])[0-9]{6}[A-Z0-9]{16}$\x98\x01\x1aH\x00R\x04iban\x12B\n" +
 	"\x05proxy\x18\x14 \x01(\v2*.tzero.v1.common.PaymentDetails.Fast.ProxyH\x00R\x05proxy\x125\n" +
 	"\x10beneficiary_name\x18\x1e \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\x8c\x01R\x0fbeneficiaryName\x12:\n" +
