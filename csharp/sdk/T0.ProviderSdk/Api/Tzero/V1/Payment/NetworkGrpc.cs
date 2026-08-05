@@ -138,6 +138,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
       ///*
       /// Publishes pay-in and pay-out quotes (FX rates) into the network.
       /// Quotes carry tiered pricing bands and an expiration timestamp.
+      /// Full snapshot: omitted quotes are deleted.
       /// </summary>
       /// <param name="request">The request received from the client.</param>
       /// <param name="context">The context of the server-side call handler being invoked.</param>
@@ -256,6 +257,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
       ///*
       /// Publishes pay-in and pay-out quotes (FX rates) into the network.
       /// Quotes carry tiered pricing bands and an expiration timestamp.
+      /// Full snapshot: omitted quotes are deleted.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
@@ -271,6 +273,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
       ///*
       /// Publishes pay-in and pay-out quotes (FX rates) into the network.
       /// Quotes carry tiered pricing bands and an expiration timestamp.
+      /// Full snapshot: omitted quotes are deleted.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="options">The options for the call.</param>
@@ -284,6 +287,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
       ///*
       /// Publishes pay-in and pay-out quotes (FX rates) into the network.
       /// Quotes carry tiered pricing bands and an expiration timestamp.
+      /// Full snapshot: omitted quotes are deleted.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
@@ -299,6 +303,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
       ///*
       /// Publishes pay-in and pay-out quotes (FX rates) into the network.
       /// Quotes carry tiered pricing bands and an expiration timestamp.
+      /// Full snapshot: omitted quotes are deleted.
       /// </summary>
       /// <param name="request">The request to send to the server.</param>
       /// <param name="options">The options for the call.</param>

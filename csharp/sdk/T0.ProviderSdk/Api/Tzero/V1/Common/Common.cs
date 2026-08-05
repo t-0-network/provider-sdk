@@ -27,16 +27,16 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Common {
             "Chx0emVyby92MS9jb21tb24vY29tbW9uLnByb3RvEg90emVyby52MS5jb21t",
             "b24aG2J1Zi92YWxpZGF0ZS92YWxpZGF0ZS5wcm90byJVCgdEZWNpbWFsEhoK",
             "CHVuc2NhbGVkGAogASgDUgh1bnNjYWxlZBIuCghleHBvbmVudBgUIAEoBUIS",
-            "ukgPGg0YCCj4//////////8BUghleHBvbmVudCplCgpCbG9ja2NoYWluEhoK",
+            "ukgPGg0YCCj4//////////8BUghleHBvbmVudCp9CgpCbG9ja2NoYWluEhoK",
             "FkJMT0NLQ0hBSU5fVU5TUEVDSUZJRUQQABISCg5CTE9DS0NIQUlOX0JTQxAK",
-            "EhIKDkJMT0NLQ0hBSU5fRVRIEBQSEwoPQkxPQ0tDSEFJTl9UUk9OEGQqPQoK",
-            "U3RhYmxlY29pbhIaChZTVEFCTEVDT0lOX1VOU1BFQ0lGSUVEEAASEwoPU1RB",
-            "QkxFQ09JTl9VU0RUEApCzwEKE2NvbS50emVyby52MS5jb21tb25CC0NvbW1v",
-            "blByb3RvUAFaOmdpdGh1Yi5jb20vdC0wLW5ldHdvcmsvcHJvdmlkZXItc2Rr",
-            "L2dvL2FwaS90emVyby92MS9jb21tb26iAgNUVkOqAiJUMC5Qcm92aWRlclNk",
-            "ay5BcGkuVHplcm8uVjEuQ29tbW9uygIPVHplcm9cVjFcQ29tbW9u4gIbVHpl",
-            "cm9cVjFcQ29tbW9uXEdQQk1ldGFkYXRh6gIRVHplcm86OlYxOjpDb21tb25i",
-            "BnByb3RvMw=="));
+            "EhIKDkJMT0NLQ0hBSU5fRVRIEBQSFgoSQkxPQ0tDSEFJTl9QT0xZR09OEB4S",
+            "EwoPQkxPQ0tDSEFJTl9UUk9OEGQqPQoKU3RhYmxlY29pbhIaChZTVEFCTEVD",
+            "T0lOX1VOU1BFQ0lGSUVEEAASEwoPU1RBQkxFQ09JTl9VU0RUEApCzwEKE2Nv",
+            "bS50emVyby52MS5jb21tb25CC0NvbW1vblByb3RvUAFaOmdpdGh1Yi5jb20v",
+            "dC0wLW5ldHdvcmsvcHJvdmlkZXItc2RrL2dvL2FwaS90emVyby92MS9jb21t",
+            "b26iAgNUVkOqAiJUMC5Qcm92aWRlclNkay5BcGkuVHplcm8uVjEuQ29tbW9u",
+            "ygIPVHplcm9cVjFcQ29tbW9u4gIbVHplcm9cVjFcQ29tbW9uXEdQQk1ldGFk",
+            "YXRh6gIRVHplcm86OlYxOjpDb21tb25iBnByb3RvMw=="));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { global::Buf.Validate.ValidateReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(new[] {typeof(global::T0.ProviderSdk.Api.Tzero.V1.Common.Blockchain), typeof(global::T0.ProviderSdk.Api.Tzero.V1.Common.Stablecoin), }, null, new pbr::GeneratedClrTypeInfo[] {
@@ -51,6 +51,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Common {
     [pbr::OriginalName("BLOCKCHAIN_UNSPECIFIED")] Unspecified = 0,
     [pbr::OriginalName("BLOCKCHAIN_BSC")] Bsc = 10,
     [pbr::OriginalName("BLOCKCHAIN_ETH")] Eth = 20,
+    [pbr::OriginalName("BLOCKCHAIN_POLYGON")] Polygon = 30,
     [pbr::OriginalName("BLOCKCHAIN_TRON")] Tron = 100,
   }
 

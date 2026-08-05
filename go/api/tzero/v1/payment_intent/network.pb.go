@@ -392,7 +392,6 @@ func (*GetQuoteResponse_QuoteNotFound_) isGetQuoteResponse_Result() {}
 
 // *
 // Represents pay-in details for a payment intent option.
-// Contains the payment method, provider info, payment details, and indicative exchange rate.
 type PaymentIntentPayInDetails struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// *
@@ -1111,7 +1110,6 @@ func (*GetQuoteResponse_QuoteNotFound) Descriptor() ([]byte, []int) {
 
 // *
 // Represents an indicative quote from a pay-in provider.
-// Contains the payment method, provider info, and indicative exchange rate.
 type GetQuoteResponse_Success_IndicativeQuote struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// *

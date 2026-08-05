@@ -45,15 +45,29 @@ class AppendLedgerEntriesRequest(_message.Message):
             payment_id: int
             def __init__(self, payment_id: _Optional[int] = ...) -> None: ...
         class ProviderSettlement(_message.Message):
-            __slots__ = ("settlement_id",)
+            __slots__ = ("settlement_id", "blockchain", "tx_hash", "on_chain_amount", "sender_provider_id", "receiver_provider_id", "amount_usd")
             SETTLEMENT_ID_FIELD_NUMBER: _ClassVar[int]
+            BLOCKCHAIN_FIELD_NUMBER: _ClassVar[int]
+            TX_HASH_FIELD_NUMBER: _ClassVar[int]
+            ON_CHAIN_AMOUNT_FIELD_NUMBER: _ClassVar[int]
+            SENDER_PROVIDER_ID_FIELD_NUMBER: _ClassVar[int]
+            RECEIVER_PROVIDER_ID_FIELD_NUMBER: _ClassVar[int]
+            AMOUNT_USD_FIELD_NUMBER: _ClassVar[int]
             settlement_id: int
-            def __init__(self, settlement_id: _Optional[int] = ...) -> None: ...
+            blockchain: _common_pb2.Blockchain
+            tx_hash: str
+            on_chain_amount: _common_pb2.Decimal
+            sender_provider_id: int
+            receiver_provider_id: int
+            amount_usd: _common_pb2.Decimal
+            def __init__(self, settlement_id: _Optional[int] = ..., blockchain: _Optional[_Union[_common_pb2.Blockchain, str]] = ..., tx_hash: _Optional[str] = ..., on_chain_amount: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ..., sender_provider_id: _Optional[int] = ..., receiver_provider_id: _Optional[int] = ..., amount_usd: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ...) -> None: ...
         class FeeSettlement(_message.Message):
-            __slots__ = ("fee_settlement_id",)
+            __slots__ = ("fee_settlement_id", "amount_usd")
             FEE_SETTLEMENT_ID_FIELD_NUMBER: _ClassVar[int]
+            AMOUNT_USD_FIELD_NUMBER: _ClassVar[int]
             fee_settlement_id: int
-            def __init__(self, fee_settlement_id: _Optional[int] = ...) -> None: ...
+            amount_usd: _common_pb2.Decimal
+            def __init__(self, fee_settlement_id: _Optional[int] = ..., amount_usd: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ...) -> None: ...
         class PiFundsReceived(_message.Message):
             __slots__ = ("payment_intent_id", "pay_in_provider_id", "beneficiary_provider_id", "settlement_amount", "beneficiary_fee", "pay_in_fee")
             PAYMENT_INTENT_ID_FIELD_NUMBER: _ClassVar[int]
@@ -162,7 +176,7 @@ class PayoutResponse(_message.Message):
 class UpdatePaymentRequest(_message.Message):
     __slots__ = ("payment_id", "payment_client_id", "accepted", "failed", "confirmed", "manual_aml_check")
     class Accepted(_message.Message):
-        __slots__ = ("payout_amount", "travel_rule_data")
+        __slots__ = ("payout_amount", "travel_rule_data", "rate", "fix", "settlement_amount")
         class TravelRuleData(_message.Message):
             __slots__ = ("beneficiary_provider",)
             BENEFICIARY_PROVIDER_FIELD_NUMBER: _ClassVar[int]
@@ -170,9 +184,15 @@ class UpdatePaymentRequest(_message.Message):
             def __init__(self, beneficiary_provider: _Optional[_Union[_ivms101_pb2.Person, _Mapping]] = ...) -> None: ...
         PAYOUT_AMOUNT_FIELD_NUMBER: _ClassVar[int]
         TRAVEL_RULE_DATA_FIELD_NUMBER: _ClassVar[int]
+        RATE_FIELD_NUMBER: _ClassVar[int]
+        FIX_FIELD_NUMBER: _ClassVar[int]
+        SETTLEMENT_AMOUNT_FIELD_NUMBER: _ClassVar[int]
         payout_amount: _common_pb2.Decimal
         travel_rule_data: UpdatePaymentRequest.Accepted.TravelRuleData
-        def __init__(self, payout_amount: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ..., travel_rule_data: _Optional[_Union[UpdatePaymentRequest.Accepted.TravelRuleData, _Mapping]] = ...) -> None: ...
+        rate: _common_pb2.Decimal
+        fix: _common_pb2.Decimal
+        settlement_amount: _common_pb2.Decimal
+        def __init__(self, payout_amount: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ..., travel_rule_data: _Optional[_Union[UpdatePaymentRequest.Accepted.TravelRuleData, _Mapping]] = ..., rate: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ..., fix: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ..., settlement_amount: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ...) -> None: ...
     class Failed(_message.Message):
         __slots__ = ("reason", "details")
         class Reason(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):

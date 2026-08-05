@@ -11,7 +11,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file tzero/v1/common/common.proto.
  */
 export const file_tzero_v1_common_common: GenFile = /*@__PURE__*/
-  fileDesc("Chx0emVyby92MS9jb21tb24vY29tbW9uLnByb3RvEg90emVyby52MS5jb21tb24iQQoHRGVjaW1hbBIQCgh1bnNjYWxlZBgKIAEoAxIkCghleHBvbmVudBgUIAEoBUISukgPGg0YCCj4//////////8BKmUKCkJsb2NrY2hhaW4SGgoWQkxPQ0tDSEFJTl9VTlNQRUNJRklFRBAAEhIKDkJMT0NLQ0hBSU5fQlNDEAoSEgoOQkxPQ0tDSEFJTl9FVEgQFBITCg9CTE9DS0NIQUlOX1RST04QZCo9CgpTdGFibGVjb2luEhoKFlNUQUJMRUNPSU5fVU5TUEVDSUZJRUQQABITCg9TVEFCTEVDT0lOX1VTRFQQCkLPAQoTY29tLnR6ZXJvLnYxLmNvbW1vbkILQ29tbW9uUHJvdG9QAVo6Z2l0aHViLmNvbS90LTAtbmV0d29yay9wcm92aWRlci1zZGsvZ28vYXBpL3R6ZXJvL3YxL2NvbW1vbqICA1RWQ6oCIlQwLlByb3ZpZGVyU2RrLkFwaS5UemVyby5WMS5Db21tb27KAg9UemVyb1xWMVxDb21tb27iAhtUemVyb1xWMVxDb21tb25cR1BCTWV0YWRhdGHqAhFUemVybzo6VjE6OkNvbW1vbmIGcHJvdG8z", [file_buf_validate_validate]);
+  fileDesc("Chx0emVyby92MS9jb21tb24vY29tbW9uLnByb3RvEg90emVyby52MS5jb21tb24iQQoHRGVjaW1hbBIQCgh1bnNjYWxlZBgKIAEoAxIkCghleHBvbmVudBgUIAEoBUISukgPGg0YCCj4//////////8BKn0KCkJsb2NrY2hhaW4SGgoWQkxPQ0tDSEFJTl9VTlNQRUNJRklFRBAAEhIKDkJMT0NLQ0hBSU5fQlNDEAoSEgoOQkxPQ0tDSEFJTl9FVEgQFBIWChJCTE9DS0NIQUlOX1BPTFlHT04QHhITCg9CTE9DS0NIQUlOX1RST04QZCo9CgpTdGFibGVjb2luEhoKFlNUQUJMRUNPSU5fVU5TUEVDSUZJRUQQABITCg9TVEFCTEVDT0lOX1VTRFQQCkLPAQoTY29tLnR6ZXJvLnYxLmNvbW1vbkILQ29tbW9uUHJvdG9QAVo6Z2l0aHViLmNvbS90LTAtbmV0d29yay9wcm92aWRlci1zZGsvZ28vYXBpL3R6ZXJvL3YxL2NvbW1vbqICA1RWQ6oCIlQwLlByb3ZpZGVyU2RrLkFwaS5UemVyby5WMS5Db21tb27KAg9UemVyb1xWMVxDb21tb27iAhtUemVyb1xWMVxDb21tb25cR1BCTWV0YWRhdGHqAhFUemVybzo6VjE6OkNvbW1vbmIGcHJvdG8z", [file_buf_validate_validate]);
 
 /**
  * Decimal 123.45 equals to unscaled=12345 and exponent=-2 (e.g. unscaled * 10^exponent, 123.45 = 12345 * 10^-2)
@@ -55,6 +55,11 @@ export enum Blockchain {
    * @generated from enum value: BLOCKCHAIN_ETH = 20;
    */
   ETH = 20,
+
+  /**
+   * @generated from enum value: BLOCKCHAIN_POLYGON = 30;
+   */
+  POLYGON = 30,
 
   /**
    * @generated from enum value: BLOCKCHAIN_TRON = 100;
