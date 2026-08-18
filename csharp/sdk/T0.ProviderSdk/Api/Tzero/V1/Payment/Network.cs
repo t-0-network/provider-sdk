@@ -1797,7 +1797,8 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Payment {
     /// <summary>
     ///*
     /// All best quotes from providers with credit lines.
-    /// Each quote is the best rate for that provider for the requested amount.
+    /// Each quote is that provider's best effective price for the requested amount:
+    /// the lowest settlement amount, and on a tie the largest pay-out amount.
     /// Each quote indicates whether it can be executed immediately.
     /// Always returned alongside success/failure - providers can compare alternatives or see options when no executable quote exists.
     /// </summary>
