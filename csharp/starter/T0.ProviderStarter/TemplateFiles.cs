@@ -64,7 +64,7 @@ public static class TemplateFiles
           </PropertyGroup>
 
           <ItemGroup>
-            <PackageReference Include="T0.ProviderSdk" Version="1.1.27" />
+            <PackageReference Include="T0.ProviderSdk" Version="1.1.28" />
             <PackageReference Include="DotNetEnv" Version="3.1.1" />
           </ItemGroup>
 
