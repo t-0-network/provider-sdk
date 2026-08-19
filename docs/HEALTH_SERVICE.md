@@ -1,6 +1,6 @@
 # Health service
 
-Every SDK mounts the standard [`grpc.health.v1.Health`](https://github.com/grpc/grpc/blob/master/src/proto/grpc/health/v1/health.proto) on the server it builds, behind the same signature-verification and response-validation stack as everything else. It is the only service the transport adds on its own. Customers never name it and never implement it; bumping the SDK is the whole of their involvement.
+Every SDK mounts the standard [`grpc.health.v1.Health`](https://github.com/grpc/grpc/blob/master/src/proto/grpc/health/v1/health.proto) on the server it builds, behind the same signature-verification and response-validation stack as everything else. It is the only service the transport adds on its own. Customers never name it and never implement it; bumping the SDK is the whole of their involvement, except Node, where the BSR `@buf` scope has to be in `.npmrc` so the health package can resolve.
 
 This document is maintainer-facing. Integrators do not touch this service — the T-0 Network calls it, they do not.
 
@@ -23,7 +23,7 @@ This is the point of the design, not an implementation detail: `health.proto` is
 | Ecosystem | Dependency | Registry |
 |---|---|---|
 | Go | `connectrpc.com/grpchealth` | Go module proxy — a hand-written library, so no generated code at all |
-| Node | `@buf/grpc_grpc.bufbuild_es` | Buf Schema Registry npm (`@buf:registry` in `node/sdk/.npmrc`) |
+| Node | `@buf/grpc_grpc.bufbuild_es` | Buf Schema Registry npm — not npmjs. `@buf:registry=https://buf.build/gen/npm/v1/` must be in the installing project's `.npmrc` (the starter template ships it; `node/sdk/.npmrc` is only for this repo) |
 | Python | `grpcio-health-checking` | PyPI |
 | Java | `io.grpc:grpc-services` | Maven Central |
 | C# | `Grpc.HealthCheck` | nuget.org |

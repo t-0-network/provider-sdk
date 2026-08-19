@@ -22,6 +22,7 @@ from connectrpc.client import ConnectClient
 from connectrpc.code import Code
 from connectrpc.errors import ConnectError
 from connectrpc.method import IdempotencyLevel, MethodInfo
+from connectrpc.request import Headers, RequestContext
 from grpc_health.v1 import health_pb2
 from t0_provider_sdk._version import __version__
 from t0_provider_sdk.network.client import new_service_client
@@ -30,6 +31,7 @@ from t0_provider_sdk.provider.health import (
     HEALTH_SERVICE_FQN,
     SDK_ECOSYSTEM_HEADER,
     SDK_VERSION_HEADER,
+    HealthImplSync,
 )
 from tzero.v1.payment import provider_pb2 as payment_pb2
 from tzero.v1.payment.provider_connect import ProviderServiceASGIApplication
@@ -106,9 +108,7 @@ class _CheckOnlyClient(ConnectClient):
     the SDK's own signing client against the Check procedure."""
 
     async def check(self, request, *, headers=None, timeout_ms=None):
-        return await self.execute_unary(
-            request=request, method=_CHECK_METHOD, headers=headers, timeout_ms=timeout_ms
-        )
+        return await self.execute_unary(request=request, method=_CHECK_METHOD, headers=headers, timeout_ms=timeout_ms)
 
 
 @pytest.mark.asyncio
@@ -122,9 +122,7 @@ async def test_signed_check_answers_for_registered_services():
     )
     server, task = await _serve(app, port)
     try:
-        client = new_service_client(
-            private_key_hex, _CheckOnlyClient, base_url=f"http://127.0.0.1:{port}"
-        )
+        client = new_service_client(private_key_hex, _CheckOnlyClient, base_url=f"http://127.0.0.1:{port}")
 
         # The customer's own service, health itself, and the whole-process query.
         for service in (PROVIDER_SERVICE_FQN, HEALTH_SERVICE_FQN, ""):
@@ -165,10 +163,6 @@ def test_identity_headers_are_set_on_check():
     """Response headers are the only place the SDK reports what it is: the health
     contract has a single status field and names its service in the request, so
     the message itself has no room for this."""
-    from connectrpc.request import Headers, RequestContext
-
-    from t0_provider_sdk.provider.health import HealthImplSync
-
     impl = HealthImplSync([PROVIDER_SERVICE_FQN])
     ctx = RequestContext(method=_CHECK_METHOD, http_method="POST", request_headers=Headers())
     impl.check(health_pb2.HealthCheckRequest(), ctx)
