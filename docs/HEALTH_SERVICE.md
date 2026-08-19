@@ -18,7 +18,7 @@ There is no opt-out flag, and there should not be one. The Network needs a reach
 
 ## Every ecosystem takes this as a dependency — except Node, which vendors it
 
-The rule is that `health.proto` is not vendored and no copy is generated into an SDK artifact: each ecosystem consumes a published package, so nothing here puts a schema on a customer's classpath that they could conflict with.
+The rule is that each ecosystem consumes a published `grpc.health.v1` package rather than a copy generated into its SDK artifact, so nothing here puts a schema on a customer's classpath that they could conflict with. Node is the one exception, for the reason below the table.
 
 | Ecosystem | Dependency | Registry |
 |---|---|---|
@@ -53,7 +53,7 @@ The registered set is frozen when the server is constructed. Nothing about it is
 
 ```
 t0-sdk-ecosystem: go | node | python | java | csharp
-t0-sdk-version:   1.1.26
+t0-sdk-version:   <the SDK's own version, e.g. 1.1.28>
 ```
 
 Set on the `Check` response and on nothing else. They are headers rather than fields because `HealthCheckResponse` has exactly one field and `Check` names its service in the *request* — the contract has nowhere to carry the identity of the SDK answering. Scoping them to this one handler is what makes headers acceptable: every callback the customer actually serves is untouched.
@@ -93,8 +93,6 @@ How each ecosystem scopes the identity headers to this handler:
 - **C#** — `context.WriteResponseHeadersAsync(...)` inside the `Check` override.
 
 **Java:** the health service is appended inside `buildGrpcServer()` and never into `Builder.services`, so `Builder.build()`'s "at least one service must be added with `withService()`" check still catches a customer who forgot to register their own.
-
-**Node:** `health.ts` used to need a cast because the BSR package's published `.d.ts` lost its type brands through `ServiceImpl`'s generics, widening the request to `Message<string>`. Vendoring the stub as a first-party `.ts` removed that; the request types check without help.
 
 **Python:** connect-python publishes no health bindings, so `health.py` assembles the ASGI/WSGI applications from `Endpoint` directly. Only the messages come from the package.
 

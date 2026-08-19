@@ -243,7 +243,12 @@ jobs:
 
   publish-node-starter:
     name: Publish Node Starter
-    needs: [build-go, build-node, build-java, build-python, build-csharp]
+    # publish-node-sdk is in this list on purpose. The starter ships the
+    # template, whose package.json pins @t-0/provider-sdk at ^<this version>,
+    # and the scaffolder runs `npm install` in the generated project right
+    # away. If the starter reached npm first, anyone scaffolding in that window
+    # would be installing against an SDK version that is not published yet.
+    needs: [build-go, build-node, build-java, build-python, build-csharp, publish-node-sdk]
     # Must use github-hosted runner: npm --provenance requires it (Blacksmith = "self-hosted", rejected by npm)
     runs-on: ubuntu-latest
     permissions:
