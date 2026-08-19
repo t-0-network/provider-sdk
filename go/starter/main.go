@@ -120,18 +120,8 @@ func main() {
 		return nil
 	})
 
-	// Scaffold against the newest published SDK rather than whatever version this
-	// CLI happens to pin: a customer running an older provider-init still starts on
-	// the current SDK.
-	get := exec.Command("go", "get", "github.com/t-0-network/provider-sdk/go@latest")
-	get.Dir = dir
-	get.Stdout = os.Stdout
-	get.Stderr = os.Stderr
-	if err := get.Run(); err != nil {
-		log.Fatalf("go get provider-sdk: %v", err)
-	}
-
-	// Drop any dependency the bump above left behind and record the checksums.
+	// The copied go.mod has a rewritten module path; tidy records checksums
+	// against the published SDK the template pins.
 	tidy := exec.Command("go", "mod", "tidy")
 	tidy.Dir = dir
 	tidy.Stdout = os.Stdout

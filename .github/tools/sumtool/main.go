@@ -26,41 +26,49 @@ func main() {
 		log.Fatalf("usage: %s <module-dir> <vX.Y.Z> <proxy-dir>", os.Args[0])
 	}
 	srcDir, version, proxyDir := os.Args[1], os.Args[2], os.Args[3]
+	if err := writeProxy(srcDir, version, proxyDir); err != nil {
+		log.Fatal(err)
+	}
+	fmt.Printf("wrote %s@%s to %s\n", modPath, version, proxyDir)
+}
 
+func writeProxy(srcDir, version, proxyDir string) error {
 	// cmd/go synthesizes the repo-root LICENSE into the zip when the module
 	// directory has none; x/mod/zip does not. Without go/LICENSE the locally
 	// computed hash would silently diverge from the proxy's.
 	if _, err := os.Stat(filepath.Join(srcDir, "LICENSE")); err != nil {
-		log.Fatalf("%s/LICENSE is missing: the computed hash would not match proxy.golang.org", srcDir)
+		return fmt.Errorf("%s/LICENSE is missing: the computed hash would not match proxy.golang.org", srcDir)
 	}
 
 	dir := filepath.Join(proxyDir, filepath.FromSlash(modPath), "@v")
 	if err := os.MkdirAll(dir, 0o755); err != nil {
-		log.Fatal(err)
+		return err
 	}
 
 	goMod, err := os.ReadFile(filepath.Join(srcDir, "go.mod"))
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
-	write := func(name string, data []byte) {
-		if err := os.WriteFile(filepath.Join(dir, name), data, 0o644); err != nil {
-			log.Fatal(err)
-		}
+	write := func(name string, data []byte) error {
+		return os.WriteFile(filepath.Join(dir, name), data, 0o644)
 	}
-	write("list", []byte(version+"\n"))
-	write(version+".info", []byte(fmt.Sprintf("{%q:%q}\n", "Version", version)))
-	write(version+".mod", goMod)
+	if err := write("list", []byte(version+"\n")); err != nil {
+		return err
+	}
+	if err := write(version+".info", []byte(fmt.Sprintf("{%q:%q}\n", "Version", version))); err != nil {
+		return err
+	}
+	if err := write(version+".mod", goMod); err != nil {
+		return err
+	}
 
 	f, err := os.Create(filepath.Join(dir, version+".zip"))
 	if err != nil {
-		log.Fatal(err)
+		return err
 	}
 	if err := zip.CreateFromDir(f, module.Version{Path: modPath, Version: version}, srcDir); err != nil {
-		log.Fatal(err)
+		_ = f.Close()
+		return err
 	}
-	if err := f.Close(); err != nil {
-		log.Fatal(err)
-	}
-	fmt.Printf("wrote %s@%s to %s\n", modPath, version, proxyDir)
+	return f.Close()
 }

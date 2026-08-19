@@ -54,7 +54,7 @@ go build ./...
 - **`tidy`, not two hand-appended lines**, so a new transitive dependency introduced by the SDK is picked up too.
 - **`GONOSUMDB` is scoped to `github.com/t-0-network`.** Every other module still goes through the public proxy and the checksum database.
 - **`sumtool` refuses to run if `go/LICENSE` is missing.** `cmd/go` synthesizes the repo-root `LICENSE` into a module zip when the module directory has none; `x/mod/zip` does not. Without that guard the locally computed hash would silently diverge from the proxy's.
-- **The `go build ./...` is the in-job sanity check**, and because the whole step sits *above* "Commit version bump", a bad hash or a template that won't build against the new SDK fails the release before anything is committed or tagged. **Keep it in that position.** `publish-go` re-verifies against the real proxy after the tags exist.
+- **The `go build ./...` is the in-job sanity check**, and because the whole step sits *above* "Commit version bump", a bad hash or a template that won't build against the new SDK fails the release before anything is committed or tagged. **Keep it in that position.** `publish-go` re-verifies with `go build -mod=readonly ./...` against the real proxy after the tags exist — readonly so a missing `go.sum` line fails the same way a wrong hash does.
 
 Two things not to do here:
 
@@ -101,7 +101,7 @@ Inlined per-job (rather than as a single shared `validate-versions` job) so each
 
 | Job | Runner | Validates | Then |
 |---|---|---|---|
-| `publish-go` | blacksmith | `go/sdkversion/version.go` matches tag | Creates + pushes the three Go module tags (`go/vX.Y.Z`, `go/starter/vX.Y.Z`, `go/starter/template/vX.Y.Z`), then `go list -m` against `proxy.golang.org` to warm the module proxy. Tags are created here (not in `release.yaml`) so they exist before the proxy is first queried — otherwise the proxy negative-caches a 404. Finally builds `go/starter/template` against the default proxy, verifying that the `go.sum` entry `release.yaml` precomputed matches the module the proxy now serves. Read-only — this job pushes tags, never commits. No artifact upload — Go modules are served from the git tag itself. |
+| `publish-go` | blacksmith | `go/sdkversion/version.go` matches tag | Creates + pushes the three Go module tags (`go/vX.Y.Z`, `go/starter/vX.Y.Z`, `go/starter/template/vX.Y.Z`), then `go list -m` against `proxy.golang.org` to warm the module proxy. Tags are created here (not in `release.yaml`) so they exist before the proxy is first queried — otherwise the proxy negative-caches a 404. Finally `go build -mod=readonly ./...` in `go/starter/template` against the default proxy, verifying that the `go.sum` entry `release.yaml` precomputed matches the module the proxy now serves. `-mod=readonly` fails on a missing line as well as a wrong hash. This job pushes tags, never commits. No artifact upload — Go modules are served from the git tag itself. |
 | `publish-node-sdk` | **`ubuntu-latest`** (npm provenance requires GitHub-hosted) | `node/sdk/src/version.ts` + `node/sdk/package.json` match tag | `npm publish --provenance --access public`. |
 | `publish-node-starter` | **`ubuntu-latest`** | `node/starter/package.json` matches tag | `npm publish --provenance --access public`. |
 | `publish-python-sdk` | blacksmith, env `pypi-sdk` | `_version.py` + `pyproject.toml` match tag | `uv build --package t0-provider-sdk` then `uv publish --trusted-publishing always`. |
