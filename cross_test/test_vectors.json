@@ -86,7 +86,7 @@
       "public_key": "044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0",
       "signature": "dc7cede55d344fb59f10fa71b4915968a9d5c3f811faf7ddd834feb3cdce106539cd605b5a2d5fe35c21f27af92d01a68a06d6e813a613dac40e90a7a7a8918101",
       "valid": true,
-      "note": "The same signature with the recovery byte appended. Java and Go emit 65 bytes, Node emits 64, and every verifier takes either and ignores v."
+      "note": "The same signature with recovery byte v=0x01 appended. Wire verifiers ignore v. Python's verify_signature helper recovers from it, so this fixture carries the v that recovers the trusted key."
     },
     {
       "name": "wrong-key",

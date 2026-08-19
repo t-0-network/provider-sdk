@@ -11,8 +11,8 @@ a change here is a change every language has to agree with:
 | Python | `python/sdk/tests/crypto/test_cross_vectors.py` |
 | C# | `csharp/sdk/T0.ProviderSdk.Tests/Crypto/CrossTestVectors.cs` |
 
-Hex values carry no `0x` prefix. Signatures are 64 bytes, `r || s`, unless a case says
-otherwise; the recovery byte is appended by some SDKs and ignored by every verifier.
+Hex values carry no `0x` prefix. Signatures are 64 bytes (`r || s`) unless a case
+appends a recovery byte.
 
 ## The scheme
 
@@ -51,6 +51,7 @@ fixture.
 
 ## Adding a case
 
-Sign it with any one SDK and run the other four. A 65-byte signature has to carry the
-right recovery byte — Go, Java, Node and C# ignore it, but Python verifies by recovering
-the key from it, so a wrong `v` fails there and nowhere else.
+Sign it with any one SDK and run the other four. On the wire every SDK ignores `v`.
+Python's `verify_signature` helper — which the Python cross-vector test calls — does
+not, so fixture 65-byte signatures must carry the recovery byte that recovers the
+trusted key.
