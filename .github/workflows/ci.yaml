@@ -101,11 +101,16 @@ jobs:
         run: npm pack
 
       - name: Install starter template dependencies
-        # `npm install` (not `npm ci`) because the template's package-lock.json
-        # is not strict-locked to the latest SDK — providers regenerate it on
-        # first install. We just need a working install for type checking.
+        # `npm ci`, not `npm install`: the template's package-lock.json ships
+        # to providers (create.ts copies the template wholesale) and the
+        # generated Dockerfile runs `npm ci`, which hard-fails if the lockfile
+        # and package.json disagree. Using `npm install` here would silently
+        # paper over that drift and leave every scaffolded project unable to
+        # `docker build`. Keep this as `npm ci` so CI fails the way a provider
+        # would. When release.yaml bumps the SDK pin in package.json, the
+        # lockfile must be regenerated alongside it.
         working-directory: node/starter/template
-        run: npm install --no-audit --no-fund
+        run: npm ci --no-audit --no-fund
 
       - name: Overlay local SDK build into template
         working-directory: node/starter/template
