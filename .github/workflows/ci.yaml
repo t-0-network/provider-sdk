@@ -5,6 +5,7 @@ on:
     branches: [master]
     paths:
       - ".github/workflows/ci.yaml"
+      - ".github/tools/**"
       - "go/**"
       - "node/**"
       - "java/**"
@@ -15,6 +16,7 @@ on:
     branches: [master]
     paths:
       - ".github/workflows/ci.yaml"
+      - ".github/tools/**"
       - "go/**"
       - "node/**"
       - "java/**"
@@ -41,7 +43,13 @@ jobs:
         uses: actions/setup-go@v6
         with:
           go-version: "stable"
-          cache-dependency-path: go/go.sum
+          cache-dependency-path: |
+            go/go.sum
+            .github/tools/sumtool/go.sum
+
+      - name: Test sumtool
+        working-directory: .github/tools/sumtool
+        run: go test -v ./...
 
       - name: Validate Go module state
         working-directory: go

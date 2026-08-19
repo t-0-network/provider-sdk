@@ -120,9 +120,8 @@ func main() {
 		return nil
 	})
 
-	// Ensure go.sum is in sync with go.mod (the template's go.sum may reference
-	// a different SDK version than go.mod if the release workflow updated go.mod
-	// but couldn't run go mod tidy because the new version wasn't published yet).
+	// The copied go.mod has a rewritten module path; tidy records checksums
+	// against the published SDK the template pins.
 	tidy := exec.Command("go", "mod", "tidy")
 	tidy.Dir = dir
 	tidy.Stdout = os.Stdout

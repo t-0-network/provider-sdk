@@ -27,7 +27,7 @@ Triggered by `gh workflow run release.yaml -f bump=<patch|minor|major> --ref mas
       - `python/sdk/src/t0_provider_sdk/_version.py`
       - `java/sdk/src/main/resources/META-INF/sdk-version.properties`
    4. **Bump starter-template SDK pins** — only for ecosystems with rewritten pins (Go `go.mod`, Node `package.json` caret, C# embedded template). Python and Java starters use floating versions and are not edited.
-      - The Go step uses a `replace` directive trick: it rewrites `go.mod` to the future version, runs `go mod tidy` against a local replace, then drops the replace. The result is a `go.sum` valid for the future published version (transitive deps are identical).
+      - The Go step rewrites the `go.mod` require line **and** records the matching `go.sum` entry. See [Precomputing the Go template's `go.sum`](#precomputing-the-go-templates-gosum) below for how it can do that before the tag exists.
    5. **Validate updated files** — re-greps every package-level, runtime-constant, and starter-template version site and confirms they all equal the calculated version. Any mismatch fails the release before tagging.
    6. **Commit and tag** — single commit `Release X.Y.Z`, root tag `vX.Y.Z`.
    7. **Create GitHub Release** — `vX.Y.Z` with that title.
@@ -35,6 +35,31 @@ Triggered by `gh workflow run release.yaml -f bump=<patch|minor|major> --ref mas
    (The `go/*` module tags are **not** created here — they're created by `publish.yaml`'s `publish-go` job, right before it warms the proxy. See below.)
 
 3. **Tag push triggers `publish.yaml`** automatically (next section).
+
+### Precomputing the Go template's `go.sum`
+
+`go/starter/template` is a nested module that pins `github.com/t-0-network/provider-sdk/go vX.Y.Z`. Step 4 writes the new version into its `go.mod` — but that version has no git tag yet, since `publish.yaml` creates it minutes later. It still records the correct `go.sum` entry, because **a module's `h1:` hash is a function of its source tree, not of its tag**:
+
+```
+go -C .github/tools/sumtool run . "$GITHUB_WORKSPACE/go" "v$VERSION" "$PROXY_DIR"
+cd go/starter/template
+go mod edit -require "github.com/t-0-network/provider-sdk/go@v$VERSION"
+export GOPROXY="file://$PROXY_DIR,https://proxy.golang.org,direct"
+export GONOSUMDB="github.com/t-0-network"
+go mod tidy
+go build ./...
+```
+
+- **`sumtool`** ([`.github/tools/sumtool`](../.github/tools/sumtool)) packs the working tree's `go/` directory into a `file://` GOPROXY layout at the future version, using `x/mod/zip.CreateFromDir` — the same code path `cmd/go` uses. `go mod tidy` then resolves the pin against that layout and records the real checksums, byte-identical to what `proxy.golang.org` serves once `publish-go` pushes `go/vX.Y.Z`.
+- **`tidy`, not two hand-appended lines**, so a new transitive dependency introduced by the SDK is picked up too.
+- **`GONOSUMDB` is scoped to `github.com/t-0-network`.** Every other module still goes through the public proxy and the checksum database.
+- **`sumtool` refuses to run if `go/LICENSE` is missing.** `cmd/go` synthesizes the repo-root `LICENSE` into a module zip when the module directory has none; `x/mod/zip` does not. Without that guard the locally computed hash would silently diverge from the proxy's.
+- **The `go build ./...` is the in-job sanity check**, and because the whole step sits *above* "Commit version bump", a bad hash or a template that won't build against the new SDK fails the release before anything is committed or tagged. **Keep it in that position.** `publish-go` re-verifies with `go build -mod=readonly ./...` against the real proxy after the tags exist — readonly so a missing `go.sum` line fails the same way a wrong hash does.
+
+Two things not to do here:
+
+- **Don't tidy under a local `replace`.** Go records no `go.sum` entries for replaced modules, so tidy *strips* the SDK's lines instead of adding them. That was the previous approach; it left master unbuildable after 1.1.16, 1.1.21, 1.1.25 and 1.1.26, and shipped template zips with zero SDK checksums.
+- **Don't mutate `go/` after this step.** The tree `sumtool` hashes must equal the future tag's `go/` subtree. `sumtool` walks the filesystem, so the step first fails the release if `git status --porcelain --ignored -- go` reports any untracked or ignored file — those would be hashed but never tagged. The residual ceiling is a later step that *modifies a tracked* file under `go/`: it diverges silently, detectable only by `publish-go`'s post-tag build.
 
 ---
 
@@ -76,7 +101,7 @@ Inlined per-job (rather than as a single shared `validate-versions` job) so each
 
 | Job | Runner | Validates | Then |
 |---|---|---|---|
-| `publish-go` | blacksmith | `go/sdkversion/version.go` matches tag | Creates + pushes the three Go module tags (`go/vX.Y.Z`, `go/starter/vX.Y.Z`, `go/starter/template/vX.Y.Z`), then `go list -m` against `proxy.golang.org` to warm the module proxy. Tags are created here (not in `release.yaml`) so they exist before the proxy is first queried — otherwise the proxy negative-caches a 404. No artifact upload — Go modules are served from the git tag itself. |
+| `publish-go` | blacksmith | `go/sdkversion/version.go` matches tag | Creates + pushes the three Go module tags (`go/vX.Y.Z`, `go/starter/vX.Y.Z`, `go/starter/template/vX.Y.Z`), then `go list -m` against `proxy.golang.org` to warm the module proxy. Tags are created here (not in `release.yaml`) so they exist before the proxy is first queried — otherwise the proxy negative-caches a 404. Finally `go build -mod=readonly ./...` in `go/starter/template` against the default proxy, verifying that the `go.sum` entry `release.yaml` precomputed matches the module the proxy now serves. `-mod=readonly` fails on a missing line as well as a wrong hash. This job pushes tags, never commits. No artifact upload — Go modules are served from the git tag itself. |
 | `publish-node-sdk` | **`ubuntu-latest`** (npm provenance requires GitHub-hosted) | `node/sdk/src/version.ts` + `node/sdk/package.json` match tag | `npm publish --provenance --access public`. |
 | `publish-node-starter` | **`ubuntu-latest`** | `node/starter/package.json` matches tag | `npm publish --provenance --access public`. |
 | `publish-python-sdk` | blacksmith, env `pypi-sdk` | `_version.py` + `pyproject.toml` match tag | `uv build --package t0-provider-sdk` then `uv publish --trusted-publishing always`. |

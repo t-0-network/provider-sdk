@@ -245,18 +245,22 @@ jobs:
           VERSION="${{ steps.version.outputs.version }}"
           sed -i "s|T0.ProviderSdk\" Version=\"[^\"]*\"|T0.ProviderSdk\" Version=\"${VERSION}\"|" csharp/starter/T0.ProviderStarter/TemplateFiles.cs
 
+      # How this works and why it must stay above "Commit version bump":
+      # docs/RELEASE_AND_PUBLISH.md, step 4.
       - name: Update Go Starter template SDK version
         run: |
           VERSION="${{ steps.version.outputs.version }}"
+          PROXY_DIR="${RUNNER_TEMP}/goproxy"
+          # sumtool walks the filesystem; the tag will only carry tracked files.
+          test -z "$(git status --porcelain --ignored -- go | grep -E '^(\?\?|!!)')" \
+            || { echo "::error::untracked/ignored files under go/ would poison the module hash"; exit 1; }
+          go -C .github/tools/sumtool run . "${GITHUB_WORKSPACE}/go" "v${VERSION}" "${PROXY_DIR}"
           cd go/starter/template
           go mod edit -require "github.com/t-0-network/provider-sdk/go@v${VERSION}"
-          # The new version isn't published yet, so use a local replace to run go mod tidy
-          # which updates go.sum with correct checksums for transitive dependencies.
-          # The replace itself is removed after tidy — the published SDK will have
-          # identical transitive deps since only the version tag changed.
-          go mod edit -replace "github.com/t-0-network/provider-sdk/go=../../"
+          export GOPROXY="file://${PROXY_DIR},https://proxy.golang.org,direct"
+          export GONOSUMDB="github.com/t-0-network"
           go mod tidy
-          go mod edit -dropreplace "github.com/t-0-network/provider-sdk/go"
+          go build ./...
 
       # --- Validate version updates ---
       - name: Validate updated files
