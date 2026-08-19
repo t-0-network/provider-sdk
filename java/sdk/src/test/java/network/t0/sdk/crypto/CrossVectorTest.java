@@ -12,6 +12,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.Arrays;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -110,5 +111,63 @@ class CrossVectorTest {
         byte[] sig64 = new byte[64];
         System.arraycopy(result.getSignature(), 0, sig64, 0, 64);
         assertThat(HexUtils.bytesToHex(sig64)).isEqualTo(expectedSignature);
+    }
+
+    /**
+     * Bodies the string-valued request_signing block cannot express: binary, gRPC-framed
+     * (which is what this SDK verifies as its second path), empty, and one whose signature
+     * has a leading zero byte — the case a signer that trims instead of padding to a fixed
+     * 32 bytes fails, and only that case.
+     */
+    @Test
+    void requestSigningCases_shouldMatchVectorBytes() {
+        JsonObject keys = vectors.getAsJsonObject("keys");
+        Signer signer = Signer.fromHex(keys.get("private_key").getAsString());
+
+        JsonArray cases = vectors.getAsJsonArray("request_signing_cases");
+        assertThat(cases).isNotEmpty();
+
+        for (var element : cases) {
+            JsonObject vec = element.getAsJsonObject();
+            String name = vec.get("name").getAsString();
+            byte[] digest = requestDigest(vec);
+
+            assertThat(HexUtils.bytesToHex(digest))
+                    .as("digest for %s", name)
+                    .isEqualTo(vec.get("expected_hash").getAsString());
+
+            byte[] sig64 = Arrays.copyOf(signer.sign(digest).getSignature(), 64);
+            assertThat(HexUtils.bytesToHex(sig64))
+                    .as("signature for %s", name)
+                    .isEqualTo(vec.get("expected_signature").getAsString());
+        }
+    }
+
+    /** The presented-request cases, including the ones a provider has to refuse. */
+    @Test
+    void signatureVerification_shouldMatchVectorOutcomes() {
+        JsonArray cases = vectors.getAsJsonArray("signature_verification");
+        assertThat(cases).isNotEmpty();
+
+        for (var element : cases) {
+            JsonObject vec = element.getAsJsonObject();
+            byte[] publicKey = HexUtils.hexToBytes(vec.get("public_key").getAsString());
+            byte[] signature = HexUtils.hexToBytes(vec.get("signature").getAsString());
+
+            assertThat(SignatureVerifier.verify(publicKey, requestDigest(vec), signature))
+                    .as("%s: %s", vec.get("name").getAsString(), vec.get("note").getAsString())
+                    .isEqualTo(vec.get("valid").getAsBoolean());
+        }
+    }
+
+    /** What a provider hashes: the raw body with the little-endian timestamp appended. */
+    private static byte[] requestDigest(JsonObject vec) {
+        byte[] body = HexUtils.hexToBytes(vec.get("body_hex").getAsString());
+        byte[] tsBytes = ByteBuffer.allocate(8)
+                .order(ByteOrder.LITTLE_ENDIAN)
+                .putLong(vec.get("timestamp_ms").getAsLong())
+                .array();
+
+        return Keccak256.hash(body, tsBytes);
     }
 }

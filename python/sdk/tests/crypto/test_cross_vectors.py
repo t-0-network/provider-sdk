@@ -65,3 +65,42 @@ class TestCrossVectorsRequestSignature:
         sig, _ = sign_fn(digest)
         # Compare first 64 bytes (r+s) against the cross-language test vector
         assert sig[:64].hex() == rs["expected_signature"]
+
+
+def _request_digest(vec) -> bytes:
+    """What the middleware hashes: raw body, little-endian millisecond timestamp appended."""
+    body = bytes.fromhex(vec["body_hex"])
+    ts_bytes = struct.pack("<Q", vec["timestamp_ms"])
+    return legacy_keccak256(body + ts_bytes)
+
+
+class TestCrossVectorsRequestSigningCases:
+    """Bodies the string-valued request_signing block cannot express: binary, gRPC-framed,
+    empty, and one whose signature has a leading zero byte — the case a signer that trims
+    instead of padding to a fixed 32 bytes fails, and only that case."""
+
+    def test_all_cases(self):
+        cases = VECTORS["request_signing_cases"]
+        assert cases
+
+        sign_fn = new_signer_from_hex(VECTORS["keys"]["private_key"])
+        for vec in cases:
+            digest = _request_digest(vec)
+            assert digest.hex() == vec["expected_hash"], f"digest for {vec['name']}"
+
+            sig, _ = sign_fn(digest)
+            assert sig[:64].hex() == vec["expected_signature"], f"signature for {vec['name']}"
+
+
+class TestCrossVectorsSignatureVerification:
+    """The presented-request cases, including the ones a provider has to refuse."""
+
+    def test_all_cases(self):
+        cases = VECTORS["signature_verification"]
+        assert cases
+
+        for vec in cases:
+            public_key = public_key_from_bytes(bytes.fromhex(vec["public_key"]))
+            signature = bytes.fromhex(vec["signature"])
+            result = verify_signature(public_key, _request_digest(vec), signature)
+            assert result == vec["valid"], f"{vec['name']}: {vec['note']}"

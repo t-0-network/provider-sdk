@@ -173,3 +173,56 @@ describe('Request signing', () => {
     nodeAssert.equal(sig.signature.subarray(0, 64).toString('hex'), expected_signature);
   });
 });
+
+// What the middleware hashes: the raw body with the little-endian millisecond timestamp
+// appended. body_hex carries the bytes, so a body can be binary, framed or empty.
+function requestDigest(bodyHex: string, timestampMs: number): Buffer {
+  const tsBuf = Buffer.alloc(8);
+  tsBuf.writeBigUInt64LE(BigInt(timestampMs));
+
+  return Buffer.from(
+    keccak_256.create()
+      .update(Buffer.from(bodyHex, 'hex'))
+      .update(tsBuf)
+      .digest()
+  );
+}
+
+describe('Request signing cases', () => {
+  // Bodies the string-valued request_signing block cannot express: binary, gRPC-framed,
+  // empty, and one whose signature has a leading zero byte — the case a signer that trims
+  // instead of padding to 32 bytes fails, and only that case.
+  for (const vec of vectors.request_signing_cases) {
+    it(`${vec.name} hashes and signs to the vector bytes`, async () => {
+      const digest = requestDigest(vec.body_hex, vec.timestamp_ms);
+      nodeAssert.equal(digest.toString('hex'), vec.expected_hash);
+
+      const signer = CreateSigner(vectors.keys.private_key);
+      const sig = await signer(digest);
+      nodeAssert.equal(sig.signature.subarray(0, 64).toString('hex'), vec.expected_signature);
+    });
+  }
+});
+
+describe('Signature verification cases', () => {
+  for (const vec of vectors.signature_verification) {
+    it(`${vec.name} verifies: ${vec.valid}`, () => {
+      const digest = requestDigest(vec.body_hex, vec.timestamp_ms);
+      const publicKey = Buffer.from(vec.public_key, 'hex');
+
+      // service.ts truncates a 65-byte signature before verifying, and treats a throw from
+      // noble the same as a false — both end as Unauthenticated. Mirror that here.
+      const signature = Buffer.from(vec.signature, 'hex');
+      const sig64 = signature.length === 65 ? signature.subarray(0, 64) : signature;
+
+      let valid = false;
+      try {
+        valid = secp256k1.verify(sig64, digest, publicKey, { prehash: false });
+      } catch {
+        valid = false;
+      }
+
+      nodeAssert.equal(valid, vec.valid);
+    });
+  }
+});
