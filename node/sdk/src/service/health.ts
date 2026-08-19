@@ -4,8 +4,7 @@ import {
   Health,
   HealthCheckResponse_ServingStatus,
   HealthCheckResponseSchema,
-  type HealthCheckRequest,
-} from "@buf/grpc_grpc.bufbuild_es/grpc/health/v1/health_pb.js";
+} from "./health_pb.js";
 import { SDK_VERSION } from "../version.js";
 
 /**
@@ -42,11 +41,7 @@ export const createHealthServiceImpl = (
       ctx.responseHeader.set(SDK_ECOSYSTEM_HEADER, SDK_ECOSYSTEM);
       ctx.responseHeader.set(SDK_VERSION_HEADER, SDK_VERSION);
 
-      // The schema comes from a published .d.ts, whose type brands do not
-      // survive ServiceImpl's generics — connect-es widens the request to
-      // Message<string>. The descriptor is still the real one at runtime, so
-      // this narrows back to what the wire actually carries.
-      const { service } = req as HealthCheckRequest;
+      const { service } = req;
 
       // An empty service name asks about the process as a whole, which is up if
       // this handler is running at all.

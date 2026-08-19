@@ -1,6 +1,6 @@
 # Health service
 
-Every SDK mounts the standard [`grpc.health.v1.Health`](https://github.com/grpc/grpc/blob/master/src/proto/grpc/health/v1/health.proto) on the server it builds, behind the same signature-verification and response-validation stack as everything else. It is the only service the transport adds on its own. Customers never name it and never implement it; bumping the SDK is the whole of their involvement, except Node, where the BSR `@buf` scope has to be in `.npmrc` so the health package can resolve.
+Every SDK mounts the standard [`grpc.health.v1.Health`](https://github.com/grpc/grpc/blob/master/src/proto/grpc/health/v1/health.proto) on the server it builds, behind the same signature-verification and response-validation stack as everything else. It is the only service the transport adds on its own. Customers never name it and never implement it; bumping the SDK is the whole of their involvement.
 
 This document is maintainer-facing. Integrators do not touch this service — the T-0 Network calls it, they do not.
 
@@ -16,19 +16,23 @@ There is no opt-out flag, and there should not be one. The Network needs a reach
 
 ---
 
-## Nothing is generated. Every ecosystem takes this as a dependency
+## Every ecosystem takes this as a dependency — except Node, which vendors it
 
-This is the point of the design, not an implementation detail: `health.proto` is not vendored, and no copy of it is generated into any SDK artifact. Each ecosystem consumes a published package, so nothing here puts a schema on a customer's classpath that they could conflict with.
+The rule is that `health.proto` is not vendored and no copy is generated into an SDK artifact: each ecosystem consumes a published package, so nothing here puts a schema on a customer's classpath that they could conflict with.
 
 | Ecosystem | Dependency | Registry |
 |---|---|---|
 | Go | `connectrpc.com/grpchealth` | Go module proxy — a hand-written library, so no generated code at all |
-| Node | `@buf/grpc_grpc.bufbuild_es` | Buf Schema Registry npm — not npmjs. `@buf:registry=https://buf.build/gen/npm/v1/` must be in the installing project's `.npmrc` (the starter template ships it; `node/sdk/.npmrc` is only for this repo) |
+| Node | **vendored** — [`node/sdk/src/service/health_pb.ts`](../node/sdk/src/service/health_pb.ts) | none; see below |
 | Python | `grpcio-health-checking` | PyPI |
 | Java | `io.grpc:grpc-services` | Maven Central |
 | C# | `Grpc.HealthCheck` | nuget.org |
 
-**This is why the SDKs serve `Check` and not `List`.** `List` is a recent addition to the health protocol and none of these packages ship it — `Grpc.HealthCheck` has no `HealthList*` types at all, and the BSR Python build is pinned to a 2023 `health.proto`. Serving `List` would mean generating our own copy into every artifact, which is the thing this design exists to avoid. `Check` has been in `health.proto` since 2015 and answers the only question the probe asks.
+**Node is the exception because npm gives it no other option.** The only `grpc.health.v1` build for protobuf-es lives on the Buf Schema Registry, not npmjs, and reaching it needs `@buf:registry=...` in the **installing** project's `.npmrc` — configuration a published package cannot hand its consumers. Depending on it made `npm install @t-0/provider-sdk` 404 for every downstream user, transitively; an `.npmrc` in this repo fixed only this repo. Vendoring is what makes the published package installable at all. Regeneration instructions are in the file's header.
+
+Putting a schema in a customer's tree is what this design otherwise avoids, and it is safe only because protobuf-es v2 builds standalone descriptors instead of registering into a process-global one — a customer depending on the BSR package directly gets two inert descriptors, not a conflict.
+
+**Serve `Check` only — Node included.** Node's vendored snapshot does carry the `HealthList*` types, so adding `List` there looks free; it is not. The other four ecosystems' packages have no `List` to serve (`Grpc.HealthCheck` lacks the types outright, the BSR Python build is pinned to a 2023 `health.proto`), so implementing it in Node alone would split the wire contract across ecosystems for a method the Network never calls.
 
 **Python's package name is load-bearing.** `grpcio-health-checking` publishes under the top-level `grpc_health` package, not `grpc.health`. A generated `grpc.health.v1` would sit under a `grpc` *namespace* package, and grpcio ships a *regular* `grpc/__init__.py` that wins over it — so any customer venv containing grpcio (google-cloud-\*, any gRPC user) would fail to import the SDK at all. Do not "fix" this by generating into `grpc.health.v1`.
 
@@ -92,7 +96,7 @@ How each ecosystem scopes the identity headers to this handler:
 
 **Java:** the health service is appended inside `buildGrpcServer()` and never into `Builder.services`, so `Builder.build()`'s "at least one service must be added with `withService()`" check still catches a customer who forgot to register their own.
 
-**Node:** the published `.d.ts` in the BSR package loses its type brands through `ServiceImpl`'s generics, so connect-es widens the request to `Message<string>`. `health.ts` narrows it back with one cast; the descriptor is the real one at runtime.
+**Node:** `health.ts` used to need a cast because the BSR package's published `.d.ts` lost its type brands through `ServiceImpl`'s generics, widening the request to `Message<string>`. Vendoring the stub as a first-party `.ts` removed that; the request types check without help.
 
 **Python:** connect-python publishes no health bindings, so `health.py` assembles the ASGI/WSGI applications from `Endpoint` directly. Only the messages come from the package.
 
@@ -103,7 +107,7 @@ How each ecosystem scopes the identity headers to this handler:
 ## Adding a new SDK ecosystem
 
 1. Pick a runtime version constant location, per [`VERSIONING.md`](./VERSIONING.md), and add it to `release.yaml`'s bump + validate steps.
-2. Find that ecosystem's published `grpc.health.v1` package. Do not generate one.
+2. Find that ecosystem's published `grpc.health.v1` package. Do not generate one — unless, as with Node, the ecosystem's own registry has none and the only build lives somewhere a published package cannot point its consumers at. Then vendor a generated stub and document the regeneration command in its header.
 3. Mount health in the new SDK's server-construction wrapper with the same interceptor stack, implement `Check`, and set the two identity headers on that response only.
 4. Add a `publish-<ecosystem>` job in [`publish.yaml`](../.github/workflows/publish.yaml) with an inline tag-vs-version assertion.
 
