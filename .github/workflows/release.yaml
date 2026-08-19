@@ -251,6 +251,9 @@ jobs:
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           PROXY_DIR="${RUNNER_TEMP}/goproxy"
+          # sumtool walks the filesystem; the tag will only carry tracked files.
+          test -z "$(git status --porcelain --ignored -- go | grep -E '^(\?\?|!!)')" \
+            || { echo "::error::untracked/ignored files under go/ would poison the module hash"; exit 1; }
           go -C .github/tools/sumtool run . "${GITHUB_WORKSPACE}/go" "v${VERSION}" "${PROXY_DIR}"
           cd go/starter/template
           go mod edit -require "github.com/t-0-network/provider-sdk/go@v${VERSION}"

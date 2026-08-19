@@ -59,7 +59,7 @@ go build ./...
 Two things not to do here:
 
 - **Don't tidy under a local `replace`.** Go records no `go.sum` entries for replaced modules, so tidy *strips* the SDK's lines instead of adding them. That was the previous approach; it left master unbuildable after 1.1.16, 1.1.21, 1.1.25 and 1.1.26, and shipped template zips with zero SDK checksums.
-- **Don't mutate `go/` after this step.** The tree `sumtool` hashes must equal the future tag's `go/` subtree. True today — the release runs on a clean checkout and every edit is scripted — but a later step that touched `go/` would diverge silently, detectable only by `publish-go`'s post-tag build.
+- **Don't mutate `go/` after this step.** The tree `sumtool` hashes must equal the future tag's `go/` subtree. `sumtool` walks the filesystem, so the step first fails the release if `git status --porcelain --ignored -- go` reports any untracked or ignored file — those would be hashed but never tagged. The residual ceiling is a later step that *modifies a tracked* file under `go/`: it diverges silently, detectable only by `publish-go`'s post-tag build.
 
 ---
 
