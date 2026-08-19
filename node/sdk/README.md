@@ -14,10 +14,7 @@ See [starter README](../starter/README.md) for details on the generated project.
 
 ## Installation
 
-The SDK depends on `@buf/grpc_grpc.bufbuild_es`, which is published on the Buf Schema Registry, not npmjs. Point the `@buf` scope at BSR before installing (the starter template already ships this `.npmrc`):
-
 ```bash
-echo '@buf:registry=https://buf.build/gen/npm/v1/' >> .npmrc
 npm install @t-0/provider-sdk
 ```
 

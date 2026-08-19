@@ -14,7 +14,7 @@ import {Hash} from "@noble/hashes/utils.js";
 import type {DescService, } from "@bufbuild/protobuf";
 import type {ServiceImpl} from "@connectrpc/connect";
 import {createValidationInterceptor} from "./validate_response.js";
-import {Health} from "@buf/grpc_grpc.bufbuild_es/grpc/health/v1/health_pb.js";
+import {Health} from "./health_pb.js";
 import {createHealthServiceImpl} from "./health.js";
 
 export const REQUEST_VALIDITY_MILLIS = 60_000;

@@ -13,7 +13,7 @@ import { SDK_VERSION } from '../src/version.js';
 import {
   Health,
   HealthCheckResponse_ServingStatus,
-} from '@buf/grpc_grpc.bufbuild_es/grpc/health/v1/health_pb.js';
+} from '../src/service/health_pb.js';
 import { ProviderService } from '../src/common/gen/tzero/v1/payment/provider_pb.js';
 import {
   ConnectError,
