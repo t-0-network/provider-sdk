@@ -7,7 +7,7 @@ using T0.ProviderSdk.Crypto;
 using T0.ProviderSdk.Provider;
 using PaymentApi = T0.ProviderSdk.Api.Tzero.V1.Payment;
 using PaymentIntentApi = T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.Provider;
-using SystemApi = T0.ProviderSdk.Api.Tzero.V1.System;
+using Grpc.Health.V1;
 
 namespace T0.ProviderSdk;
 
@@ -79,11 +79,15 @@ public sealed class T0ProviderServer
     /// </summary>
     public async Task RunAsync(CancellationToken cancellationToken = default)
     {
+        // Health is the only service this transport mounts on its own — see
+        // docs/HEALTH_SERVICE.md. It sits behind the same
+        // SignatureVerificationMiddleware, so the probe is signed like any other
+        // call.
         var fqns = new List<string>(_registeredFqns)
         {
-            SystemApi.SystemService.Descriptor.FullName,
+            Health.Descriptor.FullName,
         };
-        _builder.Services.AddSingleton(new SystemServiceImpl(fqns));
+        _builder.Services.AddSingleton(new HealthServiceImpl(fqns));
 
         var app = _builder.Build();
 
@@ -93,7 +97,7 @@ public sealed class T0ProviderServer
         foreach (var mapAction in _mapActions)
             mapAction(app);
 
-        app.MapGrpcService<SystemServiceImpl>();
+        app.MapGrpcService<HealthServiceImpl>();
 
         await app.RunAsync(cancellationToken);
     }

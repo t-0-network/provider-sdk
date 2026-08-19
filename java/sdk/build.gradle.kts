@@ -17,6 +17,10 @@ dependencies {
     api("io.grpc:grpc-netty-shaded:$grpcVersion")
     api("io.grpc:grpc-protobuf:$grpcVersion")
     api("io.grpc:grpc-stub:$grpcVersion")
+    // grpc.health.v1 — the health service the transport mounts. Upstream's own
+    // generated stubs and HealthGrpc, so we neither vendor the proto nor
+    // generate a second copy of io.grpc.health.v1 onto a customer's classpath.
+    api("io.grpc:grpc-services:$grpcVersion")
 
 
     // Protobuf

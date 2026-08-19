@@ -5,13 +5,14 @@ import io.grpc.Server;
 import io.grpc.ServerInterceptors;
 import io.grpc.ServerServiceDefinition;
 import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder;
-import network.t0.sdk.proto.tzero.v1.system.SystemServiceGrpc;
+import io.grpc.health.v1.HealthGrpc;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
@@ -304,12 +305,20 @@ public final class ProviderServer implements Closeable {
                 builder.addService(interceptedDefinition);
             }
 
-            // Auto-register SystemService alongside customer services. Inherits the
-            // same signature-verification and response-validation interceptors.
-            registeredFqns.add(SystemServiceGrpc.SERVICE_NAME);
-            BindableService systemSvc = new SystemServiceImpl(registeredFqns);
-            ServerServiceDefinition systemDef = ServerInterceptors.useInputStreamMessages(systemSvc.bindService());
-            builder.addService(ServerInterceptors.intercept(systemDef, verificationInterceptor, validationInterceptor));
+            // Health is the only service this transport mounts on its own — see
+            // docs/HEALTH_SERVICE.md. It inherits the same signature-verification
+            // and response-validation interceptors, so the probe is signed like any
+            // other call, plus one that stamps the SDK identity onto its responses
+            // and nothing else's.
+            //
+            // Appended here and never into Builder.services, so build()'s "at least
+            // one service must be added with withService()" check still catches a
+            // customer who forgot to register their own.
+            registeredFqns.add(HealthGrpc.SERVICE_NAME);
+            BindableService healthSvc = new HealthServiceImpl(new HashSet<>(registeredFqns));
+            ServerServiceDefinition healthDef = ServerInterceptors.useInputStreamMessages(healthSvc.bindService());
+            builder.addService(ServerInterceptors.intercept(healthDef,
+                    HealthServiceImpl.sdkIdentityInterceptor(), verificationInterceptor, validationInterceptor));
 
             return builder.build();
         }

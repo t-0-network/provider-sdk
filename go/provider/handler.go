@@ -6,7 +6,7 @@ import (
 
 	"connectrpc.com/connect"
 
-	"github.com/t-0-network/provider-sdk/go/api/tzero/v1/system/systemconnect"
+	"connectrpc.com/grpchealth"
 )
 
 type BuildHandler func(defaultOptions providerHandlerOptions) (path string, handler http.Handler)
@@ -49,11 +49,23 @@ func NewHttpHandler(
 		mux.Handle(path, providerServiceHandler)
 		registered = append(registered, strings.Trim(path, "/"))
 	}
-	registered = append(registered, systemconnect.SystemServiceName)
+	// The Network has to establish that an endpoint is reachable before it sends
+	// anything there, and grpc.health.v1.Health is the only service this transport
+	// can mount to say so: it belongs to no business protocol, so serving it makes
+	// no claim about what the server is — which matters, because this transport
+	// also builds servers that are not providers'. Same middleware as everything
+	// else, so the probe is signed like any other call.
+	registered = append(registered, grpchealth.HealthV1ServiceName)
 
-	systemBuild := Handler(systemconnect.NewSystemServiceHandler, systemconnect.SystemServiceHandler(newSystemServiceImpl(registered)))
-	systemPath, systemHandler := systemBuild(defaultOptions)
-	mux.Handle(systemPath, systemHandler)
+	healthBuild := Handler(
+		grpchealth.NewHandler,
+		grpchealth.Checker(newHealthChecker(registered)),
+		func(o *providerHandlerOptions) {
+			o.connectHandlerOptions = append(o.connectHandlerOptions, withSDKIdentity())
+		},
+	)
+	healthPath, healthHandler := healthBuild(defaultOptions)
+	mux.Handle(healthPath, healthHandler)
 
 	return mux, nil
 }

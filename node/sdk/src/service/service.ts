@@ -14,8 +14,8 @@ import {Hash} from "@noble/hashes/utils.js";
 import type {DescService, } from "@bufbuild/protobuf";
 import type {ServiceImpl} from "@connectrpc/connect";
 import {createValidationInterceptor} from "./validate_response.js";
-import {SystemService} from "../common/gen/tzero/v1/system/system_pb.js";
-import {createSystemServiceImpl} from "./system.js";
+import {Health} from "@buf/grpc_grpc.bufbuild_es/grpc/health/v1/health_pb.js";
+import {createHealthServiceImpl} from "./health.js";
 
 export const REQUEST_VALIDITY_MILLIS = 60_000;
 
@@ -81,8 +81,11 @@ export const createService = (
         },
       };
       registerRoutes(wrappedRouter);
-      collected.push(SystemService.typeName);
-      origService(SystemService, createSystemServiceImpl(collected));
+      // Health is the only service this transport mounts on its own — see
+      // docs/HEALTH_SERVICE.md. Same interceptors as everything else, so the
+      // probe is signed like any other call.
+      collected.push(Health.typeName);
+      origService(Health, createHealthServiceImpl(collected));
     },
     interceptors: [createSignatureVerification(networkPublicKey), createValidationInterceptor()],
     grpcWeb: false,
