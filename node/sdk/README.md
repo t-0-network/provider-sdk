@@ -18,8 +18,6 @@ See [starter README](../starter/README.md) for details on the generated project.
 npm install @t-0/provider-sdk
 ```
 
-Every dependency resolves from npmjs; no registry configuration is needed.
-
 ## Usage
 
 ### Provider Service

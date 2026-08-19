@@ -21,9 +21,6 @@
 //
 // Lives under src/service/ rather than src/common/gen/ so the transport keeps
 // importing nothing from common/gen.
-//
-// The descriptor below is a base64 FileDescriptorProto blob; there is nothing
-// here to hand-edit meaningfully.
 
 // Copyright 2015 The gRPC Authors
 //
