@@ -245,18 +245,27 @@ jobs:
           VERSION="${{ steps.version.outputs.version }}"
           sed -i "s|T0.ProviderSdk\" Version=\"[^\"]*\"|T0.ProviderSdk\" Version=\"${VERSION}\"|" csharp/starter/T0.ProviderStarter/TemplateFiles.cs
 
+      # Keep this step BEFORE "Commit version bump" — a hash that can't be computed, or a
+      # template that won't build against the new SDK, must fail the release before anything
+      # is committed or tagged.
       - name: Update Go Starter template SDK version
         run: |
           VERSION="${{ steps.version.outputs.version }}"
+          PROXY_DIR="${RUNNER_TEMP}/goproxy"
+          # The new version has no git tag yet (publish.yaml creates it), but a module's h1:
+          # hash is a function of its source tree, not of the tag. So serve ./go as vX.Y.Z from
+          # a local file:// proxy and let `go mod tidy` record the real checksums now.
+          # (Tidying under a local `replace` cannot work: Go records no go.sum entries for
+          # replaced modules, so it *strips* the SDK's lines instead of adding them.)
+          # GONOSUMDB covers only our own module — every other module still goes through the
+          # public proxy and the checksum database.
+          go -C .github/tools/sumtool run . "${GITHUB_WORKSPACE}/go" "v${VERSION}" "${PROXY_DIR}"
           cd go/starter/template
           go mod edit -require "github.com/t-0-network/provider-sdk/go@v${VERSION}"
-          # The new version isn't published yet, so use a local replace to run go mod tidy
-          # which updates go.sum with correct checksums for transitive dependencies.
-          # The replace itself is removed after tidy — the published SDK will have
-          # identical transitive deps since only the version tag changed.
-          go mod edit -replace "github.com/t-0-network/provider-sdk/go=../../"
+          export GOPROXY="file://${PROXY_DIR},https://proxy.golang.org,direct"
+          export GONOSUMDB="github.com/t-0-network"
           go mod tidy
-          go mod edit -dropreplace "github.com/t-0-network/provider-sdk/go"
+          go build ./...
 
       # --- Validate version updates ---
       - name: Validate updated files

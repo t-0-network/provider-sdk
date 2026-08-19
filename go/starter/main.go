@@ -120,9 +120,18 @@ func main() {
 		return nil
 	})
 
-	// Ensure go.sum is in sync with go.mod (the template's go.sum may reference
-	// a different SDK version than go.mod if the release workflow updated go.mod
-	// but couldn't run go mod tidy because the new version wasn't published yet).
+	// Scaffold against the newest published SDK rather than whatever version this
+	// CLI happens to pin: a customer running an older provider-init still starts on
+	// the current SDK.
+	get := exec.Command("go", "get", "github.com/t-0-network/provider-sdk/go@latest")
+	get.Dir = dir
+	get.Stdout = os.Stdout
+	get.Stderr = os.Stderr
+	if err := get.Run(); err != nil {
+		log.Fatalf("go get provider-sdk: %v", err)
+	}
+
+	// Drop any dependency the bump above left behind and record the checksums.
 	tidy := exec.Command("go", "mod", "tidy")
 	tidy.Dir = dir
 	tidy.Stdout = os.Stdout

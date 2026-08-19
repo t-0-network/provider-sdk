@@ -196,6 +196,14 @@ jobs:
           warm "github.com/t-0-network/provider-sdk/go/starter"
           warm "github.com/t-0-network/provider-sdk/go/starter/template"
 
+      # release.yaml precomputes the template's go.sum entry for this version before the tag
+      # exists. That hash is now checkable against the real thing: a wrong one is a hard
+      # "checksum mismatch" for every consumer, so catch it here, minutes after publishing,
+      # rather than from a bug report. Read-only — this job pushes tags, never commits.
+      - name: Verify starter template against the published SDK
+        working-directory: go/starter/template
+        run: go build ./...
+
   publish-node-sdk:
     name: Publish Node SDK
     needs: [build-go, build-node, build-java, build-python, build-csharp]
