@@ -66,12 +66,7 @@ The version comes from the ecosystem's runtime version constant (see [`VERSIONIN
 
 ## Auth
 
-`Check` is signed with the **T-0 Network's** keypair, exactly like every other RPC on the endpoint. In practice that means only the Network calls it.
-
-Two consequences worth knowing:
-
-- **Not usable as a Kubernetes liveness probe** — the probe would need the Network's private key. Expose a separate unsigned HTTP endpoint if you need one, or use a TCP connectivity check on the port.
-- **Ingress allowlists must include `/grpc.health.v1.Health/`.** An endpoint whose ingress drops that path cannot complete sandbox registration, because the registration probe is the only thing that calls it. TLS, rate-limiting and routing are otherwise identical to the customer's own RPCs.
+`Check` is signed with the **T-0 Network's** keypair, exactly like every other RPC on the endpoint. In practice that means only the Network calls it. It is not usable as a Kubernetes liveness probe — the probe would need the Network's private key. Expose a separate unsigned HTTP endpoint if you need one, or use a TCP connectivity check on the port.
 
 ---
 
