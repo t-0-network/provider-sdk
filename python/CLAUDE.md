@@ -103,9 +103,9 @@ uv run pytest tests/cross_test/ -v
 
 Validates: Keccak256 hash, public key derivation, bidirectional signature verification, and end-to-end server-to-server communication (both ASGI and WSGI).
 
-## SystemService & Versioning
+## Versioning
 
-`new_asgi_app` / `new_wsgi_app` in `provider/handler.py` auto-register `tzero.v1.system.SystemService` (impl in `provider/system.py`). Runtime version: `_version.py` (`__version__`). Full design + maintenance details: [`docs/SYSTEM_SERVICE.md`](../docs/SYSTEM_SERVICE.md), [`docs/VERSIONING.md`](../docs/VERSIONING.md).
+Runtime version: `_version.py` (`__version__`). Full details: [`docs/VERSIONING.md`](../docs/VERSIONING.md).
 
 ## Architecture (Go SDK Mapping)
 

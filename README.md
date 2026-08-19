@@ -106,19 +106,6 @@ For direct SDK usage without the starter:
 - **Signature verification** -- all inbound requests from the T-0 Network are cryptographically verified using `NETWORK_PUBLIC_KEY`. Verification uses raw request body bytes.
 - **Timestamp validation** -- request timestamps must be within +/- 60 seconds of server time. Keep system clocks synchronized (NTP).
 
-## Built-in `SystemService`
-
-Every SDK auto-registers `tzero.v1.system.SystemService` on the customer's gRPC server. Customers do not implement it; bumping the SDK dependency exposes it automatically.
-
-The first RPC, `Health(HealthRequest) returns (HealthResponse)`, returns:
-
-- `services` -- fully-qualified protobuf service names registered on the server (always includes `tzero.v1.system.SystemService` itself)
-- `current_time` -- server wall-clock time (use to detect clock skew)
-- `sdk_version` -- the semver of the SDK build serving the request
-- `sdk_ecosystem` -- which SDK runtime (`SDK_ECOSYSTEM_GO`, `SDK_ECOSYSTEM_NODE`, `SDK_ECOSYSTEM_PYTHON`, `SDK_ECOSYSTEM_JAVA`, `SDK_ECOSYSTEM_CSHARP`)
-
-`Health` calls are signed with the T-0 Network keypair, just like every other provider RPC. Full details: [`docs/SYSTEM_SERVICE.md`](docs/SYSTEM_SERVICE.md).
-
 ## Further Reading
 
 - [T-0 Network Documentation](https://t-0.network/docs)

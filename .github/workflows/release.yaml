@@ -219,7 +219,7 @@ jobs:
           sed -i "s|<Version>.*</Version>|<Version>${VERSION}</Version>|" csharp/sdk/T0.ProviderSdk/T0.ProviderSdk.csproj
           sed -i "s|<Version>.*</Version>|<Version>${VERSION}</Version>|" csharp/starter/T0.ProviderStarter/T0.ProviderStarter.csproj
 
-      # --- Update SDK runtime version constants (read by SystemService.Health) ---
+      # --- Update SDK runtime version constants (they feed the health registry's t0: key) ---
       - name: Update SDK runtime version constants
         run: |
           VERSION="${{ steps.version.outputs.version }}"
@@ -331,7 +331,7 @@ jobs:
             ERRORS=$((ERRORS + 1))
           fi
 
-          # Validate Go SDK runtime version constant (used by SystemService.Health)
+          # Validate Go SDK runtime version constant (feeds the health registry's t0: key)
           GO_RUNTIME_VER=$(grep 'const Version = ' go/sdkversion/version.go | sed 's/.*"\(.*\)".*/\1/')
           if [ "$GO_RUNTIME_VER" != "$VERSION" ]; then
             echo "::error::Go SDK runtime version mismatch: expected $VERSION, got $GO_RUNTIME_VER"

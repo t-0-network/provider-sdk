@@ -20,7 +20,7 @@ The SDK dependency declared in the starter template that gets scaffolded into a 
 
 ### C) Runtime version constant
 
-A constant compiled or bundled into the SDK that is returned by `SystemService.Health.sdk_version`. Read at request time. Independent of package-level version because it must work under packaging modes that lose package metadata (Go binaries with `-trimpath`, jar shading, editable installs, bundlers that tree-shake `package.json`).
+A constant compiled or bundled into the SDK, so the running server can report which SDK build it is. Independent of package-level version because it must work under packaging modes that lose package metadata (Go binaries with `-trimpath`, jar shading, editable installs, bundlers that tree-shake `package.json`).
 
 ---
 
@@ -53,13 +53,23 @@ When a new SDK is published, customer projects scaffolded from the starter shoul
 
 Trade-off: exact-pin gives reproducible scaffolds at the cost of stale starters; floor/floating gives auto-upgrade at the cost of non-deterministic generation. We don't try to unify the strategies — we follow the convention of each ecosystem.
 
-Customer-facing UX details (commands, what to run after a bump): see [`SYSTEM_SERVICE.md` § Per-ecosystem upgrade UX](./SYSTEM_SERVICE.md#per-ecosystem-upgrade-ux).
+### Per-ecosystem upgrade UX
+
+What a customer runs to pick up a new SDK version:
+
+| Ecosystem | Dependency line | Operation to pull new version |
+|---|---|---|
+| Go | `go/starter/template/go.mod` line 9: `github.com/t-0-network/provider-sdk/go vX.Y.Z` (exact) | `go get -u github.com/t-0-network/provider-sdk/go && go mod tidy` |
+| Node | `node/starter/template/package.json`: `"@t-0/provider-sdk": "^X.Y.Z"` (caret) | `npm install` (lockfile bump within same major) |
+| Python | starter `pyproject.toml.template`: `"t0-provider-sdk>=0.1.0"` (floor) | `uv sync` (always picks latest) |
+| Java | `java/starter/template/build.gradle.kts`: `provider-sdk:+` (latest) | `./gradlew build --refresh-dependencies` |
+| C# | `csharp/starter/.../TemplateFiles.cs`: pinned per-CLI release | redownload starter CLI |
 
 ---
 
 ## Why a separate runtime constant?
 
-`SystemService.Health.sdk_version` must report a version even when:
+The SDK must be able to report its own version at runtime even when:
 
 - The Go binary was built with `-trimpath` (no module path / version metadata available).
 - A jar was shaded into a customer's fat jar, losing the `META-INF/MANIFEST.MF` Maven metadata.
@@ -67,6 +77,8 @@ Customer-facing UX details (commands, what to run after a bump): see [`SYSTEM_SE
 - The Node bundle was tree-shaken to remove `package.json` reads.
 
 A small runtime constant (one line of code or a properties file) is the most robust way to bake the version in. Maintaining it is cheap because the release workflow updates all four constants in lockstep with the package-level versions.
+
+What reads it: [`HEALTH_SERVICE.md`](./HEALTH_SERVICE.md).
 
 ---
 
