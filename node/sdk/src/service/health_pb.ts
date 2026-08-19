@@ -5,12 +5,15 @@
 //           buf.gen.yaml pin -- plugin and @bufbuild/protobuf runtime must
 //           agree on major).
 //
-// Regenerate by overwriting this file:
+// Regenerate with the following, which keeps this header and replaces
+// everything from the gRPC copyright line down. Do not just `mv` the generated
+// file over this one -- that would delete these instructions along with it.
 //
 //   cd node/sdk
 //   buf generate buf.build/grpc/grpc --path grpc/health/v1/health.proto \
 //     --template '{"version":"v2","plugins":[{"remote":"buf.build/bufbuild/es:v2.12.0","out":"gen-health","opt":["target=ts","import_extension=js"]}]}'
-//   mv gen-health/grpc/health/v1/health_pb.ts src/service/health_pb.ts
+//   sed '/^\/\/ Copyright 2015 The gRPC Authors/,$d' src/service/health_pb.ts > gen-health/header
+//   cat gen-health/header gen-health/grpc/health/v1/health_pb.ts > src/service/health_pb.ts
 //   rm -rf gen-health
 //
 // Vendored rather than depended on: the equivalent package
