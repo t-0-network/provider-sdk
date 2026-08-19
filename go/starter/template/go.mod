@@ -6,7 +6,7 @@ require (
 	connectrpc.com/connect v1.20.0
 	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1
-	github.com/t-0-network/provider-sdk/go v1.1.26
+	github.com/t-0-network/provider-sdk/go v1.1.27
 	google.golang.org/protobuf v1.36.11
 )
 
@@ -14,6 +14,7 @@ require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20260415201107-50325440f8f2.1 // indirect
 	buf.build/go/protovalidate v1.2.0 // indirect
 	cel.dev/expr v0.25.1 // indirect
+	connectrpc.com/grpchealth v1.5.0 // indirect
 	connectrpc.com/validate v0.6.0 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
 	github.com/btcsuite/btcd/btcec/v2 v2.5.0 // indirect
