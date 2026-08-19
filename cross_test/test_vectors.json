@@ -3,6 +3,10 @@
     "private_key": "6b30303de7b26bfb1222b317a52113357f8bb06de00160b4261a2fef9c8b9bd8",
     "public_key": "044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0"
   },
+  "impostor_keys": {
+    "private_key": "2222222222222222222222222222222222222222222222222222222222222222",
+    "public_key": "04466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f276728176c3c6431f8eeda4538dc37c865e2784f3a9e77d044f33e407797e1278a"
+  },
   "keccak256": [
     {
       "input": "please sign me!",
@@ -22,5 +26,103 @@
     "timestamp_ms": 1706000000000,
     "expected_hash": "49a567a359bf25d9652b24acc5567bc38c93139467c8fcf798f059ada585697e",
     "expected_signature": "dc7cede55d344fb59f10fa71b4915968a9d5c3f811faf7ddd834feb3cdce106539cd605b5a2d5fe35c21f27af92d01a68a06d6e813a613dac40e90a7a7a89181"
-  }
+  },
+  "request_signing_cases": [
+    {
+      "name": "text-body",
+      "body_hex": "74657374207265717565737420626f6479",
+      "timestamp_ms": 1706000000000,
+      "expected_hash": "49a567a359bf25d9652b24acc5567bc38c93139467c8fcf798f059ada585697e",
+      "expected_signature": "dc7cede55d344fb59f10fa71b4915968a9d5c3f811faf7ddd834feb3cdce106539cd605b5a2d5fe35c21f27af92d01a68a06d6e813a613dac40e90a7a7a89181",
+      "note": "The same body and timestamp as request_signing above, as hex."
+    },
+    {
+      "name": "binary-body",
+      "body_hex": "000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f404142434445464748494a4b4c4d4e4f505152535455565758595a5b5c5d5e5f606162636465666768696a6b6c6d6e6f707172737475767778797a7b7c7d7e7f808182838485868788898a8b8c8d8e8f909192939495969798999a9b9c9d9e9fa0a1a2a3a4a5a6a7a8a9aaabacadaeafb0b1b2b3b4b5b6b7b8b9babbbcbdbebfc0c1c2c3c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff",
+      "timestamp_ms": 1706000000000,
+      "expected_hash": "f3c18573988ebdefd8fb9990ee6b363fa6efeb79f23161624864782b16840944",
+      "expected_signature": "5e6f235933060c68ea535ca5931ddbfd8aa9cecee4126d68f591c7dd46f4e6be5278f60506e01d94c21ca360b3190ad514f3e9d429f87824690ab444d0f22c7c",
+      "note": "Every byte value 0x00-0xff: a body that is not text, which is what a protobuf request actually is."
+    },
+    {
+      "name": "grpc-framed-body",
+      "body_hex": "000000001174657374207265717565737420626f6479",
+      "timestamp_ms": 1706000000000,
+      "expected_hash": "5ad365069f66324357330680c9e171afb65dd129642192b638702671a5a8174e",
+      "expected_signature": "18f1c61c1838f554dc84f37f6c13edec2a7de3aeaddf7ddface5b4012f6b3f367889853c85a1e834049b6ca7611765af2a2d2cce80868dda13751607463a32fd",
+      "note": "The text body as it goes on the wire over gRPC: 0x00 || uint32be(length) || message. The network signs the framed bytes when it calls a provider over gRPC and the unframed bytes over Connect, so a provider has to verify against both."
+    },
+    {
+      "name": "empty-body",
+      "body_hex": "",
+      "timestamp_ms": 1706000000000,
+      "expected_hash": "205b5a560465f237a233995387de1c76ce3f5391fc531244d3e4c82bb3da665a",
+      "expected_signature": "5c515d14860086b51fb127e0e821e3db6019a107f2d4778e17081d6cff2718266ca29ec28569a32bfe5c6e94c70d199f7324cf7813ad3f040e58cbad052a7315",
+      "note": "A request with no body: the digest is over the timestamp alone."
+    },
+    {
+      "name": "leading-zero-s",
+      "body_hex": "74657374207265717565737420626f6479",
+      "timestamp_ms": 1706000000138,
+      "expected_hash": "b9934eeb180a75792a9a67eaf4396391623353bd7739a3cc061503d248db4666",
+      "expected_signature": "ff527c2d8f9d47907f5b7cb0507030bce77d8991db094c44addf52c4410f55fc00d7886b2f4dc76cb8fb1a8cf1df2aadca88dc1aada6badb6338f4a29005704b",
+      "note": "The s component starts with a zero byte. A signer that trims leading zeros instead of padding both components to a fixed 32 bytes fails this one and passes every other case."
+    }
+  ],
+  "signature_verification": [
+    {
+      "name": "valid",
+      "body_hex": "74657374207265717565737420626f6479",
+      "timestamp_ms": 1706000000000,
+      "public_key": "044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0",
+      "signature": "dc7cede55d344fb59f10fa71b4915968a9d5c3f811faf7ddd834feb3cdce106539cd605b5a2d5fe35c21f27af92d01a68a06d6e813a613dac40e90a7a7a89181",
+      "valid": true,
+      "note": "The signature from the text-body case."
+    },
+    {
+      "name": "valid-65-byte-signature",
+      "body_hex": "74657374207265717565737420626f6479",
+      "timestamp_ms": 1706000000000,
+      "public_key": "044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0",
+      "signature": "dc7cede55d344fb59f10fa71b4915968a9d5c3f811faf7ddd834feb3cdce106539cd605b5a2d5fe35c21f27af92d01a68a06d6e813a613dac40e90a7a7a8918101",
+      "valid": true,
+      "note": "The same signature with the recovery byte appended. Java and Go emit 65 bytes, Node emits 64, and every verifier takes either and ignores v."
+    },
+    {
+      "name": "wrong-key",
+      "body_hex": "74657374207265717565737420626f6479",
+      "timestamp_ms": 1706000000000,
+      "public_key": "044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0",
+      "signature": "cf0928c28b0859999ecae51481a9733fe1beede0db3a46310fce89ee131a684314c12e2f193198c67bb010e04317fc39dba29f9279629a2ebc9d65ca84b7c0fe",
+      "valid": false,
+      "note": "Signed by impostor_keys, presented under the trusted public key."
+    },
+    {
+      "name": "tampered-body",
+      "body_hex": "74657374207265717565737420626f647a",
+      "timestamp_ms": 1706000000000,
+      "public_key": "044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0",
+      "signature": "dc7cede55d344fb59f10fa71b4915968a9d5c3f811faf7ddd834feb3cdce106539cd605b5a2d5fe35c21f27af92d01a68a06d6e813a613dac40e90a7a7a89181",
+      "valid": false,
+      "note": "The last byte of the body changed after signing."
+    },
+    {
+      "name": "re-stamped-timestamp",
+      "body_hex": "74657374207265717565737420626f6479",
+      "timestamp_ms": 1706000005000,
+      "public_key": "044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0",
+      "signature": "dc7cede55d344fb59f10fa71b4915968a9d5c3f811faf7ddd834feb3cdce106539cd605b5a2d5fe35c21f27af92d01a68a06d6e813a613dac40e90a7a7a89181",
+      "valid": false,
+      "note": "The valid signature replayed under a header five seconds later. The timestamp is inside the digest, so a captured request cannot be restamped."
+    },
+    {
+      "name": "zero-signature",
+      "body_hex": "74657374207265717565737420626f6479",
+      "timestamp_ms": 1706000000000,
+      "public_key": "044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0",
+      "signature": "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "valid": false,
+      "note": "r = s = 0. A verifier that skips the range check on r and s takes this one."
+    }
+  ]
 }

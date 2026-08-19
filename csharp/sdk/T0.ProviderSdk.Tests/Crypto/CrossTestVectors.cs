@@ -122,4 +122,63 @@ public class CrossTestVectors
         // Compare first 64 bytes (r+s) against the cross-language test vector
         Assert.Equal(expectedSignature, HexUtils.BytesToHex(result.Signature[..64]));
     }
+
+    /// <summary>
+    /// Bodies the string-valued request_signing block cannot express: binary, gRPC-framed,
+    /// empty, and one whose signature has a leading zero byte — the case a signer that trims
+    /// instead of padding to a fixed 32 bytes fails, and only that case.
+    /// </summary>
+    [Fact]
+    public void RequestSigningCases_ShouldMatchVectorBytes()
+    {
+        var keys = Vectors.RootElement.GetProperty("keys");
+        var signer = Signer.FromHex(keys.GetProperty("private_key").GetString()!);
+
+        var cases = Vectors.RootElement.GetProperty("request_signing_cases");
+        Assert.NotEmpty(cases.EnumerateArray());
+
+        foreach (var vec in cases.EnumerateArray())
+        {
+            var digest = RequestDigest(vec);
+            Assert.Equal(vec.GetProperty("expected_hash").GetString()!, HexUtils.BytesToHex(digest));
+
+            var result = signer.Sign(digest);
+            Assert.Equal(
+                vec.GetProperty("expected_signature").GetString()!,
+                HexUtils.BytesToHex(result.Signature[..64]));
+        }
+    }
+
+    /// <summary>
+    /// The presented-request cases, including the ones a provider has to refuse.
+    /// </summary>
+    [Fact]
+    public void SignatureVerification_ShouldMatchVectorOutcomes()
+    {
+        var cases = Vectors.RootElement.GetProperty("signature_verification");
+        Assert.NotEmpty(cases.EnumerateArray());
+
+        foreach (var vec in cases.EnumerateArray())
+        {
+            var publicKey = HexUtils.HexToBytes(vec.GetProperty("public_key").GetString()!);
+            var signature = HexUtils.HexToBytes(vec.GetProperty("signature").GetString()!);
+
+            Assert.Equal(
+                vec.GetProperty("valid").GetBoolean(),
+                SignatureVerifier.Verify(publicKey, RequestDigest(vec), signature));
+        }
+    }
+
+    /// <summary>
+    /// What the middleware hashes: the raw body with the little-endian timestamp appended.
+    /// </summary>
+    private static byte[] RequestDigest(JsonElement vec)
+    {
+        var body = HexUtils.HexToBytes(vec.GetProperty("body_hex").GetString()!);
+
+        var tsBytes = new byte[8];
+        BinaryPrimitives.WriteUInt64LittleEndian(tsBytes, (ulong)vec.GetProperty("timestamp_ms").GetInt64());
+
+        return Keccak256.Hash(body, tsBytes);
+    }
 }
