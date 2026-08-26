@@ -2,10 +2,8 @@ import { Code, ConnectError } from "@connectrpc/connect";
 import type { Interceptor } from "@connectrpc/connect";
 import { createValidator } from "@bufbuild/protovalidate";
 import { createValidateInterceptor } from "@connectrpc/validate";
-import type { DescMessage, MessageShape } from "@bufbuild/protobuf";
+import type { DescMessage, MessageShape, Registry } from "@bufbuild/protobuf";
 import { SDK_VERSION } from "../version.js";
-
-const validator = createValidator();
 
 /**
  * Minimal logger contract accepted by the SDK. Providers may pass `console`
@@ -15,6 +13,11 @@ const validator = createValidator();
  */
 export interface Logger {
   error(msg: string, fields?: Record<string, unknown>): void;
+}
+
+export interface ValidationInterceptorOptions {
+  logger?: Logger;
+  registry?: Registry;
 }
 
 const defaultLogger: Logger = {
@@ -35,8 +38,14 @@ const defaultLogger: Logger = {
  * fields) before the `Code.Internal` error is thrown. This is the safety net
  * for handler code paths that skipped the public `validate()` helper.
  */
-export function createValidationInterceptor(logger: Logger = defaultLogger): Interceptor {
-  const requestInterceptor = createValidateInterceptor();
+export function createValidationInterceptor(loggerOrOptions?: Logger | ValidationInterceptorOptions): Interceptor {
+  const opts: ValidationInterceptorOptions =
+    loggerOrOptions && typeof (loggerOrOptions as Logger).error === "function"
+      ? { logger: loggerOrOptions as Logger }
+      : (loggerOrOptions as ValidationInterceptorOptions | undefined) ?? {};
+  const logger = opts.logger ?? defaultLogger;
+  const validator = createValidator(opts.registry ? { registry: opts.registry } : undefined);
+  const requestInterceptor = createValidateInterceptor({ validator });
 
   return (next) => async (req) => {
     // Validate request (delegates to official interceptor which throws on invalid)

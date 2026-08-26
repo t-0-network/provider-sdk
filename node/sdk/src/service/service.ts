@@ -11,7 +11,7 @@ import type { Interceptor } from "@connectrpc/connect";
 import NetworkHeaders from "../common/headers.js";
 import {Hash} from "@noble/hashes/utils.js";
 import { verifySignature } from '../crypto/verify.js';
-import type {DescService, } from "@bufbuild/protobuf";
+import type {DescService, Registry} from "@bufbuild/protobuf";
 import type {ServiceImpl} from "@connectrpc/connect";
 import {createValidationInterceptor, type Logger} from "./validate_response.js";
 import {Health} from "./health_pb.js";
@@ -26,6 +26,15 @@ export interface CreateServiceOptions {
    * If omitted, the SDK logs to `console.error` with a JSON-encoded payload.
    */
   logger?: Logger;
+
+  /**
+   * Protobuf registry for resolving custom protovalidate predefined-rule
+   * extensions. Without it the validator throws on any schema that references
+   * an unknown extension.
+   *
+   * Build one with `createRegistry(file_my_validate)` from `@bufbuild/protobuf`.
+   */
+  registry?: Registry;
 }
 
 export const REQUEST_VALIDITY_MILLIS = 60_000;
@@ -90,7 +99,7 @@ export const createService = (
       collected.push(Health.typeName);
       origService(Health, createHealthServiceImpl(collected));
     },
-    interceptors: [createSignatureVerification(networkPublicKey), createValidationInterceptor(options?.logger)],
+    interceptors: [createSignatureVerification(networkPublicKey), createValidationInterceptor({ logger: options?.logger, registry: options?.registry })],
     grpcWeb: false,
     contextValues: (req: any) => {
       return createContextValues().set(kHash, (req as any).hasher as Hash<Hash<any>>)
