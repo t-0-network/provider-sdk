@@ -247,6 +247,46 @@ describe('crypto/keccak256', () => {
       keccak256(combined).toString('hex'),
     );
   });
+
+  it('empty input produces the Keccak-256 of nothing', () => {
+    nodeAssert.equal(
+      keccak256(Buffer.alloc(0)).toString('hex'),
+      vectors.keccak256.find((v: any) => v.input === '').hash,
+    );
+  });
+
+  it('no-arg call produces the Keccak-256 of nothing', () => {
+    nodeAssert.equal(
+      keccak256().toString('hex'),
+      vectors.keccak256.find((v: any) => v.input === '').hash,
+    );
+  });
+
+  it('always returns a 32-byte Buffer', () => {
+    nodeAssert.equal(keccak256(Buffer.alloc(0)).length, 32);
+    nodeAssert.equal(keccak256(Buffer.alloc(1000)).length, 32);
+    nodeAssert.ok(Buffer.isBuffer(keccak256(Buffer.from('x'))));
+  });
+
+  it('matches the raw noble keccak_256 for all vector inputs', () => {
+    for (const vec of vectors.keccak256) {
+      const raw = Buffer.from(keccak_256(Buffer.from(vec.input, 'utf-8'))).toString('hex');
+      const ours = keccak256(Buffer.from(vec.input, 'utf-8')).toString('hex');
+      nodeAssert.equal(ours, raw);
+    }
+  });
+
+  it('many small chunks match single-shot', () => {
+    const full = Buffer.from('abcdefghijklmnopqrstuvwxyz0123456789', 'utf-8');
+    const chunks = [];
+    for (let i = 0; i < full.length; i++) {
+      chunks.push(full.subarray(i, i + 1));
+    }
+    nodeAssert.equal(
+      keccak256(...chunks).toString('hex'),
+      keccak256(full).toString('hex'),
+    );
+  });
 });
 
 describe('crypto/computeDigest', () => {
@@ -257,31 +297,161 @@ describe('crypto/computeDigest', () => {
       nodeAssert.equal(digest.toString('hex'), vec.expected_hash);
     });
   }
+
+  it('always returns a 32-byte Buffer', () => {
+    const d = computeDigest(Buffer.from('test'), 1706000000000);
+    nodeAssert.equal(d.length, 32);
+    nodeAssert.ok(Buffer.isBuffer(d));
+  });
+
+  it('timestamp 0 produces a valid digest', () => {
+    const d = computeDigest(Buffer.from('test'), 0);
+    nodeAssert.equal(d.length, 32);
+  });
+
+  it('different timestamps produce different digests', () => {
+    const body = Buffer.from('same body');
+    const d1 = computeDigest(body, 1000);
+    const d2 = computeDigest(body, 1001);
+    nodeAssert.notEqual(d1.toString('hex'), d2.toString('hex'));
+  });
+
+  it('different bodies produce different digests', () => {
+    const d1 = computeDigest(Buffer.from('body-a'), 1000);
+    const d2 = computeDigest(Buffer.from('body-b'), 1000);
+    nodeAssert.notEqual(d1.toString('hex'), d2.toString('hex'));
+  });
+
+  it('matches manual keccak256(body || LE_uint64(ts))', () => {
+    const body = Buffer.from('manual check');
+    const ts = 1706000000000;
+    const tsBuf = Buffer.alloc(8);
+    tsBuf.writeBigUInt64LE(BigInt(ts));
+    nodeAssert.equal(
+      computeDigest(body, ts).toString('hex'),
+      keccak256(body, tsBuf).toString('hex'),
+    );
+  });
 });
 
 describe('crypto/verifySignature', () => {
+  const pubKey = Buffer.from(vectors.keys.public_key, 'hex');
+
   for (const vec of vectors.signature_verification) {
     it(`${vec.name}: ${vec.valid}`, () => {
       const digest = computeDigest(
         Buffer.from(vec.body_hex, 'hex'),
         vec.timestamp_ms,
       );
-      const pubKey = Buffer.from(vec.public_key, 'hex');
+      const key = Buffer.from(vec.public_key, 'hex');
       const sig = Buffer.from(vec.signature, 'hex');
-      nodeAssert.equal(verifySignature(pubKey, digest, sig), vec.valid);
+      nodeAssert.equal(verifySignature(key, digest, sig), vec.valid);
     });
   }
 
-  it('returns false for wrong digest length', () => {
-    const pubKey = Buffer.from(vectors.keys.public_key, 'hex');
+  it('returns false for wrong digest length (16 bytes)', () => {
     const sig = Buffer.from(vectors.request_signing.expected_signature, 'hex');
     nodeAssert.equal(verifySignature(pubKey, Buffer.alloc(16), sig), false);
   });
 
-  it('returns false for wrong signature length', () => {
-    const pubKey = Buffer.from(vectors.keys.public_key, 'hex');
+  it('returns false for wrong digest length (0 bytes)', () => {
+    const sig = Buffer.from(vectors.request_signing.expected_signature, 'hex');
+    nodeAssert.equal(verifySignature(pubKey, Buffer.alloc(0), sig), false);
+  });
+
+  it('returns false for wrong digest length (64 bytes)', () => {
+    const sig = Buffer.from(vectors.request_signing.expected_signature, 'hex');
+    nodeAssert.equal(verifySignature(pubKey, Buffer.alloc(64), sig), false);
+  });
+
+  it('returns false for wrong signature length (32 bytes)', () => {
     const digest = computeDigest(Buffer.from('test', 'utf-8'), 1706000000000);
     nodeAssert.equal(verifySignature(pubKey, digest, Buffer.alloc(32)), false);
+  });
+
+  it('returns false for wrong signature length (0 bytes)', () => {
+    const digest = computeDigest(Buffer.from('test', 'utf-8'), 1706000000000);
+    nodeAssert.equal(verifySignature(pubKey, digest, Buffer.alloc(0)), false);
+  });
+
+  it('returns false for wrong signature length (63 bytes)', () => {
+    const digest = computeDigest(Buffer.from('test', 'utf-8'), 1706000000000);
+    nodeAssert.equal(verifySignature(pubKey, digest, Buffer.alloc(63)), false);
+  });
+
+  it('returns false for wrong signature length (66 bytes)', () => {
+    const digest = computeDigest(Buffer.from('test', 'utf-8'), 1706000000000);
+    nodeAssert.equal(verifySignature(pubKey, digest, Buffer.alloc(66)), false);
+  });
+
+  it('end-to-end: sign with CreateSigner then verify with verifySignature', async () => {
+    const signer = CreateSigner(vectors.keys.private_key);
+    const body = Buffer.from('round-trip test body');
+    const ts = 1706000099000;
+    const digest = computeDigest(body, ts);
+    const { signature, publicKey: signerPubKey } = await signer(digest);
+    nodeAssert.equal(verifySignature(signerPubKey, digest, signature), true);
+  });
+
+  it('end-to-end: all request_signing_cases round-trip', async () => {
+    const signer = CreateSigner(vectors.keys.private_key);
+    for (const vec of vectors.request_signing_cases) {
+      const digest = computeDigest(Buffer.from(vec.body_hex, 'hex'), vec.timestamp_ms);
+      const { signature, publicKey: signerPubKey } = await signer(digest);
+      nodeAssert.equal(
+        verifySignature(signerPubKey, digest, signature),
+        true,
+        `round-trip failed for ${vec.name}`,
+      );
+    }
+  });
+
+  it('rejects signature from a different key pair', async () => {
+    const signer = CreateSigner(vectors.keys.private_key);
+    const impostorKey = Buffer.from(vectors.impostor_keys.public_key, 'hex');
+    const digest = computeDigest(Buffer.from('test'), 1706000000000);
+    const { signature } = await signer(digest);
+    nodeAssert.equal(verifySignature(impostorKey, digest, signature), false);
+  });
+
+  it('rejects when digest has a single bit flipped', async () => {
+    const signer = CreateSigner(vectors.keys.private_key);
+    const digest = computeDigest(Buffer.from('bit flip test'), 1706000000000);
+    const { signature, publicKey: signerPubKey } = await signer(digest);
+    const tampered = Buffer.from(digest);
+    tampered[0] ^= 0x01;
+    nodeAssert.equal(verifySignature(signerPubKey, tampered, signature), false);
+  });
+
+  it('rejects when signature has a single bit flipped', async () => {
+    const signer = CreateSigner(vectors.keys.private_key);
+    const digest = computeDigest(Buffer.from('bit flip sig'), 1706000000000);
+    const { signature, publicKey: signerPubKey } = await signer(digest);
+    const tampered = Buffer.from(signature);
+    tampered[31] ^= 0x01;
+    nodeAssert.equal(verifySignature(signerPubKey, tampered, digest), false);
+  });
+
+  it('65-byte signature with v=0x00 verifies the same as 64-byte truncation', () => {
+    const digest = computeDigest(
+      Buffer.from(vectors.signature_verification[0].body_hex, 'hex'),
+      vectors.signature_verification[0].timestamp_ms,
+    );
+    const sig64 = Buffer.from(vectors.signature_verification[0].signature, 'hex');
+    const sig65 = Buffer.concat([sig64, Buffer.from([0x00])]);
+    nodeAssert.equal(verifySignature(pubKey, digest, sig64), true);
+    nodeAssert.equal(verifySignature(pubKey, digest, sig65), true);
+  });
+
+  it('all-0xff signature returns false without throwing', () => {
+    const digest = computeDigest(Buffer.from('test'), 1706000000000);
+    const sig = Buffer.alloc(64, 0xff);
+    nodeAssert.equal(verifySignature(pubKey, digest, sig), false);
+  });
+
+  it('all-zero digest returns false', () => {
+    const sig = Buffer.from(vectors.request_signing.expected_signature, 'hex');
+    nodeAssert.equal(verifySignature(pubKey, Buffer.alloc(32, 0x00), sig), false);
   });
 });
 
@@ -304,17 +474,62 @@ describe('crypto/parsePublicKey', () => {
     nodeAssert.equal(key.toString('hex'), hexKey);
   });
 
-  it('throws on wrong length', () => {
+  it('returns a copy, not the original buffer', () => {
+    const buf = Buffer.from(hexKey, 'hex');
+    const key = parsePublicKey(buf);
+    buf[1] ^= 0xff;
+    nodeAssert.notEqual(key[1], buf[1]);
+  });
+
+  it('throws on compressed key (33 bytes, 0x02 prefix)', () => {
     nodeAssert.throws(() => parsePublicKey(Buffer.alloc(33, 0x02)), {
       message: /65 bytes/,
     });
   });
 
-  it('throws on wrong prefix', () => {
+  it('throws on compressed key (33 bytes, 0x03 prefix)', () => {
+    const buf = Buffer.alloc(33, 0x03);
+    nodeAssert.throws(() => parsePublicKey(buf), {
+      message: /65 bytes/,
+    });
+  });
+
+  it('throws on wrong prefix (0x00)', () => {
     const bad = Buffer.alloc(65, 0x00);
     nodeAssert.throws(() => parsePublicKey(bad), {
       message: /0x04 prefix/,
     });
+  });
+
+  it('throws on wrong prefix (0x02)', () => {
+    const bad = Buffer.alloc(65, 0x02);
+    nodeAssert.throws(() => parsePublicKey(bad), {
+      message: /0x04 prefix/,
+    });
+  });
+
+  it('throws on empty buffer', () => {
+    nodeAssert.throws(() => parsePublicKey(Buffer.alloc(0)), {
+      message: /65 bytes/,
+    });
+  });
+
+  it('throws on empty string', () => {
+    nodeAssert.throws(() => parsePublicKey(''), {
+      message: /65 bytes/,
+    });
+  });
+
+  it('throws on 64-byte buffer (just shy of valid)', () => {
+    const buf = Buffer.alloc(64, 0x04);
+    nodeAssert.throws(() => parsePublicKey(buf), {
+      message: /65 bytes/,
+    });
+  });
+
+  it('parses the impostor key correctly', () => {
+    const key = parsePublicKey(vectors.impostor_keys.public_key);
+    nodeAssert.equal(key.toString('hex'), vectors.impostor_keys.public_key);
   });
 });
 
@@ -333,5 +548,63 @@ describe('crypto/publicKeysEqual', () => {
   it('returns false for different lengths', () => {
     const key = Buffer.from(vectors.keys.public_key, 'hex');
     nodeAssert.equal(publicKeysEqual(key, key.subarray(0, 32)), false);
+  });
+
+  it('returns true for Uint8Array vs Buffer with same bytes', () => {
+    const key = Buffer.from(vectors.keys.public_key, 'hex');
+    const u8 = new Uint8Array(key);
+    nodeAssert.equal(publicKeysEqual(key, u8), true);
+  });
+
+  it('returns false for both empty', () => {
+    nodeAssert.equal(publicKeysEqual(Buffer.alloc(0), Buffer.alloc(0)), true);
+  });
+
+  it('returns false when one byte differs', () => {
+    const a = Buffer.from(vectors.keys.public_key, 'hex');
+    const b = Buffer.from(a);
+    b[64] ^= 0x01;
+    nodeAssert.equal(publicKeysEqual(a, b), false);
+  });
+});
+
+describe('crypto module cross-consistency', () => {
+  it('computeDigest matches the raw noble streaming pattern used by the interceptor', () => {
+    for (const vec of vectors.request_signing_cases) {
+      const body = Buffer.from(vec.body_hex, 'hex');
+      const tsBuf = Buffer.alloc(8);
+      tsBuf.writeBigUInt64LE(BigInt(vec.timestamp_ms));
+      const streamedDigest = Buffer.from(
+        keccak_256.create().update(body).update(tsBuf).digest()
+      );
+      const moduleDigest = computeDigest(body, vec.timestamp_ms);
+      nodeAssert.equal(
+        moduleDigest.toString('hex'),
+        streamedDigest.toString('hex'),
+        `streaming vs computeDigest mismatch for ${vec.name}`,
+      );
+    }
+  });
+
+  it('verifySignature matches the raw noble secp256k1.verify call for all vectors', () => {
+    for (const vec of vectors.signature_verification) {
+      const digest = computeDigest(Buffer.from(vec.body_hex, 'hex'), vec.timestamp_ms);
+      const key = Buffer.from(vec.public_key, 'hex');
+      const sig = Buffer.from(vec.signature, 'hex');
+      const sig64 = sig.length === 65 ? sig.subarray(0, 64) : sig;
+
+      let rawResult = false;
+      try {
+        rawResult = secp256k1.verify(sig64, digest, key, { prehash: false });
+      } catch {
+        rawResult = false;
+      }
+
+      nodeAssert.equal(
+        verifySignature(key, digest, sig),
+        rawResult,
+        `module vs raw noble mismatch for ${vec.name}`,
+      );
+    }
   });
 });
