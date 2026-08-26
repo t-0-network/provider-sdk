@@ -14,8 +14,8 @@ import {Hash} from "@noble/hashes/utils.js";
 import type {DescService, } from "@bufbuild/protobuf";
 import type {ServiceImpl} from "@connectrpc/connect";
 import {createValidationInterceptor, type Logger} from "./validate_response.js";
-import {SystemService} from "../common/gen/tzero/v1/system/system_pb.js";
-import {createSystemServiceImpl} from "./system.js";
+import {Health} from "./health_pb.js";
+import {createHealthServiceImpl} from "./health.js";
 
 export interface CreateServiceOptions {
   /**

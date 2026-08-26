@@ -108,6 +108,7 @@ The SDK exports a generic `validate()` helper. Wrap responses with it to surface
 from t0_provider_sdk import validate
 from t0_provider_sdk.api.tzero.v1.payment.provider_pb2 import PayoutResponse
 
+
 async def pay_out(self, request, ctx):
     return validate(PayoutResponse(...))
 ```

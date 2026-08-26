@@ -39,7 +39,7 @@ final class HealthServiceImpl extends HealthGrpc.HealthImplBase {
             Metadata.Key.of("t0-sdk-version", Metadata.ASCII_STRING_MARSHALLER);
 
     private static final String SDK_ECOSYSTEM = "java";
-    private static final String SDK_VERSION = loadSdkVersion();
+    static final String SDK_VERSION = loadSdkVersion();
 
     private static final HealthCheckResponse SERVING = HealthCheckResponse.newBuilder()
             .setStatus(HealthCheckResponse.ServingStatus.SERVING)

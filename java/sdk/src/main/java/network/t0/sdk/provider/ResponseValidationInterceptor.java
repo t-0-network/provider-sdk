@@ -119,7 +119,7 @@ public final class ResponseValidationInterceptor implements ServerInterceptor {
                 .addKeyValue("rpc_method", rpcMethod)
                 .addKeyValue("response_type", responseType)
                 .addKeyValue("violations", violations)
-                .addKeyValue("sdk_version", SystemServiceImpl.SDK_VERSION)
+                .addKeyValue("sdk_version", HealthServiceImpl.SDK_VERSION)
                 .log();
     }
 
