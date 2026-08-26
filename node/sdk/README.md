@@ -62,14 +62,15 @@ const server = http.createServer(
 server.listen(3000);
 ```
 
-The middleware chain: `signatureValidation` captures raw request bytes for hashing, `nodeAdapter` bridges ConnectRPC to Node.js HTTP, and `createService` registers your handlers with signature verification.
+The middleware chain: `signatureValidation` captures raw request bytes for hashing, `nodeAdapter` bridges the RPC transport to Node.js HTTP, and `createService` registers your handlers with signature verification.
 
 ### Standalone Signature Verification
 
 For frameworks that don't use Node's `http.createServer` (Effect, Koa, Fastify, etc.), use `createRequestVerifier` to verify inbound requests with just the raw body bytes and headers:
 
 ```ts
-import { createRequestVerifier, parsePublicKey } from "@t-0/provider-sdk";
+import { fromBinary, toBinary } from "@bufbuild/protobuf";
+import { createRequestVerifier, PayoutRequestSchema, PayoutResponseSchema } from "@t-0/provider-sdk";
 
 const verify = createRequestVerifier({
   networkPublicKey: process.env.NETWORK_PUBLIC_KEY!,
@@ -91,7 +92,14 @@ function handleRequest(rawBody: Uint8Array, headers: Record<string, string>) {
     return errorResponse(result.reason);
   }
 
-  // Request is authenticated — parse the protobuf body and handle it
+  // Deserialize the Protobuf request (same raw bytes you verified)
+  const request = fromBinary(PayoutRequestSchema, rawBody);
+  const response = handlePayout(request);
+
+  // Serialize the Protobuf response
+  return successResponse(toBinary(PayoutResponseSchema, response), {
+    "content-type": "application/proto",
+  });
 }
 ```
 
