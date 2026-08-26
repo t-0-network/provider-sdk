@@ -95,7 +95,16 @@ function handleRequest(rawBody: Uint8Array, headers: Record<string, string>) {
 }
 ```
 
-The lower-level primitives are also exported individually: `verifySignature`, `computeDigest`, `keccak256`, `parsePublicKey`, `publicKeysEqual`.
+The lower-level primitives are also exported individually: `verifySignature`, `computeDigest`, `keccak256`, `parsePublicKey`, `publicKeysEqual`. You can also import just the crypto module without pulling in ConnectRPC: `import { createRequestVerifier } from "@t-0/provider-sdk/crypto"`.
+
+**Important constraints for standalone integrations:**
+
+- **Raw body bytes only.** Pass the exact wire bytes to the verifier — no body parsers, no auto-decompression, never re-serialized protobuf. Protobuf encoding is not canonical; re-encoding produces different bytes and breaks verification.
+- **Pass `Uint8Array`, not `ArrayBuffer`.** If your framework gives you an `ArrayBuffer` (e.g. `request.arrayBuffer()`), wrap it: `new Uint8Array(buf)`.
+- **Header case.** `NetworkHeaders` enum values are title-case (`X-Signature`), but Node lowercases incoming headers. Look up headers by lowercase name: `headers["x-signature"]`.
+- **Connect error format.** Return errors as JSON `{ "code": "unauthenticated", "message": "..." }` with the mapped HTTP status (401 for unauthenticated). A bare HTTP status code is not a valid Connect error response.
+- **Health endpoint.** The T-0 Network probes `/grpc.health.v1.Health/Check` on every endpoint. The probe is signed. Standalone integrations must route this path and return a valid health response. See [`docs/HEALTH_SERVICE.md`](../docs/HEALTH_SERVICE.md) for the wire contract.
+- **`VerifyRequestFailure` is an open union.** New reason values may be added without a major version bump. Handle unknown reasons as generic failures.
 
 ### Network Client
 

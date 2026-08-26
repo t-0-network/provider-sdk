@@ -55,21 +55,23 @@ export function createRequestVerifier(opts: CreateVerifierOptions): RequestVerif
       return { valid: false, reason: 'unknown_public_key' };
     }
 
-    let signature: Buffer;
-    try {
-      const hex = req.signatureHeader.startsWith('0x')
-        ? req.signatureHeader.slice(2)
-        : req.signatureHeader;
-      signature = Buffer.from(hex, 'hex');
-    } catch {
+    const sigHex = req.signatureHeader.startsWith('0x')
+      ? req.signatureHeader.slice(2)
+      : req.signatureHeader;
+    if (!/^[0-9a-fA-F]*$/.test(sigHex)) {
       return { valid: false, reason: 'invalid_signature_format' };
     }
+    const signature = Buffer.from(sigHex, 'hex');
 
     if (signature.length !== 64 && signature.length !== 65) {
       return { valid: false, reason: 'invalid_signature_format' };
     }
 
-    const digest = computeDigest(req.body, ts);
+    const body = req.body instanceof Buffer || ArrayBuffer.isView(req.body)
+      ? req.body
+      : new Uint8Array(req.body as ArrayBufferLike);
+
+    const digest = computeDigest(body, ts);
 
     if (!verifySignature(publicKey, digest, signature)) {
       return { valid: false, reason: 'signature_failed' };
