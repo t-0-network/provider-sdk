@@ -30,5 +30,5 @@ dev = [
     "pytest-asyncio>=1.4.0",
     "ruff>=0.15.20",
     "mypy>=2.3.1",
-    "uvicorn>=0.50.2",
+    "uvicorn>=0.52.4",
 ]
