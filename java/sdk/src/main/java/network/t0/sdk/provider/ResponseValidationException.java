@@ -22,26 +22,31 @@ public final class ResponseValidationException extends RuntimeException {
     private static final long serialVersionUID = 1L;
 
     private final String violations;
+    private final String responseType;
 
     /**
      * Creates a new exception describing one or more protovalidate violations.
      *
-     * @param violations human-readable violation list (as produced by
-     *                   {@link network.t0.sdk.common.ValidationUtils#formatViolations})
+     * @param responseType the proto message type's fully qualified name
+     * @param violations   human-readable violation list (as produced by
+     *                     {@link network.t0.sdk.common.ValidationUtils#formatViolations})
      */
-    public ResponseValidationException(String violations) {
+    public ResponseValidationException(String responseType, String violations) {
         super("response validation failed: " + violations);
+        this.responseType = responseType;
         this.violations = violations;
     }
 
     /**
      * Creates a new exception wrapping an underlying validator error.
      *
-     * @param violations human-readable violation list
-     * @param cause      the underlying cause (e.g. a {@code ValidationException} from protovalidate)
+     * @param responseType the proto message type's fully qualified name
+     * @param violations   human-readable violation list
+     * @param cause        the underlying cause (e.g. a {@code ValidationException} from protovalidate)
      */
-    public ResponseValidationException(String violations, Throwable cause) {
+    public ResponseValidationException(String responseType, String violations, Throwable cause) {
         super("response validation failed: " + violations, cause);
+        this.responseType = responseType;
         this.violations = violations;
     }
 
@@ -50,5 +55,12 @@ public final class ResponseValidationException extends RuntimeException {
      */
     public String getViolations() {
         return violations;
+    }
+
+    /**
+     * @return the fully qualified proto message type name
+     */
+    public String getResponseType() {
+        return responseType;
     }
 }

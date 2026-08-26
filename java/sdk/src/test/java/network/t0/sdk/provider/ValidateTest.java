@@ -50,6 +50,7 @@ class ValidateTest {
         assertThat(ex.getViolations()).isNotEmpty();
         assertThat(ex.getViolations()).doesNotStartWith("response validation failed");
         assertThat(ex.getMessage()).isEqualTo("response validation failed: " + ex.getViolations());
+        assertThat(ex.getResponseType()).isEqualTo("tzero.v1.common.Decimal");
     }
 
     @Test

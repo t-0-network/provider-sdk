@@ -102,3 +102,8 @@ class ValidationInterceptorSync:
             _log_validation_failure(self._logger, response, ctx, e)
             raise ConnectError(Code.INTERNAL, f"response validation failed: {e}") from e
         return response
+
+
+# Backwards-compatible aliases
+ResponseValidationInterceptor = ValidationInterceptor
+ResponseValidationInterceptorSync = ValidationInterceptorSync

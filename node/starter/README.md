@@ -103,10 +103,7 @@ npm run lint       # Lint TypeScript source with ESLint
 
 ## Configuring logging
 
-The SDK emits structured `error`-level log lines for events that would otherwise be silent to your code:
-
-1. **Response validation failures** — when a handler returns a message that fails its `buf.validate` rules, the SDK's safety-net interceptor still produces a `Code.Internal` wire response, but first writes a line with the RPC method, response type, violations, and SDK version. Call `validate(Schema, resp)` inside the handler (see `src/service.ts`) if you want the failure raised on your own stack frame instead.
-2. **Signature-verification failures** — when an incoming request fails signature/timestamp checks (handled out-of-band of the gRPC interceptor stack, but using the same logger surface for symmetry).
+The SDK emits a structured `error`-level log line when a handler returns a response that fails its `buf.validate` rules. The safety-net interceptor still produces a `Code.Internal` wire response, but first writes a line with the RPC method, response type, violations, and SDK version. Call `validate(Schema, resp)` inside the handler (see `src/service.ts`) if you want the failure raised on your own stack frame instead.
 
 ### Default logger
 
@@ -136,7 +133,7 @@ createService(networkPublicKeyHex, (r) => { /* ... */ }, {
 });
 ```
 
-Same shape works for winston, bunyan, or any custom transport — the SDK only needs `error(msg, fields)` to exist. The same logger is used for every SDK log site, so configuring it once covers both validation and signature-verification failures.
+Same shape works for winston, bunyan, or any custom transport — the SDK only needs `error(msg, fields)` to exist.
 
 ## Deployment
 

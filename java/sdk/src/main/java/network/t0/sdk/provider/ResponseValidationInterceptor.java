@@ -98,7 +98,7 @@ public final class ResponseValidationInterceptor implements ServerInterceptor {
                 try {
                     action.run();
                 } catch (ResponseValidationException e) {
-                    logFailure(rpcMethod, "unknown", e.getViolations());
+                    logFailure(rpcMethod, e.getResponseType(), e.getViolations());
                     call.close(Status.INTERNAL.withDescription(e.getMessage()), new Metadata());
                 }
             }

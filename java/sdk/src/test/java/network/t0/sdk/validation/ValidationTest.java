@@ -293,7 +293,7 @@ class ValidationTest {
             // happens when a handler calls Validate.check(...) and lets it propagate).
             ServerCallHandler<Decimal, Decimal> handler = (call, metadata) -> new ServerCall.Listener<>() {
                 @Override public void onHalfClose() {
-                    throw new network.t0.sdk.provider.ResponseValidationException("field: must be > 0");
+                    throw new network.t0.sdk.provider.ResponseValidationException("tzero.v1.common.Decimal", "field: must be > 0");
                 }
             };
 

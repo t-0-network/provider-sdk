@@ -50,14 +50,15 @@ public final class Validate {
         if (msg == null) {
             return null;
         }
+        String responseType = msg.getDescriptorForType().getFullName();
         try {
             ValidationResult result = Validators.shared().validate(msg);
             if (!result.isSuccess()) {
-                throw new ResponseValidationException(ValidationUtils.formatViolations(result));
+                throw new ResponseValidationException(responseType, ValidationUtils.formatViolations(result));
             }
             return msg;
         } catch (ValidationException e) {
-            throw new ResponseValidationException(e.getMessage(), e);
+            throw new ResponseValidationException(responseType, e.getMessage(), e);
         }
     }
 }
