@@ -1,3 +1,5 @@
 export { verifySignature } from './verify.js'
 export { keccak256, computeDigest } from './hash.js'
 export { parsePublicKey, publicKeysEqual } from './keys.js'
+export { createRequestVerifier, DEFAULT_TOLERANCE_MS } from './request.js'
+export type { CreateVerifierOptions, VerifyRequest, VerifyRequestResult, VerifyRequestFailure, RequestVerifier } from './request.js'

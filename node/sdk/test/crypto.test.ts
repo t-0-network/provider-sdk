@@ -3,7 +3,8 @@ import * as nodeAssert from 'node:assert/strict';
 import { keccak_256 } from '@noble/hashes/sha3.js';
 import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { CreateSigner } from '../src/client/signer.js';
-import { verifySignature, keccak256, computeDigest, parsePublicKey, publicKeysEqual } from '../src/crypto/index.js';
+import { verifySignature, keccak256, computeDigest, parsePublicKey, publicKeysEqual, createRequestVerifier, DEFAULT_TOLERANCE_MS } from '../src/crypto/index.js';
+import type { VerifyRequest } from '../src/crypto/index.js';
 import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -606,5 +607,193 @@ describe('crypto module cross-consistency', () => {
         `module vs raw noble mismatch for ${vec.name}`,
       );
     }
+  });
+});
+
+describe('crypto/createRequestVerifier', () => {
+  const verify = createRequestVerifier({
+    networkPublicKey: vectors.keys.public_key,
+    toleranceMs: Infinity, // disable time check for deterministic tests
+  });
+
+  function makeReq(overrides?: Partial<VerifyRequest>): VerifyRequest {
+    const vec = vectors.signature_verification[0]; // "valid" case
+    return {
+      body: Buffer.from(vec.body_hex, 'hex'),
+      signatureHeader: '0x' + vec.signature,
+      publicKeyHeader: '0x' + vec.public_key,
+      timestampHeader: String(vec.timestamp_ms),
+      ...overrides,
+    };
+  }
+
+  it('accepts a valid request (time check disabled)', () => {
+    const result = verify(makeReq());
+    nodeAssert.deepStrictEqual(result, { valid: true });
+  });
+
+  it('accepts all signature_verification valid cases', () => {
+    for (const vec of vectors.signature_verification) {
+      if (!vec.valid) continue;
+      const result = verify(makeReq({
+        body: Buffer.from(vec.body_hex, 'hex'),
+        signatureHeader: '0x' + vec.signature,
+        publicKeyHeader: '0x' + vec.public_key,
+        timestampHeader: String(vec.timestamp_ms),
+      }));
+      nodeAssert.deepStrictEqual(result, { valid: true }, `expected valid for ${vec.name}`);
+    }
+  });
+
+  it('rejects all signature_verification invalid cases', () => {
+    for (const vec of vectors.signature_verification) {
+      if (vec.valid) continue;
+      const result = verify(makeReq({
+        body: Buffer.from(vec.body_hex, 'hex'),
+        signatureHeader: '0x' + vec.signature,
+        publicKeyHeader: '0x' + vec.public_key,
+        timestampHeader: String(vec.timestamp_ms),
+      }));
+      nodeAssert.equal(result.valid, false, `expected invalid for ${vec.name}`);
+    }
+  });
+
+  it('rejects non-numeric timestamp', () => {
+    const result = verify(makeReq({ timestampHeader: 'not-a-number' }));
+    nodeAssert.deepStrictEqual(result, { valid: false, reason: 'invalid_timestamp' });
+  });
+
+  it('rejects empty timestamp', () => {
+    const result = verify(makeReq({ timestampHeader: '' }));
+    nodeAssert.deepStrictEqual(result, { valid: false, reason: 'invalid_timestamp' });
+  });
+
+  it('rejects negative timestamp', () => {
+    const result = verify(makeReq({ timestampHeader: '-1' }));
+    nodeAssert.deepStrictEqual(result, { valid: false, reason: 'invalid_timestamp' });
+  });
+
+  it('rejects expired timestamp with default tolerance', () => {
+    const strictVerify = createRequestVerifier({
+      networkPublicKey: vectors.keys.public_key,
+    });
+    const oldTs = Date.now() - 120_000;
+    const result = strictVerify(makeReq({ timestampHeader: String(oldTs) }));
+    nodeAssert.deepStrictEqual(result, { valid: false, reason: 'timestamp_out_of_range' });
+  });
+
+  it('rejects future timestamp with default tolerance', () => {
+    const strictVerify = createRequestVerifier({
+      networkPublicKey: vectors.keys.public_key,
+    });
+    const futureTs = Date.now() + 120_000;
+    const result = strictVerify(makeReq({ timestampHeader: String(futureTs) }));
+    nodeAssert.deepStrictEqual(result, { valid: false, reason: 'timestamp_out_of_range' });
+  });
+
+  it('accepts timestamp within tolerance (live sign + verify)', async () => {
+    const liveVerify = createRequestVerifier({
+      networkPublicKey: vectors.keys.public_key,
+    });
+    const signer = CreateSigner(vectors.keys.private_key);
+    const body = Buffer.from('fresh request');
+    const ts = Date.now();
+    const digest = computeDigest(body, ts);
+    const { signature, publicKey } = await signer(digest);
+    const result = liveVerify({
+      body,
+      signatureHeader: '0x' + signature.toString('hex'),
+      publicKeyHeader: '0x' + publicKey.toString('hex'),
+      timestampHeader: String(ts),
+    });
+    nodeAssert.deepStrictEqual(result, { valid: true });
+  });
+
+  it('rejects malformed public key hex', () => {
+    const result = verify(makeReq({ publicKeyHeader: '0xZZZZ' }));
+    nodeAssert.deepStrictEqual(result, { valid: false, reason: 'invalid_public_key' });
+  });
+
+  it('rejects short public key', () => {
+    const result = verify(makeReq({ publicKeyHeader: '0x0401020304' }));
+    nodeAssert.deepStrictEqual(result, { valid: false, reason: 'invalid_public_key' });
+  });
+
+  it('rejects unknown public key (impostor)', () => {
+    const result = verify(makeReq({
+      publicKeyHeader: '0x' + vectors.impostor_keys.public_key,
+    }));
+    nodeAssert.deepStrictEqual(result, { valid: false, reason: 'unknown_public_key' });
+  });
+
+  it('rejects signature with wrong length (too short)', () => {
+    const result = verify(makeReq({
+      signatureHeader: '0x' + '00'.repeat(32),
+    }));
+    nodeAssert.deepStrictEqual(result, { valid: false, reason: 'invalid_signature_format' });
+  });
+
+  it('rejects empty signature', () => {
+    const result = verify(makeReq({ signatureHeader: '0x' }));
+    nodeAssert.deepStrictEqual(result, { valid: false, reason: 'invalid_signature_format' });
+  });
+
+  it('handles headers without 0x prefix', () => {
+    const vec = vectors.signature_verification[0];
+    const result = verify(makeReq({
+      signatureHeader: vec.signature,
+      publicKeyHeader: vec.public_key,
+    }));
+    nodeAssert.deepStrictEqual(result, { valid: true });
+  });
+
+  it('returns signature_failed for tampered body', () => {
+    const result = verify(makeReq({ body: Buffer.from('tampered') }));
+    nodeAssert.deepStrictEqual(result, { valid: false, reason: 'signature_failed' });
+  });
+
+  it('custom toleranceMs is respected', () => {
+    const tightVerify = createRequestVerifier({
+      networkPublicKey: vectors.keys.public_key,
+      toleranceMs: 1_000,
+    });
+    const looseVerify = createRequestVerifier({
+      networkPublicKey: vectors.keys.public_key,
+      toleranceMs: 10_000,
+    });
+    const ts = Date.now() - 5_000; // 5s ago
+
+    const tight = tightVerify(makeReq({ timestampHeader: String(ts) }));
+    nodeAssert.equal(tight.valid, false);
+    nodeAssert.equal((tight as any).reason, 'timestamp_out_of_range');
+
+    const loose = looseVerify(makeReq({ timestampHeader: String(ts) }));
+    // Passes time check but sig won't match (different timestamp in digest)
+    nodeAssert.equal(loose.valid, false);
+    nodeAssert.equal((loose as any).reason, 'signature_failed');
+  });
+
+  it('factory validates network public key at creation time', () => {
+    nodeAssert.throws(() => createRequestVerifier({
+      networkPublicKey: 'invalid-key',
+    }));
+  });
+
+  it('factory accepts 0x-prefixed string', () => {
+    const v = createRequestVerifier({
+      networkPublicKey: '0x' + vectors.keys.public_key,
+      toleranceMs: Infinity,
+    });
+    const result = v(makeReq());
+    nodeAssert.deepStrictEqual(result, { valid: true });
+  });
+
+  it('factory accepts Buffer', () => {
+    const v = createRequestVerifier({
+      networkPublicKey: Buffer.from(vectors.keys.public_key, 'hex'),
+      toleranceMs: Infinity,
+    });
+    const result = v(makeReq());
+    nodeAssert.deepStrictEqual(result, { valid: true });
   });
 });
