@@ -38,7 +38,7 @@ dependencies {
     implementation("io.github.cdimascio:dotenv-java:3.2.0")
 
     // Logging
-    implementation("ch.qos.logback:logback-classic:1.5.34")
+    implementation("ch.qos.logback:logback-classic:1.5.38")
 
     // javax.annotation for generated code
     compileOnly("javax.annotation:javax.annotation-api:1.3.2")
