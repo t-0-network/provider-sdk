@@ -1,6 +1,8 @@
 package provider
 
 import (
+	"log/slog"
+
 	"connectrpc.com/connect"
 )
 
@@ -12,15 +14,20 @@ type providerHandlerOptions struct {
 	verifySignatureFn          VerifySignature
 	verifySignatureMaxBodySize int64
 	connectHandlerOptions      []connect.HandlerOption
+	logger                     *slog.Logger
 }
 
-func newDefaultHandlerOptions(verifySignatureFn VerifySignature) (providerHandlerOptions, error) {
+func newDefaultHandlerOptions(verifySignatureFn VerifySignature, logger *slog.Logger) (providerHandlerOptions, error) {
+	if logger == nil {
+		logger = slog.Default()
+	}
 	return providerHandlerOptions{
 		verifySignatureMaxBodySize: defaultMaxBodySize,
 		connectHandlerOptions: []connect.HandlerOption{
-			connect.WithInterceptors(signatureErrorInterceptor(), newValidationInterceptor()),
+			connect.WithInterceptors(signatureErrorInterceptor(), newValidationInterceptor(logger)),
 		},
 		verifySignatureFn: verifySignatureFn,
+		logger:            logger,
 	}, nil
 }
 

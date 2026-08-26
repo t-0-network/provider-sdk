@@ -12,6 +12,8 @@ Thumbs.db
 .claude/worktrees/
 
 # Go
+go/go.work
+go/go.work.sum
 go/starter/template/vendor/
 
 # Node

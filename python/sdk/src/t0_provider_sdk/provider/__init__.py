@@ -17,6 +17,7 @@ from t0_provider_sdk.provider.handler import (
     new_asgi_app,
     new_wsgi_app,
 )
+from t0_provider_sdk.provider.validate import validate
 
 __all__ = [
     "BuildHandler",
@@ -32,4 +33,5 @@ __all__ = [
     "handler_sync",
     "new_asgi_app",
     "new_wsgi_app",
+    "validate",
 ]

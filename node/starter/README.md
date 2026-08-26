@@ -101,6 +101,40 @@ npm start          # Run compiled production build
 npm run lint       # Lint TypeScript source with ESLint
 ```
 
+## Configuring logging
+
+The SDK emits a structured `error`-level log line when a handler returns a response that fails its `buf.validate` rules. The safety-net interceptor still produces a `Code.Internal` wire response, but first writes a line with the RPC method, response type, violations, and SDK version. Call `validate(Schema, resp)` inside the handler (see `src/service.ts`) if you want the failure raised on your own stack frame instead.
+
+### Default logger
+
+If you do not pass a `logger` option to `createService`, the SDK uses:
+
+```ts
+const defaultLogger = {
+  error: (msg, fields) => console.error(JSON.stringify({ msg, ...fields })),
+};
+```
+
+Output goes to **stderr** as a single JSON line per event.
+
+### Plug in pino (or any other logger)
+
+The SDK accepts any object with an `error(msg, fields?)` method. Adapter for pino:
+
+```ts
+import pino from "pino";
+
+const pinoLogger = pino();
+
+createService(networkPublicKeyHex, (r) => { /* ... */ }, {
+  logger: {
+    error: (msg, fields) => pinoLogger.error(fields, msg),
+  },
+});
+```
+
+Same shape works for winston, bunyan, or any custom transport — the SDK only needs `error(msg, fields)` to exist.
+
 ## Deployment
 
 ```bash
