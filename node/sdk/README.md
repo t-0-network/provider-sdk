@@ -1,6 +1,6 @@
 # T-0 Provider SDK -- TypeScript
 
-TypeScript SDK for building provider integrations with the T-0 Network. Handles secp256k1 cryptographic signing, signature verification, and provides typed clients for all T-0 Network APIs. All request and response payloads are **Protobuf-encoded**.
+TypeScript SDK for building provider integrations with the T-0 Network. All communication is Protobuf-encoded and secp256k1-signed. Provides signature verification for inbound requests and typed clients for all T-0 Network APIs.
 
 ## Quick Start
 
@@ -103,9 +103,16 @@ function handleRequest(rawBody: Uint8Array, headers: Record<string, string>) {
 }
 ```
 
-All request and response payloads are Protobuf-encoded — deserialize with `fromBinary()`, serialize with `toBinary()` (both from `@bufbuild/protobuf`).
+The lower-level primitives are also exported individually: `verifySignature`, `computeDigest`, `keccak256`, `parsePublicKey`, `publicKeysEqual`. You can also import just the crypto module via the `./crypto` subpath: `import { createRequestVerifier } from "@t-0/provider-sdk/crypto"`.
 
-The lower-level primitives are also exported individually: `verifySignature`, `computeDigest`, `keccak256`, `parsePublicKey`, `publicKeysEqual`.
+**Important constraints for standalone integrations:**
+
+- **Raw body bytes only.** Pass the exact wire bytes to the verifier — no body parsers, no auto-decompression, never re-serialized protobuf. Protobuf encoding is not canonical; re-encoding produces different bytes and breaks verification.
+- **Pass `Uint8Array`, not `ArrayBuffer`.** If your framework gives you an `ArrayBuffer` (e.g. `request.arrayBuffer()`), wrap it: `new Uint8Array(buf)`.
+- **Header case.** `NetworkHeaders` enum values are title-case (`X-Signature`), but Node lowercases incoming headers. Look up headers by lowercase name: `headers["x-signature"]`.
+- **Wire format is binary protobuf.** Requests and successful responses use `Content-Type: application/proto`. Deserialize with `fromBinary()`, serialize with `toBinary()` from `@bufbuild/protobuf`. For errors, return a bare HTTP status code with no body (`401` for auth failures, `403` for permission errors). Success responses **must** include `Content-Type: application/proto`.
+- **Health endpoint.** The T-0 Network probes `/grpc.health.v1.Health/Check` on every endpoint. The probe is signed. Standalone integrations must route this path and return a valid health response. See [`docs/HEALTH_SERVICE.md`](../../docs/HEALTH_SERVICE.md) for the wire contract.
+- **`VerifyRequestFailure` is an open union.** New reason values may be added without a major version bump. Handle unknown reasons as generic failures.
 
 ### Network Client
 
