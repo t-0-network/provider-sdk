@@ -9,8 +9,8 @@ import {
 } from "@connectrpc/connect";
 import type { Interceptor } from "@connectrpc/connect";
 import NetworkHeaders from "../common/headers.js";
-import { secp256k1 } from '@noble/curves/secp256k1.js'
 import {Hash} from "@noble/hashes/utils.js";
+import { verifySignature } from '../crypto/verify.js';
 import type {DescService, } from "@bufbuild/protobuf";
 import type {ServiceImpl} from "@connectrpc/connect";
 import {createValidationInterceptor, type Logger} from "./validate_response.js";
@@ -41,27 +41,18 @@ const createSignatureVerification: (networkPublicKey: Buffer) => Interceptor = (
     throw new ConnectError(`${NetworkHeaders.PublicKey} value is not network public key`, Code.Unauthenticated);
   }
 
-  let signature = decodeHex(getHeader(req, NetworkHeaders.Signature))
-  if (signature.length === 65) {
-    signature = signature.subarray(0, 64);
-  }
+  const signature = decodeHex(getHeader(req, NetworkHeaders.Signature))
 
   const hasher = req.contextValues.get(kHash)!;
 
   const tsBuf = Buffer.alloc(8);
   tsBuf.writeBigUInt64LE(BigInt(ts)); // 64‑bit little‑endian timestamp
 
-  const hash = hasher
+  const digest = hasher
     .update(tsBuf)
     .digest();
-  let signatureValid = false;
-  try {
-    signatureValid = secp256k1.verify(signature, hash, publicKey, {prehash: false});
-  } catch (e) {
-    throw new ConnectError(`${NetworkHeaders.Signature} has invalid signature or public key format: ${e}` , Code.Unauthenticated);
-  }
 
-  if (!signatureValid) {
+  if (!verifySignature(publicKey, digest, signature)) {
     throw new ConnectError(`${NetworkHeaders.Signature} has invalid signature` , Code.Unauthenticated);
   }
   return await next(req);

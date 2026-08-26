@@ -3,6 +3,7 @@ import * as nodeAssert from 'node:assert/strict';
 import { keccak_256 } from '@noble/hashes/sha3.js';
 import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { CreateSigner } from '../src/client/signer.js';
+import { verifySignature, keccak256, computeDigest, parsePublicKey, publicKeysEqual } from '../src/crypto/index.js';
 import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -225,4 +226,112 @@ describe('Signature verification cases', () => {
       nodeAssert.equal(valid, vec.valid);
     });
   }
+});
+
+// ---- Public crypto module tests ----
+
+describe('crypto/keccak256', () => {
+  for (const vec of vectors.keccak256) {
+    it(`hashes "${vec.input}" correctly`, () => {
+      const hash = keccak256(Buffer.from(vec.input, 'utf-8')).toString('hex');
+      nodeAssert.equal(hash, vec.hash);
+    });
+  }
+
+  it('multi-input produces same result as single concatenated input', () => {
+    const a = Buffer.from('hello ', 'utf-8');
+    const b = Buffer.from('world', 'utf-8');
+    const combined = Buffer.concat([a, b]);
+    nodeAssert.equal(
+      keccak256(a, b).toString('hex'),
+      keccak256(combined).toString('hex'),
+    );
+  });
+});
+
+describe('crypto/computeDigest', () => {
+  for (const vec of vectors.request_signing_cases) {
+    it(`${vec.name} produces correct digest`, () => {
+      const body = Buffer.from(vec.body_hex, 'hex');
+      const digest = computeDigest(body, vec.timestamp_ms);
+      nodeAssert.equal(digest.toString('hex'), vec.expected_hash);
+    });
+  }
+});
+
+describe('crypto/verifySignature', () => {
+  for (const vec of vectors.signature_verification) {
+    it(`${vec.name}: ${vec.valid}`, () => {
+      const digest = computeDigest(
+        Buffer.from(vec.body_hex, 'hex'),
+        vec.timestamp_ms,
+      );
+      const pubKey = Buffer.from(vec.public_key, 'hex');
+      const sig = Buffer.from(vec.signature, 'hex');
+      nodeAssert.equal(verifySignature(pubKey, digest, sig), vec.valid);
+    });
+  }
+
+  it('returns false for wrong digest length', () => {
+    const pubKey = Buffer.from(vectors.keys.public_key, 'hex');
+    const sig = Buffer.from(vectors.request_signing.expected_signature, 'hex');
+    nodeAssert.equal(verifySignature(pubKey, Buffer.alloc(16), sig), false);
+  });
+
+  it('returns false for wrong signature length', () => {
+    const pubKey = Buffer.from(vectors.keys.public_key, 'hex');
+    const digest = computeDigest(Buffer.from('test', 'utf-8'), 1706000000000);
+    nodeAssert.equal(verifySignature(pubKey, digest, Buffer.alloc(32)), false);
+  });
+});
+
+describe('crypto/parsePublicKey', () => {
+  const hexKey = vectors.keys.public_key;
+
+  it('parses hex string', () => {
+    const key = parsePublicKey(hexKey);
+    nodeAssert.equal(key.toString('hex'), hexKey);
+  });
+
+  it('parses 0x-prefixed hex string', () => {
+    const key = parsePublicKey('0x' + hexKey);
+    nodeAssert.equal(key.toString('hex'), hexKey);
+  });
+
+  it('parses Buffer', () => {
+    const buf = Buffer.from(hexKey, 'hex');
+    const key = parsePublicKey(buf);
+    nodeAssert.equal(key.toString('hex'), hexKey);
+  });
+
+  it('throws on wrong length', () => {
+    nodeAssert.throws(() => parsePublicKey(Buffer.alloc(33, 0x02)), {
+      message: /65 bytes/,
+    });
+  });
+
+  it('throws on wrong prefix', () => {
+    const bad = Buffer.alloc(65, 0x00);
+    nodeAssert.throws(() => parsePublicKey(bad), {
+      message: /0x04 prefix/,
+    });
+  });
+});
+
+describe('crypto/publicKeysEqual', () => {
+  it('returns true for identical keys', () => {
+    const key = Buffer.from(vectors.keys.public_key, 'hex');
+    nodeAssert.equal(publicKeysEqual(key, Buffer.from(key)), true);
+  });
+
+  it('returns false for different keys', () => {
+    const key1 = Buffer.from(vectors.keys.public_key, 'hex');
+    const key2 = Buffer.from(vectors.impostor_keys.public_key, 'hex');
+    nodeAssert.equal(publicKeysEqual(key1, key2), false);
+  });
+
+  it('returns false for different lengths', () => {
+    const key = Buffer.from(vectors.keys.public_key, 'hex');
+    nodeAssert.equal(publicKeysEqual(key, key.subarray(0, 32)), false);
+  });
 });

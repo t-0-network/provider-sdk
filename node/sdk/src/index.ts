@@ -1,3 +1,4 @@
+export * from "./crypto/index.js"
 export * from "./client/client.js"
 export * from "./service/service.js"
 export * from "./service/validate_response.js"
