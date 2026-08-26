@@ -9,6 +9,13 @@ updates:
     directory: "/go"
     schedule:
       interval: "weekly"
+    groups:
+      connectrpc:
+        patterns:
+          - "connectrpc.com/*"
+      google-golang:
+        patterns:
+          - "google.golang.org/*"
 
   - package-ecosystem: "gomod"
     directory: "/go/starter"
@@ -19,11 +26,22 @@ updates:
     directory: "/go/starter/template"
     schedule:
       interval: "weekly"
+    groups:
+      connectrpc:
+        patterns:
+          - "connectrpc.com/*"
+      google-golang:
+        patterns:
+          - "google.golang.org/*"
 
   - package-ecosystem: "npm"
     directory: "/node/sdk"
     schedule:
       interval: "weekly"
+    groups:
+      connectrpc:
+        patterns:
+          - "@connectrpc/*"
 
   - package-ecosystem: "npm"
     directory: "/node/starter"
@@ -39,3 +57,12 @@ updates:
     directory: "/java"
     schedule:
       interval: "weekly"
+
+  - package-ecosystem: "nuget"
+    directory: "/csharp"
+    schedule:
+      interval: "weekly"
+    groups:
+      grpc:
+        patterns:
+          - "Grpc.*"
