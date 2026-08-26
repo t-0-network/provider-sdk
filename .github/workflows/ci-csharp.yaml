@@ -1,0 +1,63 @@
+name: CI / C#
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "csharp/**"
+      - "proto/**"
+      - "cross_test/**"
+      - ".github/workflows/ci-csharp.yaml"
+  pull_request:
+    branches: [master]
+    paths:
+      - "csharp/**"
+      - "proto/**"
+      - "cross_test/**"
+      - ".github/workflows/ci-csharp.yaml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  csharp:
+    name: C#
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          show-progress: false
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Build
+        working-directory: csharp
+        run: dotnet build
+
+      - name: Test
+        working-directory: csharp
+        run: dotnet test --no-build
+
+      - name: Pack SDK
+        working-directory: csharp/sdk/T0.ProviderSdk
+        run: dotnet pack -c Release -p:Version=0.0.0-ci -o ${{ runner.temp }}/nupkg
+
+      - name: Generate starter project
+        working-directory: ${{ runner.temp }}
+        run: dotnet run --project $GITHUB_WORKSPACE/csharp/starter/T0.ProviderStarter -- template-check --no-color
+
+      - name: Point generated project at local SDK
+        working-directory: ${{ runner.temp }}/template-check
+        run: |
+          dotnet new nugetconfig
+          dotnet nuget add source ${{ runner.temp }}/nupkg --name local-sdk --configfile nuget.config
+          dotnet add package T0.ProviderSdk --version 0.0.0-ci
+
+      - name: Build generated project
+        working-directory: ${{ runner.temp }}/template-check
+        run: dotnet build

@@ -1,0 +1,69 @@
+name: CI / Node
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "node/**"
+      - "proto/**"
+      - "cross_test/**"
+      - ".github/workflows/ci-node.yaml"
+  pull_request:
+    branches: [master]
+    paths:
+      - "node/**"
+      - "proto/**"
+      - "cross_test/**"
+      - ".github/workflows/ci-node.yaml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  node:
+    name: Node
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          show-progress: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: lts/*
+          cache: npm
+          cache-dependency-path: node/sdk/package-lock.json
+
+      - name: Install SDK dependencies
+        working-directory: node/sdk
+        run: npm ci
+
+      - name: Build SDK
+        working-directory: node/sdk
+        run: npm run build
+
+      - name: Run SDK Tests
+        working-directory: node/sdk
+        run: npm test
+
+      # Type-check the starter template against the freshly built SDK.
+      # The template has no lockfile (industry standard for scaffold
+      # tools — create.ts regenerates one via `npm install` at scaffold
+      # time). We pack the local SDK and install it directly so the
+      # template always type-checks against unreleased SDK changes, and
+      # CI works even on release commits where the new version isn't
+      # published to npm yet.
+      - name: Pack SDK for template type-check
+        working-directory: node/sdk
+        run: npm pack
+
+      - name: Install template deps with local SDK
+        working-directory: node/starter/template
+        run: npm install --no-audit --no-fund ../../sdk/t-0-provider-sdk-*.tgz
+
+      - name: Type-check starter template against local SDK
+        working-directory: node/starter/template
+        run: npx tsc --noEmit -p tsconfig.typecheck.json

@@ -1,0 +1,46 @@
+name: CI / Java
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "java/**"
+      - "proto/**"
+      - "cross_test/**"
+      - ".github/workflows/ci-java.yaml"
+  pull_request:
+    branches: [master]
+    paths:
+      - "java/**"
+      - "proto/**"
+      - "cross_test/**"
+      - ".github/workflows/ci-java.yaml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  java:
+    name: Java
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          java-version: "17"
+          distribution: "temurin"
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/master' }}
+
+      - name: Build and test
+        working-directory: java
+        run: |
+          chmod +x gradlew
+          ./gradlew build -x distTar -x distZip --no-daemon
