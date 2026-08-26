@@ -64,6 +64,39 @@ server.listen(3000);
 
 The middleware chain: `signatureValidation` captures raw request bytes for hashing, `nodeAdapter` bridges ConnectRPC to Node.js HTTP, and `createService` registers your handlers with signature verification.
 
+### Standalone Signature Verification
+
+For frameworks that don't use Node's `http.createServer` (Effect, Koa, Fastify, etc.), use `createRequestVerifier` to verify inbound requests with just the raw body bytes and headers:
+
+```ts
+import { createRequestVerifier, parsePublicKey } from "@t-0/provider-sdk";
+
+const verify = createRequestVerifier({
+  networkPublicKey: process.env.NETWORK_PUBLIC_KEY!,
+});
+
+// In your framework's request handler:
+function handleRequest(rawBody: Uint8Array, headers: Record<string, string>) {
+  const result = verify({
+    body: rawBody,
+    signatureHeader: headers["x-signature"],
+    publicKeyHeader: headers["x-public-key"],
+    timestampHeader: headers["x-signature-timestamp"],
+  });
+
+  if (!result.valid) {
+    // result.reason is one of: 'invalid_timestamp', 'timestamp_out_of_range',
+    // 'invalid_public_key', 'unknown_public_key', 'invalid_signature_format',
+    // 'signature_failed'
+    return errorResponse(result.reason);
+  }
+
+  // Request is authenticated — parse the protobuf body and handle it
+}
+```
+
+The lower-level primitives are also exported individually: `verifySignature`, `computeDigest`, `keccak256`, `parsePublicKey`, `publicKeysEqual`.
+
 ### Network Client
 
 Use `createClient` to call T-0 Network APIs. The client handles request signing automatically:

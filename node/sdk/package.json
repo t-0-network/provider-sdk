@@ -25,6 +25,16 @@
         "types": "./lib/cjs/index.d.ts",
         "default": "./lib/cjs/index.js"
       }
+    },
+    "./crypto": {
+      "import": {
+        "types": "./lib/esm/crypto/index.d.ts",
+        "default": "./lib/esm/crypto/index.js"
+      },
+      "require": {
+        "types": "./lib/cjs/crypto/index.d.ts",
+        "default": "./lib/cjs/crypto/index.js"
+      }
     }
   },
   "dependencies": {

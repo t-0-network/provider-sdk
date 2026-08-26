@@ -1,8 +1,10 @@
+export * from "./crypto/index.js"
 export * from "./client/client.js"
 export * from "./service/service.js"
 export * from "./service/validate_response.js"
 export * from "./service/validate.js"
 export * from "./service/node.js"
+export { default as NetworkHeaders } from "./common/headers.js"
 
 export { connectNodeAdapter as nodeAdapter} from "@connectrpc/connect-node";
 export type {Client, HandlerContext} from "@connectrpc/connect";
