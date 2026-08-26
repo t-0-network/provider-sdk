@@ -1,0 +1,9 @@
+// Copy to go.work for local multi-module development:
+//   cp go.work.example go.work
+go 1.25.0
+
+use (
+	.
+	./starter
+	./starter/template
+)

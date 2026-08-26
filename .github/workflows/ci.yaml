@@ -62,8 +62,14 @@ jobs:
         run: go test -v ./...
 
       - name: Build starter template
-        working-directory: go/starter/template
-        run: go build ./...
+        working-directory: go
+        run: |
+          # The template is a separate module that pins the published SDK.
+          # Create an ephemeral workspace so it compiles against the current
+          # SDK source (the template may reference APIs not yet released).
+          go work init . ./starter ./starter/template
+          cd starter/template && go build ./...
+          cd ../.. && rm -f go.work go.work.sum
 
   node:
     name: Node

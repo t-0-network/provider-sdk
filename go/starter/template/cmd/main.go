@@ -68,6 +68,9 @@ func main() {
 	// TODO: Step 2.2 Deploy your integration and provide t-0 team with the base URL
 	// TODO: Step 2.3 Test payment submission
 	// TODO: Step 2.5 Ask t-0 team to submit a payment to test your payOut endpoint
+	// TODO: Step 2.6 (optional) If your PayOut handler returns manual_aml_check, report the
+	// outcome of your AML check (see internal/complete_manual_aml_check.go)
+	// internal.CompleteManualAmlCheck(ctx, networkClient, paymentId)
 }
 
 func loadConfig() Config {
