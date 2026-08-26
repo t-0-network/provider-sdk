@@ -137,6 +137,7 @@ from t0_provider_sdk.api.tzero.v1.payment.provider_connect import ProviderServic
 from t0_provider_sdk.provider import handler_sync, new_wsgi_app
 from provider.handler.payment_sync import ProviderServiceSyncImplementation
 
+
 def create_provider_app(config, network_client_sync):
     service = ProviderServiceSyncImplementation(network_client_sync)
     return new_wsgi_app(

@@ -149,20 +149,47 @@ Timestamp tolerance: ±60 seconds. Max body: 4 MB default.
 
 ```python
 # crypto/
-legacy_keccak256, new_signer, new_signer_from_hex, SignFn,
-private_key_from_hex, public_key_from_hex, public_key_from_bytes, public_key_to_bytes,
+(
+    legacy_keccak256,
+    new_signer,
+    new_signer_from_hex,
+    SignFn,
+)
+(
+    private_key_from_hex,
+    public_key_from_hex,
+    public_key_from_bytes,
+    public_key_to_bytes,
+)
 verify_signature
 
 # common/
 PUBLIC_KEY_HEADER, SIGNATURE_HEADER, SIGNATURE_TIMESTAMP_HEADER
 
 # network/
-SigningClient, SigningSyncClient, new_service_client, new_service_client_sync,
+(
+    SigningClient,
+    SigningSyncClient,
+    new_service_client,
+    new_service_client_sync,
+)
 DEFAULT_BASE_URL, DEFAULT_TIMEOUT
 
 # provider/
-handler, handler_sync, new_asgi_app, new_wsgi_app, HandlerOption, BuildHandler, BuildHandlerSync,
-SignatureVerificationError, MissingRequiredHeaderError, InvalidHeaderEncodingError,
+(
+    handler,
+    handler_sync,
+    new_asgi_app,
+    new_wsgi_app,
+    HandlerOption,
+    BuildHandler,
+    BuildHandlerSync,
+)
+(
+    SignatureVerificationError,
+    MissingRequiredHeaderError,
+    InvalidHeaderEncodingError,
+)
 TimestampOutOfRangeError, UnknownPublicKeyError, SignatureFailedError
 ```
 
