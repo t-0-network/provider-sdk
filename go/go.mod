@@ -4,7 +4,7 @@ go 1.25.0
 
 require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.11-20260709200747-435963d16310.1
-	buf.build/go/protovalidate v1.2.0
+	buf.build/go/protovalidate v1.3.0
 	connectrpc.com/connect v1.20.0
 	connectrpc.com/grpchealth v1.5.0
 	connectrpc.com/validate v0.6.0
@@ -20,8 +20,9 @@ require (
 	cel.dev/expr v0.25.1 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
-	github.com/google/cel-go v0.28.0 // indirect
+	github.com/google/cel-go v0.30.0 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
+	go.yaml.in/yaml/v3 v3.0.4 // indirect
 	golang.org/x/exp v0.0.0-20250911091902-df9299821621 // indirect
 	golang.org/x/sys v0.47.0 // indirect
 	golang.org/x/text v0.40.0 // indirect
