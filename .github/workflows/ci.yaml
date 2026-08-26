@@ -61,9 +61,6 @@ jobs:
         working-directory: go
         run: go test -v ./...
 
-      # The starter template is a nested Go module, so `go test ./...` above
-      # never compiles it. It pins the published SDK (no replace directive),
-      # so this validates the template against the released SDK.
       - name: Build starter template
         working-directory: go/starter/template
         run: go build ./...
