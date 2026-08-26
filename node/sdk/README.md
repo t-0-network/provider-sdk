@@ -1,6 +1,6 @@
 # T-0 Provider SDK -- TypeScript
 
-TypeScript SDK for building provider integrations with the T-0 Network. Handles secp256k1 cryptographic signing, signature verification, and provides typed ConnectRPC clients for all T-0 Network APIs. All request and response payloads are **Protobuf-encoded**.
+TypeScript SDK for building provider integrations with the T-0 Network. Handles secp256k1 cryptographic signing, signature verification, and provides typed clients for all T-0 Network APIs. All request and response payloads are **Protobuf-encoded**.
 
 ## Quick Start
 
@@ -62,7 +62,7 @@ const server = http.createServer(
 server.listen(3000);
 ```
 
-The middleware chain: `signatureValidation` captures raw request bytes for hashing, `nodeAdapter` bridges ConnectRPC to Node.js HTTP, and `createService` registers your handlers with signature verification.
+The middleware chain: `signatureValidation` captures raw request bytes for hashing, `nodeAdapter` bridges the RPC transport to Node.js HTTP, and `createService` registers your handlers with signature verification.
 
 ### Standalone Signature Verification
 
