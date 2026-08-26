@@ -236,7 +236,7 @@ Where `TAG` can be:
 
 | Workflow | File | Trigger | Purpose |
 |----------|------|---------|---------|
-| CI | `.github/workflows/ci.yaml` | Push to master, PRs | Build and test |
+| CI | `.github/workflows/ci-{go,node,python,java,csharp}.yaml` | Push to master, PRs (path-filtered) | Build and test per ecosystem |
 | Release | `.github/workflows/release.yaml` | Manual dispatch | Create release, tag, update versions |
 | Publish | `.github/workflows/publish.yaml` | Tag push | Publish to Maven Central, upload CLI to GitHub Release |
 

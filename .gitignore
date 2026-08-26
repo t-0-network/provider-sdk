@@ -18,9 +18,11 @@ go/starter/template/vendor/
 
 # Node
 node_modules/
+*.tgz
 node/sdk/lib/
 node/starter/dist/
 node/starter/template/dist/
+node/starter/template/package-lock.json
 
 # Python
 __pycache__/
