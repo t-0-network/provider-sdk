@@ -13,7 +13,7 @@ import {Hash} from "@noble/hashes/utils.js";
 import { verifySignature } from '../crypto/verify.js';
 import type {DescService, Registry} from "@bufbuild/protobuf";
 import type {ServiceImpl} from "@connectrpc/connect";
-import {createValidationInterceptor, type Logger} from "./validate_response.js";
+import {createValidationInterceptor, networkRegistry, type Logger} from "./validate_response.js";
 import {Health} from "./health_pb.js";
 import {createHealthServiceImpl} from "./health.js";
 
@@ -28,11 +28,10 @@ export interface CreateServiceOptions {
   logger?: Logger;
 
   /**
-   * Protobuf registry for resolving custom protovalidate predefined-rule
-   * extensions. Without it the validator throws on any schema that references
-   * an unknown extension.
-   *
-   * Build one with `createRegistry(file_my_validate)` from `@bufbuild/protobuf`.
+   * Protobuf registry for resolving protovalidate constraints and custom
+   * predefined-rule extensions. Defaults to {@link networkRegistry}, which
+   * covers the t-0 network provider contract protos. Downstream SDKs should
+   * pass a registry that also includes their own extension file descriptors.
    */
   registry?: Registry;
 }
@@ -99,7 +98,7 @@ export const createService = (
       collected.push(Health.typeName);
       origService(Health, createHealthServiceImpl(collected));
     },
-    interceptors: [createSignatureVerification(networkPublicKey), createValidationInterceptor({ logger: options?.logger, registry: options?.registry })],
+    interceptors: [createSignatureVerification(networkPublicKey), createValidationInterceptor({ logger: options?.logger, registry: options?.registry ?? networkRegistry })],
     grpcWeb: false,
     contextValues: (req: any) => {
       return createContextValues().set(kHash, (req as any).hasher as Hash<Hash<any>>)
