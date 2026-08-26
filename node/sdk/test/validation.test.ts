@@ -148,7 +148,6 @@ describe('Validation interceptor', () => {
     assert.equal(fields.response_type, DecimalSchema.typeName);
     assert.ok(Array.isArray(fields.violations));
     assert.ok((fields.violations as unknown[]).length > 0, 'at least one violation reported');
-    assert.equal(typeof fields.sdk_version, 'string');
   });
 
   it('custom logger is NOT called on valid response', async () => {

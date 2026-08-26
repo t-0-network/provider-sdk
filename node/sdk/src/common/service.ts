@@ -33,6 +33,12 @@ export interface CreateServiceOptions {
    * when your protos define custom predefined rules.
    */
   registry?: Registry;
+
+  /**
+   * SDK version stamped on health-check responses via the `T0-Sdk-Version`
+   * header. Omit to suppress the header.
+   */
+  version?: string;
 }
 
 export const REQUEST_VALIDITY_MILLIS = 60_000;
@@ -92,7 +98,7 @@ export const createService = (
       };
       registerRoutes(wrappedRouter);
       collected.push(Health.typeName);
-      origService(Health, createHealthServiceImpl(collected));
+      origService(Health, createHealthServiceImpl(collected, options?.version));
     },
     interceptors: [createSignatureVerification(networkPublicKey), createValidationInterceptor({ logger: options?.logger, registry: options?.registry })],
     grpcWeb: false,

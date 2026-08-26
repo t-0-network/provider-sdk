@@ -3,7 +3,6 @@ import type { Interceptor } from "@connectrpc/connect";
 import { createValidator } from "@bufbuild/protovalidate";
 import { createValidateInterceptor } from "@connectrpc/validate";
 import type { DescMessage, MessageShape, Registry } from "@bufbuild/protobuf";
-import { SDK_VERSION } from "../version.js";
 
 /**
  * Minimal logger contract accepted by the SDK. Providers may pass `console`
@@ -61,7 +60,6 @@ export function createValidationInterceptor(loggerOrOptions?: Logger | Validatio
         rpc_method: `${req.service.typeName}/${req.method.name}`,
         response_type: schema.typeName,
         violations,
-        sdk_version: SDK_VERSION,
       });
       throw new ConnectError(`response validation failed: ${details}`, Code.Internal);
     }
@@ -70,7 +68,6 @@ export function createValidationInterceptor(loggerOrOptions?: Logger | Validatio
         rpc_method: `${req.service.typeName}/${req.method.name}`,
         response_type: schema.typeName,
         error: result.error.message,
-        sdk_version: SDK_VERSION,
       });
       throw new ConnectError(`response validation error: ${result.error.message}`, Code.Internal);
     }

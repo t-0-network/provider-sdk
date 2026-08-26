@@ -5,7 +5,6 @@ import {
   HealthCheckResponse_ServingStatus,
   HealthCheckResponseSchema,
 } from "./health_pb.js";
-import { SDK_VERSION } from "../version.js";
 
 /**
  * Headers carrying the identity of the SDK answering the probe. They ride on
@@ -30,6 +29,7 @@ const SDK_ECOSYSTEM = "node";
  */
 export const createHealthServiceImpl = (
   services: string[],
+  version?: string,
 ): Partial<ServiceImpl<typeof Health>> => {
   const registered = new Set(services);
   const serving = create(HealthCheckResponseSchema, {
@@ -39,7 +39,9 @@ export const createHealthServiceImpl = (
   return {
     check(req, ctx) {
       ctx.responseHeader.set(SDK_ECOSYSTEM_HEADER, SDK_ECOSYSTEM);
-      ctx.responseHeader.set(SDK_VERSION_HEADER, SDK_VERSION);
+      if (version) {
+        ctx.responseHeader.set(SDK_VERSION_HEADER, version);
+      }
 
       const { service } = req;
 
