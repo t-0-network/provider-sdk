@@ -10,7 +10,7 @@ export interface CreateVerifierOptions {
 }
 
 export interface VerifyRequest {
-  body: Uint8Array;
+  body: Uint8Array | ArrayBufferView | ArrayBufferLike;
   signatureHeader: string;
   publicKeyHeader: string;
   timestampHeader: string;
@@ -58,7 +58,7 @@ export function createRequestVerifier(opts: CreateVerifierOptions): RequestVerif
     const sigHex = req.signatureHeader.startsWith('0x')
       ? req.signatureHeader.slice(2)
       : req.signatureHeader;
-    if (!/^[0-9a-fA-F]*$/.test(sigHex)) {
+    if (!/^[0-9a-fA-F]*$/.test(sigHex) || sigHex.length % 2 !== 0) {
       return { valid: false, reason: 'invalid_signature_format' };
     }
     const signature = Buffer.from(sigHex, 'hex');
@@ -67,9 +67,11 @@ export function createRequestVerifier(opts: CreateVerifierOptions): RequestVerif
       return { valid: false, reason: 'invalid_signature_format' };
     }
 
-    const body = req.body instanceof Buffer || ArrayBuffer.isView(req.body)
+    const body = req.body instanceof Uint8Array
       ? req.body
-      : new Uint8Array(req.body as ArrayBufferLike);
+      : ArrayBuffer.isView(req.body)
+        ? new Uint8Array(req.body.buffer, req.body.byteOffset, req.body.byteLength)
+        : new Uint8Array(req.body as ArrayBufferLike);
 
     const digest = computeDigest(body, ts);
 

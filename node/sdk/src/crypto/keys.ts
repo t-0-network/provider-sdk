@@ -1,7 +1,7 @@
 export function parsePublicKey(key: string | Buffer): Buffer {
   if (typeof key === 'string') {
     const hex = key.startsWith('0x') ? key.slice(2) : key;
-    if (!/^[0-9a-fA-F]*$/.test(hex)) {
+    if (!/^[0-9a-fA-F]*$/.test(hex) || hex.length % 2 !== 0) {
       throw new Error('Public key contains invalid hex characters');
     }
     key = Buffer.from(hex, 'hex');
