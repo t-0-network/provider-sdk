@@ -796,4 +796,47 @@ describe('crypto/createRequestVerifier', () => {
     const result = v(makeReq());
     nodeAssert.deepStrictEqual(result, { valid: true });
   });
+
+  it('rejects signature header with invalid hex chars', () => {
+    const result = verify(makeReq({
+      signatureHeader: '0x' + 'dc7c' + 'ZZZZ' + '00'.repeat(58),
+    }));
+    nodeAssert.deepStrictEqual(result, { valid: false, reason: 'invalid_signature_format' });
+  });
+
+  it('accepts ArrayBuffer body by coercing to Uint8Array', () => {
+    const vec = vectors.signature_verification[0];
+    const body = Buffer.from(vec.body_hex, 'hex');
+    const ab = body.buffer.slice(body.byteOffset, body.byteOffset + body.byteLength);
+    const result = verify(makeReq({ body: ab as unknown as Uint8Array }));
+    nodeAssert.deepStrictEqual(result, { valid: true });
+  });
+
+  it('rejects odd-length signature hex', () => {
+    const result = verify(makeReq({
+      signatureHeader: '0x' + 'a'.repeat(127), // odd length
+    }));
+    nodeAssert.deepStrictEqual(result, { valid: false, reason: 'invalid_signature_format' });
+  });
+});
+
+describe('crypto/parsePublicKey hex validation', () => {
+  it('rejects string with invalid hex characters', () => {
+    nodeAssert.throws(() => parsePublicKey('0x' + 'ZZ'.repeat(65)), {
+      message: /invalid hex/,
+    });
+  });
+
+  it('rejects mixed valid/invalid hex', () => {
+    const valid32 = vectors.keys.public_key.slice(0, 64);
+    nodeAssert.throws(() => parsePublicKey(valid32 + 'ZZZZ'), {
+      message: /invalid hex/,
+    });
+  });
+
+  it('rejects odd-length hex string', () => {
+    nodeAssert.throws(() => parsePublicKey('0x' + 'a'.repeat(131)), {
+      message: /invalid hex/,
+    });
+  });
 });
