@@ -2,8 +2,10 @@ import { Code, ConnectError } from "@connectrpc/connect";
 import type { Interceptor } from "@connectrpc/connect";
 import { createValidator } from "@bufbuild/protovalidate";
 import { createValidateInterceptor } from "@connectrpc/validate";
-import type { DescMessage, MessageShape, Registry } from "@bufbuild/protobuf";
+import { createRegistry, type DescMessage, type MessageShape, type Registry } from "@bufbuild/protobuf";
 import { SDK_VERSION } from "../version.js";
+import { file_tzero_v1_payment_provider } from "../common/gen/tzero/v1/payment/provider_pb.js";
+import { file_tzero_v1_payment_network } from "../common/gen/tzero/v1/payment/network_pb.js";
 
 /**
  * Minimal logger contract accepted by the SDK. Providers may pass `console`
@@ -81,6 +83,26 @@ export function createValidationInterceptor(loggerOrOptions?: Logger | Validatio
 
     return resp;
   };
+}
+
+/**
+ * Registry covering the t-0 network provider contract protos. Leaf file
+ * descriptors pull in their full dependency graph, so two entries are enough.
+ *
+ * Downstream SDKs with custom predefined-rule extensions should build their
+ * own registry that includes their extension file descriptors.
+ */
+export const networkRegistry: Registry = createRegistry(
+  file_tzero_v1_payment_provider,
+  file_tzero_v1_payment_network,
+);
+
+/**
+ * Pre-configured validation interceptor for the t-0 network provider contract.
+ * Uses {@link networkRegistry} so all standard constraints resolve out of the box.
+ */
+export function createNetworkValidationInterceptor(logger?: Logger): Interceptor {
+  return createValidationInterceptor({ logger, registry: networkRegistry });
 }
 
 /**
