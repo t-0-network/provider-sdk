@@ -1,6 +1,6 @@
 # T-0 Provider SDK -- TypeScript
 
-TypeScript SDK for building provider integrations with the T-0 Network. All communication uses **Protobuf-encoded ConnectRPC** — secp256k1-signed requests, verified inbound calls, and typed clients for all T-0 Network APIs.
+TypeScript SDK for building provider integrations with the T-0 Network. Handles secp256k1 cryptographic signing, signature verification, and provides typed ConnectRPC clients for all T-0 Network APIs. All request and response payloads are **Protobuf-encoded**.
 
 ## Quick Start
 
@@ -69,7 +69,8 @@ The middleware chain: `signatureValidation` captures raw request bytes for hashi
 For frameworks that don't use Node's `http.createServer` (Effect, Koa, Fastify, etc.), use `createRequestVerifier` to verify inbound requests with just the raw body bytes and headers:
 
 ```ts
-import { createRequestVerifier, parsePublicKey } from "@t-0/provider-sdk";
+import { fromBinary, toBinary } from "@bufbuild/protobuf";
+import { createRequestVerifier, PayoutRequestSchema, PayoutResponseSchema } from "@t-0/provider-sdk";
 
 const verify = createRequestVerifier({
   networkPublicKey: process.env.NETWORK_PUBLIC_KEY!,
@@ -91,11 +92,18 @@ function handleRequest(rawBody: Uint8Array, headers: Record<string, string>) {
     return errorResponse(result.reason);
   }
 
-  // Request is authenticated — parse the protobuf body and handle it
+  // Deserialize the Protobuf request (same raw bytes you verified)
+  const request = fromBinary(PayoutRequestSchema, rawBody);
+  const response = handlePayout(request);
+
+  // Serialize the Protobuf response
+  return successResponse(toBinary(PayoutResponseSchema, response), {
+    "content-type": "application/proto",
+  });
 }
 ```
 
-The transport is ConnectRPC with Protobuf encoding: all request and response payloads are Protobuf-serialized. Error responses follow the [Connect error spec](https://connectrpc.com/docs/protocol#error-end-stream).
+All request and response payloads are Protobuf-encoded — deserialize with `fromBinary()`, serialize with `toBinary()` (both from `@bufbuild/protobuf`).
 
 The lower-level primitives are also exported individually: `verifySignature`, `computeDigest`, `keccak256`, `parsePublicKey`, `publicKeysEqual`.
 
