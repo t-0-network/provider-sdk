@@ -1,6 +1,6 @@
 # T-0 Provider SDK -- TypeScript
 
-TypeScript SDK for building provider integrations with the T-0 Network. Handles secp256k1 cryptographic signing, signature verification, and provides typed ConnectRPC clients for all T-0 Network APIs.
+TypeScript SDK for building provider integrations with the T-0 Network. All communication uses **Protobuf-encoded ConnectRPC** — secp256k1-signed requests, verified inbound calls, and typed clients for all T-0 Network APIs.
 
 ## Quick Start
 
@@ -94,6 +94,8 @@ function handleRequest(rawBody: Uint8Array, headers: Record<string, string>) {
   // Request is authenticated — parse the protobuf body and handle it
 }
 ```
+
+The transport is ConnectRPC with Protobuf encoding: all request and response payloads are Protobuf-serialized. Error responses follow the [Connect error spec](https://connectrpc.com/docs/protocol#error-end-stream).
 
 The lower-level primitives are also exported individually: `verifySignature`, `computeDigest`, `keccak256`, `parsePublicKey`, `publicKeysEqual`.
 
