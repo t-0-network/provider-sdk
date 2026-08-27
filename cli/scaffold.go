@@ -20,6 +20,7 @@ type CLIConfig struct {
 	RoleRequired bool
 	DefaultRole  string
 	Languages    []string
+	PostScaffold func(ScaffoldOpts) error
 }
 
 type ScaffoldOpts struct {
