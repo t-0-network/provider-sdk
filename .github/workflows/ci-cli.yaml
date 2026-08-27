@@ -174,7 +174,7 @@ jobs:
 
       - name: Build CLI
         working-directory: cli
-        run: go build -ldflags "-X main.Version=ci-test" -o ../t0-init.exe .
+        run: go build -ldflags "-X main.Version=dev" -o ../t0-init.exe .
 
       - name: Run tests
         working-directory: cli
