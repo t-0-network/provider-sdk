@@ -1,12 +1,14 @@
 // Sync tool: copies templates from their source directories into cli/internal/embed/
 // for go:embed. Invoked via go:generate.
 //
-// Reads templates.yaml from the cli/ directory (repo root / cli/).
-// Each entry maps an ecosystem name to a source path relative to the repo root.
+// Usage: go run ./internal/sync <lang1> [lang2...] [lang=path override...]
+//
+// Convention: templates live at <lang>/starter/template/ relative to repo root.
+// Override with lang=path for non-standard locations.
 //
 // Special handling:
 //   - Filters out build artifacts (node_modules, dist, __pycache__, build, .venv, etc.)
-//   - Renames go.mod → go.mod.tmpl (prevents nested module exclusion by go:embed)
+//   - Renames .go/.mod/.sum → .tmpl for Go templates (prevents go:embed compilation)
 //   - For Go templates: replaces the literal module path with {{MODULE_PATH}}
 //   - Skips .git directories and OS metadata files
 package main
@@ -19,65 +21,75 @@ import (
 	"strings"
 )
 
-// Go template module path that gets replaced with {{MODULE_PATH}} placeholder
 const goTemplateModulePath = "github.com/t-0-network/provider-sdk/go/starter/template"
 
 var skipDirs = map[string]bool{
-	"node_modules": true,
-	"dist":         true,
-	"__pycache__":  true,
-	".venv":        true,
-	".git":         true,
-	".idea":        true,
-	".vs":          true,
-	".DS_Store":    true,
-	"obj":          true,
-	"bin":          true,
+	"node_modules":  true,
+	"dist":          true,
+	"__pycache__":   true,
+	".venv":         true,
+	".git":          true,
+	".idea":         true,
+	".vs":           true,
+	".DS_Store":     true,
+	"obj":           true,
+	"bin":           true,
 	".pytest_cache": true,
-	".ruff_cache":  true,
+	".ruff_cache":   true,
 }
 
 var skipFiles = map[string]bool{
-	".DS_Store":  true,
-	"Thumbs.db":  true,
-}
-
-// Manifest entry: ecosystem → source path relative to repo root
-type manifestEntry struct {
-	lang string
-	src  string
+	".DS_Store": true,
+	"Thumbs.db": true,
 }
 
 func main() {
-	// Find repo root: walk up from cli/internal/sync/ to find .git
+	if len(os.Args) < 2 {
+		fatalf("usage: sync <lang1> [lang2...] [lang=path ...]")
+	}
+
 	repoRoot, err := findRepoRoot()
 	if err != nil {
 		fatalf("finding repo root: %v", err)
 	}
 
-	cliDir := filepath.Join(repoRoot, "cli")
-	manifestPath := filepath.Join(cliDir, "templates.yaml")
-	embedDir := filepath.Join(cliDir, "internal", "embed")
+	embedDir := filepath.Join(repoRoot, "cli", "internal", "embed")
 
-	entries, err := parseManifest(manifestPath)
-	if err != nil {
-		fatalf("parsing manifest: %v", err)
+	// Parse args: plain "go" uses convention, "python=some/path" overrides
+	overrides := map[string]string{}
+	var langs []string
+	for _, arg := range os.Args[1:] {
+		if k, v, ok := strings.Cut(arg, "="); ok {
+			overrides[k] = v
+			langs = append(langs, k)
+		} else {
+			langs = append(langs, arg)
+		}
 	}
 
-	for _, entry := range entries {
-		srcDir := filepath.Join(repoRoot, entry.src)
-		destDir := filepath.Join(embedDir, entry.lang)
+	for _, lang := range langs {
+		src := lang + "/starter/template"
+		if override, ok := overrides[lang]; ok {
+			src = override
+		}
 
-		fmt.Printf("syncing %s: %s → %s\n", entry.lang, entry.src, destDir)
+		srcDir := filepath.Join(repoRoot, src)
+		destDir := filepath.Join(embedDir, lang)
 
-		// Clean destination
+		if _, err := os.Stat(srcDir); os.IsNotExist(err) {
+			fmt.Printf("skipping %s: %s not found\n", lang, src)
+			continue
+		}
+
+		fmt.Printf("syncing %s: %s → %s\n", lang, src, destDir)
+
 		os.RemoveAll(destDir)
 		if err := os.MkdirAll(destDir, 0777); err != nil {
 			fatalf("creating %s: %v", destDir, err)
 		}
 
-		if err := copyTree(srcDir, destDir, entry.lang); err != nil {
-			fatalf("copying %s: %v", entry.lang, err)
+		if err := copyTree(srcDir, destDir, lang); err != nil {
+			fatalf("copying %s: %v", lang, err)
 		}
 	}
 
@@ -94,7 +106,6 @@ func copyTree(srcDir, destDir, lang string) error {
 		if err != nil {
 			return err
 		}
-
 		if rel == "." {
 			return nil
 		}
@@ -112,11 +123,8 @@ func copyTree(srcDir, destDir, lang string) error {
 			return nil
 		}
 
-		// Destination filename transforms
 		destRel := rel
 		if lang == "go" {
-			// Rename Go source files to .tmpl so the Go toolchain doesn't
-			// try to compile template code inside internal/embed/go/.
 			switch {
 			case strings.HasSuffix(base, ".go"):
 				destRel = destRel + ".tmpl"
@@ -132,20 +140,17 @@ func copyTree(srcDir, destDir, lang string) error {
 			return err
 		}
 
-		// Read source
 		data, err := os.ReadFile(src)
 		if err != nil {
 			return fmt.Errorf("reading %s: %w", src, err)
 		}
 
-		// For Go templates: inject {{MODULE_PATH}} placeholder
 		if lang == "go" && isTextFile(base) {
 			content := string(data)
 			content = strings.ReplaceAll(content, goTemplateModulePath, "{{MODULE_PATH}}")
 			data = []byte(content)
 		}
 
-		// Preserve executable bit
 		info, err := d.Info()
 		if err != nil {
 			return err
@@ -176,48 +181,15 @@ func isTextFile(name string) bool {
 	if textExts[ext] {
 		return true
 	}
-	// Known text files without extensions
 	lower := strings.ToLower(name)
 	return lower == "dockerfile" || lower == "gradlew" || lower == "dot-gitignore" || lower == "makefile"
 }
 
-func parseManifest(path string) ([]manifestEntry, error) {
-	data, err := os.ReadFile(path)
-	if err != nil {
-		return nil, fmt.Errorf("reading %s: %w", path, err)
-	}
-
-	var entries []manifestEntry
-	for _, line := range strings.Split(string(data), "\n") {
-		line = strings.TrimSpace(line)
-		if line == "" || strings.HasPrefix(line, "#") {
-			continue
-		}
-		// Simple "key: value" YAML parsing (no external dep)
-		parts := strings.SplitN(line, ":", 2)
-		if len(parts) != 2 {
-			continue
-		}
-		lang := strings.TrimSpace(parts[0])
-		src := strings.TrimSpace(parts[1])
-		if lang != "" && src != "" {
-			entries = append(entries, manifestEntry{lang: lang, src: src})
-		}
-	}
-
-	if len(entries) == 0 {
-		return nil, fmt.Errorf("no entries found in %s", path)
-	}
-	return entries, nil
-}
-
 func findRepoRoot() (string, error) {
-	// Start from the directory of this tool and walk up
 	dir, err := os.Getwd()
 	if err != nil {
 		return "", err
 	}
-
 	for {
 		if _, err := os.Stat(filepath.Join(dir, ".git")); err == nil {
 			return dir, nil
@@ -229,7 +201,6 @@ func findRepoRoot() (string, error) {
 		dir = parent
 	}
 }
-
 
 func fatalf(format string, args ...any) {
 	fmt.Fprintf(os.Stderr, "sync: "+format+"\n", args...)
