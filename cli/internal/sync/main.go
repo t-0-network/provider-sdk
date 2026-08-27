@@ -26,9 +26,11 @@ const goTemplateModulePath = "github.com/t-0-network/provider-sdk/go/starter/tem
 var skipDirs = map[string]bool{
 	"node_modules":  true,
 	"dist":          true,
+	"build":         true,
 	"__pycache__":   true,
 	".venv":         true,
 	".git":          true,
+	".gradle":       true,
 	".idea":         true,
 	".vs":           true,
 	".DS_Store":     true,

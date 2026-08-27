@@ -59,6 +59,7 @@ jobs:
           ./t0-init init --lang=go --module=github.com/test/my-go-provider --no-color --dir=test-go my-go-provider
           test -f test-go/go.mod
           test -f test-go/.env
+          test -f test-go/.gitignore
           grep 'PROVIDER_PRIVATE_KEY=0x' test-go/.env
 
       - name: Scaffold Node project
@@ -74,6 +75,7 @@ jobs:
           ./t0-init init --lang=python --no-color --dir=test-python my-python-provider
           test -f test-python/pyproject.toml
           test -f test-python/.env
+          test -f test-python/.gitignore
           grep 'PROVIDER_PRIVATE_KEY=0x' test-python/.env
 
       - name: Scaffold Java project

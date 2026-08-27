@@ -130,10 +130,32 @@ jobs:
         working-directory: csharp
         run: dotnet build
 
+  build-cli:
+    name: Build CLI
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          show-progress: false
+
+      - name: Setup Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: "stable"
+          cache-dependency-path: cli/go.sum
+
+      - name: Sync templates and build
+        working-directory: cli
+        run: |
+          go generate ./...
+          go build ./...
+          go test ./...
+
   # --- Release (only after all builds pass) ---
   release:
     name: Create Release
-    needs: [build-go, build-node, build-java, build-python, build-csharp]
+    needs: [build-go, build-node, build-java, build-python, build-csharp, build-cli]
     runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - name: Generate GitHub App Token
