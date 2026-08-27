@@ -14,12 +14,25 @@ import (
 	"github.com/t-0-network/provider-sdk/go/crypto"
 )
 
-func NewSigningTransport(signFn crypto.SignFn, timeNow func() time.Time) *SigningTransport {
-	return &SigningTransport{
+// SigningTransportOption configures a SigningTransport.
+type SigningTransportOption func(*SigningTransport)
+
+// WithTransport overrides the underlying RoundTripper.
+// Default: http.DefaultTransport.
+func WithTransport(rt http.RoundTripper) SigningTransportOption {
+	return func(st *SigningTransport) { st.transport = rt }
+}
+
+func NewSigningTransport(signFn crypto.SignFn, timeNow func() time.Time, opts ...SigningTransportOption) *SigningTransport {
+	st := &SigningTransport{
 		transport: http.DefaultTransport,
 		sign:      signFn,
 		timeNow:   timeNow,
 	}
+	for _, o := range opts {
+		o(st)
+	}
+	return st
 }
 
 // SigningTransport is an HTTP transport that signs requests with a given signing function.
