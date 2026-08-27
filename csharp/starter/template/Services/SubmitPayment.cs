@@ -2,7 +2,7 @@ using T0.ProviderSdk.Api.Tzero.V1.Common;
 using T0.ProviderSdk.Api.Tzero.V1.Payment;
 using Decimal = T0.ProviderSdk.Api.Tzero.V1.Common.Decimal;
 
-namespace {{PROJECT_NAME_PASCAL}}.Services;
+namespace T0.StarterTemplate.Services;
 
 // TODO: Step 2.3 Test payment submission
 public static class SubmitPayment

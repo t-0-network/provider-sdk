@@ -103,26 +103,27 @@ func transformFilename(name, projectName, pascalName string) string {
 	// .template suffix (Python convention)
 	name = strings.TrimSuffix(name, ".template")
 
-	// dot-gitignore → .gitignore (Java convention — Gradle strips dotfiles)
+	// dot-gitignore → .gitignore (Java/C# convention — Gradle strips dotfiles)
 	name = strings.ReplaceAll(name, "dot-gitignore", ".gitignore")
 
-	// {{PROJECT_NAME}} in filenames (C#)
-	name = strings.ReplaceAll(name, "{{PROJECT_NAME}}", projectName)
-
-	// {{PROJECT_NAME_PASCAL}} in filenames
-	name = strings.ReplaceAll(name, "{{PROJECT_NAME_PASCAL}}", pascalName)
+	// C#: T0.StarterTemplate.csproj → <project-name>.csproj
+	name = strings.ReplaceAll(name, "T0.StarterTemplate", projectName)
 
 	return name
 }
 
 func processPlaceholders(content string, opts ScaffoldOpts, pascalName string) string {
-	// Universal placeholders
+	// Universal placeholder (Node package.json, Python pyproject.toml)
 	content = strings.ReplaceAll(content, "{{PROJECT_NAME}}", opts.ProjectName)
-	content = strings.ReplaceAll(content, "{{PROJECT_NAME_PASCAL}}", pascalName)
 
 	// Go: module path replacement
 	if opts.ModulePath != "" {
 		content = strings.ReplaceAll(content, "{{MODULE_PATH}}", opts.ModulePath)
+	}
+
+	// C#: namespace/project name replacement (uses "T0.StarterTemplate" as literal)
+	if opts.Lang == "csharp" {
+		content = strings.ReplaceAll(content, "T0.StarterTemplate", pascalName)
 	}
 
 	// Java: project name replacement (uses "my-provider" as literal placeholder)

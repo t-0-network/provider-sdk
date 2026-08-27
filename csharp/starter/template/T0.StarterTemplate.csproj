@@ -4,7 +4,7 @@
     <TargetFramework>net10.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <RootNamespace>{{PROJECT_NAME_PASCAL}}</RootNamespace>
+    <RootNamespace>T0.StarterTemplate</RootNamespace>
   </PropertyGroup>
 
   <ItemGroup>

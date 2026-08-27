@@ -2,7 +2,7 @@ using Grpc.Core;
 using T0.ProviderSdk.Api.Tzero.V1.Common;
 using T0.ProviderSdk.Api.Tzero.V1.Payment;
 
-namespace {{PROJECT_NAME_PASCAL}}.Services;
+namespace T0.StarterTemplate.Services;
 
 // Please refer to docs and proto definitions to understand the purpose of each method.
 public class PaymentHandler(

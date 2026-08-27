@@ -243,7 +243,7 @@ jobs:
       - name: Update C# Starter template SDK version
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          sed -i "s|T0.ProviderSdk\" Version=\"[^\"]*\"|T0.ProviderSdk\" Version=\"${VERSION}\"|" csharp/starter/template/\{\{PROJECT_NAME\}\}.csproj
+          sed -i "s|T0.ProviderSdk\" Version=\"[^\"]*\"|T0.ProviderSdk\" Version=\"${VERSION}\"|" csharp/starter/template/T0.StarterTemplate.csproj
 
       # How this works and why it must stay above "Commit version bump":
       # docs/RELEASE_AND_PUBLISH.md, step 4.
@@ -332,7 +332,7 @@ jobs:
           fi
 
           # Validate C# extracted template SDK version (unified CLI)
-          CSHARP_TMPL_VER=$(grep 'T0.ProviderSdk' 'csharp/starter/template/{{PROJECT_NAME}}.csproj' | sed 's/.*Version="\([^"]*\)".*/\1/')
+          CSHARP_TMPL_VER=$(grep 'T0.ProviderSdk' csharp/starter/template/T0.StarterTemplate.csproj | sed 's/.*Version="\([^"]*\)".*/\1/')
           if [ "$CSHARP_TMPL_VER" != "$VERSION" ]; then
             echo "::error::C# template csproj SDK version mismatch: expected $VERSION, got $CSHARP_TMPL_VER"
             ERRORS=$((ERRORS + 1))

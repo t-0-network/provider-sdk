@@ -36,7 +36,7 @@ A constant compiled or bundled into the SDK, so the running server can report wh
 | **Java SDK** | `java/gradle.properties` — `version=X.Y.Z` | n/a (the `cli` module is the starter) | `java/sdk/src/main/resources/META-INF/sdk-version.properties` — `sdk.version=X.Y.Z` (classpath resource) |
 | **Java CLI** | (uses same `gradle.properties`) | `java/starter/template/build.gradle.kts` — `provider-sdk:+` (latest, **NOT bumped**) | n/a |
 | **C# SDK** | `csharp/sdk/T0.ProviderSdk/T0.ProviderSdk.csproj` — `<Version>` | n/a | n/a (not implemented yet) |
-| **C# Starter** | `csharp/starter/T0.ProviderStarter/T0.ProviderStarter.csproj` — `<Version>` | `csharp/starter/T0.ProviderStarter/TemplateFiles.cs` — embedded string `T0.ProviderSdk" Version="X.Y.Z"` (rewritten by release) | n/a |
+| **C# Starter** | `csharp/starter/T0.ProviderStarter/T0.ProviderStarter.csproj` — `<Version>` | `csharp/starter/template/T0.StarterTemplate.csproj` — `T0.ProviderSdk" Version="X.Y.Z"` (rewritten by release) | n/a |
 
 ---
 
@@ -63,7 +63,7 @@ What a customer runs to pick up a new SDK version:
 | Node | `node/starter/template/package.json`: `"@t-0/provider-sdk": "^X.Y.Z"` (caret) | `npm install` (lockfile bump within same major) |
 | Python | starter `pyproject.toml.template`: `"t0-provider-sdk>=0.1.0"` (floor) | `uv sync` (always picks latest) |
 | Java | `java/starter/template/build.gradle.kts`: `provider-sdk:+` (latest) | `./gradlew build --refresh-dependencies` |
-| C# | `csharp/starter/.../TemplateFiles.cs`: pinned per-CLI release | redownload starter CLI |
+| C# | `csharp/starter/template/T0.StarterTemplate.csproj`: pinned per-CLI release | redownload starter CLI |
 
 ---
 
@@ -109,7 +109,7 @@ grep '<Version>' csharp/starter/T0.ProviderStarter/T0.ProviderStarter.csproj
 # Starter-template pins
 grep 'provider-sdk' go/starter/template/go.mod
 node -p "require('./node/starter/template/package.json').dependencies['@t-0/provider-sdk']"
-grep 'T0.ProviderSdk' csharp/starter/T0.ProviderStarter/TemplateFiles.cs
+grep 'T0.ProviderSdk' csharp/starter/template/T0.StarterTemplate.csproj
 
 # Runtime constants
 grep 'const Version' go/sdkversion/version.go

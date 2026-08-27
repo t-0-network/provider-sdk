@@ -4,7 +4,7 @@ using T0.ProviderSdk.Api.Tzero.V1.Payment;
 using T0.ProviderSdk.Hosting;
 using Decimal = T0.ProviderSdk.Api.Tzero.V1.Common.Decimal;
 
-namespace {{PROJECT_NAME_PASCAL}}.Services;
+namespace T0.StarterTemplate.Services;
 
 // TODO: Step 1.3 Replace this with fetching quotes from your systems and publishing them into the T-0 Network.
 // Recommended: publish at least once per 5 seconds, but not more than once per second.
