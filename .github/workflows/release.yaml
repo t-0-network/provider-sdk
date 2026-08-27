@@ -254,10 +254,10 @@ jobs:
           # sumtool walks the filesystem; the tag will only carry tracked files.
           test -z "$(git status --porcelain --ignored -- go | grep -E '^(\?\?|!!)')" \
             || { echo "::error::untracked/ignored files under go/ would poison the module hash"; exit 1; }
-          go -C .github/tools/sumtool run . "${GITHUB_WORKSPACE}/go" "v${VERSION}" "${PROXY_DIR}"
+          GOPROXY=direct go -C .github/tools/sumtool run . "${GITHUB_WORKSPACE}/go" "v${VERSION}" "${PROXY_DIR}"
           cd go/starter/template
           go mod edit -require "github.com/t-0-network/provider-sdk/go@v${VERSION}"
-          export GOPROXY="file://${PROXY_DIR},https://proxy.golang.org,direct"
+          export GOPROXY="file://${PROXY_DIR},direct"
           export GONOSUMDB="github.com/t-0-network"
           go mod tidy
           go build ./...
