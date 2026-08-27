@@ -116,6 +116,15 @@ func main() {
 			os.Exit(1)
 		}
 
+	case "keygen":
+		kp, err := generateKeyPair()
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "%s %v\n", color(red, "[ERROR]"), err)
+			os.Exit(1)
+		}
+		fmt.Printf("Private key: %s\n", kp.PrivateKey)
+		fmt.Printf("Public key:  %s\n", kp.PublicKey)
+
 	case "--version", "-v", "version":
 		fmt.Printf("%s %s\n", Config.ProductName, Version)
 
@@ -154,6 +163,14 @@ func run(opts ScaffoldOpts) error {
 		return fmt.Errorf("scaffolding: %w", err)
 	}
 	fmt.Printf("%s Template files extracted\n", color(green, "[OK]"))
+
+	// Product-specific post-scaffold hook
+	if Config.PostScaffold != nil {
+		if err := Config.PostScaffold(opts); err != nil {
+			os.RemoveAll(opts.ProjectDir)
+			return fmt.Errorf("post-scaffold: %w", err)
+		}
+	}
 
 	// Generate keypair
 	fmt.Printf("%s Generating secp256k1 keypair...\n", color(blue, "[INFO]"))
@@ -227,13 +244,16 @@ func printCompletion(opts ScaffoldOpts, kp KeyPair) {
 }
 
 func printUsage() {
-	fmt.Printf("Usage: %s [options] <project-name>\n", Config.Command)
+	fmt.Printf("Usage: %s <command> [options]\n", Config.ProductName)
 	fmt.Println()
-	fmt.Println("Initialize a new T-0 Network provider project.")
+	fmt.Println("Commands:")
+	fmt.Printf("  init <project-name>  Initialize a new T-0 Network provider project\n")
+	fmt.Printf("  keygen               Generate a new secp256k1 keypair\n")
+	fmt.Printf("  version              Show version\n")
 	fmt.Println()
 	fmt.Printf("Languages: %s\n", strings.Join(Config.Languages, ", "))
 	fmt.Println()
-	fmt.Println("Options:")
+	fmt.Println("Init options:")
 	fmt.Println("  --lang string        Language/ecosystem (required)")
 	fmt.Println("  --module string      Go module path (Go only)")
 	fmt.Println("  --repository string  Java SDK repository: jitpack|maven-central (Java only)")
