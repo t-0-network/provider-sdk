@@ -42,6 +42,30 @@ jobs:
           go-version: "stable"
           cache-dependency-path: cli/go.sum
 
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: lts/*
+
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          java-version: "17"
+          distribution: "temurin"
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: "10.0.x"
+
       - name: Sync templates (go generate)
         working-directory: cli
         run: go generate ./...
@@ -54,6 +78,7 @@ jobs:
         working-directory: cli
         run: go test -v ./...
 
+      # --- Scaffold all 5 ecosystems ---
       - name: Scaffold Go project
         run: |
           ./t0-init init --lang=go --module=github.com/test/my-go-provider --no-color --dir=test-go my-go-provider
@@ -96,6 +121,7 @@ jobs:
           test -f test-csharp/.gitignore
           grep 'PROVIDER_PRIVATE_KEY=0x' test-csharp/.env
 
+      # --- Compile-verify all 5 scaffolded projects ---
       - name: Verify Go scaffold compiles
         run: |
           VERSION=$(grep 'github.com/t-0-network/provider-sdk/go v' test-go/go.mod | awk '{print $2}')
@@ -103,3 +129,21 @@ jobs:
           GOPROXY=direct go -C .github/tools/sumtool run . "${GITHUB_WORKSPACE}/go" "${VERSION}" "${PROXY_DIR}"
           cd test-go
           GOPROXY="file://${PROXY_DIR},direct" GONOSUMDB="github.com/t-0-network" go build ./...
+
+      - name: Verify Node scaffold compiles
+        working-directory: test-node
+        run: |
+          npm install --silent
+          npx tsc --noEmit -p tsconfig.typecheck.json
+
+      - name: Verify Python scaffold resolves deps
+        working-directory: test-python
+        run: uv sync
+
+      - name: Verify Java scaffold compiles
+        working-directory: test-java
+        run: ./gradlew compileJava --no-daemon
+
+      - name: Verify C# scaffold compiles
+        working-directory: test-csharp
+        run: dotnet build
