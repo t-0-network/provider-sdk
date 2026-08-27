@@ -138,21 +138,29 @@ jobs:
           go mod tidy
           go build ./...
 
+      # Registry-dependent verify steps run only on PRs.  On push-to-master the
+      # PR already validated them, and on release commits the new SDK version is
+      # not yet published (the publish workflow runs in parallel), so they would
+      # fail with "package not found".  Go is immune (local file:// proxy above).
       - name: Verify Node scaffold compiles
+        if: github.event_name == 'pull_request'
         working-directory: test-node
         run: |
           npm install --silent
           npm run build
 
       - name: Verify Python scaffold resolves deps
+        if: github.event_name == 'pull_request'
         working-directory: test-python
         run: uv sync
 
       - name: Verify Java scaffold compiles
+        if: github.event_name == 'pull_request'
         working-directory: test-java
         run: ./gradlew compileJava --no-daemon
 
       - name: Verify C# scaffold compiles
+        if: github.event_name == 'pull_request'
         working-directory: test-csharp
         run: dotnet build
 
