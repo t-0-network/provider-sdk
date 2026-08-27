@@ -72,7 +72,7 @@ jobs:
 
       - name: Build CLI
         working-directory: cli
-        run: go build -ldflags "-X main.Version=ci-test" -o ../t0-init .
+        run: go build -ldflags "-X main.Version=dev" -o ../t0-init .
 
       - name: Run tests
         working-directory: cli
@@ -134,7 +134,7 @@ jobs:
         working-directory: test-node
         run: |
           npm install --silent
-          npx tsc --noEmit -p tsconfig.typecheck.json
+          npm run build
 
       - name: Verify Python scaffold resolves deps
         working-directory: test-python
@@ -147,3 +147,43 @@ jobs:
       - name: Verify C# scaffold compiles
         working-directory: test-csharp
         run: dotnet build
+
+  cli-windows:
+    name: Build & Test (Windows)
+    runs-on: windows-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          show-progress: false
+
+      - name: Setup Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: "stable"
+          cache-dependency-path: cli/go.sum
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: lts/*
+
+      - name: Sync templates (go generate)
+        working-directory: cli
+        run: go generate ./...
+
+      - name: Build CLI
+        working-directory: cli
+        run: go build -ldflags "-X main.Version=dev" -o ../t0-init.exe .
+
+      - name: Run tests
+        working-directory: cli
+        run: go test -v ./...
+
+      - name: Scaffold Node project
+        run: |
+          ./t0-init.exe init --lang=node --no-color --dir=test-node my-node-provider
+          if (!(Test-Path test-node/package.json)) { exit 1 }
+          if (!(Test-Path test-node/.env)) { exit 1 }
+          if (!(Test-Path test-node/.gitignore)) { exit 1 }
+        shell: pwsh

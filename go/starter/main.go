@@ -106,6 +106,10 @@ func main() {
 			log.Fatal(err)
 		}
 
+		if filepath.Base(rel) == "dot-gitignore" {
+			dst = filepath.Join(filepath.Dir(dst), ".gitignore")
+		}
+
 		isRoot := !strings.Contains(rel, string(filepath.Separator))
 		if strings.HasSuffix(rel, ".go") {
 			data = fixGo(data, rel, srcMod, dstMod, isRoot)

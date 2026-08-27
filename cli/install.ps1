@@ -2,7 +2,8 @@ $ErrorActionPreference = "Stop"
 
 $Repo = "t-0-network/provider-sdk"
 $BinaryName = "t0-init"
-$Asset = "$BinaryName-windows-amd64.exe"
+$Arch = if ($env:PROCESSOR_ARCHITECTURE -eq "ARM64") { "arm64" } else { "amd64" }
+$Asset = "$BinaryName-windows-$Arch.exe"
 $Url = "https://github.com/$Repo/releases/latest/download/$Asset"
 
 $InstallDir = Join-Path $env:LOCALAPPDATA $BinaryName
