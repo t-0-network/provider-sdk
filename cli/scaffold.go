@@ -97,46 +97,38 @@ func scaffold(opts ScaffoldOpts) error {
 }
 
 func transformFilename(name, projectName, pascalName string) string {
-	// go.mod.tmpl → go.mod (sync tool renames to avoid nested module exclusion)
+	// .tmpl suffix (sync tool renames Go files to avoid compilation)
 	name = strings.TrimSuffix(name, ".tmpl")
 
-	// .template suffix (Python convention)
-	name = strings.TrimSuffix(name, ".template")
-
-	// dot-gitignore → .gitignore (Java/C# convention — Gradle strips dotfiles)
+	// dot-gitignore → .gitignore (dotfiles stripped by Gradle/NuGet packaging)
 	name = strings.ReplaceAll(name, "dot-gitignore", ".gitignore")
 
-	// C#: T0.StarterTemplate.csproj → <project-name>.csproj
-	name = strings.ReplaceAll(name, "T0.StarterTemplate", projectName)
+	// All templates use "my-provider" as the project name literal
+	name = strings.ReplaceAll(name, "my-provider", projectName)
+
+	// C#: PascalCase in csproj filename (MyProvider.csproj → <pascal>.csproj)
+	name = strings.ReplaceAll(name, "MyProvider", pascalName)
 
 	return name
 }
 
 func processPlaceholders(content string, opts ScaffoldOpts, pascalName string) string {
-	// Universal placeholder (Node package.json, Python pyproject.toml)
-	content = strings.ReplaceAll(content, "{{PROJECT_NAME}}", opts.ProjectName)
+	// All templates use "my-provider" as the project name literal
+	content = strings.ReplaceAll(content, "my-provider", opts.ProjectName)
 
-	// Go: module path replacement
+	// C#: PascalCase namespace (MyProvider → <PascalName>)
+	content = strings.ReplaceAll(content, "MyProvider", pascalName)
+
+	// Go: module path replacement (injected by sync tool as {{MODULE_PATH}})
 	if opts.ModulePath != "" {
 		content = strings.ReplaceAll(content, "{{MODULE_PATH}}", opts.ModulePath)
 	}
 
-	// C#: namespace/project name replacement (uses "T0.StarterTemplate" as literal)
-	if opts.Lang == "csharp" {
-		content = strings.ReplaceAll(content, "T0.StarterTemplate", pascalName)
-	}
-
-	// Java: project name replacement (uses "my-provider" as literal placeholder)
+	// Java: SDK version pinning
 	if opts.Lang == "java" {
-		content = strings.ReplaceAll(content, "my-provider", opts.ProjectName)
-
-		// SDK version: replace ":+" with pinned version
-		// Template has `:+"` (colon, plus, quote); replace with `:<version>"`
 		if opts.Version != "" && opts.Version != "dev" {
 			content = strings.ReplaceAll(content, `:+"`, `:`+opts.Version+`"`)
 		}
-
-		// SDK repository switch
 		if opts.JavaRepo == "maven-central" {
 			content = strings.ReplaceAll(content,
 				`val sdkRepository = "jitpack"`,

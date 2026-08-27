@@ -35,6 +35,10 @@ All SDKs share a unified version managed via git tags (`vX.Y.Z`). The version li
 - **proto_sync.yaml** — Syncs proto files from upstream proto source.
 - **generate-clients.yaml** — Regenerates language-specific code from protos.
 
+## Starter Templates
+
+All starter templates are buildable standalone projects using `my-provider` as the literal project name (and `MyProvider` as PascalCase). The unified CLI (`cli/`) and each ecosystem's old starter replace these literals with the actual project name during scaffolding. Go additionally uses `{{MODULE_PATH}}` for import paths, injected by the sync tool. Each template ships `dot-gitignore` which the scaffolder renames to `.gitignore`.
+
 ## Build & Test (all languages)
 
 ```bash

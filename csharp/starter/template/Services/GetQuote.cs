@@ -2,7 +2,7 @@ using T0.ProviderSdk.Api.Tzero.V1.Common;
 using T0.ProviderSdk.Api.Tzero.V1.Payment;
 using Decimal = T0.ProviderSdk.Api.Tzero.V1.Common.Decimal;
 
-namespace T0.StarterTemplate.Services;
+namespace MyProvider.Services;
 
 public static class GetQuote
 {

@@ -97,7 +97,7 @@ NODE_ENV=development
         // Update package.json with project name
         const pkgJsonPath = path.join(projectPath, 'package.json');
         let pkgJson = fs.readFileSync(pkgJsonPath, 'utf8');
-        pkgJson = pkgJson.replace('{{PROJECT_NAME}}', projectName);
+        pkgJson = pkgJson.replace('my-provider', projectName);
         fs.writeFileSync(pkgJsonPath, pkgJson);
 
         // Create .gitignore

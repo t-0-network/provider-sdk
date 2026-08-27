@@ -1,6 +1,6 @@
 using T0.ProviderSdk.Api.Tzero.V1.Payment;
 
-namespace T0.StarterTemplate.Services;
+namespace MyProvider.Services;
 
 // TODO: Step 2.6 (optional) Complete manual AML checks.
 // Pay-Out Provider role: if your PayOut handler returned ManualAmlCheck instead of
