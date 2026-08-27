@@ -71,7 +71,7 @@ const createSignatureVerification: (networkPublicKey: Buffer) => Interceptor = (
   return await next(req);
 };
 
-interface Router {
+export interface Router {
   service: <T extends DescService, I extends ServiceImpl<T>>(
     service: T,
     implementation: I,
