@@ -28,10 +28,10 @@ public final class EnvFileWriter {
         // Fill in the private key
         content = content.replace("PROVIDER_PRIVATE_KEY=", "PROVIDER_PRIVATE_KEY=" + keyPair.privateKeyHex());
 
-        // Add public key as a comment for reference
+        // Fill in the public key comment
         content = content.replace(
-            "# T-0 Network's public key",
-            "# Your provider's public key (share with T-0 team)\n# Public key: 0x" + keyPair.publicKeyHex() + "\n\n# T-0 Network's public key"
+            "# your_public_key_here",
+            "# 0x" + keyPair.publicKeyHex()
         );
 
         Files.writeString(targetDir.resolve(".env"), content);

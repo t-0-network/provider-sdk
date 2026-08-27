@@ -76,22 +76,10 @@ async function create(): Promise<void> {
         console.log(chalk.cyan('🔐 Generating key pair...'));
         const keys = generateKeyPair();
 
-        // Create .env file with keys
-        const envContent = `
-NETWORK_PUBLIC_KEY=0x041b6acf3e830b593aaa992f2f1543dc8063197acfeecefd65135259327ef3166acaca83d62db19eb4fecb3d04e44094378839b8c13a2af26bf78fed56a4af935b
-
-# Private Key (secp256k1)
-PROVIDER_PRIVATE_KEY=${keys.privateKey}
-# TODO: Step 1.2 Share this Public Key with t-0 team
-# ${keys.publicKey}
-
-# Server Configuration
-PORT=3000
-NODE_ENV=development
-
-# QUOTE_PUBLISHING_INTERVAL=5000
-
-`;
+        // Create .env file from .env.example with generated keys
+        const envExample = fs.readFileSync(path.join(projectPath, '.env.example'), 'utf8');
+        let envContent = envExample.replace('PROVIDER_PRIVATE_KEY=', `PROVIDER_PRIVATE_KEY=${keys.privateKey}`);
+        envContent = envContent.replace('# your_public_key_here', `# ${keys.publicKey}`);
         fs.writeFileSync(path.join(projectPath, '.env'), envContent);
 
         // Update package.json with project name
@@ -100,16 +88,11 @@ NODE_ENV=development
         pkgJson = pkgJson.replace('my-provider', projectName);
         fs.writeFileSync(pkgJsonPath, pkgJson);
 
-        // Create .gitignore
-        const gitignoreContent = `node_modules/
-dist/
-.env
-.env.local
-.env.*.local
-*.log
-.DS_Store
-`;
-        fs.writeFileSync(path.join(projectPath, '.gitignore'), gitignoreContent);
+        // Rename dot-gitignore to .gitignore
+        const dotGitignore = path.join(projectPath, 'dot-gitignore');
+        if (fs.existsSync(dotGitignore)) {
+          fs.renameSync(dotGitignore, path.join(projectPath, '.gitignore'));
+        }
 
         // Git init
         console.log(chalk.cyan('📦 Initializing git repository...'));

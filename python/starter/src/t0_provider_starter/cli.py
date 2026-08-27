@@ -85,7 +85,7 @@ def _write_env(target_dir: Path, private_key: str, public_key: str) -> None:
         return
 
     content = env_example.read_text()
-    content = content.replace("your_private_key_here", private_key)
+    content = content.replace("PROVIDER_PRIVATE_KEY=", f"PROVIDER_PRIVATE_KEY={private_key}", 1)
     content = content.replace("# your_public_key_here", f"# {public_key}")
 
     env_path = target_dir / ".env"
