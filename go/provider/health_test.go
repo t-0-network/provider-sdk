@@ -88,6 +88,43 @@ func TestHealth_ReportsSdkIdentityInResponseHeaders(t *testing.T) {
 	require.Equal(t, sdkversion.Version, resp.Header.Get(SDKVersionHeader))
 }
 
+func newHealthServerWithOptions(t *testing.T, opts ...HttpHandlerOption) (*httptest.Server, *secp256k1.PrivateKey) {
+	t.Helper()
+	priv, err := secp256k1.GeneratePrivateKey()
+	require.NoError(t, err)
+
+	mux, err := NewHttpHandlerWithOptions(
+		NetworkPublicKeyHexed(crypto.HexPublicKey(priv.PubKey())),
+		opts,
+		Handler(paymentconnect.NewProviderServiceHandler, paymentconnect.ProviderServiceHandler(paymentconnect.UnimplementedProviderServiceHandler{})),
+	)
+	require.NoError(t, err)
+
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	return srv, priv
+}
+
+func TestHealth_ReportsOverriddenSdkVersionInResponseHeaders(t *testing.T) {
+	srv, priv := newHealthServerWithOptions(t, WithSDKVersion("9.9.9-test"))
+
+	signFn, err := crypto.NewSignerFromHex(crypto.HexPrivateKey(priv))
+	require.NoError(t, err)
+	signing := &http.Client{Transport: network.NewSigningTransport(signFn, time.Now)}
+
+	req, err := http.NewRequest(http.MethodPost, srv.URL+"/grpc.health.v1.Health/Check", strings.NewReader("{}"))
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := signing.Do(req)
+	require.NoError(t, err)
+	defer func() { _ = resp.Body.Close() }()
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+
+	require.Equal(t, sdkEcosystem, resp.Header.Get(SDKEcosystemHeader))
+	require.Equal(t, "9.9.9-test", resp.Header.Get(SDKVersionHeader))
+}
+
 // The probe is signed like every other call the Network makes. Without this the
 // transport would be publishing an unauthenticated endpoint on a partner's port.
 func TestHealth_RejectsUnsignedRequest(t *testing.T) {

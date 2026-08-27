@@ -53,8 +53,9 @@ _CHECK_METHOD = MethodInfo(
 
 
 class _Health:
-    def __init__(self, services: Iterable[str]) -> None:
+    def __init__(self, services: Iterable[str], version: str | None = None) -> None:
         self._registered = frozenset(services)
+        self._version = version
 
     def _check(
         self,
@@ -62,7 +63,7 @@ class _Health:
         ctx: RequestContext,
     ) -> health_pb2.HealthCheckResponse:
         ctx.response_headers()[SDK_ECOSYSTEM_HEADER] = _SDK_ECOSYSTEM
-        ctx.response_headers()[SDK_VERSION_HEADER] = __version__
+        ctx.response_headers()[SDK_VERSION_HEADER] = self._version or __version__
 
         # An empty service name asks about the process as a whole, which is up if
         # this handler is running at all.

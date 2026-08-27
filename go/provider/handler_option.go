@@ -15,6 +15,7 @@ type providerHandlerOptions struct {
 	verifySignatureMaxBodySize int64
 	connectHandlerOptions      []connect.HandlerOption
 	logger                     *slog.Logger
+	sdkVersion                 string
 }
 
 func newDefaultHandlerOptions(verifySignatureFn VerifySignature, logger *slog.Logger) (providerHandlerOptions, error) {

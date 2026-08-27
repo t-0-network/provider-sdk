@@ -130,6 +130,31 @@ class HealthServiceIntegrationTest {
         assertThat(headers.get(SDK_VERSION_HEADER)).isEqualTo(loadExpectedSdkVersion());
     }
 
+    @Test
+    @DisplayName("Check response carries an overridden SDK version when withSdkVersion is used")
+    void checkResponse_carriesOverriddenSdkVersion() throws Exception {
+        try (ProviderServer overrideServer = ProviderServer.create(0, NETWORK_PUBLIC_KEY_HEX)
+                .withSdkVersion("9.9.9-test")
+                .withService(new TestProviderServiceImpl())
+                .start()) {
+
+            AtomicReference<Metadata> captured = new AtomicReference<>();
+
+            try (var client = BlockingNetworkClient.create(
+                    "http://localhost:" + overrideServer.getPort(),
+                    Signer.fromHex(NETWORK_PRIVATE_KEY),
+                    channel -> HealthGrpc.newBlockingStub(
+                            ClientInterceptors.intercept(channel, capturingInterceptor(captured))))) {
+
+                client.stub().check(HealthCheckRequest.getDefaultInstance());
+            }
+
+            Metadata headers = captured.get();
+            assertThat(headers).isNotNull();
+            assertThat(headers.get(SDK_VERSION_HEADER)).isEqualTo("9.9.9-test");
+        }
+    }
+
     /**
      * The probe is signed like every other call the Network makes. Without this the
      * transport would be publishing an unauthenticated endpoint on a partner's port.

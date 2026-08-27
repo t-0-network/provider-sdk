@@ -145,6 +145,32 @@ public class HealthServiceImplTests
         }
     }
 
+    [Fact]
+    public async Task CheckResponse_CarriesOverriddenSdkVersion()
+    {
+        var (server, port) = NewServer();
+        server.WithSdkVersion("9.9.9-test");
+        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+        var serverTask = server.RunAsync(cts.Token);
+
+        try
+        {
+            await WaitForPortAsync(port, TimeSpan.FromSeconds(10));
+
+            using var call = NewSignedClient(port).CheckAsync(new HealthCheckRequest());
+            await call.ResponseAsync;
+            var headers = await call.ResponseHeadersAsync;
+
+            Assert.Equal("9.9.9-test", headers.GetValue(HealthServiceImpl.SdkVersionHeader));
+        }
+        finally
+        {
+            cts.Cancel();
+            try { await serverTask; }
+            catch (OperationCanceledException) { }
+        }
+    }
+
     /// <summary>
     /// The probe is signed like every other call the Network makes. Without this
     /// the transport would be publishing an unauthenticated endpoint on a

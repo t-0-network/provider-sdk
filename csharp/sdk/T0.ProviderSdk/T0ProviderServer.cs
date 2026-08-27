@@ -21,6 +21,7 @@ public sealed class T0ProviderServer
     private readonly T0Config _config;
     private readonly List<Action<WebApplication>> _mapActions = [];
     private readonly List<string> _registeredFqns = [];
+    private string? _sdkVersion;
 
     public T0ProviderServer(T0Config config, Signer signer, string[]? args = null)
     {
@@ -74,6 +75,18 @@ public sealed class T0ProviderServer
     }
 
     /// <summary>
+    /// Overrides the SDK version reported in health-check response headers.
+    /// Wrapping SDKs use this to stamp their own version instead of the
+    /// provider-sdk's built-in version.
+    /// </summary>
+    public T0ProviderServer WithSdkVersion(string version)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(version);
+        _sdkVersion = version;
+        return this;
+    }
+
+    /// <summary>
     /// Builds and runs the provider server. Blocks until <paramref name="cancellationToken"/>
     /// fires or the host shuts down.
     /// </summary>
@@ -87,7 +100,7 @@ public sealed class T0ProviderServer
         {
             Health.Descriptor.FullName,
         };
-        _builder.Services.AddSingleton(new HealthServiceImpl(fqns));
+        _builder.Services.AddSingleton(new HealthServiceImpl(fqns, _sdkVersion));
 
         var app = _builder.Build();
 

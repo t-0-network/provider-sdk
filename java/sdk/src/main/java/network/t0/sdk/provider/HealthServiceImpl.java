@@ -66,7 +66,8 @@ final class HealthServiceImpl extends HealthGrpc.HealthImplBase {
     }
 
     /** Stamps the SDK identity onto responses from this service only. */
-    static ServerInterceptor sdkIdentityInterceptor() {
+    static ServerInterceptor sdkIdentityInterceptor(String versionOverride) {
+        String effectiveVersion = versionOverride != null ? versionOverride : SDK_VERSION;
         return new ServerInterceptor() {
             @Override
             public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(
@@ -75,7 +76,7 @@ final class HealthServiceImpl extends HealthGrpc.HealthImplBase {
                     @Override
                     public void sendHeaders(Metadata responseHeaders) {
                         responseHeaders.put(SDK_ECOSYSTEM_HEADER, SDK_ECOSYSTEM);
-                        responseHeaders.put(SDK_VERSION_HEADER, SDK_VERSION);
+                        responseHeaders.put(SDK_VERSION_HEADER, effectiveVersion);
                         super.sendHeaders(responseHeaders);
                     }
                 }, headers);
