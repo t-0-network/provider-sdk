@@ -19,17 +19,6 @@ type CLIConfig struct {
 	RoleRequired bool
 	DefaultRole  string
 	Languages    []string
-	// Override template source paths that don't follow <lang>/starter/template/
-	TemplatePaths map[string]string
-}
-
-// TemplatePath returns the template source path relative to repo root.
-// Convention: <lang>/starter/template/ — override via TemplatePaths.
-func (c CLIConfig) TemplatePath(lang string) string {
-	if p, ok := c.TemplatePaths[lang]; ok {
-		return p
-	}
-	return lang + "/starter/template"
 }
 
 type ScaffoldOpts struct {

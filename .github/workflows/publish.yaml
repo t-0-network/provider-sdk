@@ -490,6 +490,7 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           LDFLAGS="-X main.Version=${VERSION}"
+          mkdir -p ../dist
           PLATFORMS="linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64"
           for PLATFORM in $PLATFORMS; do
             OS="${PLATFORM%/*}"
