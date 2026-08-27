@@ -1,0 +1,27 @@
+settings:
+  pull_request:
+    labels:
+      - "sync cli"
+    commit:
+      message: "Sync unified CLI from provider-sdk"
+
+patterns:
+  - files:
+      - from: cli/main.go
+        to: cli/main.go
+      - from: cli/scaffold.go
+        to: cli/scaffold.go
+      - from: cli/keygen.go
+        to: cli/keygen.go
+      - from: cli/keygen_test.go
+        to: cli/keygen_test.go
+      - from: cli/env.go
+        to: cli/env.go
+      - from: cli/go.mod
+        to: cli/go.mod
+      - from: cli/go.sum
+        to: cli/go.sum
+      - from: cli/internal/sync/main.go
+        to: cli/internal/sync/main.go
+    repositories:
+      - t-0-network/usdt-pay-sdk
