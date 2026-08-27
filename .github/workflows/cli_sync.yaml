@@ -7,8 +7,8 @@ on:
       - "cli/**"
       - "!cli/config.go"
       - "!cli/generate.go"
-      - "!cli/install.sh"
-      - "!cli/install.ps1"
+      - "!cli/start.sh"
+      - "!cli/start.ps1"
       - ".github/workflows/cli_sync.yaml"
       - ".github/workflows/cli-sync-config/**"
   workflow_dispatch:
