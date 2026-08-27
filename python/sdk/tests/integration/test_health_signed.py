@@ -169,3 +169,14 @@ def test_identity_headers_are_set_on_check():
 
     assert ctx.response_headers()[SDK_ECOSYSTEM_HEADER] == "python"
     assert ctx.response_headers()[SDK_VERSION_HEADER] == __version__
+
+
+def test_identity_headers_use_override_version():
+    """When a version override is provided, the health response carries it
+    instead of the SDK's built-in version."""
+    impl = HealthImplSync([PROVIDER_SERVICE_FQN], version="9.9.9-test")
+    ctx = RequestContext(method=_CHECK_METHOD, http_method="POST", request_headers=Headers())
+    impl.check(health_pb2.HealthCheckRequest(), ctx)
+
+    assert ctx.response_headers()[SDK_ECOSYSTEM_HEADER] == "python"
+    assert ctx.response_headers()[SDK_VERSION_HEADER] == "9.9.9-test"

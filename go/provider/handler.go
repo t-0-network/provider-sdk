@@ -8,6 +8,8 @@ import (
 	"connectrpc.com/connect"
 
 	"connectrpc.com/grpchealth"
+
+	"github.com/t-0-network/provider-sdk/go/sdkversion"
 )
 
 type BuildHandler func(defaultOptions providerHandlerOptions) (path string, handler http.Handler)
@@ -26,6 +28,17 @@ func WithLogger(logger *slog.Logger) HttpHandlerOption {
 	return func(o *providerHandlerOptions) {
 		if logger != nil {
 			o.logger = logger
+		}
+	}
+}
+
+// WithSDKVersion overrides the SDK version reported in health-check response
+// headers. Wrapping SDKs use this to stamp their own version instead of the
+// provider-sdk's built-in version.
+func WithSDKVersion(version string) HttpHandlerOption {
+	return func(o *providerHandlerOptions) {
+		if strings.TrimSpace(version) != "" {
+			o.sdkVersion = version
 		}
 	}
 }
@@ -85,6 +98,11 @@ func NewHttpHandlerWithOptions(
 		return nil, err
 	}
 
+	sdkVer := scratch.sdkVersion
+	if sdkVer == "" {
+		sdkVer = sdkversion.Version
+	}
+
 	mux := http.NewServeMux()
 	registered := make([]string, 0, len(buildHandlers)+1)
 	for _, b := range buildHandlers {
@@ -104,7 +122,7 @@ func NewHttpHandlerWithOptions(
 		grpchealth.NewHandler,
 		grpchealth.Checker(newHealthChecker(registered)),
 		func(o *providerHandlerOptions) {
-			o.connectHandlerOptions = append(o.connectHandlerOptions, withSDKIdentity())
+			o.connectHandlerOptions = append(o.connectHandlerOptions, withSDKIdentity(sdkVer))
 		},
 	)
 	healthPath, healthHandler := healthBuild(defaultOptions)

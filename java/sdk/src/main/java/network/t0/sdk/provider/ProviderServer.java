@@ -176,6 +176,7 @@ public final class ProviderServer implements Closeable {
         private int maxInboundMetadataSize = 8192; // 8KB default
         private long handshakeTimeout = 120;
         private TimeUnit handshakeTimeoutUnit = TimeUnit.SECONDS;
+        private String sdkVersion;
         private Logger sdkLogger = LoggerFactory.getLogger(ResponseValidationInterceptor.class);
 
         private Builder(int port, String networkPublicKey) {
@@ -253,6 +254,24 @@ public final class ProviderServer implements Closeable {
                 throw new IllegalArgumentException("logger must not be null");
             }
             this.sdkLogger = logger;
+            return this;
+        }
+
+        /**
+         * Overrides the SDK version reported in health-check response headers.
+         *
+         * <p>When set, the {@code t0-sdk-version} header carries this value instead
+         * of the version baked into the SDK jar.
+         *
+         * @param version the version string to report; must not be null or blank
+         * @return this builder
+         * @throws IllegalArgumentException if version is null or blank
+         */
+        public Builder withSdkVersion(String version) {
+            if (version == null || version.isBlank()) {
+                throw new IllegalArgumentException("version must not be null or blank");
+            }
+            this.sdkVersion = version;
             return this;
         }
 
@@ -339,7 +358,7 @@ public final class ProviderServer implements Closeable {
             BindableService healthSvc = new HealthServiceImpl(new HashSet<>(registeredFqns));
             ServerServiceDefinition healthDef = ServerInterceptors.useInputStreamMessages(healthSvc.bindService());
             builder.addService(ServerInterceptors.intercept(healthDef,
-                    HealthServiceImpl.sdkIdentityInterceptor(), verificationInterceptor, validationInterceptor));
+                    HealthServiceImpl.sdkIdentityInterceptor(sdkVersion), verificationInterceptor, validationInterceptor));
 
             return builder.build();
         }

@@ -35,10 +35,12 @@ internal sealed class HealthServiceImpl : Health.HealthBase
     private static readonly string CachedSdkVersion = LoadSdkVersion();
 
     private readonly HashSet<string> _registered;
+    private readonly string? _versionOverride;
 
-    public HealthServiceImpl(IEnumerable<string> services)
+    public HealthServiceImpl(IEnumerable<string> services, string? versionOverride = null)
     {
         _registered = new HashSet<string>(services);
+        _versionOverride = versionOverride;
     }
 
     public override async Task<HealthCheckResponse> Check(HealthCheckRequest request, ServerCallContext context)
@@ -46,7 +48,7 @@ internal sealed class HealthServiceImpl : Health.HealthBase
         await context.WriteResponseHeadersAsync(new Metadata
         {
             { SdkEcosystemHeader, SdkEcosystem },
-            { SdkVersionHeader, CachedSdkVersion },
+            { SdkVersionHeader, _versionOverride ?? CachedSdkVersion },
         });
 
         // An empty service name asks about the process as a whole, which is up if

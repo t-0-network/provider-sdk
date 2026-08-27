@@ -93,6 +93,7 @@ def new_asgi_app(
     network_public_key: str,
     *build_handlers: BuildHandler,
     logger: logging.Logger | None = None,
+    version: str | None = None,
 ) -> ASGIApp:
     """Create a composite ASGI app with signature verification.
 
@@ -105,6 +106,9 @@ def new_asgi_app(
         logger: Optional logger used by the response-validation interceptor when
             it catches an invalid response. Defaults to
             ``logging.getLogger("t0_provider_sdk")``.
+        version: Optional SDK version override. Wrapping SDKs pass their own
+            version so health probes report it instead of provider-sdk's
+            built-in version. Defaults to ``None`` (use built-in version).
 
     Returns:
         An ASGI application with signature verification middleware.
@@ -125,7 +129,7 @@ def new_asgi_app(
     service_names = [path.lstrip("/") for path in routes]
     service_names.append(HEALTH_SERVICE_FQN)
     health_app = HealthASGIApplication(
-        HealthImpl(service_names),
+        HealthImpl(service_names, version=version),
         interceptors=list(default_options.interceptors),
     )
     routes[health_app.path] = health_app
@@ -178,6 +182,7 @@ def new_wsgi_app(
     network_public_key: str,
     *build_handlers: BuildHandlerSync,
     logger: logging.Logger | None = None,
+    version: str | None = None,
 ) -> WSGIApp:
     """Create a composite WSGI app with signature verification.
 
@@ -190,6 +195,9 @@ def new_wsgi_app(
         logger: Optional logger used by the response-validation interceptor when
             it catches an invalid response. Defaults to
             ``logging.getLogger("t0_provider_sdk")``.
+        version: Optional SDK version override. Wrapping SDKs pass their own
+            version so health probes report it instead of provider-sdk's
+            built-in version. Defaults to ``None`` (use built-in version).
 
     Returns:
         A WSGI application with signature verification middleware.
@@ -210,7 +218,7 @@ def new_wsgi_app(
     service_names = [path.lstrip("/") for path in routes]
     service_names.append(HEALTH_SERVICE_FQN)
     health_app = HealthWSGIApplication(
-        HealthImplSync(service_names),
+        HealthImplSync(service_names, version=version),
         interceptors=list(default_options.interceptors),
     )
     routes[health_app.path] = health_app

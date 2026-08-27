@@ -5,8 +5,6 @@ import (
 
 	"connectrpc.com/connect"
 	"connectrpc.com/grpchealth"
-
-	"github.com/t-0-network/provider-sdk/go/sdkversion"
 )
 
 // Header names carrying the identity of the SDK answering the probe. They ride
@@ -53,7 +51,7 @@ func (h *healthChecker) Check(_ context.Context, req *grpchealth.CheckRequest) (
 }
 
 // withSDKIdentity stamps the SDK identity onto health responses.
-func withSDKIdentity() connect.HandlerOption {
+func withSDKIdentity(version string) connect.HandlerOption {
 	return connect.WithInterceptors(connect.UnaryInterceptorFunc(
 		func(next connect.UnaryFunc) connect.UnaryFunc {
 			return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
@@ -62,7 +60,7 @@ func withSDKIdentity() connect.HandlerOption {
 					return nil, err
 				}
 				resp.Header().Set(SDKEcosystemHeader, sdkEcosystem)
-				resp.Header().Set(SDKVersionHeader, sdkversion.Version)
+				resp.Header().Set(SDKVersionHeader, version)
 				return resp, nil
 			}
 		},
