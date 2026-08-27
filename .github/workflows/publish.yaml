@@ -154,7 +154,7 @@ jobs:
   # --- Publish (only after ALL builds pass) ---
   publish-go:
     name: Publish Go
-    needs: [build-go, build-node, build-java, build-python, build-csharp]
+    needs: [build-go, build-node, build-java, build-python, build-csharp, build-cli]
     runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - name: Generate GitHub App Token
@@ -211,7 +211,7 @@ jobs:
 
   publish-node-sdk:
     name: Publish Node SDK
-    needs: [build-go, build-node, build-java, build-python, build-csharp]
+    needs: [build-go, build-node, build-java, build-python, build-csharp, build-cli]
     # Must use github-hosted runner: npm --provenance requires it (Blacksmith = "self-hosted", rejected by npm)
     runs-on: ubuntu-latest
     permissions:
@@ -254,7 +254,7 @@ jobs:
     # and the scaffolder runs `npm install` in the generated project right
     # away. If the starter reached npm first, anyone scaffolding in that window
     # would be installing against an SDK version that is not published yet.
-    needs: [build-go, build-node, build-java, build-python, build-csharp, publish-node-sdk]
+    needs: [build-go, build-node, build-java, build-python, build-csharp, build-cli, publish-node-sdk]
     # Must use github-hosted runner: npm --provenance requires it (Blacksmith = "self-hosted", rejected by npm)
     runs-on: ubuntu-latest
     permissions:
@@ -290,7 +290,7 @@ jobs:
 
   publish-python-sdk:
     name: Publish Python SDK
-    needs: [build-go, build-node, build-java, build-python, build-csharp]
+    needs: [build-go, build-node, build-java, build-python, build-csharp, build-cli]
     runs-on: blacksmith-4vcpu-ubuntu-2404
     environment: pypi-sdk
     steps:
@@ -326,7 +326,7 @@ jobs:
 
   publish-python-starter:
     name: Publish Python Starter
-    needs: [build-go, build-node, build-java, build-python, build-csharp]
+    needs: [build-go, build-node, build-java, build-python, build-csharp, build-cli]
     runs-on: blacksmith-4vcpu-ubuntu-2404
     environment: pypi-starter
     steps:
@@ -360,7 +360,7 @@ jobs:
 
   publish-java:
     name: Publish Java
-    needs: [build-go, build-node, build-java, build-python, build-csharp]
+    needs: [build-go, build-node, build-java, build-python, build-csharp, build-cli]
     # 2vcpu is sufficient — most time is spent polling Maven Central for deployment status
     runs-on: blacksmith-2vcpu-ubuntu-2404
     steps:
@@ -430,7 +430,7 @@ jobs:
 
   publish-csharp:
     name: Publish C# (NuGet)
-    needs: [build-go, build-node, build-java, build-python, build-csharp]
+    needs: [build-go, build-node, build-java, build-python, build-csharp, build-cli]
     runs-on: blacksmith-4vcpu-ubuntu-2404
     environment: nuget
     steps:
