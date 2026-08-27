@@ -1,0 +1,7 @@
+# Template manifest: ecosystem → source path (relative to repo root)
+# Used by `go generate ./...` to copy templates into cli/internal/embed/
+go:     go/starter/template
+node:   node/starter/template
+python: python/starter/src/t0_provider_starter/template
+java:   java/starter/template
+csharp: csharp/starter/template

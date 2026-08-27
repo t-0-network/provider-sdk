@@ -1,0 +1,103 @@
+name: CI / Unified CLI
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "cli/**"
+      - "go/starter/template/**"
+      - "node/starter/template/**"
+      - "python/starter/src/t0_provider_starter/template/**"
+      - "java/starter/template/**"
+      - "csharp/starter/template/**"
+      - ".github/workflows/ci-cli.yaml"
+  pull_request:
+    branches: [master]
+    paths:
+      - "cli/**"
+      - "go/starter/template/**"
+      - "node/starter/template/**"
+      - "python/starter/src/t0_provider_starter/template/**"
+      - "java/starter/template/**"
+      - "csharp/starter/template/**"
+      - ".github/workflows/ci-cli.yaml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cli:
+    name: Build & Scaffold Test
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          show-progress: false
+
+      - name: Setup Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: "stable"
+          cache-dependency-path: cli/go.sum
+
+      - name: Sync templates (go generate)
+        working-directory: cli
+        run: go generate ./...
+
+      - name: Build CLI
+        working-directory: cli
+        run: go build -ldflags "-X main.Version=ci-test" -o ../t0-init .
+
+      - name: Run tests
+        working-directory: cli
+        run: go test -v ./...
+
+      - name: Scaffold Go project
+        run: |
+          ./t0-init init --lang=go --module=github.com/test/my-go-provider --no-color --dir=test-go my-go-provider
+          test -f test-go/go.mod
+          test -f test-go/.env
+          grep 'PROVIDER_PRIVATE_KEY=0x' test-go/.env
+
+      - name: Scaffold Node project
+        run: |
+          ./t0-init init --lang=node --no-color --dir=test-node my-node-provider
+          test -f test-node/package.json
+          test -f test-node/.env
+          test -f test-node/.gitignore
+          grep 'PROVIDER_PRIVATE_KEY=0x' test-node/.env
+
+      - name: Scaffold Python project
+        run: |
+          ./t0-init init --lang=python --no-color --dir=test-python my-python-provider
+          test -f test-python/pyproject.toml
+          test -f test-python/.env
+          grep 'PROVIDER_PRIVATE_KEY=0x' test-python/.env
+
+      - name: Scaffold Java project
+        run: |
+          ./t0-init init --lang=java --no-color --dir=test-java my-java-provider
+          test -f test-java/build.gradle.kts
+          test -f test-java/.env
+          test -f test-java/.gitignore
+          test -x test-java/gradlew
+          grep 'PROVIDER_PRIVATE_KEY=0x' test-java/.env
+          grep 'my-java-provider' test-java/settings.gradle.kts
+
+      - name: Scaffold C# project
+        run: |
+          ./t0-init init --lang=csharp --no-color --dir=test-csharp my-csharp-provider
+          test -f test-csharp/my-csharp-provider.csproj
+          test -f test-csharp/.env
+          test -f test-csharp/.gitignore
+          grep 'PROVIDER_PRIVATE_KEY=0x' test-csharp/.env
+
+      - name: Verify Go scaffold compiles
+        run: |
+          VERSION=$(grep 'github.com/t-0-network/provider-sdk/go v' test-go/go.mod | awk '{print $2}')
+          PROXY_DIR="${RUNNER_TEMP}/goproxy"
+          GOPROXY=direct go -C .github/tools/sumtool run . "${GITHUB_WORKSPACE}/go" "${VERSION}" "${PROXY_DIR}"
+          cd test-go
+          GOPROXY="file://${PROXY_DIR},direct" GONOSUMDB="github.com/t-0-network" go build ./...

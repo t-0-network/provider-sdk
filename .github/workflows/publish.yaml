@@ -451,6 +451,63 @@ jobs:
       - name: Publish Starter to NuGet
         run: dotnet nuget push csharp/starter/T0.ProviderStarter/bin/Release/*.nupkg --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
 
+  publish-cli:
+    name: Publish Unified CLI
+    needs: [build-go, build-node, build-java, build-python, build-csharp]
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    steps:
+      - name: Generate GitHub App Token
+        id: app-token
+        uses: actions/create-github-app-token@v3
+        with:
+          client-id: ${{ vars.CI_APP_CLIENT_ID }}
+          private-key: ${{ secrets.CI_APP_PRIVATE_KEY }}
+          owner: ${{ github.repository_owner }}
+          repositories: provider-sdk
+
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          show-progress: false
+
+      - name: Setup Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: "stable"
+          cache-dependency-path: cli/go.sum
+
+      - name: Get version from tag
+        id: version
+        run: echo "version=${GITHUB_REF#refs/tags/v}" >> $GITHUB_OUTPUT
+
+      - name: Sync templates
+        working-directory: cli
+        run: go generate ./...
+
+      - name: Cross-compile
+        working-directory: cli
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          LDFLAGS="-X main.Version=${VERSION}"
+          PLATFORMS="linux/amd64 linux/arm64 darwin/amd64 darwin/arm64 windows/amd64 windows/arm64"
+          for PLATFORM in $PLATFORMS; do
+            OS="${PLATFORM%/*}"
+            ARCH="${PLATFORM#*/}"
+            EXT=""
+            if [ "$OS" = "windows" ]; then EXT=".exe"; fi
+            OUTPUT="t0-init-${OS}-${ARCH}${EXT}"
+            echo "Building $OUTPUT..."
+            GOOS="$OS" GOARCH="$ARCH" go build -ldflags "$LDFLAGS" -o "../dist/${OUTPUT}" .
+          done
+
+      - name: Upload CLI binaries to GitHub Release
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          gh release upload "v${VERSION}" dist/t0-init-* --clobber
+
   # --- Post-publish ---
   verify-jitpack:
     name: Verify JitPack
