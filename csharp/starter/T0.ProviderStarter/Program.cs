@@ -96,7 +96,8 @@ public static partial class Program
         foreach (var (relativePath, content) in TemplateFiles.All)
         {
             var outputPath = relativePath
-                .Replace("{{PROJECT_NAME}}", projectName);
+                .Replace("{{PROJECT_NAME}}", projectName)
+                .Replace("dot-gitignore", ".gitignore");
 
             var filePath = Path.Combine(targetDir, outputPath);
             var dir = Path.GetDirectoryName(filePath);

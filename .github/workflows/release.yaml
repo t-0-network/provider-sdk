@@ -243,8 +243,6 @@ jobs:
       - name: Update C# Starter template SDK version
         run: |
           VERSION="${{ steps.version.outputs.version }}"
-          sed -i "s|T0.ProviderSdk\" Version=\"[^\"]*\"|T0.ProviderSdk\" Version=\"${VERSION}\"|" csharp/starter/T0.ProviderStarter/TemplateFiles.cs
-          # Also update the extracted template files (used by the unified CLI)
           sed -i "s|T0.ProviderSdk\" Version=\"[^\"]*\"|T0.ProviderSdk\" Version=\"${VERSION}\"|" csharp/starter/template/\{\{PROJECT_NAME\}\}.csproj
 
       # How this works and why it must stay above "Commit version bump":
