@@ -45,7 +45,7 @@ export const REQUEST_VALIDITY_MILLIS = 60_000;
 
 const createSignatureVerification: (networkPublicKey: Buffer) => Interceptor = (networkPublicKey: Buffer) => (next) => async (req) => {
   const ts = decodeNum(getHeader(req, NetworkHeaders.SignatureTimestamp));
-  if (Date.now() - ts > 60_000) {
+  if (!Number.isFinite(ts) || Math.abs(Date.now() - ts) > REQUEST_VALIDITY_MILLIS) {
     throw new ConnectError(`${NetworkHeaders.SignatureTimestamp} must be within ${REQUEST_VALIDITY_MILLIS} milliseconds from now` , Code.InvalidArgument);
   }
 
