@@ -183,9 +183,9 @@ jobs:
         run: |
           VERSION="${GITHUB_REF#refs/tags/v}"
           PROXY_DIR="${RUNNER_TEMP}/goproxy"
-          go -C .github/tools/sumtool run . "${GITHUB_WORKSPACE}/go" "v${VERSION}" "${PROXY_DIR}"
+          GOPROXY=direct go -C .github/tools/sumtool run . "${GITHUB_WORKSPACE}/go" "v${VERSION}" "${PROXY_DIR}"
           cd go/starter/template
-          GOPROXY="file://${PROXY_DIR},https://proxy.golang.org,direct" GONOSUMDB="github.com/t-0-network" go build -mod=readonly ./...
+          GOPROXY="file://${PROXY_DIR},direct" GONOSUMDB="github.com/t-0-network" go build -mod=readonly ./...
 
   publish-node-sdk:
     name: Publish Node SDK
