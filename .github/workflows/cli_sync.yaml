@@ -9,6 +9,8 @@ on:
       - "!cli/generate.go"
       - "!cli/install.sh"
       - "!cli/install.ps1"
+      - ".github/workflows/cli_sync.yaml"
+      - ".github/workflows/cli-sync-config/**"
   workflow_dispatch:
 
 jobs:
