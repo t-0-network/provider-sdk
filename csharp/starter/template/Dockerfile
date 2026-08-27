@@ -15,4 +15,4 @@ COPY .env* ./
 
 EXPOSE 8080
 
-ENTRYPOINT ["dotnet", "MyProvider.dll"]
+ENTRYPOINT ["dotnet", "my-provider.dll"]

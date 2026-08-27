@@ -475,7 +475,7 @@ jobs:
 
   publish-cli:
     name: Publish Unified CLI
-    needs: [build-go, build-node, build-java, build-python, build-csharp, build-cli]
+    needs: [build-go, build-node, build-java, build-python, build-csharp, build-cli, publish-go, publish-node-sdk, publish-python-sdk, publish-java, publish-csharp]
     runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - name: Generate GitHub App Token

@@ -66,4 +66,4 @@ jobs:
 
       - name: Type-check starter template against local SDK
         working-directory: node/starter/template
-        run: npx tsc --noEmit -p tsconfig.typecheck.json
+        run: npx tsc --noEmit -p tsconfig.json

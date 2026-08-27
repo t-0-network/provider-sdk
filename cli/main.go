@@ -41,14 +41,20 @@ func main() {
 		if err := initCmd.Parse(os.Args[2:]); err != nil {
 			os.Exit(2)
 		}
+		// Go's flag package stops at the first non-flag arg. Re-parse
+		// remaining args so flags work in any position:
+		//   t0 init demo --lang=node   (positional first)
+		//   t0 init --lang=node demo   (flags first)
+		projectName := initCmd.Arg(0)
+		if remaining := initCmd.Args(); len(remaining) > 1 {
+			initCmd.Parse(remaining[1:])
+		}
 		noColor = *noColorFlag
 
 		if *showVersion {
 			fmt.Printf("%s init %s\n", Config.ProductName, Version)
 			return
 		}
-
-		projectName := initCmd.Arg(0)
 		if projectName == "" {
 			fmt.Fprintf(os.Stderr, "%s project name is required\n\n", color(red, "[ERROR]"))
 			fmt.Fprintf(os.Stderr, "Usage: %s <project-name> --lang=<language>\n", Config.Command)
@@ -58,6 +64,12 @@ func main() {
 		projectName = sanitizeProjectName(projectName)
 		if projectName == "" {
 			fmt.Fprintf(os.Stderr, "%s invalid project name — use only lowercase letters, numbers, hyphens, underscores\n", color(red, "[ERROR]"))
+			os.Exit(1)
+		}
+
+		pascal := toPascalCase(projectName)
+		if pascal == "" || (pascal[0] >= '0' && pascal[0] <= '9') {
+			fmt.Fprintf(os.Stderr, "%s project name must start with a letter (got %q)\n", color(red, "[ERROR]"), projectName)
 			os.Exit(1)
 		}
 
@@ -122,16 +134,23 @@ func run(opts ScaffoldOpts) error {
 
 	fmt.Printf("%s Creating project: %s (%s)\n", color(blue, "[INFO]"), opts.ProjectName, opts.Lang)
 
-	// Create project directory
+	// Create project directory — track whether we created it so cleanup
+	// doesn't delete a pre-existing directory the user owns.
+	_, statErr := os.Stat(opts.ProjectDir)
+	dirCreated := os.IsNotExist(statErr)
 	if err := os.MkdirAll(opts.ProjectDir, 0777); err != nil {
 		return fmt.Errorf("creating directory: %w", err)
+	}
+	cleanup := func() {
+		if dirCreated {
+			os.RemoveAll(opts.ProjectDir)
+		}
 	}
 
 	// Scaffold template
 	fmt.Printf("%s Extracting template files...\n", color(blue, "[INFO]"))
 	if err := scaffold(opts); err != nil {
-		// Clean up on failure
-		os.RemoveAll(opts.ProjectDir)
+		cleanup()
 		return fmt.Errorf("scaffolding: %w", err)
 	}
 	fmt.Printf("%s Template files extracted\n", color(green, "[OK]"))
@@ -140,7 +159,7 @@ func run(opts ScaffoldOpts) error {
 	fmt.Printf("%s Generating secp256k1 keypair...\n", color(blue, "[INFO]"))
 	kp, err := generateKeyPair()
 	if err != nil {
-		os.RemoveAll(opts.ProjectDir)
+		cleanup()
 		return fmt.Errorf("generating keypair: %w", err)
 	}
 	fmt.Printf("%s Keypair generated\n", color(green, "[OK]"))
@@ -148,7 +167,7 @@ func run(opts ScaffoldOpts) error {
 	// Write .env
 	fmt.Printf("%s Creating .env file...\n", color(blue, "[INFO]"))
 	if err := writeEnvFile(opts.ProjectDir, kp); err != nil {
-		os.RemoveAll(opts.ProjectDir)
+		cleanup()
 		return fmt.Errorf("writing .env: %w", err)
 	}
 	fmt.Printf("%s Environment configured\n", color(green, "[OK]"))
@@ -208,7 +227,7 @@ func printCompletion(opts ScaffoldOpts, kp KeyPair) {
 }
 
 func printUsage() {
-	fmt.Printf("Usage: %s <project-name> [options]\n", Config.Command)
+	fmt.Printf("Usage: %s [options] <project-name>\n", Config.Command)
 	fmt.Println()
 	fmt.Println("Initialize a new T-0 Network provider project.")
 	fmt.Println()

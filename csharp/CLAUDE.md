@@ -100,7 +100,7 @@ dotnet run --project starter/T0.ProviderStarter -- my-provider
 
 Generates a complete provider project with `.env` (auto-generated keypair), `PaymentHandler`, `QuotePublisher`, `Dockerfile`, and `appsettings.json`.
 
-Template files live in `starter/template/` as a buildable standalone project using `T0.StarterTemplate` as the project/namespace name. `TemplateFiles.cs` reads them from disk at runtime. The scaffolder replaces `T0.StarterTemplate` with the PascalCase project name and renames `dot-gitignore` → `.gitignore`.
+Template files live in `starter/template/` as a buildable standalone project using `my-provider` as the project name and `MyProvider` as the namespace. `TemplateFiles.cs` reads them from disk at runtime. The scaffolder replaces `my-provider` with the project name, `MyProvider` with the PascalCase name, and renames `dot-gitignore` → `.gitignore`.
 
 ## Cross-Language Test Vectors
 

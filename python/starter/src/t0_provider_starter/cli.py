@@ -65,6 +65,8 @@ def _copy_tree(src: Path, dst: Path, project_name: str) -> None:
         dest_name = item.name
         if dest_name.endswith(".template"):
             dest_name = dest_name.removesuffix(".template")
+        if dest_name == "dot-gitignore":
+            dest_name = ".gitignore"
 
         dest_path = dst / dest_name
 

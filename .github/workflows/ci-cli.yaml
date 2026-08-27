@@ -72,7 +72,7 @@ jobs:
 
       - name: Build CLI
         working-directory: cli
-        run: go build -ldflags "-X main.Version=ci-test" -o ../t0-init .
+        run: go build -ldflags "-X main.Version=dev" -o ../t0-init .
 
       - name: Run tests
         working-directory: cli
@@ -134,7 +134,7 @@ jobs:
         working-directory: test-node
         run: |
           npm install --silent
-          npx tsc --noEmit -p tsconfig.typecheck.json
+          npm run build
 
       - name: Verify Python scaffold resolves deps
         working-directory: test-python
