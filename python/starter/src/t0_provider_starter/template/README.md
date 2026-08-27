@@ -1,4 +1,4 @@
-# {{PROJECT_NAME}}
+# my-provider
 
 T-0 Network provider implementation generated from the official Python starter.
 
@@ -14,7 +14,7 @@ Share the provider public key (printed by the initializer; also visible at the t
 ## Generated Project Structure
 
 ```
-{{PROJECT_NAME}}/
+my-provider/
 ├── src/provider/
 │   ├── main.py                              # Entry point: wires clients, server, background tasks
 │   ├── config.py                            # Loads .env into a typed Config

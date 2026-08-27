@@ -96,7 +96,9 @@ public static partial class Program
         foreach (var (relativePath, content) in TemplateFiles.All)
         {
             var outputPath = relativePath
-                .Replace("{{PROJECT_NAME}}", projectName);
+                .Replace("my-provider", projectName)
+                .Replace("MyProvider", pascalName)
+                .Replace("dot-gitignore", ".gitignore");
 
             var filePath = Path.Combine(targetDir, outputPath);
             var dir = Path.GetDirectoryName(filePath);
@@ -104,8 +106,8 @@ public static partial class Program
                 Directory.CreateDirectory(dir);
 
             var processed = content
-                .Replace("{{PROJECT_NAME}}", projectName)
-                .Replace("{{PROJECT_NAME_PASCAL}}", pascalName);
+                .Replace("my-provider", projectName)
+                .Replace("MyProvider", pascalName);
 
             File.WriteAllText(filePath, processed, new UTF8Encoding(false));
         }

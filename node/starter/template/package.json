@@ -1,5 +1,5 @@
 {
-  "name": "{{PROJECT_NAME}}",
+  "name": "my-provider",
   "version": "1.0.0",
   "description": "Node.js service built with your SDK",
   "main": "dist/index.js",

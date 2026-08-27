@@ -24,4 +24,9 @@
     <PackageReference Include="BouncyCastle.Cryptography" Version="2.6.2" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="../template/**" Exclude="../template/bin/**;../template/obj/**" LinkBase="template" CopyToOutputDirectory="PreserveNewest" PackageCopyToOutput="true" />
+    <Compile Remove="../template/**" />
+  </ItemGroup>
+
 </Project>

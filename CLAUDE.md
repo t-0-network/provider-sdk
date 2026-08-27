@@ -10,14 +10,16 @@ Protobuf encoding is not canonical — re-encoding a deserialized message produc
 
 ```
 proto/              Shared protobuf definitions (source of truth)
-go/                 Go SDK + starter CLI
+cli/                Unified starter CLI (Go, cross-compiled static binary)
+go/                 Go SDK + starter CLI + template
 node/sdk/           TypeScript SDK (@t-0/provider-sdk)
-node/starter/       TypeScript starter CLI (@t-0/provider-starter-ts)
+node/starter/       TypeScript starter CLI + template
 python/sdk/         Python SDK (t0-provider-sdk)
-python/starter/     Python starter CLI (t0-provider-starter)
+python/starter/     Python starter CLI + template
 java/sdk/           Java SDK (network.t-0:provider-sdk-java)
 java/cli/           Java provider-init CLI (GitHub Release JAR)
-java/starter/       Java starter template (embedded in CLI)
+java/starter/       Java starter template
+csharp/             C# SDK + starter CLI + template
 cross_test/         Cross-language test vectors
 .github/workflows/  CI, Release, Publish workflows
 ```
@@ -32,6 +34,10 @@ All SDKs share a unified version managed via git tags (`vX.Y.Z`). The version li
 - **publish.yaml** — Triggered by tag push. Publishes to npm, PyPI, Maven Central, Go Module Proxy.
 - **proto_sync.yaml** — Syncs proto files from upstream proto source.
 - **generate-clients.yaml** — Regenerates language-specific code from protos.
+
+## Starter Templates
+
+All starter templates are buildable standalone projects using `my-provider` as the literal project name (and `MyProvider` as PascalCase). The unified CLI (`cli/`) and each ecosystem's old starter replace these literals with the actual project name during scaffolding. Go additionally uses `{{MODULE_PATH}}` for import paths, injected by the sync tool. Each template ships `dot-gitignore` which the scaffolder renames to `.gitignore`.
 
 ## Build & Test (all languages)
 

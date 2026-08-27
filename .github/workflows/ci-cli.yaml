@@ -1,0 +1,149 @@
+name: CI / Unified CLI
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "cli/**"
+      - "go/starter/template/**"
+      - "node/starter/template/**"
+      - "python/starter/src/t0_provider_starter/template/**"
+      - "java/starter/template/**"
+      - "csharp/starter/template/**"
+      - ".github/workflows/ci-cli.yaml"
+  pull_request:
+    branches: [master]
+    paths:
+      - "cli/**"
+      - "go/starter/template/**"
+      - "node/starter/template/**"
+      - "python/starter/src/t0_provider_starter/template/**"
+      - "java/starter/template/**"
+      - "csharp/starter/template/**"
+      - ".github/workflows/ci-cli.yaml"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  cli:
+    name: Build & Scaffold Test
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          show-progress: false
+
+      - name: Setup Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: "stable"
+          cache-dependency-path: cli/go.sum
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: lts/*
+
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Setup Java
+        uses: actions/setup-java@v5
+        with:
+          java-version: "17"
+          distribution: "temurin"
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v6
+        with:
+          dotnet-version: "10.0.x"
+
+      - name: Sync templates (go generate)
+        working-directory: cli
+        run: go generate ./...
+
+      - name: Build CLI
+        working-directory: cli
+        run: go build -ldflags "-X main.Version=ci-test" -o ../t0-init .
+
+      - name: Run tests
+        working-directory: cli
+        run: go test -v ./...
+
+      # --- Scaffold all 5 ecosystems ---
+      - name: Scaffold Go project
+        run: |
+          ./t0-init init --lang=go --module=github.com/test/my-go-provider --no-color --dir=test-go my-go-provider
+          test -f test-go/go.mod
+          test -f test-go/.env
+          test -f test-go/.gitignore
+          grep 'PROVIDER_PRIVATE_KEY=0x' test-go/.env
+
+      - name: Scaffold Node project
+        run: |
+          ./t0-init init --lang=node --no-color --dir=test-node my-node-provider
+          test -f test-node/package.json
+          test -f test-node/.env
+          test -f test-node/.gitignore
+          grep 'PROVIDER_PRIVATE_KEY=0x' test-node/.env
+
+      - name: Scaffold Python project
+        run: |
+          ./t0-init init --lang=python --no-color --dir=test-python my-python-provider
+          test -f test-python/pyproject.toml
+          test -f test-python/.env
+          test -f test-python/.gitignore
+          grep 'PROVIDER_PRIVATE_KEY=0x' test-python/.env
+
+      - name: Scaffold Java project
+        run: |
+          ./t0-init init --lang=java --no-color --dir=test-java my-java-provider
+          test -f test-java/build.gradle.kts
+          test -f test-java/.env
+          test -f test-java/.gitignore
+          test -x test-java/gradlew
+          grep 'PROVIDER_PRIVATE_KEY=0x' test-java/.env
+          grep 'my-java-provider' test-java/settings.gradle.kts
+
+      - name: Scaffold C# project
+        run: |
+          ./t0-init init --lang=csharp --no-color --dir=test-csharp my-csharp-provider
+          test -f test-csharp/my-csharp-provider.csproj
+          test -f test-csharp/.env
+          test -f test-csharp/.gitignore
+          grep 'PROVIDER_PRIVATE_KEY=0x' test-csharp/.env
+
+      # --- Compile-verify all 5 scaffolded projects ---
+      - name: Verify Go scaffold compiles
+        run: |
+          VERSION=$(grep 'github.com/t-0-network/provider-sdk/go v' test-go/go.mod | awk '{print $2}')
+          PROXY_DIR="${RUNNER_TEMP}/goproxy"
+          GOPROXY=direct go -C .github/tools/sumtool run . "${GITHUB_WORKSPACE}/go" "${VERSION}" "${PROXY_DIR}"
+          cd test-go
+          GOPROXY="file://${PROXY_DIR},direct" GONOSUMDB="github.com/t-0-network" go build ./...
+
+      - name: Verify Node scaffold compiles
+        working-directory: test-node
+        run: |
+          npm install --silent
+          npx tsc --noEmit -p tsconfig.typecheck.json
+
+      - name: Verify Python scaffold resolves deps
+        working-directory: test-python
+        run: uv sync
+
+      - name: Verify Java scaffold compiles
+        working-directory: test-java
+        run: ./gradlew compileJava --no-daemon
+
+      - name: Verify C# scaffold compiles
+        working-directory: test-csharp
+        run: dotnet build

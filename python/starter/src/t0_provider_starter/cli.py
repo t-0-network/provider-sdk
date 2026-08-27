@@ -13,7 +13,7 @@ import click
 
 from t0_provider_starter.keygen import generate_keypair
 
-TEMPLATE_PLACEHOLDER = "{{PROJECT_NAME}}"
+TEMPLATE_PLACEHOLDER = "my-provider"
 
 
 @click.command()
