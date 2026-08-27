@@ -1,5 +1,7 @@
 import type * as http from "node:http";
 import {keccak_256} from "@noble/hashes/sha3.js";
+import { connectNodeAdapter } from "@connectrpc/connect-node";
+import { createService, type CreateServiceOptions, type Router } from "./service.js";
 
 export type NodeHandlerFn = (request: http.IncomingMessage, response: http.ServerResponse) => void;
 
@@ -15,3 +17,10 @@ export const signatureValidation= (next: NodeHandlerFn): NodeHandlerFn => (req :
 
   next(req, resp);
 }
+
+export const createHandler = (
+  networkPublicKey: string | Buffer,
+  registerRoutes: (router: Router) => void,
+  options?: CreateServiceOptions,
+): NodeHandlerFn =>
+  signatureValidation(connectNodeAdapter(createService(networkPublicKey, registerRoutes, options)));

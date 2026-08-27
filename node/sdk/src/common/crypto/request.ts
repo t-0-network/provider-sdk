@@ -82,3 +82,62 @@ export function createRequestVerifier(opts: CreateVerifierOptions): RequestVerif
     return { valid: true };
   };
 }
+
+export interface RejectedRequest {
+  status: number;
+  headers: Record<string, string>;
+  body: string;
+}
+
+export function rejectRequest(reason: VerifyRequestFailure): RejectedRequest {
+  let status: number;
+  let code: string;
+  let message: string;
+
+  switch (reason) {
+    case 'invalid_timestamp':
+      status = 400;
+      code = 'invalid_argument';
+      message = 'Invalid signature timestamp';
+      break;
+    case 'timestamp_out_of_range':
+      status = 400;
+      code = 'invalid_argument';
+      message = 'Signature timestamp out of range';
+      break;
+    case 'invalid_public_key':
+      status = 400;
+      code = 'invalid_argument';
+      message = 'Invalid public key format';
+      break;
+    case 'unknown_public_key':
+      status = 401;
+      code = 'unauthenticated';
+      message = 'Unknown public key';
+      break;
+    case 'invalid_signature_format':
+      status = 400;
+      code = 'invalid_argument';
+      message = 'Invalid signature format';
+      break;
+    case 'signature_failed':
+      status = 401;
+      code = 'unauthenticated';
+      message = 'Signature verification failed';
+      break;
+    default: {
+      const _exhaustive: never = reason;
+      void _exhaustive;
+      status = 401;
+      code = 'unauthenticated';
+      message = 'Request verification failed';
+      break;
+    }
+  }
+
+  return {
+    status,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ code, message }),
+  };
+}
