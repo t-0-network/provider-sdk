@@ -10,14 +10,16 @@ Protobuf encoding is not canonical — re-encoding a deserialized message produc
 
 ```
 proto/              Shared protobuf definitions (source of truth)
-go/                 Go SDK + starter CLI
+cli/                Unified starter CLI (Go, cross-compiled static binary)
+go/                 Go SDK + starter CLI + template
 node/sdk/           TypeScript SDK (@t-0/provider-sdk)
-node/starter/       TypeScript starter CLI (@t-0/provider-starter-ts)
+node/starter/       TypeScript starter CLI + template
 python/sdk/         Python SDK (t0-provider-sdk)
-python/starter/     Python starter CLI (t0-provider-starter)
+python/starter/     Python starter CLI + template
 java/sdk/           Java SDK (network.t-0:provider-sdk-java)
 java/cli/           Java provider-init CLI (GitHub Release JAR)
-java/starter/       Java starter template (embedded in CLI)
+java/starter/       Java starter template
+csharp/             C# SDK + starter CLI + template
 cross_test/         Cross-language test vectors
 .github/workflows/  CI, Release, Publish workflows
 ```
