@@ -9,6 +9,7 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+	"time"
 
 	"connectrpc.com/connect"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
@@ -129,6 +130,28 @@ func TestNewServiceClient_NilTransportIgnored(t *testing.T) {
 	require.NoError(t, err)
 	resp.Body.Close()
 	require.Equal(t, http.StatusOK, resp.StatusCode)
+}
+
+func TestSigningTransport_NilBody(t *testing.T) {
+	var captured *http.Request
+	recorder := roundTripperFunc(func(r *http.Request) (*http.Response, error) {
+		captured = r.Clone(r.Context())
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader("")),
+		}, nil
+	})
+
+	st := NewSigningTransport(testSignFn(t), func() time.Time { return time.Now() }, WithTransport(recorder))
+
+	req, err := http.NewRequest("GET", "http://localhost/health", nil)
+	require.NoError(t, err)
+	resp, err := st.RoundTrip(req)
+	require.NoError(t, err)
+	resp.Body.Close()
+
+	require.NotNil(t, captured)
+	require.NotEmpty(t, captured.Header.Get(common.SignatureHeader))
 }
 
 func TestNewServiceClient_ValidationErrors(t *testing.T) {

@@ -48,13 +48,16 @@ type SigningTransport struct {
 }
 
 func (t *SigningTransport) RoundTrip(req *http.Request) (*http.Response, error) {
-	// Read and restore request body
-	body, err := io.ReadAll(req.Body)
-	if err != nil {
-		return nil, fmt.Errorf("reading request body: %w", err)
+	var body []byte
+	if req.Body != nil {
+		var err error
+		body, err = io.ReadAll(req.Body)
+		if err != nil {
+			return nil, fmt.Errorf("reading request body: %w", err)
+		}
+		req.Body.Close()
+		req.Body = io.NopCloser(bytes.NewReader(body))
 	}
-	req.Body.Close()
-	req.Body = io.NopCloser(bytes.NewReader(body))
 
 	// Get current timestamp in milliseconds
 	timestamp := t.timeNow().UnixMilli()

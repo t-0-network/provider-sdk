@@ -41,15 +41,10 @@ func NewServiceClient[T any](
 		options.signFn = defaultSignFn
 	}
 
-	var signingOpts []SigningTransportOption
-	if options.transport != nil {
-		signingOpts = append(signingOpts, WithTransport(options.transport))
-	}
-
 	client := http.Client{
 		Timeout: options.timeout,
 		Transport: NewSigningTransport(
-			options.signFn, time.Now, signingOpts...,
+			options.signFn, time.Now, WithTransport(options.transport),
 		),
 	}
 
