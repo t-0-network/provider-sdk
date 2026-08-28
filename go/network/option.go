@@ -3,6 +3,7 @@ package network
 import (
 	"errors"
 	"fmt"
+	"net/http"
 	"net/url"
 	"time"
 
@@ -26,6 +27,7 @@ type clientOptions struct {
 	baseURL        string
 	signFn         crypto.SignFn
 	timeout        time.Duration
+	transport      http.RoundTripper
 	connectOptions []connect.ClientOption
 }
 
@@ -74,5 +76,20 @@ func WithTimeout(t time.Duration) ClientOption {
 func WithConnectOptions(options ...connect.ClientOption) ClientOption {
 	return func(c *clientOptions) {
 		c.connectOptions = options
+	}
+}
+
+// WithHTTPTransport sets the underlying http.RoundTripper that carries requests.
+// The SDK wraps it in a SigningTransport — requests are signed regardless of the
+// transport supplied. Pass a plain transport (instrumentation, proxying, TLS config,
+// in-memory test transport); do not pass one that already signs.
+//
+// Retries below the signing layer replay the same timestamp. Keep retry budgets
+// well under the 60-second signature tolerance, or retry above the SDK client.
+//
+// Default: http.DefaultTransport. A nil value is ignored.
+func WithHTTPTransport(rt http.RoundTripper) ClientOption {
+	return func(c *clientOptions) {
+		c.transport = rt
 	}
 }
