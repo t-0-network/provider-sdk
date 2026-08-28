@@ -136,7 +136,7 @@ _, err = networkClient.GetPayoutQuote(ctx, connect.NewRequest(&networkproto.GetP
 _, err = networkClient.CreatePayment(ctx, connect.NewRequest(&networkproto.CreatePaymentRequest{...}))
 ```
 
-**Client options:** `WithBaseURL` (default: `https://api.t-0.network`), `WithTimeout` (default: 15s), `WithSignatureFunction`, `WithConnectOptions`.
+**Client options:** `WithBaseURL` (default: `https://api.t-0.network`), `WithTimeout` (default: 15s), `WithSignatureFunction`, `WithConnectOptions`, `WithHTTPTransport`.
 
 ## Examples
 

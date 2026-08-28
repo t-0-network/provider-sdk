@@ -32,6 +32,9 @@ func NewSigningTransport(signFn crypto.SignFn, timeNow func() time.Time, opts ..
 	for _, o := range opts {
 		o(st)
 	}
+	if st.transport == nil {
+		st.transport = http.DefaultTransport
+	}
 	return st
 }
 
