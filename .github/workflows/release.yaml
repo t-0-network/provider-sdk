@@ -79,6 +79,10 @@ jobs:
         with:
           cache-read-only: true
           cache-provider: basic
+          gradle-home-cache-includes: |
+            caches
+            notifications
+            wrapper/dists
 
       - name: Build
         working-directory: java

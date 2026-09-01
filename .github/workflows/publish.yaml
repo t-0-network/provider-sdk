@@ -78,6 +78,10 @@ jobs:
         with:
           cache-read-only: true
           cache-provider: basic
+          gradle-home-cache-includes: |
+            caches
+            notifications
+            wrapper/dists
 
       - name: Build
         working-directory: java
@@ -389,6 +393,10 @@ jobs:
         uses: gradle/actions/setup-gradle@v6
         with:
           cache-provider: basic
+          gradle-home-cache-includes: |
+            caches
+            notifications
+            wrapper/dists
 
       - name: Get version from tag
         id: version
