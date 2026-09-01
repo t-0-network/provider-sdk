@@ -37,12 +37,7 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6
         with:
-          cache-read-only: ${{ github.ref != 'refs/heads/master' }}
-          cache-provider: basic
-          gradle-home-cache-includes: |
-            caches
-            notifications
-            wrapper/dists
+          cache-disabled: true
 
       - name: Build and test
         working-directory: java
