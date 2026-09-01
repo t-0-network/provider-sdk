@@ -85,8 +85,8 @@ const decode = createNetworkRequestDecoder({
   networkPublicKey: process.env.NETWORK_PUBLIC_KEY!,
 });
 
-// Hono / fetch-shaped framework:
-app.post("/payout", async (c) => {
+// Hono / fetch-shaped framework — route by Connect procedure path:
+app.post("/tzero.v1.payment.ProviderService/PayOut", async (c) => {
   const body = new Uint8Array(await c.req.arrayBuffer());
   const result = decode(PayoutRequestSchema, { body, headers: c.req.raw.headers });
 
@@ -97,7 +97,7 @@ app.post("/payout", async (c) => {
     });
   }
 
-  const response = handlePayout(result.request);
+  const response = await handlePayout(result.request);
 
   // encodeResponse validates + encodes in the matching wire format (JSON or proto)
   const wire = result.encodeResponse(PayoutResponseSchema, response);
@@ -117,7 +117,7 @@ const decode = createNetworkRequestDecoder({
 http.createServer((req, res) => {
   const chunks: Buffer[] = [];
   req.on("data", (c) => chunks.push(c));
-  req.on("end", () => {
+  req.on("end", async () => {
     const body = Buffer.concat(chunks);
     const result = decode(PayoutRequestSchema, { body, headers: req.headers });
 
@@ -127,7 +127,7 @@ http.createServer((req, res) => {
       return;
     }
 
-    const response = handlePayout(result.request);
+    const response = await handlePayout(result.request);
     const wire = result.encodeResponse(PayoutResponseSchema, response);
     res.writeHead(wire.status, wire.headers);
     res.end(wire.body);
