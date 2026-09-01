@@ -74,55 +74,82 @@ const server = http.createServer(
 `signatureValidation` captures raw request bytes for hashing, `nodeAdapter` bridges the RPC transport to Node.js HTTP, and `createService` registers your handlers with signature verification.
 </details>
 
-### Standalone Signature Verification
+### Standalone Request Decoding
 
-For frameworks that don't use Node's `http.createServer` (Effect, Koa, Fastify, etc.), use `createRequestVerifier` to verify inbound requests with just the raw body bytes and headers:
+For frameworks that don't use Node's `http.createServer` (Hono, Effect, Koa, Fastify, etc.), use `createNetworkRequestDecoder` for one-call signature verification + Content-Type-aware decoding + protovalidation. It returns an either-type result: success with the decoded message and a response encoder, or failure with a ready-to-send HTTP error.
 
 ```ts
-import { fromBinary, toBinary } from "@bufbuild/protobuf";
-import { createRequestVerifier, rejectRequest, PayoutRequestSchema, PayoutResponseSchema } from "@t-0/provider-sdk";
+import { createNetworkRequestDecoder, PayoutRequestSchema, PayoutResponseSchema } from "@t-0/provider-sdk";
 
-const verify = createRequestVerifier({
+const decode = createNetworkRequestDecoder({
   networkPublicKey: process.env.NETWORK_PUBLIC_KEY!,
 });
 
-// In your framework's request handler:
-function handleRequest(rawBody: Uint8Array, headers: Record<string, string>) {
-  const result = verify({
-    body: rawBody,
-    signatureHeader: headers["x-signature"],
-    publicKeyHeader: headers["x-public-key"],
-    timestampHeader: headers["x-signature-timestamp"],
-  });
+// Hono / fetch-shaped framework:
+app.post("/payout", async (c) => {
+  const body = new Uint8Array(await c.req.arrayBuffer());
+  const result = decode(PayoutRequestSchema, { body, headers: c.req.raw.headers });
 
-  if (!result.valid) {
-    // rejectRequest maps the failure reason to a well-formed HTTP error
-    // with status (400 or 401), Content-Type header, and JSON body.
-    const rejected = rejectRequest(result.reason);
-    return errorResponse(rejected.status, rejected.headers, rejected.body);
+  if (!result.ok) {
+    return new Response(result.error.body, {
+      status: result.error.status,
+      headers: result.error.headers,
+    });
   }
 
-  // Deserialize the Protobuf request (same raw bytes you verified)
-  const request = fromBinary(PayoutRequestSchema, rawBody);
-  const response = handlePayout(request);
+  const response = handlePayout(result.request);
 
-  // Serialize the Protobuf response
-  return successResponse(toBinary(PayoutResponseSchema, response), {
-    "content-type": "application/proto",
-  });
-}
+  // encodeResponse validates + encodes in the matching wire format (JSON or proto)
+  const wire = result.encodeResponse(PayoutResponseSchema, response);
+  return new Response(wire.body, { status: wire.status, headers: wire.headers });
+});
 ```
 
-The lower-level primitives are also exported individually: `verifySignature`, `computeDigest`, `keccak256`, `parsePublicKey`, `publicKeysEqual`. You can also import just the crypto module via the `./crypto` subpath: `import { createRequestVerifier } from "@t-0/provider-sdk/crypto"`.
+```ts
+// Raw Node http example:
+import http from "node:http";
+import { createNetworkRequestDecoder, PayoutRequestSchema, PayoutResponseSchema } from "@t-0/provider-sdk";
+
+const decode = createNetworkRequestDecoder({
+  networkPublicKey: process.env.NETWORK_PUBLIC_KEY!,
+});
+
+http.createServer((req, res) => {
+  const chunks: Buffer[] = [];
+  req.on("data", (c) => chunks.push(c));
+  req.on("end", () => {
+    const body = Buffer.concat(chunks);
+    const result = decode(PayoutRequestSchema, { body, headers: req.headers });
+
+    if (!result.ok) {
+      res.writeHead(result.error.status, result.error.headers);
+      res.end(result.error.body);
+      return;
+    }
+
+    const response = handlePayout(result.request);
+    const wire = result.encodeResponse(PayoutResponseSchema, response);
+    res.writeHead(wire.status, wire.headers);
+    res.end(wire.body);
+  });
+}).listen(3000);
+```
+
+The decoder accepts both fetch `Headers` and Node's `Record<string, string | string[] | undefined>`. It normalizes header case internally, detects Content-Type (`application/json` or `application/proto` / `application/protobuf` / `application/x-protobuf`), and the returned `encodeResponse` closure responds in the matching format.
+
+For custom proto registries (e.g. non-network schemas with custom predefined rules), use the generic `createRequestDecoder` from `@t-0/provider-sdk/crypto` and pass your own `registry`.
 
 **Important constraints for standalone integrations:**
 
-- **Raw body bytes only.** Pass the exact wire bytes to the verifier — no body parsers, no auto-decompression, never re-serialized protobuf. Protobuf encoding is not canonical; re-encoding produces different bytes and breaks verification.
-- **Pass `Uint8Array`, not `ArrayBuffer`.** If your framework gives you an `ArrayBuffer` (e.g. `request.arrayBuffer()`), wrap it: `new Uint8Array(buf)`.
-- **Header case.** `NetworkHeaders` enum values are title-case (`X-Signature`), but Node lowercases incoming headers. Look up headers by lowercase name: `headers["x-signature"]`.
-- **Wire format is binary protobuf.** Requests and successful responses use `Content-Type: application/proto`. Deserialize with `fromBinary()`, serialize with `toBinary()` from `@bufbuild/protobuf`. For verification errors, use `rejectRequest(result.reason)` to get the correct HTTP status, headers, and JSON body. Success responses **must** include `Content-Type: application/proto`.
+- **Raw body bytes only.** Pass the exact wire bytes — no body parsers, no auto-decompression, never re-serialized protobuf. Protobuf encoding is not canonical; re-encoding produces different bytes and breaks verification.
 - **Health endpoint.** The T-0 Network probes `/grpc.health.v1.Health/Check` on every endpoint. The probe is signed. Standalone integrations must route this path and return a valid health response. See [`docs/HEALTH_SERVICE.md`](../../docs/HEALTH_SERVICE.md) for the wire contract.
-- **`VerifyRequestFailure` is an open union.** New reason values may be added without a major version bump. Handle unknown reasons as generic failures.
+- **`DecodeRequestFailure` is an open union.** New error shapes may be added without a major version bump. Handle unknown failures as generic errors.
+
+<details>
+<summary>Lower-level primitives</summary>
+
+The individual building blocks are also exported: `createRequestVerifier`, `rejectRequest`, `verifySignature`, `computeDigest`, `keccak256`, `parsePublicKey`, `publicKeysEqual`. You can import just the crypto module via the `./crypto` subpath: `import { createRequestVerifier } from "@t-0/provider-sdk/crypto"`.
+</details>
 
 ### Network Client
 
