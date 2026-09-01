@@ -76,12 +76,12 @@ const server = http.createServer(
 
 ### Standalone Request Decoding
 
-For frameworks that don't use Node's `http.createServer` (Hono, Effect, Koa, Fastify, etc.), use `createNetworkRequestDecoder` for one-call signature verification + Content-Type-aware decoding + protovalidation. It returns an either-type result: success with the decoded message and a response encoder, or failure with a ready-to-send HTTP error.
+For frameworks that don't use Node's `http.createServer` (Hono, Effect, Koa, Fastify, etc.), use `createRequestDecoder` for one-call signature verification + Content-Type-aware decoding + protovalidation. It returns an either-type result: success with the decoded message and a response encoder, or failure with a ready-to-send HTTP error.
 
 ```ts
-import { createNetworkRequestDecoder, PayoutRequestSchema, PayoutResponseSchema } from "@t-0/provider-sdk";
+import { createRequestDecoder, PayoutRequestSchema, PayoutResponseSchema } from "@t-0/provider-sdk";
 
-const decode = createNetworkRequestDecoder({
+const decode = createRequestDecoder({
   networkPublicKey: process.env.NETWORK_PUBLIC_KEY!,
 });
 
@@ -108,9 +108,9 @@ app.post("/tzero.v1.payment.ProviderService/PayOut", async (c) => {
 ```ts
 // Raw Node http example:
 import http from "node:http";
-import { createNetworkRequestDecoder, PayoutRequestSchema, PayoutResponseSchema } from "@t-0/provider-sdk";
+import { createRequestDecoder, PayoutRequestSchema, PayoutResponseSchema } from "@t-0/provider-sdk";
 
-const decode = createNetworkRequestDecoder({
+const decode = createRequestDecoder({
   networkPublicKey: process.env.NETWORK_PUBLIC_KEY!,
 });
 

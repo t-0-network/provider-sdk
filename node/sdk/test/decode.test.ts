@@ -5,10 +5,10 @@ import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { toJsonString, toBinary, create } from '@bufbuild/protobuf';
 import {
   createRequestDecoder,
-  createNetworkRequestDecoder,
   computeDigest,
   rejectRequest,
 } from '../src/index.js';
+import { createRequestDecoder as createGenericDecoder } from '../src/crypto/index.js';
 import {
   HealthCheckRequestSchema,
   HealthCheckResponseSchema,
@@ -40,10 +40,10 @@ function sign(body: Uint8Array, priv: Uint8Array) {
   };
 }
 
-describe('createRequestDecoder', () => {
+describe('createRequestDecoder (generic)', () => {
   it('decodes a JSON request and encodeResponse returns JSON', () => {
     const { priv, publicKeyHex } = newKeypair();
-    const decode = createRequestDecoder({ networkPublicKey: publicKeyHex });
+    const decode = createGenericDecoder({ networkPublicKey: publicKeyHex });
 
     const msg = create(HealthCheckRequestSchema, { service: 'test' });
     const jsonBody = new TextEncoder().encode(toJsonString(HealthCheckRequestSchema, msg));
@@ -63,7 +63,7 @@ describe('createRequestDecoder', () => {
 
   it('decodes a binary proto request and encodeResponse returns proto', () => {
     const { priv, publicKeyHex } = newKeypair();
-    const decode = createRequestDecoder({ networkPublicKey: publicKeyHex });
+    const decode = createGenericDecoder({ networkPublicKey: publicKeyHex });
 
     const msg = create(HealthCheckRequestSchema, { service: 'binary-test' });
     const protoBody = toBinary(HealthCheckRequestSchema, msg);
@@ -83,7 +83,7 @@ describe('createRequestDecoder', () => {
 
   it('encodeResponse accepts a different schema than the request', () => {
     const { priv, publicKeyHex } = newKeypair();
-    const decode = createRequestDecoder({ networkPublicKey: publicKeyHex });
+    const decode = createGenericDecoder({ networkPublicKey: publicKeyHex });
 
     const reqMsg = create(HealthCheckRequestSchema, { service: 'test' });
     const jsonBody = new TextEncoder().encode(toJsonString(HealthCheckRequestSchema, reqMsg));
@@ -105,7 +105,7 @@ describe('createRequestDecoder', () => {
 
   it('accepts fetch Headers object', () => {
     const { priv, publicKeyHex } = newKeypair();
-    const decode = createRequestDecoder({ networkPublicKey: publicKeyHex });
+    const decode = createGenericDecoder({ networkPublicKey: publicKeyHex });
 
     const msg = create(HealthCheckRequestSchema, { service: '' });
     const jsonBody = new TextEncoder().encode(toJsonString(HealthCheckRequestSchema, msg));
@@ -121,7 +121,7 @@ describe('createRequestDecoder', () => {
 
   it('accepts Node record with string[] values', () => {
     const { priv, publicKeyHex } = newKeypair();
-    const decode = createRequestDecoder({ networkPublicKey: publicKeyHex });
+    const decode = createGenericDecoder({ networkPublicKey: publicKeyHex });
 
     const msg = create(HealthCheckRequestSchema, { service: '' });
     const jsonBody = new TextEncoder().encode(toJsonString(HealthCheckRequestSchema, msg));
@@ -137,7 +137,7 @@ describe('createRequestDecoder', () => {
 
   it('strips Content-Type parameters (charset)', () => {
     const { priv, publicKeyHex } = newKeypair();
-    const decode = createRequestDecoder({ networkPublicKey: publicKeyHex });
+    const decode = createGenericDecoder({ networkPublicKey: publicKeyHex });
 
     const msg = create(HealthCheckRequestSchema, { service: '' });
     const jsonBody = new TextEncoder().encode(toJsonString(HealthCheckRequestSchema, msg));
@@ -151,7 +151,7 @@ describe('createRequestDecoder', () => {
 
   it('verifies and decodes raw JSON bytes with unknown fields (raw-bytes regression)', () => {
     const { priv, publicKeyHex } = newKeypair();
-    const decode = createRequestDecoder({ networkPublicKey: publicKeyHex });
+    const decode = createGenericDecoder({ networkPublicKey: publicKeyHex });
 
     const rawJson = '{"service":"hello","unknownField":42}';
     const jsonBody = new TextEncoder().encode(rawJson);
@@ -165,7 +165,7 @@ describe('createRequestDecoder', () => {
 
   it('handles mixed-case record keys', () => {
     const { priv, publicKeyHex } = newKeypair();
-    const decode = createRequestDecoder({ networkPublicKey: publicKeyHex });
+    const decode = createGenericDecoder({ networkPublicKey: publicKeyHex });
 
     const msg = create(HealthCheckRequestSchema, { service: '' });
     const jsonBody = new TextEncoder().encode(toJsonString(HealthCheckRequestSchema, msg));
@@ -183,7 +183,7 @@ describe('createRequestDecoder', () => {
 
   it('rejects missing Content-Type with 415', () => {
     const { priv, publicKeyHex } = newKeypair();
-    const decode = createRequestDecoder({ networkPublicKey: publicKeyHex });
+    const decode = createGenericDecoder({ networkPublicKey: publicKeyHex });
 
     const body = new TextEncoder().encode('{}');
     const headers = sign(body, priv);
@@ -196,7 +196,7 @@ describe('createRequestDecoder', () => {
 
   it('rejects malformed binary body with 400', () => {
     const { priv, publicKeyHex } = newKeypair();
-    const decode = createRequestDecoder({ networkPublicKey: publicKeyHex });
+    const decode = createGenericDecoder({ networkPublicKey: publicKeyHex });
 
     const body = new Uint8Array([0xff, 0xff, 0xff, 0xff, 0xff]);
     const headers = { ...sign(body, priv), 'content-type': 'application/proto' };
@@ -211,7 +211,7 @@ describe('createRequestDecoder', () => {
 
   it('rejects bad signature with same result as rejectRequest', () => {
     const { publicKeyHex } = newKeypair();
-    const decode = createRequestDecoder({ networkPublicKey: publicKeyHex });
+    const decode = createGenericDecoder({ networkPublicKey: publicKeyHex });
 
     const body = new Uint8Array([1, 2, 3]);
     const headers = {
@@ -230,7 +230,7 @@ describe('createRequestDecoder', () => {
 
   it('rejects missing signature headers cleanly', () => {
     const { publicKeyHex } = newKeypair();
-    const decode = createRequestDecoder({ networkPublicKey: publicKeyHex });
+    const decode = createGenericDecoder({ networkPublicKey: publicKeyHex });
 
     const body = new Uint8Array([1, 2, 3]);
     const headers = { 'content-type': 'application/json' };
@@ -243,7 +243,7 @@ describe('createRequestDecoder', () => {
 
   it('rejects unsupported Content-Type with 415', () => {
     const { priv, publicKeyHex } = newKeypair();
-    const decode = createRequestDecoder({ networkPublicKey: publicKeyHex });
+    const decode = createGenericDecoder({ networkPublicKey: publicKeyHex });
 
     const body = new TextEncoder().encode('hello');
     const headers = { ...sign(body, priv), 'content-type': 'text/plain' };
@@ -256,7 +256,7 @@ describe('createRequestDecoder', () => {
 
   it('rejects malformed body with 400', () => {
     const { priv, publicKeyHex } = newKeypair();
-    const decode = createRequestDecoder({ networkPublicKey: publicKeyHex });
+    const decode = createGenericDecoder({ networkPublicKey: publicKeyHex });
 
     const body = new TextEncoder().encode('not json {{{');
     const headers = { ...sign(body, priv), 'content-type': 'application/json' };
@@ -271,7 +271,7 @@ describe('createRequestDecoder', () => {
 
   it('rejects contract-invalid request with 400 and violations', () => {
     const { priv, publicKeyHex } = newKeypair();
-    const decode = createRequestDecoder({
+    const decode = createGenericDecoder({
       networkPublicKey: publicKeyHex,
       registry: networkRegistry,
     });
@@ -294,7 +294,7 @@ describe('createRequestDecoder', () => {
 
   it('encodeResponse returns 500 on invalid response', () => {
     const { priv, publicKeyHex } = newKeypair();
-    const decode = createRequestDecoder({
+    const decode = createGenericDecoder({
       networkPublicKey: publicKeyHex,
       registry: networkRegistry,
     });
@@ -318,10 +318,10 @@ describe('createRequestDecoder', () => {
   });
 });
 
-describe('createNetworkRequestDecoder', () => {
+describe('createRequestDecoder (network-preconfigured)', () => {
   it('decodes a network message with registry-aware validation', () => {
     const { priv, publicKeyHex } = newKeypair();
-    const decode = createNetworkRequestDecoder({ networkPublicKey: publicKeyHex });
+    const decode = createRequestDecoder({ networkPublicKey: publicKeyHex });
 
     const msg = create(DecimalSchema, { unscaled: BigInt(12345), exponent: -2 });
     const jsonBody = new TextEncoder().encode(
@@ -338,7 +338,7 @@ describe('createNetworkRequestDecoder', () => {
 
   it('rejects contract-invalid network message with violations', () => {
     const { priv, publicKeyHex } = newKeypair();
-    const decode = createNetworkRequestDecoder({ networkPublicKey: publicKeyHex });
+    const decode = createRequestDecoder({ networkPublicKey: publicKeyHex });
 
     const msg = create(DecimalSchema, { unscaled: BigInt(100), exponent: 99 });
     const jsonBody = new TextEncoder().encode(
@@ -352,5 +352,21 @@ describe('createNetworkRequestDecoder', () => {
     assert.equal(result.error.status, 400);
     const parsed = JSON.parse(result.error.body as string);
     assert.ok(parsed.violations.length > 0);
+  });
+});
+
+describe('createRequestDecoder (generic, from crypto subpath)', () => {
+  it('decodes without network registry when imported from crypto', () => {
+    const { priv, publicKeyHex } = newKeypair();
+    const decode = createGenericDecoder({ networkPublicKey: publicKeyHex });
+
+    const msg = create(HealthCheckRequestSchema, { service: 'generic' });
+    const jsonBody = new TextEncoder().encode(toJsonString(HealthCheckRequestSchema, msg));
+    const headers = { ...sign(jsonBody, priv), 'content-type': 'application/json' };
+
+    const result = decode(HealthCheckRequestSchema, { body: jsonBody, headers });
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+    assert.equal(result.request.service, 'generic');
   });
 });
