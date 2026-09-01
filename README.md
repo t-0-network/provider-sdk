@@ -108,7 +108,7 @@ For direct SDK usage without the starter:
 
 ## Further Reading
 
-- [T-0 Network Documentation](https://t-0.network/docs)
+- [T-0 Network Documentation](https://docs.t-0.network/)
 - [Go Starter](go/starter/README.md) | [Go SDK](go/README.md)
 - [TypeScript Starter](node/starter/README.md) | [TypeScript SDK](node/sdk/README.md)
 - [Python Starter & SDK](python/README.md)
