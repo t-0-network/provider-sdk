@@ -38,6 +38,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v6
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/master' }}
+          cache-provider: basic
 
       - name: Build and test
         working-directory: java

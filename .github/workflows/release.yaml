@@ -78,6 +78,7 @@ jobs:
         uses: gradle/actions/setup-gradle@v6
         with:
           cache-read-only: true
+          cache-provider: basic
 
       - name: Build
         working-directory: java
