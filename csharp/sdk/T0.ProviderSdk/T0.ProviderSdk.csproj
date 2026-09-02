@@ -25,7 +25,7 @@
 
   <ItemGroup>
     <PackageReference Include="BouncyCastle.Cryptography" Version="2.6.2" />
-    <PackageReference Include="Google.Protobuf" Version="3.36.0" />
+    <PackageReference Include="Google.Protobuf" Version="3.36.1" />
     <PackageReference Include="Grpc.AspNetCore" Version="2.83.0" />
     <PackageReference Include="Grpc.HealthCheck" Version="2.83.0" />
     <PackageReference Include="Grpc.Net.Client" Version="2.83.0" />
