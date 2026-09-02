@@ -29,7 +29,7 @@ jobs:
           owner: ${{ github.repository_owner }}
           repositories: usdt-pay-sdk
 
-      - uses: wadackel/files-sync-action@v3
+      - uses: wadackel/files-sync-action@v4
         with:
           github_token: ${{ steps.app-token.outputs.token }}
           config_file: .github/workflows/cli-sync-config/usdt-pay-sdk.yaml
