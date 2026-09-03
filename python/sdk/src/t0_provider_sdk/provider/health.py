@@ -11,7 +11,10 @@ top-level `grpc_health` package. That naming is not incidental: a generated
 grpcio would fail to import this SDK at all.
 
 connect-python publishes no health bindings, so the ASGI/WSGI applications are
-assembled here from `Endpoint` rather than generated. Only `Check` is mounted:
+assembled here from `Endpoint` rather than generated. Because they are not
+generated, they must pass the `google.protobuf` compat codecs explicitly — the
+runtime's default codec targets protobuf-py and cannot serialize these
+messages. Only `Check` is mounted:
 `Watch` is server-streaming, and the body-hash signature scheme these servers
 run behind has no story for streams.
 """
@@ -21,6 +24,7 @@ from __future__ import annotations
 from collections.abc import Iterable
 
 from connectrpc.code import Code
+from connectrpc.compat import google_protobuf_codecs
 from connectrpc.errors import ConnectError
 from connectrpc.interceptor import Interceptor, InterceptorSync
 from connectrpc.method import IdempotencyLevel, MethodInfo
@@ -62,8 +66,8 @@ class _Health:
         request: health_pb2.HealthCheckRequest,
         ctx: RequestContext,
     ) -> health_pb2.HealthCheckResponse:
-        ctx.response_headers()[SDK_ECOSYSTEM_HEADER] = _SDK_ECOSYSTEM
-        ctx.response_headers()[SDK_VERSION_HEADER] = self._version or __version__
+        ctx.response_headers[SDK_ECOSYSTEM_HEADER] = _SDK_ECOSYSTEM
+        ctx.response_headers[SDK_VERSION_HEADER] = self._version or __version__
 
         # An empty service name asks about the process as a whole, which is up if
         # this handler is running at all.
@@ -102,6 +106,7 @@ class HealthASGIApplication(ConnectASGIApplication[HealthImpl]):
                 _CHECK_PATH: Endpoint.unary(method=_CHECK_METHOD, function=svc.check),
             },
             interceptors=interceptors,
+            codecs=google_protobuf_codecs(),
         )
 
     @property
@@ -111,12 +116,15 @@ class HealthASGIApplication(ConnectASGIApplication[HealthImpl]):
 
 class HealthWSGIApplication(ConnectWSGIApplication):
     def __init__(self, service: HealthImplSync, *, interceptors: Iterable[InterceptorSync] = ()) -> None:
+        # Unlike the ASGI base, the WSGI base takes the endpoint map directly
+        # (no service/factory pair), which is also how generated WSGI stubs
+        # call it.
         super().__init__(
-            service=service,
-            endpoints=lambda svc: {
-                _CHECK_PATH: EndpointSync.unary(method=_CHECK_METHOD, function=svc.check),
+            endpoints={
+                _CHECK_PATH: EndpointSync.unary(method=_CHECK_METHOD, function=service.check),
             },
             interceptors=interceptors,
+            codecs=google_protobuf_codecs(),
         )
 
     @property

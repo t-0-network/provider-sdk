@@ -135,15 +135,15 @@ wheels = [
 
 [[package]]
 name = "connectrpc"
-version = "0.10.0"
+version = "0.11.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "protobuf" },
+    { name = "protobuf-py" },
     { name = "pyqwest" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/03/21/bb02a054348901d90d98a680864b2a97b6a89bd33285632821d3a1864e5a/connectrpc-0.10.0.tar.gz", hash = "sha256:44f89b70abae9f8192883e79e8a3317bdca555036ed3bd4a20f398c0bac7162f", size = 46893, upload-time = "2026-04-28T16:07:16.921Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/8b/b5/63e14ab9d4d4cc58818562db4120a35fa7454e3035633da41bdc6b712abd/connectrpc-0.11.1.tar.gz", hash = "sha256:18277f7838847b4271ca38d40c7d2387b5a2ea6a29f240689c19e1ec84aaff66", size = 46222, upload-time = "2026-07-15T06:33:31.601Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/6e/80/c701d8ea2013b32696d96ad76f841e7ce61bfb092a7d5dc823a15d87115c/connectrpc-0.10.0-py3-none-any.whl", hash = "sha256:fedaf5abb8c90ab69662958b88f23f4cc18b7a0b0359401d8e5776ccfceefc38", size = 64007, upload-time = "2026-04-28T16:07:15.59Z" },
+    { url = "https://files.pythonhosted.org/packages/5c/ac/aa647675812cd075f2cb9acb00d62f4f2cbcbc6736049a62342b7371ce5b/connectrpc-0.11.1-py3-none-any.whl", hash = "sha256:8a52e2e92a485fa9681c1101a79a5ebeb31807e3ea3d5aabd41f484a6398bc7b", size = 64991, upload-time = "2026-07-15T06:33:29.396Z" },
 ]
 
 [[package]]
@@ -789,7 +789,7 @@ wheels = [
 
 [[package]]
 name = "t0-provider-sdk"
-version = "1.1.32"
+version = "1.1.38"
 source = { editable = "sdk" }
 dependencies = [
     { name = "coincurve" },
@@ -811,7 +811,7 @@ dev = [
 [package.metadata]
 requires-dist = [
     { name = "coincurve", specifier = ">=21.0" },
-    { name = "connectrpc", specifier = ">=0.10.0" },
+    { name = "connectrpc", specifier = ">=0.11.1" },
     { name = "grpcio-health-checking", specifier = ">=1.60" },
     { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.13" },
     { name = "protobuf", specifier = ">=7.34.1" },
@@ -825,7 +825,7 @@ provides-extras = ["dev"]
 
 [[package]]
 name = "t0-provider-starter"
-version = "1.1.32"
+version = "1.1.38"
 source = { editable = "starter" }
 dependencies = [
     { name = "click" },

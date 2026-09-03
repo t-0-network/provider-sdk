@@ -33,7 +33,21 @@ jobs:
       - name: Setup buf
         uses: bufbuild/buf-setup-action@v1
 
-      # Generate Go, Node, Python from root buf.gen.yaml (all remote plugins)
+      # The Python connect plugin runs locally via `uv run` (see buf.gen.yaml):
+      # connectrpc >= 0.11 rewrote protoc-gen-connectrpc in Python and the BSR
+      # remote plugin stops at v0.10.1.
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - name: Setup uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Install Python codegen plugin
+        run: uv sync --project python --all-packages
+
+      # Generate Go, Node, Python, C# from root buf.gen.yaml
       - name: Generate clients
         run: buf generate
 

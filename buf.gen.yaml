@@ -60,8 +60,18 @@ plugins:
     out: python/sdk/src/t0_provider_sdk/api
   - remote: buf.build/protocolbuffers/pyi:v34.1
     out: python/sdk/src/t0_provider_sdk/api
-  - remote: buf.build/connectrpc/python:v0.10.0
+  # connectrpc >= 0.11 rewrote protoc-gen-connectrpc in Python and no longer
+  # publishes it as a BSR remote plugin (buf.build/connectrpc/python stops at
+  # v0.10.1), so it runs from the Python workspace's dev dependencies. Its pin
+  # lives in python/pyproject.toml; keep it equal to the `connectrpc` runtime
+  # floor in python/sdk/pyproject.toml.
+  #
+  # connectrpc >= 0.11 defaults to the protobuf-py runtime; the SDK ships
+  # google.protobuf messages, so the stubs must opt into the compat codec.
+  # Without `protobuf=google` every request fails with ConnectError('to_binary').
+  - local: [uv, run, --project, python, protoc-gen-connectrpc]
     out: python/sdk/src/t0_provider_sdk/api
+    opt: protobuf=google
 
   # --- C# ---
   - remote: buf.build/protocolbuffers/csharp:v34.0
