@@ -38,6 +38,7 @@ jobs:
           go-version: "stable"
           cache-dependency-path: |
             go/go.sum
+            cross_test/go_helper/go.sum
             .github/tools/sumtool/go.sum
 
       - name: Test sumtool
