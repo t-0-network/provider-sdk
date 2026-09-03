@@ -927,13 +927,13 @@ Tests use shared test vectors from the Go SDK to ensure cross-language compatibi
 
 Located in `tests/cross_test/`, these tests validate interoperability between the Python and Go SDKs using a small Go helper binary.
 
-**Go helper binary** (`tests/cross_test/go_helper/`):
+**Go helper binary** (`cross_test/go_helper/`):
 - `hash <hex_data>` -- Compute Keccak-256
 - `sign <hex_private_key> <hex_digest>` -- Sign a digest
 - `verify <hex_public_key> <hex_digest> <hex_signature>` -- Verify a signature
 - `pubkey <hex_private_key>` -- Derive public key
 - `serve <port> <hex_network_public_key>` -- Start a Go ProviderService server
-- `call-pay-out <base_url> <hex_private_key> <hex_network_public_key>` -- Call PayOut on a server
+- `call-pay-out <base_url> <hex_private_key>` -- Call PayOut on a server
 
 **Signature cross-tests** (`test_cross_signature.py`):
 - Keccak-256 hash consistency between Python and Go
@@ -960,7 +960,7 @@ uv run pytest -v
 uv run pytest sdk/tests -v
 
 # Run cross-language tests (requires Go helper binary)
-cd tests/cross_test/go_helper && go build -o go_helper . && cd ../../..
+cd ../cross_test/go_helper && go build -o go_helper . && cd ../../python
 uv run pytest tests/cross_test -v
 
 # Lint

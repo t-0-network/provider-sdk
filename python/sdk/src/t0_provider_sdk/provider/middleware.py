@@ -50,8 +50,8 @@ signature_error_var: contextvars.ContextVar[SignatureVerificationError | None] =
     "signature_error", default=None
 )
 
-# Default max body size (4 MB), matching Go SDK
-DEFAULT_MAX_BODY_SIZE = 4 * 1024 * 1024
+# Default max body size (10 MiB), matching Go SDK and T-0 Network
+DEFAULT_MAX_BODY_SIZE = 10 * 1024 * 1024
 
 # Timestamp tolerance: ±60 seconds
 TIMESTAMP_TOLERANCE_MS = 60_000

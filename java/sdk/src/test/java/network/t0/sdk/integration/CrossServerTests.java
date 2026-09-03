@@ -86,7 +86,7 @@ class CrossServerTests {
                     HealthGrpc::newBlockingStub)) {
 
                 HealthCheckResponse response = client.stub()
-                        .check(HealthCheckRequest.getDefaultInstance());
+                        .check(HealthCheckRequest.newBuilder().setService(HealthGrpc.SERVICE_NAME).build());
 
                 assertThat(response.getStatus())
                         .isEqualTo(HealthCheckResponse.ServingStatus.SERVING);
@@ -185,7 +185,6 @@ class CrossServerTests {
                     "call-pay-out",
                     "http://127.0.0.1:" + port,
                     "0x" + PRIVATE_KEY,
-                    "0x" + PUBLIC_KEY,
                     "--grpc")
                     .redirectErrorStream(false)
                     .start();

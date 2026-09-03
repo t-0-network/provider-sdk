@@ -11,6 +11,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"connectrpc.com/connect"
@@ -80,19 +81,7 @@ func newSignatureVerifierMiddleware(
 			_ = req.Body.Close()
 			req.Body = io.NopCloser(bytes.NewReader(body))
 
-			if err := verifySignature(publicKey, append(body, timestampBytes[:]...), signature); err != nil {
-				// gRPC clients (e.g. Java SDK) sign above the gRPC framer — the
-				// signed payload is unframed protobuf. When the request arrives via
-				// gRPC protocol the HTTP body includes a 5-byte frame prefix the
-				// signer never saw. Try again without it.
-				if isGRPCRequest(req) && hasGRPCFramePrefix(body) {
-					unframed := body[5:]
-					if err2 := verifySignature(publicKey, append(unframed, timestampBytes[:]...), signature); err2 == nil {
-						ctx := context.WithValue(req.Context(), signatureErrorContextKey{}, (*SignatureError)(nil))
-						handler.ServeHTTP(writer, req.WithContext(ctx))
-						return
-					}
-				}
+			if err := verifyWithFramingFallback(verifySignature, req, publicKey, body, signature, timestampBytes); err != nil {
 				setErrorAndContinue(req, connect.CodeUnauthenticated, err.Error())
 				return
 			}
@@ -200,9 +189,25 @@ func timesWithinDelta(t1, t2 time.Time, delta time.Duration) bool {
 	return diff <= delta
 }
 
+// verifyWithFramingFallback tries the full body first; if that fails and the
+// request is gRPC with a valid frame prefix, retries without the 5-byte prefix.
+// Required for Java SDK clients whose SigningClientInterceptor signs above the
+// gRPC framer. See go/CLAUDE.md "Dual Framing" section.
+func verifyWithFramingFallback(verify VerifySignature, req *http.Request, publicKey, body, signature []byte, timestampBytes [8]byte) error {
+	err := verify(publicKey, append(body, timestampBytes[:]...), signature)
+	if err == nil {
+		return nil
+	}
+	if isGRPCRequest(req) && hasGRPCFramePrefix(body) {
+		if verify(publicKey, append(body[5:], timestampBytes[:]...), signature) == nil {
+			return nil
+		}
+	}
+	return err
+}
+
 func isGRPCRequest(req *http.Request) bool {
-	ct := req.Header.Get("Content-Type")
-	return len(ct) >= 16 && ct[:16] == "application/grpc"
+	return strings.HasPrefix(req.Header.Get("Content-Type"), "application/grpc")
 }
 
 func hasGRPCFramePrefix(body []byte) bool {

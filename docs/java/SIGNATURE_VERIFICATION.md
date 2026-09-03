@@ -73,13 +73,13 @@ Removing path 1 silently breaks every caller whose signing wiring is above the f
 
 In both cases the failure surfaces only as `UNAUTHENTICATED` responses for one class of caller, not the other — the kind of stealth breakage that is hard to attribute and easy to misdiagnose.
 
-GitHub issue [#89](https://github.com/t-0-network/provider-sdk/issues/89) raised concern that the framed path looked like dead code because the SDK clients shipped in this repo all sign unframed. The audit was incomplete — it considered only same-repo SDK clients and missed the network's gRPC-protocol path, which signs framed bodies. Both framings are required.
+GitHub issue [#89](https://github.com/t-0-network/provider-sdk/issues/89) raised concern that the framed path looked like dead code because most SDK clients shipped in this repo sign unframed. The audit was incomplete — it considered only same-repo SDK clients and missed the network's gRPC-protocol path, which signs framed bodies. Additionally, the C# SDK's `SigningDelegatingHandler` signs the framed body (it sits below the gRPC framer in the HttpClient pipeline), so it also exercises the framed path. Both framings are required.
 
 ## Conditions under which simplification would be safe
 
 A single canonical framing could be enforced only if **all** signing parties that talk to a Java provider can be confirmed to sign at the same layer. That confirmation must include:
 
-- All four SDK clients in this repo (currently all sign unframed).
+- All five SDK clients in this repo (Java signs unframed; C# signs framed; Go/Node/Python use Connect protocol with no frame).
 - The network for every transport configuration it can be set to use against the provider.
 - Any third-party client built directly on a gRPC framework, where the integrator chose where to wire signing.
 

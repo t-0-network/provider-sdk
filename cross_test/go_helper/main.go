@@ -8,7 +8,7 @@
 //	go_helper verify <hex_public_key> <hex_digest> <hex_signature>
 //	go_helper pubkey <hex_private_key>
 //	go_helper serve <port> <hex_network_public_key>
-//	go_helper call-pay-out <base_url> <hex_private_key> <hex_network_public_key> [--grpc]
+//	go_helper call-pay-out <base_url> <hex_private_key> [--grpc]
 //	go_helper call-health <base_url> <hex_private_key> [--grpc]
 package main
 
@@ -175,20 +175,19 @@ func hasFlag(flag string) bool {
 
 func cmdCallPayOut() {
 	grpcMode := hasFlag("--grpc")
-	// Positional: call-pay-out <base_url> <hex_private_key> <hex_network_public_key> [--grpc]
-	positional := make([]string, 0, 3)
+	// Positional: call-pay-out <base_url> <hex_private_key> [--grpc]
+	positional := make([]string, 0, 2)
 	for _, arg := range os.Args[2:] {
 		if !strings.HasPrefix(arg, "--") {
 			positional = append(positional, arg)
 		}
 	}
-	if len(positional) != 3 {
-		fmt.Fprintln(os.Stderr, "Usage: go_helper call-pay-out <base_url> <hex_private_key> <hex_network_public_key> [--grpc]")
+	if len(positional) != 2 {
+		fmt.Fprintln(os.Stderr, "Usage: go_helper call-pay-out <base_url> <hex_private_key> [--grpc]")
 		os.Exit(1)
 	}
 	baseURL := positional[0]
 	privateKey := network.PrivateKeyHexed(positional[1])
-	_ = positional[2] // network public key (used by server, not client)
 
 	var clientOpts []network.ClientOption
 	clientOpts = append(clientOpts, network.WithBaseURL(baseURL))
@@ -263,7 +262,7 @@ func cmdCallHealth() {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 
-	resp, err := client.Check(ctx, &grpchealth.CheckRequest{})
+	resp, err := client.Check(ctx, &grpchealth.CheckRequest{Service: grpchealth.HealthV1ServiceName})
 	if err != nil {
 		fmt.Printf("ERROR: %v\n", err)
 		os.Exit(1)

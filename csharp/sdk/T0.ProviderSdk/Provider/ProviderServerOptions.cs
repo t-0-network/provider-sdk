@@ -12,7 +12,7 @@ public sealed class ProviderServerOptions
     public string NetworkPublicKeyHex { get; set; } = "";
 
     /// <summary>
-    /// Maximum request body size in bytes. Default: 1 MB.
+    /// Maximum request body size in bytes. Default: 10 MiB.
     /// </summary>
-    public long MaxBodySize { get; set; } = 1_048_576;
+    public long MaxBodySize { get; set; } = 10 * 1024 * 1024;
 }

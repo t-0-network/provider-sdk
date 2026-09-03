@@ -80,7 +80,7 @@ CI builds the helper automatically (each language's CI workflow sets up Go and b
 | `verify <hex_public_key> <hex_digest> <hex_signature>` | Verify signature |
 | `pubkey <hex_private_key>` | Derive public key |
 | `serve <port> <hex_public_key>` | Provider server (h2c, Connect + gRPC) |
-| `call-pay-out <url> <hex_private_key> <hex_public_key> [--grpc]` | Signed PayOut RPC |
+| `call-pay-out <url> <hex_private_key> [--grpc]` | Signed PayOut RPC |
 | `call-health <url> <hex_private_key> [--grpc]` | Signed health check |
 
 Default protocol is Connect (HTTP/1.1). Pass `--grpc` for gRPC protocol over h2c.

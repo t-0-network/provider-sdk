@@ -25,7 +25,7 @@ from collections.abc import Iterable, Mapping
 
 from connectrpc.client import ConnectClient, ConnectClientSync
 from connectrpc.code import Code
-from connectrpc.compat import google_protobuf_codecs
+from connectrpc.compat import google_protobuf_binary_codec, google_protobuf_codecs
 from connectrpc.errors import ConnectError
 from connectrpc.interceptor import Interceptor, InterceptorSync
 from connectrpc.method import IdempotencyLevel, MethodInfo
@@ -136,6 +136,9 @@ class HealthWSGIApplication(ConnectWSGIApplication):
 class HealthClient(ConnectClient):
     """Async health check client."""
 
+    def __init__(self, address: str, **kwargs: object) -> None:
+        super().__init__(address, codec=google_protobuf_binary_codec(), **kwargs)
+
     async def check(
         self,
         request: health_pb2.HealthCheckRequest | None = None,
@@ -155,6 +158,9 @@ class HealthClient(ConnectClient):
 
 class HealthClientSync(ConnectClientSync):
     """Sync health check client."""
+
+    def __init__(self, address: str, **kwargs: object) -> None:
+        super().__init__(address, codec=google_protobuf_binary_codec(), **kwargs)
 
     def check(
         self,

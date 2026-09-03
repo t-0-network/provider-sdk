@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	defaultMaxBodySize = 1024 * 1024 // 1 MB
+	defaultMaxBodySize = 10 * 1024 * 1024 // 10 MiB
 )
 
 type providerHandlerOptions struct {
