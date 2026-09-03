@@ -22,10 +22,11 @@ run behind has no story for streams.
 from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
+from typing import Any
 
 from connectrpc.client import ConnectClient, ConnectClientSync
 from connectrpc.code import Code
-from connectrpc.compat import google_protobuf_codecs
+from connectrpc.compat import google_protobuf_binary_codec, google_protobuf_codecs
 from connectrpc.errors import ConnectError
 from connectrpc.interceptor import Interceptor, InterceptorSync
 from connectrpc.method import IdempotencyLevel, MethodInfo
@@ -136,6 +137,10 @@ class HealthWSGIApplication(ConnectWSGIApplication):
 class HealthClient(ConnectClient):
     """Async health check client."""
 
+    def __init__(self, address: str, **kwargs: Any) -> None:
+        kwargs.setdefault("codec", google_protobuf_binary_codec())
+        super().__init__(address, **kwargs)
+
     async def check(
         self,
         request: health_pb2.HealthCheckRequest | None = None,
@@ -155,6 +160,10 @@ class HealthClient(ConnectClient):
 
 class HealthClientSync(ConnectClientSync):
     """Sync health check client."""
+
+    def __init__(self, address: str, **kwargs: Any) -> None:
+        kwargs.setdefault("codec", google_protobuf_binary_codec())
+        super().__init__(address, **kwargs)
 
     def check(
         self,
