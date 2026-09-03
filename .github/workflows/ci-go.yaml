@@ -38,6 +38,7 @@ jobs:
           go-version: "stable"
           cache-dependency-path: |
             go/go.sum
+            cross_test/go_helper/go.sum
             .github/tools/sumtool/go.sum
 
       - name: Test sumtool
@@ -49,6 +50,10 @@ jobs:
         run: |
           go mod tidy
           git diff --exit-code || (echo "go.mod diff found, please run 'go mod tidy'" && false)
+
+      - name: Build cross-test helper
+        working-directory: cross_test/go_helper
+        run: go vet ./... && go build -o go_helper .
 
       - name: Run Tests
         working-directory: go
