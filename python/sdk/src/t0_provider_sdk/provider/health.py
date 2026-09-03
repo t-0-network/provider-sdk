@@ -21,14 +21,15 @@ run behind has no story for streams.
 
 from __future__ import annotations
 
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 
+from connectrpc.client import ConnectClient, ConnectClientSync
 from connectrpc.code import Code
 from connectrpc.compat import google_protobuf_codecs
 from connectrpc.errors import ConnectError
 from connectrpc.interceptor import Interceptor, InterceptorSync
 from connectrpc.method import IdempotencyLevel, MethodInfo
-from connectrpc.request import RequestContext
+from connectrpc.request import Headers, RequestContext
 from connectrpc.server import ConnectASGIApplication, ConnectWSGIApplication, Endpoint, EndpointSync
 from grpc_health.v1 import health_pb2
 
@@ -130,3 +131,43 @@ class HealthWSGIApplication(ConnectWSGIApplication):
     @property
     def path(self) -> str:
         return f"/{HEALTH_SERVICE_FQN}"
+
+
+class HealthClient(ConnectClient):
+    """Async health check client."""
+
+    async def check(
+        self,
+        request: health_pb2.HealthCheckRequest | None = None,
+        *,
+        headers: Headers | Mapping[str, str] | None = None,
+        timeout_ms: int | None = None,
+    ) -> health_pb2.HealthCheckResponse:
+        if request is None:
+            request = health_pb2.HealthCheckRequest()
+        return await self.execute_unary(
+            request=request,
+            method=_CHECK_METHOD,
+            headers=headers,
+            timeout_ms=timeout_ms,
+        )
+
+
+class HealthClientSync(ConnectClientSync):
+    """Sync health check client."""
+
+    def check(
+        self,
+        request: health_pb2.HealthCheckRequest | None = None,
+        *,
+        headers: Headers | Mapping[str, str] | None = None,
+        timeout_ms: int | None = None,
+    ) -> health_pb2.HealthCheckResponse:
+        if request is None:
+            request = health_pb2.HealthCheckRequest()
+        return self.execute_unary(
+            request=request,
+            method=_CHECK_METHOD,
+            headers=headers,
+            timeout_ms=timeout_ms,
+        )

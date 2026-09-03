@@ -7,7 +7,7 @@ These tests verify that:
 4. Public key derivation is identical
 
 Requires the Go helper binary to be built:
-    cd tests/cross_test/go_helper && go build -o go_helper .
+    cd cross_test/go_helper && go build -o go_helper .
 """
 
 from __future__ import annotations
@@ -22,7 +22,7 @@ from t0_provider_sdk.crypto.keys import private_key_from_hex, public_key_to_byte
 from t0_provider_sdk.crypto.signer import new_signer_from_hex
 from t0_provider_sdk.crypto.verifier import verify_signature
 
-GO_HELPER = Path(__file__).parent / "go_helper" / "go_helper"
+GO_HELPER = Path(__file__).resolve().parents[3] / "cross_test" / "go_helper" / "go_helper"
 
 # Shared test vectors (same as Go SDK tests)
 PRIVATE_KEY = "0x6b30303de7b26bfb1222b317a52113357f8bb06de00160b4261a2fef9c8b9bd8"
@@ -50,9 +50,12 @@ def _go_available() -> bool:
     return GO_HELPER.exists() and os.access(GO_HELPER, os.X_OK)
 
 
+if not _go_available() and os.environ.get("CI"):
+    raise RuntimeError(f"Go helper binary required in CI but not found at {GO_HELPER}")
+
 pytestmark = pytest.mark.skipif(
     not _go_available(),
-    reason=f"Go helper binary not found at {GO_HELPER}. Build with: cd tests/cross_test/go_helper && go build -o go_helper .",
+    reason=f"Go helper binary not found at {GO_HELPER}. Build with: cd cross_test/go_helper && go build -o go_helper .",
 )
 
 

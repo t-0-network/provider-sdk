@@ -5,6 +5,7 @@ on:
     branches: [master]
     paths:
       - "node/**"
+      - "go/**"
       - "proto/**"
       - "cross_test/**"
       - ".github/workflows/ci-node.yaml"
@@ -12,6 +13,7 @@ on:
     branches: [master]
     paths:
       - "node/**"
+      - "go/**"
       - "proto/**"
       - "cross_test/**"
       - ".github/workflows/ci-node.yaml"
@@ -36,6 +38,22 @@ jobs:
           node-version: lts/*
           cache: npm
           cache-dependency-path: node/sdk/package-lock.json
+
+      - name: Setup Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: "stable"
+          cache-dependency-path: cross_test/go_helper/go.sum
+
+      - name: Cache Go cross-test helper
+        uses: actions/cache@v4
+        with:
+          path: cross_test/go_helper/go_helper
+          key: go-helper-${{ runner.os }}-${{ hashFiles('cross_test/go_helper/**', 'go/**/*.go', 'go/go.sum') }}
+
+      - name: Build Go cross-test helper
+        working-directory: cross_test/go_helper
+        run: go build -o go_helper .
 
       - name: Install SDK dependencies
         working-directory: node/sdk

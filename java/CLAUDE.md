@@ -29,6 +29,21 @@ GitHub issue #89 raised concern that the framed path looked like dead code — i
 
 ---
 
+## Cross-Language Testing
+
+Cross-server tests live in `sdk/src/test/java/network/t0/sdk/integration/CrossServerTests.java` and exercise bidirectional server-to-server communication with the Go helper at `cross_test/go_helper/`.
+
+```bash
+cd cross_test/go_helper && go build -o go_helper .                              # Build Go helper
+cd java && ./gradlew test --tests "network.t0.sdk.integration.CrossServerTests" # Run cross-tests
+```
+
+Tests cover:
+- **Go→Java**: Health check + PayOut (via `--grpc`)
+- **Java→Go**: Health check (Java `BlockingNetworkClient` → Go server with dual-framing)
+
+In CI, tests **fail** (not skip) if the Go helper binary is missing.
+
 ## Build Commands
 
 ```bash

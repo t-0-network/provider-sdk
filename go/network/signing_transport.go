@@ -49,7 +49,7 @@ type SigningTransport struct {
 
 func (t *SigningTransport) RoundTrip(req *http.Request) (*http.Response, error) {
 	var body []byte
-	if req.Body != nil {
+	if req.Body != nil && req.Body != http.NoBody {
 		var err error
 		body, err = io.ReadAll(req.Body)
 		if err != nil {

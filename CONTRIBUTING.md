@@ -50,13 +50,15 @@ uv run ruff check .
 uv run pytest -v
 ```
 
-#### Cross-Tests with Go SDK
+#### Cross-Language Server Tests
 
-Validates interoperability between Python and Go SDKs (Keccak256, signatures, server-to-server):
+All SDKs share a single Go helper binary at `cross_test/go_helper/` for server-to-server interoperability testing. Build it once, then run cross-tests for any language:
 
 ```sh
-cd python/tests/cross_test/go_helper && go build -o go_helper . && cd ../../../..
-cd python && uv run pytest tests/cross_test/ -v
+cd cross_test/go_helper && go build -o go_helper . && cd ../..
+cd python && uv run pytest tests/cross_test/ -v     # Python ↔ Go
+cd node/sdk && npm test                               # Node ↔ Go (included in test suite)
+cd csharp && dotnet test                              # C# ↔ Go (included in test suite)
 ```
 
 ### Java

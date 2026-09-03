@@ -47,9 +47,8 @@ java/starter/template/build/
 bin/
 obj/
 *.nupkg
-# Go helper binaries (built for cross-tests)
-csharp/sdk/T0.ProviderSdk.Tests/CrossTest/go_helper/go_helper
-python/tests/cross_test/go_helper/go_helper
+# Go helper binary (built for cross-tests)
+cross_test/go_helper/go_helper
 
 # Environment
 .env
