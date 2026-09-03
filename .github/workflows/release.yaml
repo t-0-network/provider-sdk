@@ -17,7 +17,7 @@ permissions:
   contents: write
 
 jobs:
-  # --- Validate all builds before releasing ---
+  # --- Validate all builds + tests before releasing ---
   build-go:
     name: Build Go
     runs-on: blacksmith-4vcpu-ubuntu-2404
@@ -33,9 +33,11 @@ jobs:
           go-version: "stable"
           cache-dependency-path: go/go.sum
 
-      - name: Build
+      - name: Build and test
         working-directory: go
-        run: go build ./...
+        run: |
+          go vet ./...
+          go test ./...
 
   build-node:
     name: Build Node
@@ -53,11 +55,28 @@ jobs:
           cache: npm
           cache-dependency-path: node/sdk/package-lock.json
 
-      - name: Build SDK
+      - name: Setup Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: "stable"
+          cache-dependency-path: cross_test/go_helper/go.sum
+
+      - name: Cache Go cross-test helper
+        uses: actions/cache@v4
+        with:
+          path: cross_test/go_helper/go_helper
+          key: go-helper-${{ runner.os }}-${{ hashFiles('cross_test/go_helper/**', 'go/**/*.go', 'go/go.sum') }}
+
+      - name: Build Go cross-test helper
+        working-directory: cross_test/go_helper
+        run: go build -o go_helper .
+
+      - name: Build and test SDK
         working-directory: node/sdk
         run: |
           npm ci
           npm run build
+          npm test
 
   build-java:
     name: Build Java
@@ -74,14 +93,30 @@ jobs:
           java-version: "17"
           distribution: "temurin"
 
+      - name: Setup Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: "stable"
+          cache-dependency-path: cross_test/go_helper/go.sum
+
+      - name: Cache Go cross-test helper
+        uses: actions/cache@v4
+        with:
+          path: cross_test/go_helper/go_helper
+          key: go-helper-${{ runner.os }}-${{ hashFiles('cross_test/go_helper/**', 'go/**/*.go', 'go/go.sum') }}
+
+      - name: Build Go cross-test helper
+        working-directory: cross_test/go_helper
+        run: go build -o go_helper .
+
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6
 
-      - name: Build
+      - name: Build and test
         working-directory: java
         run: |
           chmod +x gradlew
-          ./gradlew build -x test --no-daemon
+          ./gradlew build --no-daemon
 
   build-python:
     name: Build Python
@@ -103,12 +138,29 @@ jobs:
           enable-cache: true
           cache-dependency-glob: python/uv.lock
 
-      - name: Build
+      - name: Setup Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: "stable"
+          cache-dependency-path: cross_test/go_helper/go.sum
+
+      - name: Cache Go cross-test helper
+        uses: actions/cache@v4
+        with:
+          path: cross_test/go_helper/go_helper
+          key: go-helper-${{ runner.os }}-${{ hashFiles('cross_test/go_helper/**', 'go/**/*.go', 'go/go.sum') }}
+
+      - name: Build Go cross-test helper
+        working-directory: cross_test/go_helper
+        run: go build -o go_helper .
+
+      - name: Build and test
         working-directory: python
         run: |
-          uv sync
+          uv sync --all-packages
           uv build --package t0-provider-sdk
           uv build --package t0-provider-starter
+          uv run pytest
 
   build-csharp:
     name: Build C#
@@ -124,9 +176,27 @@ jobs:
         with:
           dotnet-version: "10.0.x"
 
-      - name: Build
+      - name: Setup Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: "stable"
+          cache-dependency-path: cross_test/go_helper/go.sum
+
+      - name: Cache Go cross-test helper
+        uses: actions/cache@v4
+        with:
+          path: cross_test/go_helper/go_helper
+          key: go-helper-${{ runner.os }}-${{ hashFiles('cross_test/go_helper/**', 'go/**/*.go', 'go/go.sum') }}
+
+      - name: Build Go cross-test helper
+        working-directory: cross_test/go_helper
+        run: go build -o go_helper .
+
+      - name: Build and test
         working-directory: csharp
-        run: dotnet build
+        run: |
+          dotnet build
+          dotnet test --no-build
 
   build-cli:
     name: Build CLI
