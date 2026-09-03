@@ -3,7 +3,7 @@ import * as nodeAssert from 'node:assert/strict';
 import { keccak_256 } from '@noble/hashes/sha3.js';
 import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { CreateSigner } from '../src/client/signer.js';
-import { verifySignature, keccak256, computeDigest, parsePublicKey, publicKeysEqual, createRequestVerifier, DEFAULT_TOLERANCE_MS } from '../src/crypto/index.js';
+import { verifySignature, keccak256, computeDigest, parsePublicKey, publicKeysEqual, createRequestVerifier, DEFAULT_TOLERANCE_MS, NetworkHeaders } from '../src/crypto/index.js';
 import type { VerifyRequest } from '../src/crypto/index.js';
 import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
@@ -817,6 +817,14 @@ describe('crypto/createRequestVerifier', () => {
       signatureHeader: '0x' + 'a'.repeat(127), // odd length
     }));
     nodeAssert.deepStrictEqual(result, { valid: false, reason: 'invalid_signature_format' });
+  });
+});
+
+describe('crypto/NetworkHeaders', () => {
+  it('is exported from the crypto subpath with the expected values', () => {
+    nodeAssert.equal(NetworkHeaders.PublicKey, 'X-Public-Key');
+    nodeAssert.equal(NetworkHeaders.Signature, 'X-Signature');
+    nodeAssert.equal(NetworkHeaders.SignatureTimestamp, 'X-Signature-Timestamp');
   });
 });
 

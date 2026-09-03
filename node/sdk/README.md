@@ -148,7 +148,7 @@ For custom proto registries (e.g. non-network schemas with custom predefined rul
 <details>
 <summary>Lower-level primitives</summary>
 
-The individual building blocks are also exported: `createRequestVerifier`, `rejectRequest`, `verifySignature`, `computeDigest`, `keccak256`, `parsePublicKey`, `publicKeysEqual`. You can import just the crypto module via the `./crypto` subpath: `import { createRequestVerifier } from "@t-0/provider-sdk/crypto"`.
+The individual building blocks are also exported: `createRequestVerifier`, `rejectRequest`, `verifySignature`, `computeDigest`, `keccak256`, `parsePublicKey`, `publicKeysEqual`, and the `NetworkHeaders` header-name enum. You can import just the crypto module via the `./crypto` subpath: `import { createRequestVerifier } from "@t-0/provider-sdk/crypto"`.
 </details>
 
 ### Network Client
