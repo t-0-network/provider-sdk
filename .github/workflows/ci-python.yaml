@@ -8,6 +8,8 @@ on:
       - "go/**"
       - "proto/**"
       - "cross_test/**"
+      - ".github/actions/setup-go-helper/**"
+      - ".github/actions/test-python/**"
       - ".github/workflows/ci-python.yaml"
   pull_request:
     branches: [master]
@@ -16,6 +18,8 @@ on:
       - "go/**"
       - "proto/**"
       - "cross_test/**"
+      - ".github/actions/setup-go-helper/**"
+      - ".github/actions/test-python/**"
       - ".github/workflows/ci-python.yaml"
 
 concurrency:
@@ -32,42 +36,7 @@ jobs:
         with:
           show-progress: false
 
-      - name: Setup Python
-        uses: actions/setup-python@v7
-        with:
-          python-version: "3.13"
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
-        with:
-          enable-cache: true
-          cache-dependency-glob: python/uv.lock
-
-      - name: Setup Go
-        uses: actions/setup-go@v7
-        with:
-          go-version: "stable"
-          cache-dependency-path: cross_test/go_helper/go.sum
-
-      - name: Cache Go cross-test helper
-        uses: actions/cache@v4
-        with:
-          path: cross_test/go_helper/go_helper
-          key: go-helper-${{ runner.os }}-${{ hashFiles('cross_test/go_helper/**', 'go/**/*.go', 'go/go.sum') }}
-
-      - name: Build Go cross-test helper
-        working-directory: cross_test/go_helper
-        run: go build -o go_helper .
-
-      - name: Install dependencies
-        working-directory: python
-        run: uv sync --all-packages
-
-      - name: Build packages
-        working-directory: python
-        run: |
-          uv build --package t0-provider-sdk
-          uv build --package t0-provider-starter
+      - uses: ./.github/actions/test-python
 
       - name: Lint
         working-directory: python
@@ -76,15 +45,6 @@ jobs:
       - name: Format check
         working-directory: python
         run: uv run ruff format --check .
-
-      # TODO: re-enable once type errors are fixed
-      # - name: Type check
-      #   working-directory: python
-      #   run: uv run mypy .
-
-      - name: Run tests
-        working-directory: python
-        run: uv run pytest
 
   # Customers install the SDK without our lockfile, so their resolver picks the
   # newest release of every open-ranged dependency. The job above only ever

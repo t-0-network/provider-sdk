@@ -8,6 +8,8 @@ on:
       - "go/**"
       - "proto/**"
       - "cross_test/**"
+      - ".github/actions/setup-go-helper/**"
+      - ".github/actions/test-node/**"
       - ".github/workflows/ci-node.yaml"
   pull_request:
     branches: [master]
@@ -16,6 +18,8 @@ on:
       - "go/**"
       - "proto/**"
       - "cross_test/**"
+      - ".github/actions/setup-go-helper/**"
+      - ".github/actions/test-node/**"
       - ".github/workflows/ci-node.yaml"
 
 concurrency:
@@ -32,40 +36,7 @@ jobs:
         with:
           show-progress: false
 
-      - name: Setup Node
-        uses: actions/setup-node@v7
-        with:
-          node-version: lts/*
-          cache: npm
-          cache-dependency-path: node/sdk/package-lock.json
-
-      - name: Setup Go
-        uses: actions/setup-go@v7
-        with:
-          go-version: "stable"
-          cache-dependency-path: cross_test/go_helper/go.sum
-
-      - name: Cache Go cross-test helper
-        uses: actions/cache@v4
-        with:
-          path: cross_test/go_helper/go_helper
-          key: go-helper-${{ runner.os }}-${{ hashFiles('cross_test/go_helper/**', 'go/**/*.go', 'go/go.sum') }}
-
-      - name: Build Go cross-test helper
-        working-directory: cross_test/go_helper
-        run: go build -o go_helper .
-
-      - name: Install SDK dependencies
-        working-directory: node/sdk
-        run: npm ci
-
-      - name: Build SDK
-        working-directory: node/sdk
-        run: npm run build
-
-      - name: Run SDK Tests
-        working-directory: node/sdk
-        run: npm test
+      - uses: ./.github/actions/test-node
 
       # Type-check the starter template against the freshly built SDK.
       # The template has no lockfile (industry standard for scaffold

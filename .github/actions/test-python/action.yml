@@ -1,0 +1,35 @@
+name: Test Python SDK
+description: Build and test the Python SDK including cross-language server-to-server tests
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Python
+      uses: actions/setup-python@v7
+      with:
+        python-version: "3.13"
+
+    - name: Install uv
+      uses: astral-sh/setup-uv@v7
+      with:
+        enable-cache: true
+        cache-dependency-glob: python/uv.lock
+
+    - uses: ./.github/actions/setup-go-helper
+
+    - name: Install dependencies
+      shell: bash
+      working-directory: python
+      run: uv sync --all-packages
+
+    - name: Build packages
+      shell: bash
+      working-directory: python
+      run: |
+        uv build --package t0-provider-sdk
+        uv build --package t0-provider-starter
+
+    - name: Test
+      shell: bash
+      working-directory: python
+      run: uv run pytest

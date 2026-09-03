@@ -17,7 +17,7 @@ permissions:
   contents: write
 
 jobs:
-  # --- Validate all builds before releasing ---
+  # --- Validate all builds + tests before releasing ---
   build-go:
     name: Build Go
     runs-on: blacksmith-4vcpu-ubuntu-2404
@@ -33,12 +33,14 @@ jobs:
           go-version: "stable"
           cache-dependency-path: go/go.sum
 
-      - name: Build
+      - name: Build and test
         working-directory: go
-        run: go build ./...
+        run: |
+          go vet ./...
+          go test ./...
 
   build-node:
-    name: Build Node
+    name: Test Node
     runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - name: Checkout
@@ -46,21 +48,10 @@ jobs:
         with:
           show-progress: false
 
-      - name: Setup Node
-        uses: actions/setup-node@v7
-        with:
-          node-version: lts/*
-          cache: npm
-          cache-dependency-path: node/sdk/package-lock.json
-
-      - name: Build SDK
-        working-directory: node/sdk
-        run: |
-          npm ci
-          npm run build
+      - uses: ./.github/actions/test-node
 
   build-java:
-    name: Build Java
+    name: Test Java
     runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - name: Checkout
@@ -68,39 +59,10 @@ jobs:
         with:
           show-progress: false
 
-      - name: Setup Java
-        uses: actions/setup-java@v6
-        with:
-          java-version: "17"
-          distribution: "temurin"
-
-      - name: Setup Go
-        uses: actions/setup-go@v7
-        with:
-          go-version: "stable"
-          cache-dependency-path: cross_test/go_helper/go.sum
-
-      - name: Cache Go cross-test helper
-        uses: actions/cache@v4
-        with:
-          path: cross_test/go_helper/go_helper
-          key: go-helper-${{ runner.os }}-${{ hashFiles('cross_test/go_helper/**', 'go/**/*.go', 'go/go.sum') }}
-
-      - name: Build Go cross-test helper
-        working-directory: cross_test/go_helper
-        run: go build -o go_helper .
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6
-
-      - name: Build
-        working-directory: java
-        run: |
-          chmod +x gradlew
-          ./gradlew build --no-daemon
+      - uses: ./.github/actions/test-java
 
   build-python:
-    name: Build Python
+    name: Test Python
     runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - name: Checkout
@@ -108,26 +70,10 @@ jobs:
         with:
           show-progress: false
 
-      - name: Setup Python
-        uses: actions/setup-python@v7
-        with:
-          python-version: "3.13"
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
-        with:
-          enable-cache: true
-          cache-dependency-glob: python/uv.lock
-
-      - name: Build
-        working-directory: python
-        run: |
-          uv sync
-          uv build --package t0-provider-sdk
-          uv build --package t0-provider-starter
+      - uses: ./.github/actions/test-python
 
   build-csharp:
-    name: Build C#
+    name: Test C#
     runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - name: Checkout
@@ -135,14 +81,7 @@ jobs:
         with:
           show-progress: false
 
-      - name: Setup .NET
-        uses: actions/setup-dotnet@v6
-        with:
-          dotnet-version: "10.0.x"
-
-      - name: Build
-        working-directory: csharp
-        run: dotnet build
+      - uses: ./.github/actions/test-csharp
 
   build-cli:
     name: Build CLI

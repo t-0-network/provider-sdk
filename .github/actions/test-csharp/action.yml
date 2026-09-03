@@ -1,0 +1,22 @@
+name: Test C# SDK
+description: Build and test the C# SDK including cross-language server-to-server tests
+
+runs:
+  using: composite
+  steps:
+    - name: Setup .NET
+      uses: actions/setup-dotnet@v6
+      with:
+        dotnet-version: "10.0.x"
+
+    - uses: ./.github/actions/setup-go-helper
+
+    - name: Build
+      shell: bash
+      working-directory: csharp
+      run: dotnet build
+
+    - name: Test
+      shell: bash
+      working-directory: csharp
+      run: dotnet test --no-build

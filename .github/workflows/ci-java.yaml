@@ -8,6 +8,8 @@ on:
       - "proto/**"
       - "cross_test/**"
       - "go/**"
+      - ".github/actions/setup-go-helper/**"
+      - ".github/actions/test-java/**"
       - ".github/workflows/ci-java.yaml"
   pull_request:
     branches: [master]
@@ -16,6 +18,8 @@ on:
       - "proto/**"
       - "cross_test/**"
       - "go/**"
+      - ".github/actions/setup-go-helper/**"
+      - ".github/actions/test-java/**"
       - ".github/workflows/ci-java.yaml"
 
 concurrency:
@@ -30,33 +34,4 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Setup Java
-        uses: actions/setup-java@v6
-        with:
-          java-version: "17"
-          distribution: "temurin"
-
-      - name: Setup Go
-        uses: actions/setup-go@v7
-        with:
-          go-version: "stable"
-          cache-dependency-path: cross_test/go_helper/go.sum
-
-      - name: Cache Go cross-test helper
-        uses: actions/cache@v4
-        with:
-          path: cross_test/go_helper/go_helper
-          key: go-helper-${{ runner.os }}-${{ hashFiles('cross_test/go_helper/**', 'go/**/*.go', 'go/go.sum') }}
-
-      - name: Build Go cross-test helper
-        working-directory: cross_test/go_helper
-        run: go build -o go_helper .
-
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6
-
-      - name: Build and test
-        working-directory: java
-        run: |
-          chmod +x gradlew
-          ./gradlew build -x distTar -x distZip --no-daemon
+      - uses: ./.github/actions/test-java

@@ -75,14 +75,12 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6
-        with:
-          cache-disabled: true
 
       - name: Build
         working-directory: java
         run: |
           chmod +x gradlew
-          ./gradlew build --no-daemon
+          ./gradlew build -x test --no-daemon
 
   build-python:
     name: Build Python
@@ -386,8 +384,6 @@ jobs:
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v6
-        with:
-          cache-disabled: true
 
       - name: Get version from tag
         id: version
@@ -406,7 +402,7 @@ jobs:
         working-directory: java
         run: |
           chmod +x gradlew
-          ./gradlew build --no-daemon
+          ./gradlew build -x test --no-daemon
 
       - name: Publish to Maven Central
         working-directory: java
