@@ -288,7 +288,7 @@ ConnectRPC was chosen over gRPC for its HTTP/1.1 compatibility, simpler deployme
 
 | Concern | Library | PyPI Name | Import | Rationale |
 |---------|---------|-----------|--------|-----------|
-| RPC Framework | connectrpc | `connectrpc>=0.10.0` | `connectrpc` | Official ConnectRPC Python runtime (renamed from `connect-python` at v0.10.0) |
+| RPC Framework | connectrpc | `connectrpc>=0.11.1` | `connectrpc` | Official ConnectRPC Python runtime (renamed from `connect-python` at v0.10.0). Floor is 0.11.1: the generated stubs use `connectrpc.compat` so the runtime's protobuf-py default codec is bypassed in favour of the shipped `google.protobuf` messages |
 | HTTP Client | pyqwest | *(transitive)* | `pyqwest` | Rust-backed HTTP client; transitive dependency of connectrpc |
 | Protobuf | protobuf | `protobuf>=5.28` | `google.protobuf` | Standard Protocol Buffers runtime |
 | ECDSA Crypto | coincurve | `coincurve>=21.0` | `coincurve` | Python bindings for libsecp256k1 |
@@ -303,6 +303,7 @@ ConnectRPC was chosen over gRPC for its HTTP/1.1 compatibility, simpler deployme
 | `pysha3` | Incompatible with Python 3.13 |
 | `hashlib.sha3_256()` | Implements NIST SHA-3, not legacy Keccak-256 (different padding) |
 | Pre-0.10 `connectrpc` on PyPI (v0.0.1 by Gaudiy) | Squatted package, not the official runtime; pin `>=0.10.0` to skip it |
+| `connectrpc` 0.10.x with current stubs | Stubs generated with `protobuf=google` import `connectrpc.compat`, absent before 0.11; conversely, pre-0.11 stubs on a 0.11 runtime fail every request with `ConnectError('to_binary')` |
 | Subclassing `pyqwest.Client` | Rust-backed FFI object -- subclassing is fragile and undefined |
 
 ### 3.2 Package Architecture

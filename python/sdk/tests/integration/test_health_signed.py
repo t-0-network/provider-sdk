@@ -20,6 +20,7 @@ import uvicorn
 from coincurve import PrivateKey
 from connectrpc.client import ConnectClient
 from connectrpc.code import Code
+from connectrpc.compat import google_protobuf_binary_codec
 from connectrpc.errors import ConnectError
 from connectrpc.method import IdempotencyLevel, MethodInfo
 from connectrpc.request import Headers, RequestContext
@@ -105,7 +106,12 @@ _CHECK_METHOD = MethodInfo(
 
 class _CheckOnlyClient(ConnectClient):
     """connect-python publishes no health client, so the probe is issued through
-    the SDK's own signing client against the Check procedure."""
+    the SDK's own signing client against the Check procedure. Hand-rolled
+    clients must select the google.protobuf compat codec themselves; generated
+    stubs do it for us."""
+
+    def __init__(self, base_url: str, **kwargs) -> None:
+        super().__init__(base_url, codec=google_protobuf_binary_codec(), **kwargs)
 
     async def check(self, request, *, headers=None, timeout_ms=None):
         return await self.execute_unary(request=request, method=_CHECK_METHOD, headers=headers, timeout_ms=timeout_ms)
@@ -167,8 +173,8 @@ def test_identity_headers_are_set_on_check():
     ctx = RequestContext(method=_CHECK_METHOD, http_method="POST", request_headers=Headers())
     impl.check(health_pb2.HealthCheckRequest(), ctx)
 
-    assert ctx.response_headers()[SDK_ECOSYSTEM_HEADER] == "python"
-    assert ctx.response_headers()[SDK_VERSION_HEADER] == __version__
+    assert ctx.response_headers[SDK_ECOSYSTEM_HEADER] == "python"
+    assert ctx.response_headers[SDK_VERSION_HEADER] == __version__
 
 
 def test_identity_headers_use_override_version():
@@ -178,5 +184,5 @@ def test_identity_headers_use_override_version():
     ctx = RequestContext(method=_CHECK_METHOD, http_method="POST", request_headers=Headers())
     impl.check(health_pb2.HealthCheckRequest(), ctx)
 
-    assert ctx.response_headers()[SDK_ECOSYSTEM_HEADER] == "python"
-    assert ctx.response_headers()[SDK_VERSION_HEADER] == "9.9.9-test"
+    assert ctx.response_headers[SDK_ECOSYSTEM_HEADER] == "python"
+    assert ctx.response_headers[SDK_VERSION_HEADER] == "9.9.9-test"

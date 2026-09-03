@@ -30,6 +30,7 @@ keccak.new(digest_bits=256, data=data).digest()
 |---|---|---|
 | ≤ 0.9.0 | `connect-python` | Original name. Imported as `connectrpc`. |
 | ≥ 0.10.0 | `connectrpc` | Distribution renamed by upstream. **Pin `>=0.10.0`** so resolvers skip the squatted v0.0.1 by Gaudiy. |
+| ≥ 0.11.0 | `connectrpc` | Default codec switched to the protobuf-py runtime. Stubs must be generated with `protobuf=google` (they then import `connectrpc.compat`), so the SDK floor is **`>=0.11.1`**; 0.11.0's compat layer was broken upstream. Symptom of a mismatch: every request fails with `ConnectError('to_binary')`. |
 
 The lesson: the same PyPI name can mean different things across versions. Pin the floor (`>=0.10.0`) — never `>=0.0.1` — so the squat can't satisfy the constraint.
 
@@ -322,6 +323,6 @@ The `_parse_wsgi_headers()` function in `middleware_wsgi.py` converts all `HTTP_
 | Want | Don't Use | Use Instead | Why |
 |------|-----------|-------------|-----|
 | Keccak256 | `pysha3`, `hashlib.sha3_256` | `pycryptodome` (`Crypto.Hash.keccak`) | py3.13 compat, correct padding |
-| ConnectRPC | `connectrpc<0.10` (squatted v0.0.1) | `connectrpc>=0.10.0` | Distribution renamed from `connect-python` at v0.10.0 |
+| ConnectRPC | `connectrpc<0.11.1` | `connectrpc>=0.11.1` | Generated stubs target the `google.protobuf` compat codec introduced in v0.11; older runtimes lack it, and pre-0.11 stubs break on newer runtimes |
 | buf.validate stubs | `protovalidate`, BSR index | `buf generate --include-imports` | Self-contained, no external index |
 | Async subprocess | `subprocess.run()` | `asyncio.create_subprocess_exec()` | Non-blocking in event loop |

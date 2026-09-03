@@ -67,3 +67,44 @@ jobs:
       - name: Run tests
         working-directory: python
         run: uv run pytest
+
+  # Customers install the SDK without our lockfile, so their resolver picks the
+  # newest release of every open-ranged dependency. The job above only ever
+  # tests uv.lock, which is how connectrpc 0.11 broke every request for months
+  # before a client reported it. This job installs the built wheel exactly the
+  # way a fresh `pip install t0-provider-sdk` would and runs the suite on that.
+  python-latest-deps:
+    name: Python (unlocked latest deps)
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          show-progress: false
+
+      - name: Setup Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+
+      - name: Build SDK wheel
+        working-directory: python
+        run: uv build --package t0-provider-sdk
+
+      - name: Install wheel with latest resolvable dependencies
+        working-directory: python
+        run: |
+          uv venv --python 3.13 .venv-latest
+          uv pip install --python .venv-latest/bin/python --resolution highest \
+            dist/t0_provider_sdk-*.whl pytest pytest-asyncio uvicorn
+
+      - name: Show resolved versions
+        working-directory: python
+        run: uv pip list --python .venv-latest/bin/python
+
+      - name: Run SDK tests against latest dependencies
+        working-directory: python/sdk
+        run: ../.venv-latest/bin/python -m pytest tests -p no:cacheprovider
