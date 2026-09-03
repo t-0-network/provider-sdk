@@ -1,6 +1,11 @@
 name: CI / Python
 
 on:
+  # Upstream breaks on PyPI's schedule, not ours: run the unlocked job daily so
+  # a breaking release is caught the next morning instead of by a customer.
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
   push:
     branches: [master]
     paths:
@@ -23,6 +28,9 @@ concurrency:
 jobs:
   python:
     name: Python
+    # The lockfile does not change between commits; only the unlocked job is
+    # worth re-running on the timer.
+    if: github.event_name != 'schedule'
     runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - name: Checkout
@@ -76,6 +84,9 @@ jobs:
   python-latest-deps:
     name: Python (unlocked latest deps)
     runs-on: blacksmith-4vcpu-ubuntu-2404
+    permissions:
+      contents: read
+      issues: write
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -108,3 +119,26 @@ jobs:
       - name: Run SDK tests against latest dependencies
         working-directory: python/sdk
         run: ../.venv-latest/bin/python -m pytest tests -p no:cacheprovider
+
+      # A red scheduled run only emails whoever last edited this file. Open an
+      # issue instead (one at a time) so the break is visible to the team.
+      - name: Open issue on scheduled failure
+        if: failure() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh label create latest-deps --force \
+            --description "Python SDK broke against the newest PyPI dependencies" \
+            --color D93F0B
+          open_count=$(gh issue list --label latest-deps --state open --json number --jq 'length')
+          if [ "$open_count" = "0" ]; then
+            gh issue create --label latest-deps \
+              --title "Python SDK fails against latest PyPI dependencies" \
+              --body "The scheduled unlocked-dependencies run failed: $RUN_URL
+
+          The \"Show resolved versions\" step in that run lists what PyPI served. Compare it with python/uv.lock to find the release that broke the SDK, then follow .claude/skills/dependency-update/SKILL.md."
+          else
+            gh issue comment "$(gh issue list --label latest-deps --state open --json number --jq '.[0].number')" \
+              --body "Still failing: $RUN_URL"
+          fi
