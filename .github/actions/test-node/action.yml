@@ -1,0 +1,29 @@
+name: Test Node SDK
+description: Build and test the Node.js SDK including cross-language server-to-server tests
+
+runs:
+  using: composite
+  steps:
+    - name: Setup Node
+      uses: actions/setup-node@v7
+      with:
+        node-version: lts/*
+        cache: npm
+        cache-dependency-path: node/sdk/package-lock.json
+
+    - uses: ./.github/actions/setup-go-helper
+
+    - name: Install dependencies
+      shell: bash
+      working-directory: node/sdk
+      run: npm ci
+
+    - name: Build
+      shell: bash
+      working-directory: node/sdk
+      run: npm run build
+
+    - name: Test
+      shell: bash
+      working-directory: node/sdk
+      run: npm test
