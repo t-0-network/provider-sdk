@@ -77,7 +77,7 @@ Tests **fail** (not skip) if the Go helper binary is missing in CI.
 
 ## Adding a new SDK
 
-1. Create test files that start/call the Go helper for bidirectional health + PayOut round-trips
+1. Create test files that start/call the Go helper for bidirectional health round-trips (with `service` field set for non-empty body)
 2. Add Go setup + helper build to the SDK's CI workflow (see `ci-python.yaml` for the pattern)
 3. Add `go/**` and `cross_test/**` to the CI workflow's path triggers
 4. Tests must fail (not skip) if the helper binary is missing in CI

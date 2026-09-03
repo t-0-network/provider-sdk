@@ -54,7 +54,7 @@ All languages share `cross_test/test_vectors.json` for crypto compatibility (Kec
 
 ### Server-to-server cross-tests
 
-A shared Go helper at `cross_test/go_helper/` exercises bidirectional server-to-server communication (health check round-trips, PayOut where applicable) between each SDK and Go. Every SDK's CI workflow builds the helper automatically.
+A shared Go helper at `cross_test/go_helper/` exercises bidirectional server-to-server communication (health check round-trips with non-empty body) between each SDK and Go. Every SDK's CI workflow builds the helper automatically. Health checks with `service="grpc.health.v1.Health"` produce a ~23-byte protobuf body, which is sufficient for signature-over-real-body testing — the signing scheme hashes the body into a fixed 32-byte Keccak-256 digest regardless of size. PayOut tests exist in some SDKs for historical reasons but are not required for crypto interop coverage.
 
 ```bash
 cd cross_test/go_helper && go build -o go_helper .   # Build once
@@ -65,7 +65,7 @@ cd java && ./gradlew test --tests "*.CrossServerTests" # Java ↔ Go
 ```
 
 **When adding a new SDK**, add cross-language server-to-server tests that use `cross_test/go_helper/`:
-1. Create test file(s) that start/call the Go helper for bidirectional PayOut + health round-trips
+1. Create test file(s) that start/call the Go helper for bidirectional health round-trips (with `service` field set for non-empty body)
 2. Add Go setup + helper build to the SDK's CI workflow (see `ci-python.yaml` for pattern)
 3. Add `go/**` and `cross_test/**` to the CI workflow's path triggers
 4. In CI, tests must **fail** (not skip) if the helper binary is missing
