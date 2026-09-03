@@ -51,6 +51,10 @@ jobs:
           go mod tidy
           git diff --exit-code || (echo "go.mod diff found, please run 'go mod tidy'" && false)
 
+      - name: Build cross-test helper
+        working-directory: cross_test/go_helper
+        run: go vet ./... && go build -o go_helper .
+
       - name: Run Tests
         working-directory: go
         run: go test -v ./...
