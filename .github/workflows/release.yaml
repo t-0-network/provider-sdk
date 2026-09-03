@@ -19,7 +19,7 @@ permissions:
 jobs:
   # --- Validate all builds + tests before releasing ---
   build-go:
-    name: Build Go
+    name: Test Go
     runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - name: Checkout
@@ -84,7 +84,7 @@ jobs:
       - uses: ./.github/actions/test-csharp
 
   build-cli:
-    name: Build CLI
+    name: Test CLI
     runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - name: Checkout
