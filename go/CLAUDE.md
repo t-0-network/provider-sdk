@@ -10,10 +10,10 @@ Protobuf encoding is not canonical — re-encoding a deserialized message produc
 
 `verify_signature.go`'s middleware accepts signatures over **either** the full HTTP body **or** the body with the 5-byte gRPC frame prefix stripped. Both paths are required:
 
-- **Full body** — Connect-protocol callers (Go, Node, Python) and any signer that covers the on-wire bytes.
-- **Unframed fallback** — gRPC-protocol callers whose signing interceptor sits above the gRPC framer (Java SDK's `SigningClientInterceptor`, C# SDK's `SigningDelegatingHandler`). The signed payload is unframed protobuf, but the HTTP body includes the gRPC frame prefix.
+- **Full body** — Connect-protocol callers (Go, Node, Python) and gRPC-protocol callers whose signer covers the framed body (C# SDK's `SigningDelegatingHandler` sits below the gRPC framer in the HttpClient pipeline, so it signs the already-framed bytes).
+- **Unframed fallback** — gRPC-protocol callers whose signing interceptor sits above the gRPC framer (Java SDK's `SigningClientInterceptor`). The signed payload is unframed protobuf, but the HTTP body includes the gRPC frame prefix.
 
-Removing the fallback silently breaks Java and C# SDK clients with `UNAUTHENTICATED`. The Java SDK has the same dual-path on its server side — see [`docs/java/SIGNATURE_VERIFICATION.md`](../docs/java/SIGNATURE_VERIFICATION.md).
+Removing the fallback silently breaks **Java SDK** clients with `UNAUTHENTICATED`. The Java SDK has the same dual-path on its server side — see [`docs/java/SIGNATURE_VERIFICATION.md`](../docs/java/SIGNATURE_VERIFICATION.md).
 
 ## Build Commands
 

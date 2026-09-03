@@ -70,6 +70,19 @@ cd java && ./gradlew test --tests "*.CrossServerTests" # Java ↔ Go
 3. Add `go/**` and `cross_test/**` to the CI workflow's path triggers
 4. In CI, tests must **fail** (not skip) if the helper binary is missing
 
+## Definition of Done
+
+Before a change is considered complete, cross-language tests must pass:
+
+```bash
+cd cross_test/go_helper && go build -o go_helper .   # Rebuild helper
+cd go && go vet ./... && go test ./...                # Go
+cd node/sdk && npm ci && npm run build && npm test    # Node (includes cross-tests)
+cd python && uv run pytest tests/cross_test/ -v       # Python ↔ Go
+cd csharp && dotnet test --filter "CrossServerTests"  # C# ↔ Go
+cd java && ./gradlew test --tests "*.CrossServerTests" # Java ↔ Go
+```
+
 ## Signature Protocol
 
 ```
@@ -84,7 +97,7 @@ headers = { X-Public-Key: "0x...", X-Signature: "0x...", X-Signature-Timestamp: 
 
 ### body_bytes framing — depends on signer position
 
-`body_bytes` is whichever bytes the signer covers at its own layer. For SDK clients in this repo and Connect-protocol callers in general, that is **unframed protobuf** (the Java SDK's `NetworkClient` signs above the gRPC framer; Go / Node / Python use Connect protocol, where no frame exists). The T-0 Network signs unframed bytes when calling a provider via Connect protocol, and signs the **gRPC-framed body** (5-byte prefix + protobuf) when calling via gRPC protocol — in that case the signer sits below the framer.
+`body_bytes` is whichever bytes the signer covers at its own layer. For most SDK clients in this repo and Connect-protocol callers in general, that is **unframed protobuf** (the Java SDK's `NetworkClient` signs above the gRPC framer; Go / Node / Python use Connect protocol, where no frame exists). The exception is C#: its `SigningDelegatingHandler` sits below the gRPC framer in the HttpClient pipeline, so it signs the **gRPC-framed body** — matching Go's primary verification path, not the fallback. The T-0 Network signs unframed bytes when calling a provider via Connect protocol, and signs the **gRPC-framed body** (5-byte prefix + protobuf) when calling via gRPC protocol — in that case the signer sits below the framer.
 
 Consequently the Java SDK's `SignatureVerificationInterceptor` accepts both framings. **This dual-path is required, not defensive** — see [`docs/java/SIGNATURE_VERIFICATION.md`](docs/java/SIGNATURE_VERIFICATION.md) before touching it.
 

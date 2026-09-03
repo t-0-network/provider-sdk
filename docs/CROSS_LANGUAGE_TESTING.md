@@ -37,7 +37,7 @@ CI builds it automatically (each language's CI workflow sets up Go and builds it
 | `verify <hex_public_key> <hex_digest> <hex_signature>` | Verify signature |
 | `pubkey <hex_private_key>` | Derive public key |
 | `serve <port> <hex_public_key>` | Start a provider server (h2c, Connect + gRPC) |
-| `call-pay-out <url> <key> <pubkey> [--grpc]` | Signed PayOut RPC |
+| `call-pay-out <url> <key> [--grpc]` | Signed PayOut RPC |
 | `call-health <url> <key> [--grpc]` | Signed health check |
 
 Default protocol is Connect (HTTP/1.1). Pass `--grpc` for gRPC protocol over h2c.
@@ -61,7 +61,7 @@ Default protocol is Connect (HTTP/1.1). Pass `--grpc` for gRPC protocol over h2c
 
 ## Dual-framing (gRPC interop)
 
-The Go server's signature verification middleware accepts signatures over both gRPC-framed and unframed protobuf bodies. This enables Java and C# gRPC clients (which sign above the gRPC framer) to interoperate with the Go server (which reads the gRPC-framed HTTP body).
+The Go server's signature verification middleware accepts signatures over both gRPC-framed and unframed protobuf bodies. This enables Java gRPC clients (whose `SigningClientInterceptor` signs above the gRPC framer) to interoperate with the Go server (which reads the gRPC-framed HTTP body). C# clients sign the framed body (`SigningDelegatingHandler` sits below the gRPC framer in the HttpClient pipeline) and pass on the primary verification path.
 
 The fallback logic: try full body first; if that fails AND the request is `application/grpc` with a valid 5-byte gRPC frame prefix, strip the prefix and retry. See `go/provider/verify_signature.go`.
 

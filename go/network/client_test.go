@@ -191,13 +191,15 @@ func TestSigningTransport_NilAndNoBodyProduceSameSignature(t *testing.T) {
 
 	st := NewSigningTransport(signFn, func() time.Time { return fixedTime }, WithTransport(recorder))
 
-	reqNil, _ := http.NewRequest("POST", "http://localhost/test", nil)
+	reqNil, err := http.NewRequest("POST", "http://localhost/test", nil)
+	require.NoError(t, err)
 	resp, err := st.RoundTrip(reqNil)
 	require.NoError(t, err)
 	resp.Body.Close()
 	sigNil = reqNil.Header.Get(common.SignatureHeader)
 
-	reqNoBody, _ := http.NewRequest("POST", "http://localhost/test", http.NoBody)
+	reqNoBody, err := http.NewRequest("POST", "http://localhost/test", http.NoBody)
+	require.NoError(t, err)
 	resp, err = st.RoundTrip(reqNoBody)
 	require.NoError(t, err)
 	resp.Body.Close()

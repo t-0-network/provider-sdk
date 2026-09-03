@@ -36,7 +36,7 @@ from t0_provider_sdk.api.tzero.v1.payment.provider_pb2 import (
 )
 from t0_provider_sdk.network.client import new_service_client_sync
 from t0_provider_sdk.provider.handler import handler_sync, new_wsgi_app
-from t0_provider_sdk.provider.health import HealthClientSync
+from t0_provider_sdk.provider.health import HEALTH_SERVICE_FQN, HealthClientSync
 
 GO_HELPER = Path(__file__).resolve().parents[3] / "cross_test" / "go_helper" / "go_helper"
 
@@ -161,7 +161,7 @@ class TestPythonClientGoServerHealthSync:
                 HealthClientSync,
                 base_url=f"http://127.0.0.1:{port}",
             )
-            response = client.check(health_pb2.HealthCheckRequest())
+            response = client.check(health_pb2.HealthCheckRequest(service=HEALTH_SERVICE_FQN))
             assert response.status == health_pb2.HealthCheckResponse.SERVING
         finally:
             proc.terminate()

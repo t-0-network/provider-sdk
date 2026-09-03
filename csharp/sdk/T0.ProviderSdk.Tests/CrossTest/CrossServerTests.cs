@@ -112,7 +112,6 @@ public class CrossServerTests
                         "call-pay-out",
                         $"http://127.0.0.1:{port}",
                         PrivateKey,
-                        PublicKey,
                         "--grpc",
                     },
                     RedirectStandardOutput = true,
@@ -261,7 +260,7 @@ public class CrossServerTests
             var healthClient = new Grpc.Health.V1.Health.HealthClient(channel);
 
             var response = await healthClient.CheckAsync(
-                new Grpc.Health.V1.HealthCheckRequest());
+                new Grpc.Health.V1.HealthCheckRequest { Service = Grpc.Health.V1.Health.Descriptor.FullName });
 
             Assert.Equal(Grpc.Health.V1.HealthCheckResponse.Types.ServingStatus.Serving, response.Status);
         }

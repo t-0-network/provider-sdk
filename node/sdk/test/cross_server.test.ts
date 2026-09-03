@@ -80,7 +80,7 @@ describe('Cross-language: Node ↔ Go', { skip: !goAvailable() ? `Go helper not 
         await waitForPort(port);
 
         const client = createClient(CLIENT_PRIVATE_KEY, `http://127.0.0.1:${port}`, Health);
-        const resp = await client.check({ service: '' });
+        const resp = await client.check({ service: Health.typeName });
         assert.ok(resp, 'Health check response should not be null');
       } finally {
         goServer.kill();

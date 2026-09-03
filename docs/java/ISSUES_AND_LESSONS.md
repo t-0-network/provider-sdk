@@ -4,7 +4,7 @@ Historical issues encountered during development, extracted from git history. Or
 
 ## Near-Miss: Removing dual-framing signature verification (issue #89)
 
-**Problem:** A cross-language code review flagged the dual-path verification in `SignatureVerificationInterceptor.verifySignature` (tries unframed first, then gRPC-framed) as architecturally fragile and possibly dead code, since all four SDK clients shipped in this repo sign unframed bytes. Issue #89 proposed investigation before removal.
+**Problem:** A cross-language code review flagged the dual-path verification in `SignatureVerificationInterceptor.verifySignature` (tries unframed first, then gRPC-framed) as architecturally fragile and possibly dead code, since most SDK clients shipped in this repo sign unframed bytes. Issue #89 proposed investigation before removal.
 
 **Root cause of confusion:** The survey covered only the SDK clients in this repo. It missed that the T-0 Network is itself a signing party calling providers, and that the network's signed payload depends on the transport configured for the provider — for Connect protocol it signs unframed bytes, for gRPC protocol it signs the gRPC-framed body (5-byte frame prefix + protobuf). The framed verification path is therefore alive in production whenever the network is configured to call a provider via gRPC protocol.
 
