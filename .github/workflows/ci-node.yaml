@@ -1,6 +1,11 @@
 name: CI / Node
 
 on:
+  # Customers resolve our caret ranges to the newest release within each
+  # major, on npm's schedule, not ours. Run the unlocked job daily.
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
   push:
     branches: [master]
     paths:
@@ -23,6 +28,9 @@ concurrency:
 jobs:
   node:
     name: Node
+    # The lockfile does not change between commits; only the unlocked job is
+    # worth re-running on the timer.
+    if: github.event_name != 'schedule'
     runs-on: blacksmith-4vcpu-ubuntu-2404
     steps:
       - name: Checkout
@@ -67,3 +75,66 @@ jobs:
       - name: Type-check starter template against local SDK
         working-directory: node/starter/template
         run: npx tsc --noEmit -p tsconfig.json
+
+  # The job above tests package-lock.json. Customers never see that file: npm
+  # resolves the SDK's caret ranges to the newest release within each major at
+  # install time. This job drops the lockfile, installs whatever npm serves
+  # today, and runs the suite on that, so an upstream release that breaks the
+  # SDK shows up here before a customer reports it.
+  node-latest-deps:
+    name: Node (unlocked latest deps)
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    permissions:
+      contents: read
+      issues: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          show-progress: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: lts/*
+
+      - name: Install SDK dependencies without the lockfile
+        working-directory: node/sdk
+        run: |
+          rm -f package-lock.json
+          npm install --no-audit --no-fund
+
+      - name: Show resolved versions
+        working-directory: node/sdk
+        run: npm ls --depth=0
+
+      - name: Build SDK
+        working-directory: node/sdk
+        run: npm run build
+
+      - name: Run SDK tests against latest dependencies
+        working-directory: node/sdk
+        run: npm test
+
+      # A red scheduled run only emails whoever last edited this file. Open an
+      # issue instead (one at a time) so the break is visible to the team.
+      - name: Open issue on scheduled failure
+        if: failure() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          gh label create latest-deps --force \
+            --description "SDK broke against the newest published dependencies" \
+            --color D93F0B
+          open_count=$(gh issue list --label latest-deps --search "Node SDK" --state open --json number --jq 'length')
+          if [ "$open_count" = "0" ]; then
+            gh issue create --label latest-deps \
+              --title "Node SDK fails against latest npm dependencies" \
+              --body "The scheduled unlocked-dependencies run failed: $RUN_URL
+
+          The \"Show resolved versions\" step in that run lists what npm served. Compare it with node/sdk/package-lock.json to find the release that broke the SDK, then follow .claude/skills/dependency-update/SKILL.md."
+          else
+            gh issue comment "$(gh issue list --label latest-deps --search "Node SDK" --state open --json number --jq '.[0].number')" \
+              --body "Still failing: $RUN_URL"
+          fi

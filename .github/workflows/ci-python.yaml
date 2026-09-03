@@ -129,9 +129,9 @@ jobs:
           RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
           gh label create latest-deps --force \
-            --description "Python SDK broke against the newest PyPI dependencies" \
+            --description "SDK broke against the newest published dependencies" \
             --color D93F0B
-          open_count=$(gh issue list --label latest-deps --state open --json number --jq 'length')
+          open_count=$(gh issue list --label latest-deps --search "Python SDK" --state open --json number --jq 'length')
           if [ "$open_count" = "0" ]; then
             gh issue create --label latest-deps \
               --title "Python SDK fails against latest PyPI dependencies" \
@@ -139,6 +139,6 @@ jobs:
 
           The \"Show resolved versions\" step in that run lists what PyPI served. Compare it with python/uv.lock to find the release that broke the SDK, then follow .claude/skills/dependency-update/SKILL.md."
           else
-            gh issue comment "$(gh issue list --label latest-deps --state open --json number --jq '.[0].number')" \
+            gh issue comment "$(gh issue list --label latest-deps --search "Python SDK" --state open --json number --jq '.[0].number')" \
               --body "Still failing: $RUN_URL"
           fi
