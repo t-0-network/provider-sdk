@@ -102,13 +102,18 @@ Generates a complete provider project with `.env` (auto-generated keypair), `Pay
 
 Template files live in `starter/template/` as a buildable standalone project using `my-provider` as the project name and `MyProvider` as the namespace. `TemplateFiles.cs` reads them from disk at runtime. The scaffolder replaces `my-provider` with the project name, `MyProvider` with the PascalCase name, and renames `dot-gitignore` → `.gitignore`.
 
-## Cross-Language Test Vectors
+## Cross-Language Testing
 
-Tests in `CrossTestVectors.cs` validate crypto against shared `cross_test/test_vectors.json`:
-- Keccak-256 hashing
-- Key derivation (private → public)
-- Request hash computation
-- Sign/verify round-trips (64-byte and 65-byte signatures)
+**Test vectors:** `CrossTestVectors.cs` validates crypto against shared `cross_test/test_vectors.json` (Keccak-256, key derivation, request hash, sign/verify round-trips).
+
+**Server-to-server:** `CrossTest/CrossServerTests.cs` exercises health check round-trips (both directions) and Go→C# PayOut between C# and Go using the shared helper at `cross_test/go_helper/`. Build it first:
+
+```bash
+cd ../cross_test/go_helper && go build -o go_helper . && cd ../../csharp
+dotnet test --filter "CrossServerTests"
+```
+
+CI builds the Go helper automatically. Tests fail (not skip) in CI if the helper is missing.
 
 ## Documentation
 

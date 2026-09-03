@@ -41,5 +41,3 @@ Thumbs.db
 # Generated (but we commit api/ generated code)
 # sdk/src/t0_provider_sdk/api/ is committed
 
-# Cross-test binaries
-tests/cross_test/go_helper/go_helper

@@ -38,6 +38,17 @@ node/
 
 Runtime version constant: `src/version.ts` (`SDK_VERSION`). Full details: [`docs/VERSIONING.md`](../docs/VERSIONING.md).
 
+## Cross-Language Testing
+
+Server-to-server cross-tests in `sdk/test/cross_server.test.ts` exercise bidirectional health check round-trips between Node and Go using the shared helper at `cross_test/go_helper/`. Build it first:
+
+```bash
+cd ../cross_test/go_helper && go build -o go_helper . && cd ../../node/sdk
+npm test   # cross-tests included in the suite
+```
+
+CI builds the Go helper automatically. Tests fail (not skip) in CI if the helper is missing.
+
 ## Dual ESM/CJS Build
 
 The SDK publishes both ESM and CJS:

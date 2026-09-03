@@ -154,6 +154,58 @@ func TestSigningTransport_NilBody(t *testing.T) {
 	require.NotEmpty(t, captured.Header.Get(common.SignatureHeader))
 }
 
+func TestSigningTransport_NoBody(t *testing.T) {
+	var captured *http.Request
+	recorder := roundTripperFunc(func(r *http.Request) (*http.Response, error) {
+		captured = r
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader("")),
+		}, nil
+	})
+
+	st := NewSigningTransport(testSignFn(t), func() time.Time { return time.Now() }, WithTransport(recorder))
+
+	req, err := http.NewRequest("POST", "http://localhost/health", http.NoBody)
+	require.NoError(t, err)
+	resp, err := st.RoundTrip(req)
+	require.NoError(t, err)
+	resp.Body.Close()
+
+	require.NotNil(t, captured)
+	require.NotEmpty(t, captured.Header.Get(common.SignatureHeader))
+	require.Equal(t, http.NoBody, captured.Body, "http.NoBody sentinel must be preserved to avoid chunked encoding")
+}
+
+func TestSigningTransport_NilAndNoBodyProduceSameSignature(t *testing.T) {
+	fixedTime := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
+	signFn := testSignFn(t)
+
+	var sigNil, sigNoBody string
+	recorder := roundTripperFunc(func(r *http.Request) (*http.Response, error) {
+		return &http.Response{
+			StatusCode: http.StatusOK,
+			Body:       io.NopCloser(strings.NewReader("")),
+		}, nil
+	})
+
+	st := NewSigningTransport(signFn, func() time.Time { return fixedTime }, WithTransport(recorder))
+
+	reqNil, _ := http.NewRequest("POST", "http://localhost/test", nil)
+	resp, err := st.RoundTrip(reqNil)
+	require.NoError(t, err)
+	resp.Body.Close()
+	sigNil = reqNil.Header.Get(common.SignatureHeader)
+
+	reqNoBody, _ := http.NewRequest("POST", "http://localhost/test", http.NoBody)
+	resp, err = st.RoundTrip(reqNoBody)
+	require.NoError(t, err)
+	resp.Body.Close()
+	sigNoBody = reqNoBody.Header.Get(common.SignatureHeader)
+
+	require.Equal(t, sigNil, sigNoBody, "nil body and http.NoBody must produce identical signatures")
+}
+
 func TestNewServiceClient_ValidationErrors(t *testing.T) {
 	factory := func(_ connect.HTTPClient, _ string, _ ...connect.ClientOption) stubClient {
 		return stubClient{}

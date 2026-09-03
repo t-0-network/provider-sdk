@@ -6,7 +6,6 @@ using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.DependencyInjection;
 using T0.ProviderSdk.Api.Tzero.V1.Payment;
-using ProtoDecimal = T0.ProviderSdk.Api.Tzero.V1.Common.Decimal;
 using T0.ProviderSdk.Crypto;
 using T0.ProviderSdk.Network;
 using T0.ProviderSdk.Provider;
@@ -18,7 +17,7 @@ namespace T0.ProviderSdk.Tests.CrossTest;
 /// Tests real gRPC communication with signature signing/verification.
 ///
 /// Requires the Go helper binary to be built:
-///     cd csharp/sdk/T0.ProviderSdk.Tests/CrossTest/go_helper &amp;&amp; go build -o go_helper .
+///     cd cross_test/go_helper &amp;&amp; go build -o go_helper .
 /// </summary>
 public class CrossServerTests
 {
@@ -32,7 +31,7 @@ public class CrossServerTests
         // Path from test output directory (bin/Debug/net10.0/) to go_helper binary
         var testDir = AppContext.BaseDirectory;
         var repoRoot = Path.GetFullPath(Path.Combine(testDir, "..", "..", "..", "..", "..", ".."));
-        var path = Path.Combine(repoRoot, "sdk", "T0.ProviderSdk.Tests", "CrossTest", "go_helper", "go_helper");
+        var path = Path.Combine(repoRoot, "cross_test", "go_helper", "go_helper");
         return File.Exists(path) ? path : null;
     }
 
@@ -65,64 +64,6 @@ public class CrossServerTests
     }
 
     /// <summary>
-    /// C# client signs a request → Go server verifies and handles it.
-    /// </summary>
-    [Fact]
-    public async Task CSharpClient_GoServer_PayOut()
-    {
-        if (GoHelperPath is null)
-        {
-            // Skip test if go_helper not built
-            return;
-        }
-
-        var port = FindFreePort();
-        var proc = new Process
-        {
-            StartInfo = new ProcessStartInfo
-            {
-                FileName = GoHelperPath,
-                ArgumentList = { "serve", port.ToString(), PublicKey },
-                RedirectStandardOutput = true,
-                RedirectStandardError = true,
-                UseShellExecute = false,
-            }
-        };
-
-        try
-        {
-            proc.Start();
-            await WaitForPortAsync(port, TimeSpan.FromSeconds(10));
-
-            // Create C# client with auto-signing transport
-            var signer = Signer.FromHex(PrivateKey);
-            using var channel = NetworkClient.Create(
-                new NetworkClientOptions { BaseUrl = $"http://127.0.0.1:{port}" },
-                signer);
-            var client = new ProviderService.ProviderServiceClient(channel);
-
-            // Make a signed PayOut call — Go server verifies our signature
-            var response = await client.PayOutAsync(new PayoutRequest
-            {
-                PaymentId = 42,
-                Currency = "EUR",
-                Amount = new ProtoDecimal { Unscaled = 100, Exponent = 0 },
-            });
-
-            Assert.NotNull(response);
-        }
-        finally
-        {
-            if (!proc.HasExited)
-            {
-                proc.Kill();
-                await proc.WaitForExitAsync();
-            }
-            proc.Dispose();
-        }
-    }
-
-    /// <summary>
     /// Go client signs a request → C# server verifies and handles it.
     /// </summary>
     [Fact]
@@ -130,7 +71,8 @@ public class CrossServerTests
     {
         if (GoHelperPath is null)
         {
-            // Skip test if go_helper not built
+            if (Environment.GetEnvironmentVariable("CI") != null)
+                Assert.Fail("Go helper binary required in CI but not found");
             return;
         }
 
@@ -167,10 +109,11 @@ public class CrossServerTests
                     FileName = GoHelperPath,
                     ArgumentList =
                     {
-                        "call-pay-out-grpc",
+                        "call-pay-out",
                         $"http://127.0.0.1:{port}",
                         PrivateKey,
                         PublicKey,
+                        "--grpc",
                     },
                     RedirectStandardOutput = true,
                     RedirectStandardError = true,
@@ -197,6 +140,139 @@ public class CrossServerTests
         {
             await app.StopAsync();
             await app.DisposeAsync();
+        }
+    }
+
+    /// <summary>
+    /// Go client calls health check on C# server via gRPC.
+    /// </summary>
+    [Fact]
+    public async Task GoClient_CSharpServer_HealthCheck()
+    {
+        if (GoHelperPath is null)
+        {
+            if (Environment.GetEnvironmentVariable("CI") != null)
+                Assert.Fail("Go helper binary required in CI but not found");
+            return;
+        }
+
+        var port = FindFreePort();
+        var handler = new TestPaymentHandler();
+
+        var builder = WebApplication.CreateBuilder();
+        builder.WebHost.ConfigureKestrel(options =>
+        {
+            options.ListenLocalhost(port, listenOptions =>
+            {
+                listenOptions.Protocols = HttpProtocols.Http2;
+            });
+        });
+        builder.Services.AddGrpc();
+        builder.Services.AddSingleton(handler);
+
+        var fqns = new List<string>
+        {
+            "tzero.v1.payment.ProviderService",
+            Grpc.Health.V1.Health.Descriptor.FullName,
+        };
+        builder.Services.AddSingleton(new HealthServiceImpl(fqns));
+
+        var app = builder.Build();
+        app.UseMiddleware<SignatureVerificationMiddleware>(
+            new ProviderServerOptions { NetworkPublicKeyHex = PublicKey });
+        app.MapGrpcService<TestPaymentHandler>();
+        app.MapGrpcService<HealthServiceImpl>();
+
+        try
+        {
+            await app.StartAsync();
+            await WaitForPortAsync(port, TimeSpan.FromSeconds(10));
+
+            var proc = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = GoHelperPath,
+                    ArgumentList =
+                    {
+                        "call-health",
+                        $"http://127.0.0.1:{port}",
+                        PrivateKey,
+                        "--grpc",
+                    },
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                }
+            };
+
+            proc.Start();
+            var stdout = await proc.StandardOutput.ReadToEndAsync();
+            var stderr = await proc.StandardError.ReadToEndAsync();
+            await proc.WaitForExitAsync();
+
+            Assert.Equal(0, proc.ExitCode);
+            Assert.Contains("status=SERVING", stdout, StringComparison.OrdinalIgnoreCase);
+
+            proc.Dispose();
+        }
+        finally
+        {
+            await app.StopAsync();
+            await app.DisposeAsync();
+        }
+    }
+
+    /// <summary>
+    /// C# client calls health check on Go server — proves C# signing is accepted by Go.
+    /// </summary>
+    [Fact]
+    public async Task CSharpClient_GoServer_HealthCheck()
+    {
+        if (GoHelperPath is null)
+        {
+            if (Environment.GetEnvironmentVariable("CI") != null)
+                Assert.Fail("Go helper binary required in CI but not found");
+            return;
+        }
+
+        var port = FindFreePort();
+        var proc = new Process
+        {
+            StartInfo = new ProcessStartInfo
+            {
+                FileName = GoHelperPath,
+                ArgumentList = { "serve", port.ToString(), PublicKey },
+                RedirectStandardOutput = true,
+                RedirectStandardError = true,
+                UseShellExecute = false,
+            }
+        };
+
+        try
+        {
+            proc.Start();
+            await WaitForPortAsync(port, TimeSpan.FromSeconds(10));
+
+            var signer = Signer.FromHex(PrivateKey);
+            using var channel = NetworkClient.Create(
+                new NetworkClientOptions { BaseUrl = $"http://127.0.0.1:{port}" },
+                signer);
+            var healthClient = new Grpc.Health.V1.Health.HealthClient(channel);
+
+            var response = await healthClient.CheckAsync(
+                new Grpc.Health.V1.HealthCheckRequest());
+
+            Assert.Equal(Grpc.Health.V1.HealthCheckResponse.Types.ServingStatus.Serving, response.Status);
+        }
+        finally
+        {
+            if (!proc.HasExited)
+            {
+                proc.Kill();
+                await proc.WaitForExitAsync();
+            }
+            proc.Dispose();
         }
     }
 }

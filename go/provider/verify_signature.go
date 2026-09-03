@@ -81,6 +81,18 @@ func newSignatureVerifierMiddleware(
 			req.Body = io.NopCloser(bytes.NewReader(body))
 
 			if err := verifySignature(publicKey, append(body, timestampBytes[:]...), signature); err != nil {
+				// gRPC clients (e.g. Java SDK) sign above the gRPC framer — the
+				// signed payload is unframed protobuf. When the request arrives via
+				// gRPC protocol the HTTP body includes a 5-byte frame prefix the
+				// signer never saw. Try again without it.
+				if isGRPCRequest(req) && hasGRPCFramePrefix(body) {
+					unframed := body[5:]
+					if err2 := verifySignature(publicKey, append(unframed, timestampBytes[:]...), signature); err2 == nil {
+						ctx := context.WithValue(req.Context(), signatureErrorContextKey{}, (*SignatureError)(nil))
+						handler.ServeHTTP(writer, req.WithContext(ctx))
+						return
+					}
+				}
 				setErrorAndContinue(req, connect.CodeUnauthenticated, err.Error())
 				return
 			}
@@ -186,4 +198,20 @@ func timesWithinDelta(t1, t2 time.Time, delta time.Duration) bool {
 	}
 
 	return diff <= delta
+}
+
+func isGRPCRequest(req *http.Request) bool {
+	ct := req.Header.Get("Content-Type")
+	return len(ct) >= 16 && ct[:16] == "application/grpc"
+}
+
+func hasGRPCFramePrefix(body []byte) bool {
+	if len(body) < 5 {
+		return false
+	}
+	if body[0] != 0 {
+		return false
+	}
+	length := int(binary.BigEndian.Uint32(body[1:5]))
+	return len(body) == 5+length
 }

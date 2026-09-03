@@ -1,34 +1,39 @@
-// Cross-test helper: Go signs/verifies/hashes for Python to verify interop.
-// Also runs a ConnectRPC server and makes client calls for end-to-end testing.
+// Unified cross-test helper: Go signs/verifies/hashes, runs a provider server,
+// and makes signed client calls for cross-language interoperability testing.
 //
 // Usage:
-//   go_helper hash <hex_data>
-//   go_helper sign <hex_private_key> <hex_digest>
-//   go_helper verify <hex_public_key> <hex_digest> <hex_signature>
-//   go_helper pubkey <hex_private_key>
-//   go_helper serve <port> <hex_network_public_key>
-//   go_helper call-update-quote <base_url> <hex_private_key>
-//   go_helper call-pay-out <base_url> <hex_private_key> <hex_network_public_key>
-
+//
+//	go_helper hash <hex_data>
+//	go_helper sign <hex_private_key> <hex_digest>
+//	go_helper verify <hex_public_key> <hex_digest> <hex_signature>
+//	go_helper pubkey <hex_private_key>
+//	go_helper serve <port> <hex_network_public_key>
+//	go_helper call-pay-out <base_url> <hex_private_key> <hex_network_public_key> [--grpc]
+//	go_helper call-health <base_url> <hex_private_key> [--grpc]
 package main
 
 import (
 	"context"
+	"crypto/tls"
 	"encoding/hex"
 	"fmt"
 	"log"
+	"net"
+	"net/http"
 	"os"
 	"strings"
 	"time"
 
 	"connectrpc.com/connect"
+	"connectrpc.com/grpchealth"
 	"github.com/t-0-network/provider-sdk/go/api/tzero/v1/common"
 	"github.com/t-0-network/provider-sdk/go/api/tzero/v1/payment"
 	"github.com/t-0-network/provider-sdk/go/api/tzero/v1/payment/paymentconnect"
 	"github.com/t-0-network/provider-sdk/go/crypto"
 	"github.com/t-0-network/provider-sdk/go/network"
 	"github.com/t-0-network/provider-sdk/go/provider"
-	"google.golang.org/protobuf/types/known/timestamppb"
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 )
 
 func main() {
@@ -37,8 +42,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	cmd := os.Args[1]
-	switch cmd {
+	switch os.Args[1] {
 	case "hash":
 		cmdHash()
 	case "sign":
@@ -49,12 +53,12 @@ func main() {
 		cmdPubkey()
 	case "serve":
 		cmdServe()
-	case "call-update-quote":
-		cmdCallUpdateQuote()
 	case "call-pay-out":
 		cmdCallPayOut()
+	case "call-health":
+		cmdCallHealth()
 	default:
-		fmt.Fprintf(os.Stderr, "Unknown command: %s\n", cmd)
+		fmt.Fprintf(os.Stderr, "Unknown command: %s\n", os.Args[1])
 		os.Exit(1)
 	}
 }
@@ -124,9 +128,6 @@ func cmdPubkey() {
 	fmt.Printf("0x%s\n", hex.EncodeToString(pubBytes))
 }
 
-// cmdServe starts a Go provider server.
-// The server implements ProviderService (PayOut, UpdatePayment, etc.)
-// and validates signatures using the given network public key.
 func cmdServe() {
 	if len(os.Args) != 4 {
 		fmt.Fprintln(os.Stderr, "Usage: go_helper serve <port> <hex_network_public_key>")
@@ -145,83 +146,63 @@ func cmdServe() {
 		log.Fatalf("Failed to create handler: %v", err)
 	}
 
-	shutdownFunc, err := provider.StartServer(
-		httpHandler,
-		provider.WithAddr(":"+port),
-	)
+	// Wrap with h2c so both Connect (HTTP/1.1) and gRPC (HTTP/2) work on the same port.
+	h2cHandler := h2c.NewHandler(httpHandler, &http2.Server{})
+
+	ln, err := net.Listen("tcp", ":"+port)
 	if err != nil {
-		log.Fatalf("Failed to start server: %v", err)
+		log.Fatalf("Failed to listen: %v", err)
 	}
+
+	srv := &http.Server{Handler: h2cHandler}
 
 	fmt.Printf("READY on :%s\n", port)
 	os.Stdout.Sync()
 
-	// Wait forever (test will kill the process)
-	select {}
-	_ = shutdownFunc
+	if err := srv.Serve(ln); err != nil && err != http.ErrServerClosed {
+		log.Fatalf("Server error: %v", err)
+	}
 }
 
-// cmdCallUpdateQuote makes a signed UpdateQuote RPC call to a Python NetworkService server.
-func cmdCallUpdateQuote() {
-	if len(os.Args) != 4 {
-		fmt.Fprintln(os.Stderr, "Usage: go_helper call-update-quote <base_url> <hex_private_key>")
-		os.Exit(1)
+func hasFlag(flag string) bool {
+	for _, arg := range os.Args[2:] {
+		if arg == flag {
+			return true
+		}
 	}
-	baseURL := os.Args[2]
-	privateKey := network.PrivateKeyHexed(os.Args[3])
-
-	client, err := network.NewServiceClient(
-		privateKey,
-		paymentconnect.NewNetworkServiceClient,
-		network.WithBaseURL(baseURL),
-	)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error creating client: %v\n", err)
-		os.Exit(1)
-	}
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	_, err = client.UpdateQuote(ctx, connect.NewRequest(&payment.UpdateQuoteRequest{
-		PayOut: []*payment.UpdateQuoteRequest_Quote{
-			{
-				Currency:      "EUR",
-				QuoteType:     payment.QuoteType_QUOTE_TYPE_REALTIME,
-				PaymentMethod: common.PaymentMethodType_PAYMENT_METHOD_TYPE_SEPA,
-				Expiration:    timestamppb.New(time.Now().Add(30 * time.Second)),
-				Timestamp:     timestamppb.New(time.Now()),
-				Bands: []*payment.UpdateQuoteRequest_Quote_Band{
-					{
-						ClientQuoteId: "go-test-quote",
-						MaxAmount:     &common.Decimal{Unscaled: 1000, Exponent: 0},
-						Rate:          &common.Decimal{Unscaled: 86, Exponent: -2},
-					},
-				},
-			},
-		},
-	}))
-	if err != nil {
-		fmt.Printf("ERROR: %v\n", err)
-		os.Exit(1)
-	}
-	fmt.Println("OK")
+	return false
 }
 
-// cmdCallPayOut makes a signed PayOut RPC call to a Python ProviderService server.
 func cmdCallPayOut() {
-	if len(os.Args) != 5 {
-		fmt.Fprintln(os.Stderr, "Usage: go_helper call-pay-out <base_url> <hex_private_key> <hex_network_public_key>")
+	grpcMode := hasFlag("--grpc")
+	// Positional: call-pay-out <base_url> <hex_private_key> <hex_network_public_key> [--grpc]
+	positional := make([]string, 0, 3)
+	for _, arg := range os.Args[2:] {
+		if !strings.HasPrefix(arg, "--") {
+			positional = append(positional, arg)
+		}
+	}
+	if len(positional) != 3 {
+		fmt.Fprintln(os.Stderr, "Usage: go_helper call-pay-out <base_url> <hex_private_key> <hex_network_public_key> [--grpc]")
 		os.Exit(1)
 	}
-	baseURL := os.Args[2]
-	privateKey := network.PrivateKeyHexed(os.Args[3])
-	_ = os.Args[4] // network public key (used by server, not client)
+	baseURL := positional[0]
+	privateKey := network.PrivateKeyHexed(positional[1])
+	_ = positional[2] // network public key (used by server, not client)
+
+	var clientOpts []network.ClientOption
+	clientOpts = append(clientOpts, network.WithBaseURL(baseURL))
+	if grpcMode {
+		clientOpts = append(clientOpts,
+			network.WithConnectOptions(connect.WithGRPC()),
+			network.WithHTTPTransport(newH2CTransport()),
+		)
+	}
 
 	client, err := network.NewServiceClient(
 		privateKey,
 		paymentconnect.NewProviderServiceClient,
-		network.WithBaseURL(baseURL),
+		clientOpts...,
 	)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error creating client: %v\n", err)
@@ -245,7 +226,63 @@ func cmdCallPayOut() {
 	fmt.Println("OK")
 }
 
-// testProviderService is a minimal ProviderService for cross-testing.
+func cmdCallHealth() {
+	grpcMode := hasFlag("--grpc")
+	positional := make([]string, 0, 2)
+	for _, arg := range os.Args[2:] {
+		if !strings.HasPrefix(arg, "--") {
+			positional = append(positional, arg)
+		}
+	}
+	if len(positional) != 2 {
+		fmt.Fprintln(os.Stderr, "Usage: go_helper call-health <base_url> <hex_private_key> [--grpc]")
+		os.Exit(1)
+	}
+	baseURL := positional[0]
+	privateKey := network.PrivateKeyHexed(positional[1])
+
+	var clientOpts []network.ClientOption
+	clientOpts = append(clientOpts, network.WithBaseURL(baseURL))
+	if grpcMode {
+		clientOpts = append(clientOpts,
+			network.WithConnectOptions(connect.WithGRPC()),
+			network.WithHTTPTransport(newH2CTransport()),
+		)
+	}
+
+	client, err := network.NewServiceClient(
+		privateKey,
+		grpchealth.NewClient,
+		clientOpts...,
+	)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error creating client: %v\n", err)
+		os.Exit(1)
+	}
+
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	resp, err := client.Check(ctx, &grpchealth.CheckRequest{})
+	if err != nil {
+		fmt.Printf("ERROR: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Printf("status=%s\n", resp.Status)
+}
+
+// newH2CTransport returns an HTTP transport that speaks h2c (HTTP/2 over cleartext).
+// Required for --grpc mode against plaintext servers.
+func newH2CTransport() *http2.Transport {
+	return &http2.Transport{
+		AllowHTTP: true,
+		DialTLSContext: func(ctx context.Context, netw, addr string, _ *tls.Config) (net.Conn, error) {
+			var d net.Dialer
+			return d.DialContext(ctx, netw, addr)
+		},
+	}
+}
+
 type testProviderService struct{}
 
 func (s *testProviderService) PayOut(ctx context.Context, req *connect.Request[payment.PayoutRequest]) (*connect.Response[payment.PayoutResponse], error) {
@@ -254,7 +291,6 @@ func (s *testProviderService) PayOut(ctx context.Context, req *connect.Request[p
 }
 
 func (s *testProviderService) UpdatePayment(ctx context.Context, req *connect.Request[payment.UpdatePaymentRequest]) (*connect.Response[payment.UpdatePaymentResponse], error) {
-	log.Printf("UpdatePayment called: payment_id=%d", req.Msg.PaymentId)
 	return connect.NewResponse(&payment.UpdatePaymentResponse{}), nil
 }
 

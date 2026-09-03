@@ -22,7 +22,7 @@ verify_signature(pub_key, keccak256(raw_body_bytes + ts), sig)
 uv sync --all-packages       # Install all dependencies
 uv run pytest -v              # Run all tests (SDK + integration + cross)
 uv run pytest sdk/tests -v    # Run SDK unit tests only
-uv run pytest tests/cross_test -v  # Run Go cross-tests (requires Go helper binary)
+uv run pytest tests/cross_test -v  # Run Go cross-tests (requires: cd ../cross_test/go_helper && go build -o go_helper .)
 uv run ruff check .           # Lint
 uv run ruff format --check .  # Format check (also a CI gate)
 ```
@@ -49,8 +49,7 @@ python/
 │       ├── keygen.py           # secp256k1 keypair generation
 │       └── template/           # Embedded project template
 └── tests/
-    └── cross_test/             # Go interop tests (one-time validation)
-        ├── go_helper/          # Small Go binary for cross-testing
+    └── cross_test/             # Go interop tests (uses shared cross_test/go_helper/)
         ├── test_cross_signature.py   # Crypto interop (hash, sign, verify)
         ├── test_cross_server.py      # ASGI server-to-server
         └── test_cross_server_sync.py # WSGI server-to-server
@@ -97,11 +96,11 @@ The CLI generates a complete project with `.env` (private key auto-generated), `
 ## Cross-Tests with Go SDK
 
 ```bash
-cd tests/cross_test/go_helper && go build -o go_helper . && cd ../../..
+cd ../cross_test/go_helper && go build -o go_helper . && cd ../../python
 uv run pytest tests/cross_test/ -v
 ```
 
-Validates: Keccak256 hash, public key derivation, bidirectional signature verification, and end-to-end server-to-server communication (both ASGI and WSGI).
+Uses the shared Go helper at `cross_test/go_helper/` (repo root). Validates: Keccak256 hash, public key derivation, bidirectional signature verification, and end-to-end server-to-server communication (both ASGI and WSGI, plus health checks). In CI, tests fail (not skip) if the helper is missing.
 
 ## Versioning
 
