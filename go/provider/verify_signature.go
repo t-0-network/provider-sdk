@@ -98,11 +98,8 @@ func parseRequiredHexedHeader(headerName string, headers http.Header) ([]byte, e
 		return nil, fmt.Errorf("%w: %s", ErrMissingRequiredHeader, headerName)
 	}
 
-	if len(encodedHeader) < 2 {
-		return nil, fmt.Errorf("%w: %s", ErrInvalidHeaderEncoding, headerName)
-	}
-
-	decodedHeader, err := hex.DecodeString(encodedHeader[2:])
+	hexStr := strings.TrimPrefix(encodedHeader, "0x")
+	decodedHeader, err := hex.DecodeString(hexStr)
 	if err != nil {
 		return nil, fmt.Errorf("%w: %s", ErrInvalidHeaderEncoding, headerName)
 	}

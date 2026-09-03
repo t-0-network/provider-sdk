@@ -179,10 +179,11 @@ def _parse_hex_header(headers: dict[str, str], header_name: str) -> bytes:
     value = headers.get(header_key, "")
     if not value:
         raise MissingRequiredHeaderError(header_name)
-    if len(value) < 2:
+    hex_str = value.removeprefix("0x")
+    if not hex_str:
         raise InvalidHeaderEncodingError(header_name)
     try:
-        return bytes.fromhex(value[2:])  # strip "0x"
+        return bytes.fromhex(hex_str)
     except ValueError:
         raise InvalidHeaderEncodingError(header_name)
 

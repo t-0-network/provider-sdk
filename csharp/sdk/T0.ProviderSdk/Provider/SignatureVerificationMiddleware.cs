@@ -106,7 +106,7 @@ public sealed class SignatureVerificationMiddleware
     }
 
     /// <summary>
-    /// Parses a hex-encoded header value (with 0x prefix). Returns null on failure.
+    /// Parses a hex-encoded header value (0x prefix optional). Returns null on failure.
     /// </summary>
     private static byte[]? ParseHexHeader(HttpContext context, string headerName)
     {
@@ -114,12 +114,17 @@ public sealed class SignatureVerificationMiddleware
         if (string.IsNullOrEmpty(headerValue))
             return null;
 
-        if (headerValue.Length < 2 || !headerValue.StartsWith("0x", StringComparison.OrdinalIgnoreCase))
+        const string prefix = "0x";
+        var hex = headerValue.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
+            ? headerValue[prefix.Length..]
+            : headerValue;
+
+        if (hex.Length == 0)
             return null;
 
         try
         {
-            return Convert.FromHexString(headerValue[2..]);
+            return Convert.FromHexString(hex);
         }
         catch (FormatException)
         {

@@ -593,7 +593,7 @@ dev = [
     { name = "pytest-asyncio", specifier = ">=1.4.0" },
     { name = "ruff", specifier = ">=0.16.4" },
     { name = "uvicorn", specifier = ">=0.52.4" },
-    { name = "waitress", specifier = ">=3.0.0" },
+    { name = "waitress", specifier = ">=3.0.2" },
 ]
 
 [[package]]
