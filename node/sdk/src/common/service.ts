@@ -39,9 +39,16 @@ export interface CreateServiceOptions {
    * header. Omit to suppress the header.
    */
   version?: string;
+
+  /**
+   * Maximum request body size in bytes. Default: 10 MiB.
+   * Requests exceeding this limit are rejected before signature verification.
+   */
+  maxBodySize?: number;
 }
 
 export const REQUEST_VALIDITY_MILLIS = 60_000;
+export const DEFAULT_MAX_BODY_SIZE = 10 * 1024 * 1024; // 10 MiB
 
 const createSignatureVerification: (networkPublicKey: Buffer) => Interceptor = (networkPublicKey: Buffer) => (next) => async (req) => {
   const ts = decodeNum(getHeader(req, NetworkHeaders.SignatureTimestamp));
@@ -101,6 +108,7 @@ export const createService = (
       origService(Health, createHealthServiceImpl(collected, options?.version));
     },
     interceptors: [createSignatureVerification(networkPublicKey), createValidationInterceptor({ logger: options?.logger, registry: options?.registry })],
+    readMaxBytes: options?.maxBodySize ?? DEFAULT_MAX_BODY_SIZE,
     grpcWeb: false,
     contextValues: (req: any) => {
       return createContextValues().set(kHash, (req as any).hasher as Hash<Hash<any>>)

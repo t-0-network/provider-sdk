@@ -172,7 +172,7 @@ public final class ProviderServer implements Closeable {
         private final int port;
         private final String networkPublicKey;
         private final List<BindableService> services = new ArrayList<>();
-        private int maxInboundMessageSize = 4 * 1024 * 1024; // 4MB default
+        private int maxInboundMessageSize = 10 * 1024 * 1024; // 10 MiB default
         private int maxInboundMetadataSize = 8192; // 8KB default
         private long handshakeTimeout = 120;
         private TimeUnit handshakeTimeoutUnit = TimeUnit.SECONDS;

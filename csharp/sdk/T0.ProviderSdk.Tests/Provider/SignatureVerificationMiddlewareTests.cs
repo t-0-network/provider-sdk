@@ -66,16 +66,23 @@ public class SignatureVerificationMiddlewareTests
         Assert.Equal("3", context.Response.Headers["grpc-status"].ToString()); // InvalidArgument = 3
     }
 
-    [Fact]
-    public async Task TimestampOutOfRange_ShouldReturnError()
+    [Theory]
+    [InlineData(-120_000, false)]  // 2 min past → reject
+    [InlineData(-60_001, false)]   // just past boundary → reject
+    [InlineData(-60_000, true)]    // exact boundary → accept
+    [InlineData(0, true)]          // now → accept
+    [InlineData(60_000, true)]     // exact boundary → accept
+    [InlineData(60_001, false)]    // just past boundary → reject
+    [InlineData(120_000, false)]   // 2 min future → reject
+    public async Task TimestampBoundary_ShouldRejectOutsideWindow(long offsetMs, bool shouldPass)
     {
         var body = "test"u8.ToArray();
         var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        var oldTimestamp = now - 120_000; // 2 minutes old
+        var requestTimestamp = now + offsetMs;
         var timeProvider = new FakeTimeProvider(DateTimeOffset.FromUnixTimeMilliseconds(now));
 
         var tsBytes = new byte[8];
-        BinaryPrimitives.WriteUInt64LittleEndian(tsBytes, (ulong)oldTimestamp);
+        BinaryPrimitives.WriteUInt64LittleEndian(tsBytes, (ulong)requestTimestamp);
         var digest = Keccak256.Hash(body, tsBytes);
         var result = _signer.Sign(digest);
 
@@ -85,10 +92,14 @@ public class SignatureVerificationMiddlewareTests
             CreateOptions(),
             timeProvider);
 
-        var context = CreateContext(body, result.SignatureHex, result.PublicKeyHex, oldTimestamp);
+        var context = CreateContext(body, result.SignatureHex, result.PublicKeyHex, requestTimestamp);
         await middleware.InvokeAsync(context);
 
-        Assert.False(handlerCalled);
+        Assert.Equal(shouldPass, handlerCalled);
+        if (!shouldPass)
+        {
+            Assert.Equal("3", context.Response.Headers["grpc-status"].ToString());
+        }
     }
 
     [Fact]

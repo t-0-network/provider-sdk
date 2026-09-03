@@ -33,6 +33,7 @@ public sealed class T0ProviderServer
         _builder.WebHost.UseUrls($"http://0.0.0.0:{config.Port}");
         _builder.Services.AddGrpc(options =>
         {
+            options.MaxReceiveMessageSize = 10 * 1024 * 1024; // 10 MiB, matching signature verification cap
             options.Interceptors.Add<ValidationInterceptor>();
         });
         _builder.Services.AddSingleton<ISigner>(signer);
