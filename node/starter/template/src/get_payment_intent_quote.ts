@@ -1,5 +1,5 @@
 import {type Client, PaymentIntentNetwork} from "@t-0/provider-sdk";
-import {toProtoDecimal} from "./lib";
+import {decimalFromString} from "./lib";
 
 export default async function getPaymentIntentQuote(
     paymentIntentClient: Client<typeof PaymentIntentNetwork.PaymentIntentService>,
@@ -9,7 +9,7 @@ export default async function getPaymentIntentQuote(
   // settlement rate is determined when the pay-in provider confirms funds received.
   const response = await paymentIntentClient.getQuote({
     currency: "EUR",
-    amount: toProtoDecimal(500, 0), // end-user pays 500 EUR
+    amount: decimalFromString("500"), // end-user pays 500 EUR
   })
 
   switch (response.result.case) {

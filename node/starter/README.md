@@ -58,7 +58,7 @@ your-project-name/
 
 ### Phase 1: Quoting
 
-1. Open `.env` and find your generated public key (marked as "Step 1.2"). Share it with the T-0 team to register your provider.
+1. Copy the generated public key from the comment in `.env` and share it with the T-0 team to register your provider.
 2. Implement your quote publishing logic in `src/publish_quotes.ts`.
 3. Start the dev server (`npm run dev`) and verify quotes are published.
 4. Confirm quote retrieval works by checking the output of `getQuote` in `src/index.ts`.

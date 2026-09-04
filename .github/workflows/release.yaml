@@ -232,7 +232,7 @@ jobs:
           GOPROXY=direct go -C .github/tools/sumtool run . "${GITHUB_WORKSPACE}/go" "v${VERSION}" "${PROXY_DIR}"
           cd go/starter/template
           go mod edit -require "github.com/t-0-network/provider-sdk/go@v${VERSION}"
-          export GOPROXY="file://${PROXY_DIR},direct"
+          export GOPROXY="file://${PROXY_DIR},https://proxy.golang.org,direct"
           export GONOSUMDB="github.com/t-0-network"
           go mod tidy
           go build ./...
