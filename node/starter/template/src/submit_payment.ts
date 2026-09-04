@@ -1,5 +1,5 @@
 import {type Client, NetworkService, PaymentMethodType} from "@t-0/provider-sdk";
-import {decimalFromString} from "./lib";
+import {decimalFromString, decimalToString} from "./lib";
 import {randomUUID} from "node:crypto";
 
 export default async function submitPayment(networkClient: Client<typeof NetworkService>): Promise<void> {
@@ -26,9 +26,13 @@ export default async function submitPayment(networkClient: Client<typeof Network
   })
 
   switch (result.result.case) {
-      case 'accepted':
-        console.log(`Payment accepted, ${result.result.value.settlementAmount} USD to settle`)
+      case 'accepted': {
+        const settlementAmount = result.result.value.settlementAmount === undefined
+          ? "not provided"
+          : decimalToString(result.result.value.settlementAmount);
+        console.log(`Payment accepted, ${settlementAmount} USD to settle`)
         break;
+      }
       case 'failure':
         console.log(`Payment failed with '${result.result.value.reason}'`)
         break;
