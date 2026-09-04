@@ -1,10 +1,10 @@
 import { secp256k1 } from '@noble/curves/secp256k1.js'
 import type {Signature} from "./client.js";
-import { parsePrivateKey } from "../crypto/keys.js";
+import { parsePrivateKey, uncompressedPublicKeyFromPrivateKey } from "../crypto/keys.js";
 
 export const CreateSigner = (privateKey: string | Buffer)=> {
     privateKey = parsePrivateKey(privateKey)
-    const publicKey = Buffer.from(secp256k1.getPublicKey(privateKey, false));
+    const publicKey = uncompressedPublicKeyFromPrivateKey(privateKey);
 
     return async (data: Buffer): Promise<Signature> => {
         // Ensure hash is 32 bytes

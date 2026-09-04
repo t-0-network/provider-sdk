@@ -17,9 +17,12 @@ export function parsePrivateKey(privateKey: string | Buffer): Buffer {
   return privateKey;
 }
 
+export function uncompressedPublicKeyFromPrivateKey(privateKey: Buffer): Buffer {
+  return Buffer.from(secp256k1.getPublicKey(privateKey, false));
+}
+
 export function publicKeyFromPrivateKey(hex: string): string {
-  const publicKey = secp256k1.getPublicKey(parsePrivateKey(hex), false);
-  return `0x${Buffer.from(publicKey).toString('hex')}`;
+  return `0x${uncompressedPublicKeyFromPrivateKey(parsePrivateKey(hex)).toString('hex')}`;
 }
 
 export function parsePublicKey(key: string | Buffer): Buffer {
