@@ -71,7 +71,7 @@ jobs:
           # Go fetches the locally-built archive without a checksum conflict.
           sed -i '/^github.com\/t-0-network\/provider-sdk\/go /d' go.sum
           export GOMODCACHE="${RUNNER_TEMP}/template-modcache"
-          export GOPROXY="file://${PROXY_DIR},direct"
+          export GOPROXY="file://${PROXY_DIR},https://proxy.golang.org,direct"
           export GONOSUMDB="github.com/t-0-network"
           go mod tidy
           go build ./...

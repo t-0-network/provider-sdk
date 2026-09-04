@@ -1,5 +1,5 @@
 import {type Client, NetworkService, PaymentMethodType} from "@t-0/provider-sdk";
-import {toProtoDecimal} from "./lib";
+import {decimalFromString} from "./lib";
 import {randomUUID} from "node:crypto";
 
 export default async function submitPayment(networkClient: Client<typeof NetworkService>): Promise<void> {
@@ -11,7 +11,7 @@ export default async function submitPayment(networkClient: Client<typeof Network
     amount: {
       amount: {
         case: "payOutAmount",
-        value: toProtoDecimal(10, 0),
+        value: decimalFromString("10"),
       },
     },
     paymentDetails: {

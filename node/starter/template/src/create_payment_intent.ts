@@ -1,5 +1,5 @@
 import {type Client, PaymentIntentNetwork} from "@t-0/provider-sdk";
-import {toProtoDecimal} from "./lib";
+import {decimalFromString} from "./lib";
 import {randomUUID} from "node:crypto";
 
 export default async function createPaymentIntent(
@@ -12,7 +12,7 @@ export default async function createPaymentIntent(
   const response = await paymentIntentClient.createPaymentIntent({
     externalReference: randomUUID(), // idempotency key — reuse to retry without duplicating the intent
     currency: 'EUR',
-    amount: toProtoDecimal(500, 0), // end-user pays 500 EUR
+    amount: decimalFromString("500"), // end-user pays 500 EUR
     travelRuleData: {
       // TODO: populate real IVMS101 beneficiary information for your end-user.
       beneficiary: [{}],

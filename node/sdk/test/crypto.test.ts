@@ -3,7 +3,8 @@ import * as nodeAssert from 'node:assert/strict';
 import { keccak_256 } from '@noble/hashes/sha3.js';
 import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { CreateSigner } from '../src/client/signer.js';
-import { verifySignature, keccak256, computeDigest, parsePublicKey, publicKeysEqual, createRequestVerifier, DEFAULT_TOLERANCE_MS, NetworkHeaders } from '../src/crypto/index.js';
+import { verifySignature, keccak256, computeDigest, parsePublicKey, publicKeyFromPrivateKey, publicKeysEqual, createRequestVerifier, DEFAULT_TOLERANCE_MS, NetworkHeaders } from '../src/crypto/index.js';
+import * as sdk from '../src/index.js';
 import type { VerifyRequest } from '../src/crypto/index.js';
 import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
@@ -456,6 +457,65 @@ describe('crypto/verifySignature', () => {
   });
 });
 
+describe('crypto/publicKeyFromPrivateKey', () => {
+  const secp256k1Order = 'fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141';
+  const maxSecret = 'fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364140';
+
+  for (const [name, key] of Object.entries({
+    primary: vectors.keys,
+    impostor: vectors.impostor_keys,
+  })) {
+    it(`derives the ${name} public key from the cross-language vector`, () => {
+      const publicKey = publicKeyFromPrivateKey(key.private_key);
+      nodeAssert.equal(publicKey, `0x${key.public_key}`);
+      nodeAssert.match(publicKey, /^0x04[0-9a-f]{128}$/);
+    });
+  }
+
+  it('accepts a lowercase 0x-prefixed private key', () => {
+    nodeAssert.equal(
+      publicKeyFromPrivateKey(`0x${vectors.keys.private_key}`),
+      `0x${vectors.keys.public_key}`,
+    );
+  });
+
+  it('accepts the minimum and maximum valid secp256k1 secrets', () => {
+    for (const secret of ['0'.repeat(63) + '1', maxSecret]) {
+      nodeAssert.match(publicKeyFromPrivateKey(secret), /^0x04[0-9a-f]{128}$/);
+    }
+  });
+
+  it('rejects an uppercase 0X private-key prefix', () => {
+    nodeAssert.throws(() => publicKeyFromPrivateKey(`0X${vectors.keys.private_key}`));
+  });
+
+  it('rejects malformed, wrong-length, zero, and out-of-range secrets', () => {
+    for (const secret of [
+      '',
+      'not-a-valid-key',
+      '0'.repeat(63),
+      '0'.repeat(64),
+      secp256k1Order,
+      `0x${secp256k1Order}`,
+    ]) {
+      nodeAssert.throws(() => publicKeyFromPrivateKey(secret));
+    }
+  });
+
+  it('preserves synchronous signer validation for string and Buffer inputs', async () => {
+    nodeAssert.throws(() => CreateSigner('0'.repeat(64)), {message: 'Invalid private key'});
+    nodeAssert.throws(() => CreateSigner(Buffer.alloc(32)), {message: 'Invalid private key'});
+
+    const signer = CreateSigner(Buffer.from(vectors.keys.private_key, 'hex'));
+    const signature = await signer(Buffer.alloc(32, 0x01));
+    nodeAssert.equal(signature.publicKey.toString('hex'), vectors.keys.public_key);
+  });
+
+  it('is exported from the crypto and root source entry points', () => {
+    nodeAssert.strictEqual(sdk.publicKeyFromPrivateKey, publicKeyFromPrivateKey);
+  });
+});
+
 describe('crypto/parsePublicKey', () => {
   const hexKey = vectors.keys.public_key;
 
@@ -467,6 +527,10 @@ describe('crypto/parsePublicKey', () => {
   it('parses 0x-prefixed hex string', () => {
     const key = parsePublicKey('0x' + hexKey);
     nodeAssert.equal(key.toString('hex'), hexKey);
+  });
+
+  it('rejects an uppercase 0X public-key prefix', () => {
+    nodeAssert.throws(() => parsePublicKey('0X' + hexKey));
   });
 
   it('parses Buffer', () => {
