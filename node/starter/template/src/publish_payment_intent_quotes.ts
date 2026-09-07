@@ -1,5 +1,5 @@
 import {type Client, PaymentIntentNetwork, PaymentMethodType} from "@t-0/provider-sdk";
-import {toProtoDecimal} from "./lib";
+import {decimalFromString} from "./lib";
 import {randomUUID} from "node:crypto";
 import {timestampFromDate} from "@bufbuild/protobuf/wkt";
 
@@ -9,6 +9,8 @@ export default async function publishPaymentIntentQuotes(
 ): Promise<void> {
   // TODO: Step 3A.1 replace this with fetching pay-in quotes from your systems and publishing them into t-0 Network.
   // We recommend publishing at least once per 5 seconds, but not more than once per second.
+  const sampleMaxAmount = decimalFromString("1000");
+  const sampleRate = decimalFromString("0.92");
   const tick = async () => {
     try {
       // NOTE: Every updateQuote request discards all previous payment intent quotes
@@ -21,9 +23,9 @@ export default async function publishPaymentIntentQuotes(
           timestamp: timestampFromDate(new Date()),
           bands: [{
             clientQuoteId: randomUUID(),
-            maxAmount: toProtoDecimal(1000, 0), // max 1000 USD for this band
+            maxAmount: sampleMaxAmount, // max 1000 USD for this band
             // rate is always USD/XXX, so for EUR quote should be USD/EUR
-            rate: toProtoDecimal(92, -2), // rate 0.92
+            rate: sampleRate, // rate 0.92
           }],
         }],
       })

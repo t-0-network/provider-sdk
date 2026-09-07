@@ -61,6 +61,6 @@
     "build:cjs": "tsc -p tsconfig.cjs.json",
     "build:post": "echo '{\"type\":\"commonjs\"}' > lib/cjs/package.json",
     "release": "npm run buf:generate && npm run build && npm publish --access public",
-    "test": "node --import tsx --test test/**/*.test.ts"
+    "test": "npm run build && node --import tsx --test test/**/*.test.ts"
   }
 }
