@@ -1,5 +1,5 @@
 import {type Client, NetworkService, PaymentMethodType, QuoteType} from "@t-0/provider-sdk";
-import {fromProtoDecimal, toProtoDecimal} from "./lib";
+import {decimalFromString, decimalToString} from "./lib";
 
 export default async function getQuote(networkClient: Client<typeof NetworkService>) {
   const usdgbp = await networkClient.getQuote({
@@ -9,14 +9,14 @@ export default async function getQuote(networkClient: Client<typeof NetworkServi
     amount: {
       amount: {
         case: 'payOutAmount',
-        value: toProtoDecimal(50, 0)
+        value: decimalFromString("50")
       },
     }
   })
 
   switch (usdgbp.result.case) {
     case 'success':
-      console.log(`USD/GBP: ${fromProtoDecimal(usdgbp.result.value.rate!)}`)
+      console.log(`USD/GBP: ${decimalToString(usdgbp.result.value.rate!)}`)
       break;
     case 'failure':
       console.error(usdgbp.result.value.reason)

@@ -7,6 +7,7 @@ on:
       - "cli/**"
       - "go/starter/template/**"
       - "node/starter/template/**"
+      - "node/sdk/**"
       - "python/starter/src/t0_provider_starter/template/**"
       - "java/starter/template/**"
       - "csharp/starter/template/**"
@@ -17,6 +18,7 @@ on:
       - "cli/**"
       - "go/starter/template/**"
       - "node/starter/template/**"
+      - "node/sdk/**"
       - "python/starter/src/t0_provider_starter/template/**"
       - "java/starter/template/**"
       - "csharp/starter/template/**"
@@ -78,6 +80,13 @@ jobs:
         working-directory: cli
         run: go test -v ./...
 
+      - name: Pack Node SDK for scaffold test
+        working-directory: node/sdk
+        run: |
+          npm ci
+          npm run build
+          npm pack
+
       # --- Scaffold all 5 ecosystems ---
       - name: Scaffold Go project
         run: |
@@ -133,21 +142,18 @@ jobs:
           # Go fetches the locally-built archive without a checksum conflict.
           sed -i '/^github.com\/t-0-network\/provider-sdk\/go /d' go.sum
           export GOMODCACHE="${RUNNER_TEMP}/template-modcache"
-          export GOPROXY="file://${PROXY_DIR},direct"
+          export GOPROXY="file://${PROXY_DIR},https://proxy.golang.org,direct"
           export GONOSUMDB="github.com/t-0-network"
           go mod tidy
           go build ./...
 
-      # Registry-dependent verify steps run only on PRs.  On push-to-master the
-      # PR already validated them, and on release commits the new SDK version is
-      # not yet published (the publish workflow runs in parallel), so they would
-      # fail with "package not found".  Go is immune (local file:// proxy above).
-      - name: Verify Node scaffold compiles
-        if: github.event_name == 'pull_request'
+      # Use the locally packed SDK so this also validates release commits before
+      # the package is available from npm, without rewriting the template manifest or lockfile.
+      - name: Verify Node scaffold builds and tests
         working-directory: test-node
         run: |
-          npm install --silent
-          npm run build
+          npm install --silent --no-save --package-lock=false --no-audit --no-fund ../node/sdk/t-0-provider-sdk-*.tgz
+          npm test
 
       - name: Verify Python scaffold resolves deps
         if: github.event_name == 'pull_request'

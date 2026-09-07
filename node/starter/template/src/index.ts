@@ -8,6 +8,7 @@ import {
   PaymentIntentNetwork,
   PaymentIntentPayInProvider,
   ProviderService,
+  publicKeyFromPrivateKey,
   signatureValidation,
 } from "@t-0/provider-sdk";
 import invariant from 'tiny-invariant';
@@ -39,9 +40,12 @@ invariant(quotePublishingInterval > 0, 'Interval must be positive');
 invariant(networkPublicKeyHex, 'Network public key is not set');
 
 async function main() {
+  const providerPublicKey = publicKeyFromPrivateKey(privateKeyHex!);
+
   console.log('🚀 Service starting...');
   console.log(`📡 Port: ${port}`);
-  console.log(`🔑 Network Public Key: ${networkPublicKeyHex}`);
+  console.log(`🔑 Provider Public Key: ${providerPublicKey}`);
+  console.log(`🔑 T-0 Network Verification Key: ${networkPublicKeyHex}`);
   const networkClient = createClient(privateKeyHex!, endpoint, NetworkService);
   const paymentIntentClient = createClient(privateKeyHex!, endpoint, PaymentIntentNetwork.PaymentIntentService);
 
@@ -72,7 +76,7 @@ async function main() {
 
   // Step 1.1 is done. You successfully initialised starter template
 
-  // TODO: Step 1.2 take you generated public key from .env and share it with t-0 team
+  // TODO: Step 1.2 share the generated public key in the .env comment with the T-0 team
 
   // TODO: Step 1.3 implement publishing of quotes in the ./publish_quotes.ts
 

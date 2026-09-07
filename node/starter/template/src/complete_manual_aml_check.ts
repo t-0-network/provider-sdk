@@ -1,4 +1,5 @@
 import {type Client, NetworkService} from "@t-0/provider-sdk";
+import {decimalToString} from "./lib";
 
 export default async function completeManualAmlCheck(
     networkClient: Client<typeof NetworkService>,
@@ -19,7 +20,9 @@ export default async function completeManualAmlCheck(
       const approved = response.result.value;
       // Pay-in provider approved the updated quotes — proceed with the payout using
       // the updated amounts, then report the outcome via finalizePayout.
-      console.log(`Manual AML check approved for payment ${paymentId}: quoteId=${approved.payOutQuoteId}, clientQuoteId=${approved.payOutClientQuoteId}`, 'payOutAmount=', approved.payOutAmount, 'settlementAmount=', approved.settlementAmount)
+      const payOutAmount = approved.payOutAmount === undefined ? "not provided" : decimalToString(approved.payOutAmount);
+      const settlementAmount = approved.settlementAmount === undefined ? "not provided" : decimalToString(approved.settlementAmount);
+      console.log(`Manual AML check approved for payment ${paymentId}: quoteId=${approved.payOutQuoteId}, clientQuoteId=${approved.payOutClientQuoteId}, payOutAmount=${payOutAmount}, settlementAmount=${settlementAmount}`)
       break;
     }
     case 'rejected':

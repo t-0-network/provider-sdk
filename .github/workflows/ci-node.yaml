@@ -38,21 +38,22 @@ jobs:
 
       - uses: ./.github/actions/test-node
 
-      # Type-check the starter template against the freshly built SDK.
+      # Test the starter template against the freshly built SDK.
       # The template has no lockfile (industry standard for scaffold
       # tools — create.ts regenerates one via `npm install` at scaffold
       # time). We pack the local SDK and install it directly so the
-      # template always type-checks against unreleased SDK changes, and
-      # CI works even on release commits where the new version isn't
-      # published to npm yet.
-      - name: Pack SDK for template type-check
+      # template always tests against unreleased SDK changes, and CI
+      # works even on release commits where the new version isn't
+      # published to npm yet. --no-save and --package-lock=false keep test-only
+      # file paths out of the release-managed manifest and template.
+      - name: Pack SDK for template test
         working-directory: node/sdk
         run: npm pack
 
       - name: Install template deps with local SDK
         working-directory: node/starter/template
-        run: npm install --no-audit --no-fund ../../sdk/t-0-provider-sdk-*.tgz
+        run: npm install --no-save --package-lock=false --no-audit --no-fund ../../sdk/t-0-provider-sdk-*.tgz
 
-      - name: Type-check starter template against local SDK
+      - name: Test starter template against local SDK
         working-directory: node/starter/template
-        run: npx tsc --noEmit -p tsconfig.json
+        run: npm test

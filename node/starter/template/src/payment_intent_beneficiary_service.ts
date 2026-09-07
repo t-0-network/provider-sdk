@@ -2,6 +2,7 @@ import {
     HandlerContext,
     PaymentIntentBeneficiary,
 } from "@t-0/provider-sdk";
+import {decimalToString} from "./lib";
 
 /*
   Payment Intent Flow — Beneficiary Provider role.
@@ -19,14 +20,16 @@ const CreateBeneficiaryService = () => {
         // internal state accordingly.
         async paymentIntentUpdate(req: PaymentIntentBeneficiary.PaymentIntentUpdateRequest, _: HandlerContext) {
             switch (req.update.case) {
-                case 'fundsReceived':
+                case 'fundsReceived': {
+                    const settlementAmount = req.update.value.settlementAmount;
                     console.log(
                         `Payment intent ${req.paymentIntentId}: funds received,`,
-                        `settlementAmount=${JSON.stringify(req.update.value.settlementAmount)},`,
+                        `settlementAmount=${settlementAmount === undefined ? "not provided" : decimalToString(settlementAmount)},`,
                         `paymentMethod=${req.update.value.paymentMethod},`,
                         `transactionReference=${req.update.value.transactionReference}`,
                     )
                     break;
+                }
                 default:
                     console.log(`Payment intent ${req.paymentIntentId}: unknown update variant`)
             }
