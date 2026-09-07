@@ -359,8 +359,8 @@ jobs:
       # GITHUB_TOKEN, which the releases API rejects with HTTP 401.
       #
       # The go/* Go module tags are NOT created here. They live in publish.yaml's "Publish Go"
-      # job, created right before it warms the Go proxy — so the proxy is never asked to resolve
-      # a version before its tag exists.
+      # job, right before it rebuilds the template against the tagged tree — so nothing running
+      # on the release commit can race a public-proxy lookup ahead of the tags.
       - name: Commit version bump
         uses: stefanzweifel/git-auto-commit-action@v7
         with:

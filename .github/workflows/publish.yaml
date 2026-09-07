@@ -184,8 +184,10 @@ jobs:
           [ "$RUNTIME" = "$VERSION" ] || { echo "::error::go/sdkversion/version.go has $RUNTIME, tag is v$VERSION"; exit 1; }
           echo "Go SDK runtime version $RUNTIME matches tag v$VERSION"
 
-      # Create the go/* module tags here, right before warming the proxy, so the proxy is never
-      # asked to resolve a version before its tag exists (otherwise it negative-caches the 404).
+      # Create the go/* module tags here, right before the readonly rebuild below, so nothing
+      # running on the release commit (ci-go, ci-cli) can race a public-proxy lookup ahead of
+      # them; this job itself never queries proxy.golang.org for the SDK (the file:// layout
+      # answers first — docs/RELEASE_AND_PUBLISH.md, "Things not to do here").
       # Lightweight tags need no git identity; re-running this job is safe — re-pushing an
       # identical tag is a no-op.
       - name: Create and push Go module tags
@@ -210,6 +212,10 @@ jobs:
           # docs/RELEASE_AND_PUBLISH.md, "Precomputing the Go template's go.sum".
           GOPROXY="file://${PROXY_DIR}" go mod download "github.com/t-0-network/provider-sdk/go@v${VERSION}"
           GOPROXY="file://${PROXY_DIR},https://proxy.golang.org,direct" go build -mod=readonly ./...
+          # `go mod download` adds a go.sum line for the module it fetched if one is
+          # missing, which would hide exactly the omission -mod=readonly is here to
+          # catch: the tagged go.mod/go.sum must already have been complete.
+          git diff --exit-code -- go.mod go.sum
 
   publish-node-sdk:
     name: Publish Node SDK

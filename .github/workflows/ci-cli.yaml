@@ -72,9 +72,12 @@ jobs:
         working-directory: cli
         run: go generate ./...
 
+      # Version only feeds the Java template's SDK pin and `--version`; 0.0.0-local
+      # is the version the Java SDK is published under below, so the Java scaffold
+      # resolves the SDK built from this tree.
       - name: Build CLI
         working-directory: cli
-        run: go build -ldflags "-X main.Version=dev" -o ../t0-init .
+        run: go build -ldflags "-X main.Version=0.0.0-local" -o ../t0-init .
 
       - name: Run tests
         working-directory: cli
@@ -114,7 +117,8 @@ jobs:
 
       - name: Scaffold Java project
         run: |
-          ./t0-init init --lang=java --no-color --dir=test-java my-java-provider
+          ./t0-init init --lang=java --repository=maven-central --no-color --dir=test-java my-java-provider
+          grep '"network.t-0:provider-sdk-java:0.0.0-local"' test-java/build.gradle.kts
           test -f test-java/build.gradle.kts
           test -f test-java/.env
           test -f test-java/.gitignore
@@ -159,20 +163,45 @@ jobs:
           npm install --silent --no-save --package-lock=false --no-audit --no-fund ../node/sdk/t-0-provider-sdk-*.tgz
           npm test
 
-      - name: Verify Python scaffold resolves deps
-        if: github.event_name == 'pull_request'
-        working-directory: test-python
-        run: uv sync
+      # The scaffolds below are compiled against the SDKs built from this tree, not
+      # the published ones: between an SDK change and the next release the published
+      # package lags the template, and a release commit has no published package yet.
+      # Each SDK is published to a local, disposable location under a version that
+      # is not on any registry, so the scaffold cannot silently pick a registry copy.
+      - name: Publish this tree's Java, Python and C# SDKs locally
+        run: |
+          set -euo pipefail
+          (cd java && ./gradlew :sdk:publishToMavenLocal --no-daemon -q -Pversion=0.0.0-local -Dmaven.repo.local="${RUNNER_TEMP}/m2")
+          test -d "${RUNNER_TEMP}/m2/network/t-0/provider-sdk-java/0.0.0-local"
+          printf 'allprojects { repositories { mavenLocal() } }\n' > "${RUNNER_TEMP}/mavenlocal.init.gradle"
+          (cd python && uv build --package t0-provider-sdk -o "${RUNNER_TEMP}/pydist" -q)
+          ls "${RUNNER_TEMP}"/pydist/t0_provider_sdk-*.whl
+          dotnet pack csharp/sdk/T0.ProviderSdk -c Release -p:Version=0.0.0-local -o "${RUNNER_TEMP}/nupkg" --nologo -v quiet
+          ls "${RUNNER_TEMP}"/nupkg/T0.ProviderSdk.0.0.0-local.nupkg
 
-      - name: Verify Java scaffold compiles
-        if: github.event_name == 'pull_request'
+      - name: Verify Java scaffold compiles against this tree's SDK
         working-directory: test-java
-        run: ./gradlew compileJava --no-daemon
+        run: ./gradlew compileJava --no-daemon -q --init-script "${RUNNER_TEMP}/mavenlocal.init.gradle" -Dmaven.repo.local="${RUNNER_TEMP}/m2"
 
-      - name: Verify C# scaffold compiles
-        if: github.event_name == 'pull_request'
+      # `uv add <wheel>` turns the template's registry requirement into a path source,
+      # so resolution cannot fall back to the index for the SDK itself.
+      - name: Verify Python scaffold resolves and imports this tree's SDK
+        working-directory: test-python
+        run: |
+          uv add --no-sync "${RUNNER_TEMP}"/pydist/t0_provider_sdk-*.whl -q
+          uv sync -q
+          uv run python -c "import t0_provider_sdk, importlib.metadata as m; print('t0-provider-sdk', m.version('t0-provider-sdk'))"
+
+      # A nuget.config local to the scaffold: the packed SDK plus nuget.org for
+      # everything else; the exact 0.0.0-local pin can only come from the local feed.
+      - name: Verify C# scaffold compiles against this tree's SDK
         working-directory: test-csharp
-        run: dotnet build
+        run: |
+          dotnet new nugetconfig > /dev/null
+          dotnet nuget add source "${RUNNER_TEMP}/nupkg" --name tree-sdk --configfile nuget.config > /dev/null
+          dotnet add package T0.ProviderSdk --version 0.0.0-local > /dev/null
+          grep 'Version="0.0.0-local"' my-csharp-provider.csproj
+          dotnet build --nologo -v quiet
 
   cli-windows:
     name: Build & Test (Windows)
