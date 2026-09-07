@@ -64,14 +64,18 @@ jobs:
         run: |
           VERSION=$(grep 'github.com/t-0-network/provider-sdk/go v' starter/template/go.mod | awk '{print $2}')
           PROXY_DIR="${RUNNER_TEMP}/goproxy"
-          GOPROXY=direct go -C ../.github/tools/sumtool run . "${GITHUB_WORKSPACE}/go" "${VERSION}" "${PROXY_DIR}"
+          go -C ../.github/tools/sumtool run . "${GITHUB_WORKSPACE}/go" "${VERSION}" "${PROXY_DIR}"
           cd starter/template
           # In PRs the SDK source may differ from the published tag, producing a
           # different module hash.  Drop the stale go.sum entries and re-tidy so
           # Go fetches the locally-built archive without a checksum conflict.
           sed -i '/^github.com\/t-0-network\/provider-sdk\/go /d' go.sum
           export GOMODCACHE="${RUNNER_TEMP}/template-modcache"
-          export GOPROXY="file://${PROXY_DIR},https://proxy.golang.org,direct"
           export GONOSUMDB="github.com/t-0-network"
+          # Gate: file proxy only. A broken sumtool layout fails here locally instead of
+          # silently falling through to the published SDK (or, pre-tag, poisoning
+          # proxy.golang.org). Rationale: docs/RELEASE_AND_PUBLISH.md, "Precomputing".
+          GOPROXY="file://${PROXY_DIR}" go mod download "github.com/t-0-network/provider-sdk/go@${VERSION}"
+          export GOPROXY="file://${PROXY_DIR},https://proxy.golang.org,direct"
           go mod tidy
           go build ./...

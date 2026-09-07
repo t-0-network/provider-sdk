@@ -203,9 +203,13 @@ jobs:
         run: |
           VERSION="${GITHUB_REF#refs/tags/v}"
           PROXY_DIR="${RUNNER_TEMP}/goproxy"
-          GOPROXY=direct go -C .github/tools/sumtool run . "${GITHUB_WORKSPACE}/go" "v${VERSION}" "${PROXY_DIR}"
+          go -C .github/tools/sumtool run . "${GITHUB_WORKSPACE}/go" "v${VERSION}" "${PROXY_DIR}"
           cd go/starter/template
-          GOPROXY="file://${PROXY_DIR},https://proxy.golang.org,direct" GONOSUMDB="github.com/t-0-network" go build -mod=readonly ./...
+          export GONOSUMDB="github.com/t-0-network"
+          # Gate + chain: same shape as release.yaml; rationale in
+          # docs/RELEASE_AND_PUBLISH.md, "Precomputing the Go template's go.sum".
+          GOPROXY="file://${PROXY_DIR}" go mod download "github.com/t-0-network/provider-sdk/go@v${VERSION}"
+          GOPROXY="file://${PROXY_DIR},https://proxy.golang.org,direct" go build -mod=readonly ./...
 
   publish-node-sdk:
     name: Publish Node SDK
