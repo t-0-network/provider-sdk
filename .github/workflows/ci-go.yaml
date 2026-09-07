@@ -55,6 +55,12 @@ jobs:
         working-directory: cross_test/go_helper
         run: go vet ./... && go build -o go_helper .
 
+      # go/starter is its own module (published as go/starter/vX.Y.Z); the parent
+      # module's ./... never reaches it.
+      - name: Build legacy Go starter CLI
+        working-directory: go/starter
+        run: go vet ./... && go build ./...
+
       - name: Run Tests
         working-directory: go
         run: go test -v ./...

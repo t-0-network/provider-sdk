@@ -212,6 +212,10 @@ jobs:
           # docs/RELEASE_AND_PUBLISH.md, "Precomputing the Go template's go.sum".
           GOPROXY="file://${PROXY_DIR}" go mod download "github.com/t-0-network/provider-sdk/go@v${VERSION}"
           GOPROXY="file://${PROXY_DIR},https://proxy.golang.org,direct" go build -mod=readonly ./...
+          # `go mod download` adds a go.sum line for the module it fetched if one is
+          # missing, which would hide exactly the omission -mod=readonly is here to
+          # catch: the tagged go.mod/go.sum must already have been complete.
+          git diff --exit-code -- go.mod go.sum
 
   publish-node-sdk:
     name: Publish Node SDK

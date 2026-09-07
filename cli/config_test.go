@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 )
@@ -173,6 +174,37 @@ func TestWriteEnvFile_RecordsPublicKey(t *testing.T) {
 		want := "PRIVATE_KEY=" + kp.PrivateKey + "\n# " + kp.PublicKey + "\n"
 		if string(env) != want {
 			t.Errorf(".env:\n%s\nwant:\n%s", env, want)
+		}
+	})
+
+	t.Run("only the active assignment is replaced, whole line, comments untouched", func(t *testing.T) {
+		dir := t.TempDir()
+		example := "# PROVIDER_PRIVATE_KEY=example-in-a-comment\nPROVIDER_PRIVATE_KEY=0xdeadbeef\nOTHER_PRIVATE_KEY=keep\n"
+		os.WriteFile(filepath.Join(dir, ".env.example"), []byte(example), 0o644)
+		if err := writeEnvFile(dir, kp); err != nil {
+			t.Fatal(err)
+		}
+		env, _ := os.ReadFile(filepath.Join(dir, ".env"))
+		want := "# PROVIDER_PRIVATE_KEY=example-in-a-comment\nPROVIDER_PRIVATE_KEY=" + kp.PrivateKey +
+			"\n# Public key for the line above (share it with t-0): " + kp.PublicKey + "\nOTHER_PRIVATE_KEY=keep\n"
+		if string(env) != want {
+			t.Errorf(".env:\n%s\nwant:\n%s", env, want)
+		}
+	})
+
+	t.Run("existing .env with loose permissions is rewritten as 0600", func(t *testing.T) {
+		if runtime.GOOS == "windows" {
+			t.Skip("no POSIX modes")
+		}
+		dir := t.TempDir()
+		os.WriteFile(filepath.Join(dir, ".env.example"), []byte("PROVIDER_PRIVATE_KEY=\n"), 0o644)
+		os.WriteFile(filepath.Join(dir, ".env"), []byte("stale\n"), 0o666)
+		if err := writeEnvFile(dir, kp); err != nil {
+			t.Fatal(err)
+		}
+		info, _ := os.Stat(filepath.Join(dir, ".env"))
+		if perm := info.Mode().Perm(); perm != 0o600 {
+			t.Errorf(".env mode = %o, want 0600", perm)
 		}
 	})
 
