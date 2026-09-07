@@ -71,9 +71,11 @@ jobs:
           # Go fetches the locally-built archive without a checksum conflict.
           sed -i '/^github.com\/t-0-network\/provider-sdk\/go /d' go.sum
           export GOMODCACHE="${RUNNER_TEMP}/template-modcache"
-          # Chain rationale and the two ways it has broken before:
-          # docs/RELEASE_AND_PUBLISH.md, "Precomputing the Go template's go.sum".
-          export GOPROXY="file://${PROXY_DIR},https://proxy.golang.org,direct"
           export GONOSUMDB="github.com/t-0-network"
+          # Gate: file proxy only. A broken sumtool layout fails here locally instead of
+          # silently falling through to the published SDK (or, pre-tag, poisoning
+          # proxy.golang.org). Rationale: docs/RELEASE_AND_PUBLISH.md, "Precomputing".
+          GOPROXY="file://${PROXY_DIR}" go mod download "github.com/t-0-network/provider-sdk/go@${VERSION}"
+          export GOPROXY="file://${PROXY_DIR},https://proxy.golang.org,direct"
           go mod tidy
           go build ./...

@@ -233,13 +233,11 @@ jobs:
           cd go/starter/template
           go mod edit -require "github.com/t-0-network/provider-sdk/go@v${VERSION}"
           export GONOSUMDB="github.com/t-0-network"
-          # Fail-fast gate: the tag does not exist yet, so the SDK must resolve from
-          # the file proxy alone. A broken sumtool layout fails here with zero network
-          # contact instead of falling through to proxy.golang.org, which would
-          # negative-cache the 404 for the version publish-go is about to tag.
+          # Gate: file proxy only. The tag does not exist yet, so a broken sumtool
+          # layout must fail here with zero network contact rather than fall through
+          # to proxy.golang.org, which would negative-cache the 404 for the version
+          # publish-go is about to tag. Rationale: docs/RELEASE_AND_PUBLISH.md, "Precomputing".
           GOPROXY="file://${PROXY_DIR}" go mod download "github.com/t-0-network/provider-sdk/go@v${VERSION}"
-          # Chain rationale and the two ways it has broken before:
-          # docs/RELEASE_AND_PUBLISH.md, "Precomputing the Go template's go.sum".
           export GOPROXY="file://${PROXY_DIR},https://proxy.golang.org,direct"
           go mod tidy
           go build ./...
