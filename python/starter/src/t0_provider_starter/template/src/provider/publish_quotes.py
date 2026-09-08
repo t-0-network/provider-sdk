@@ -21,8 +21,6 @@ from t0_provider_sdk.api.tzero.v1.payment.network_pb2 import QUOTE_TYPE_REALTIME
 
 logger = logging.getLogger(__name__)
 
-PUBLISH_INTERVAL_SECONDS = 5
-
 
 def _now_timestamp() -> Timestamp:
     """Create a protobuf Timestamp for the current time."""
@@ -38,7 +36,9 @@ def _expiration_timestamp(seconds_from_now: int = 30) -> Timestamp:
     return ts
 
 
-async def publish_quotes(network_client: NetworkServiceClient, shutdown_event: asyncio.Event) -> None:
+async def publish_quotes(
+    network_client: NetworkServiceClient, shutdown_event: asyncio.Event, interval_seconds: float
+) -> None:
     """Publish sample quotes on a regular interval.
 
     NOTE: Every UpdateQuote request discards all previous quotes.
@@ -88,7 +88,7 @@ async def publish_quotes(network_client: NetworkServiceClient, shutdown_event: a
             return
 
         try:
-            await asyncio.wait_for(shutdown_event.wait(), timeout=PUBLISH_INTERVAL_SECONDS)
+            await asyncio.wait_for(shutdown_event.wait(), timeout=interval_seconds)
             return  # shutdown requested
         except TimeoutError:
             pass  # interval elapsed, publish again

@@ -6,7 +6,9 @@ import (
 	"log/slog"
 	"os"
 	"os/signal"
+	"strconv"
 	"syscall"
+	"time"
 
 	"github.com/joho/godotenv"
 	"github.com/t-0-network/provider-sdk/go/api/tzero/v1/payment/paymentconnect"
@@ -18,10 +20,11 @@ import (
 )
 
 type Config struct {
-	NetworkPublicKey   provider.NetworkPublicKeyHexed
-	ProviderPrivateKey network.PrivateKeyHexed
-	TZeroEndpoint      string
-	ServerAddr         string
+	NetworkPublicKey        provider.NetworkPublicKeyHexed
+	ProviderPrivateKey      network.PrivateKeyHexed
+	TZeroEndpoint           string
+	ServerAddr              string
+	QuotePublishingInterval time.Duration
 }
 
 func main() {
@@ -42,7 +45,7 @@ func main() {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
-	go internal.PublishQuotes(ctx, networkClient)
+	go internal.PublishQuotes(ctx, networkClient, config.QuotePublishingInterval)
 
 	// TODO: Step 1.4 Verify that quotes for target currency are successfully received
 	go internal.GetQuote(ctx, networkClient)
@@ -55,7 +58,7 @@ func main() {
 
 	// Phase 3A — Pay-In Provider role. Comment out if you are only a beneficiary.
 	// TODO: Step 3A.1 Replace with your own pay-in quote publishing logic
-	go internal.PublishPaymentIntentQuotes(ctx, paymentIntentClient)
+	go internal.PublishPaymentIntentQuotes(ctx, paymentIntentClient, config.QuotePublishingInterval)
 
 	// Phase 3B — Beneficiary Provider role. Comment out if you are only a pay-in provider.
 	// TODO: Step 3B.1 Check that indicative quotes are being returned
@@ -78,11 +81,17 @@ func loadConfig() Config {
 		log.Fatalf("Failed to load .env file: %v", err)
 	}
 
+	intervalMs, err := strconv.ParseInt(os.Getenv("QUOTE_PUBLISHING_INTERVAL"), 10, 64)
+	if err != nil || intervalMs <= 0 {
+		intervalMs = 5000
+	}
+
 	return Config{
-		NetworkPublicKey:   provider.NetworkPublicKeyHexed(os.Getenv("NETWORK_PUBLIC_KEY")),
-		ProviderPrivateKey: network.PrivateKeyHexed(os.Getenv("PROVIDER_PRIVATE_KEY")),
-		TZeroEndpoint:      os.Getenv("TZERO_ENDPOINT"),
-		ServerAddr:         ":" + os.Getenv("PORT"),
+		NetworkPublicKey:        provider.NetworkPublicKeyHexed(os.Getenv("NETWORK_PUBLIC_KEY")),
+		ProviderPrivateKey:      network.PrivateKeyHexed(os.Getenv("PROVIDER_PRIVATE_KEY")),
+		TZeroEndpoint:           os.Getenv("TZERO_ENDPOINT"),
+		ServerAddr:              ":" + os.Getenv("PORT"),
+		QuotePublishingInterval: time.Duration(intervalMs) * time.Millisecond,
 	}
 }
 

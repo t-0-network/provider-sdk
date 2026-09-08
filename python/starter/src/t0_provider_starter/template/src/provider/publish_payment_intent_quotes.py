@@ -20,8 +20,6 @@ from t0_provider_sdk.api.tzero.v1.payment_intent.network_pb2 import UpdateQuoteR
 
 logger = logging.getLogger(__name__)
 
-PUBLISH_INTERVAL_SECONDS = 5
-
 
 def _now_timestamp() -> Timestamp:
     ts = Timestamp()
@@ -38,6 +36,7 @@ def _expiration_timestamp(seconds_from_now: int = 30) -> Timestamp:
 async def publish_payment_intent_quotes(
     payment_intent_client: PaymentIntentServiceClient,
     shutdown_event: asyncio.Event,
+    interval_seconds: float,
 ) -> None:
     """Publish sample pay-in quotes on a regular interval.
 
@@ -71,7 +70,7 @@ async def publish_payment_intent_quotes(
             return
 
         try:
-            await asyncio.wait_for(shutdown_event.wait(), timeout=PUBLISH_INTERVAL_SECONDS)
+            await asyncio.wait_for(shutdown_event.wait(), timeout=interval_seconds)
             return  # shutdown requested
         except TimeoutError:
             pass  # interval elapsed, publish again

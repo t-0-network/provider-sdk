@@ -52,7 +52,7 @@ my-provider/
 | `NETWORK_PUBLIC_KEY` | Yes | Sandbox key | T-0 Network public key for signature verification |
 | `TZERO_ENDPOINT` | No | `https://api-sandbox.t-0.network` | T-0 Network API endpoint |
 | `PORT` | No | `8080` | Server port |
-| `QUOTE_PUBLISHING_INTERVAL` | No | -- | Quote publishing frequency in milliseconds |
+| `QUOTE_PUBLISHING_INTERVAL` | No | `5000` | Quote publishing frequency in milliseconds |
 
 ## Getting Started
 
@@ -176,7 +176,10 @@ The structured fields in the SDK's log call (`extra={...}`) become first-class k
 
 ## Deployment
 
+Run `uv sync` before building the Docker image to generate `uv.lock` for reproducible builds.
+
 ```bash
+uv sync
 docker build -t my-provider .
 docker run -p 8080:8080 --env-file .env my-provider
 ```
