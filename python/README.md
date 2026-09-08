@@ -16,6 +16,8 @@ uvx t0-provider-starter my_provider
 
 This creates a ready-to-run project with a secp256k1 keypair, environment config, provider service stubs (async ASGI), and a Dockerfile.
 
+`t0-init init --lang=python my_provider` creates the same project with the unified CLI -- installation and options are in [cli/README.md](../cli/README.md).
+
 ### CLI Options
 
 ```
@@ -146,10 +148,26 @@ def create_provider_app(config, network_client_sync):
     )
 ```
 
-Then run with a WSGI server:
+Expose the application at module level and run with a WSGI server (`pip install gunicorn` or add it to `pyproject.toml`):
+
+```python
+# src/provider/wsgi.py
+from provider.config import load_config
+from provider.main import create_provider_app
+from t0_provider_sdk.api.tzero.v1.payment.network_connect import NetworkServiceClientSync
+from t0_provider_sdk.network.client import new_service_client_sync
+
+config = load_config()
+network_client_sync = new_service_client_sync(
+    config.provider_private_key,
+    NetworkServiceClientSync,
+    base_url=config.tzero_endpoint,
+)
+app = create_provider_app(config, network_client_sync)
+```
 
 ```bash
-gunicorn provider.main:app --bind 0.0.0.0:8080
+gunicorn provider.wsgi:app --bind 0.0.0.0:8080
 ```
 
 The sync variant uses `payment_sync.py` -- implement the same RPC methods as regular `def` functions instead of `async def`.
@@ -171,7 +189,7 @@ docker run --env-file .env -p 8080:8080 my-provider
 
 ## Troubleshooting
 
-**`PROVIDER_PRIVATE_KEY is not set in .env`** -- Copy `.env.example` to `.env` and set the key. The CLI generates this automatically.
+**`PROVIDER_PRIVATE_KEY is not set in .env`** -- `.env` is generated with a fresh key next to `pyproject.toml`; run commands from that directory. To generate a new key, run `t0-init keygen` and set `PROVIDER_PRIVATE_KEY` to the private key it prints (see [`cli/README.md`](../cli/README.md)).
 
 **`ModuleNotFoundError: No module named 'provider'`** -- Run `uv sync` in the generated project directory. The project uses a `src/` layout that requires installation.
 

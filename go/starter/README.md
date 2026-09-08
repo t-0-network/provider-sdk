@@ -10,6 +10,8 @@ go run github.com/t-0-network/provider-sdk/go/starter@latest my-provider
 
 This creates a ready-to-run project with a secp256k1 keypair, environment config, provider service stubs, and a Dockerfile.
 
+`t0-init init --lang=go my-provider` scaffolds the same template with the unified CLI and prints `go run ./cmd` as the next step -- installation and options are in [cli/README.md](../../cli/README.md).
+
 ## Generated Project Structure
 
 ```

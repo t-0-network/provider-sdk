@@ -15,6 +15,8 @@ curl -fsSL -L https://github.com/t-0-network/provider-sdk/releases/latest/downlo
 
 This will prompt for your project name and SDK repository, then create a ready-to-run project with a secp256k1 keypair, environment config, provider service stubs, and a Dockerfile.
 
+`t0-init init --lang=java my-provider` creates the same project with the unified CLI (`--repository maven-central` selects Maven Central; JitPack is the default) -- installation and options are in [cli/README.md](../cli/README.md).
+
 ### CLI Options
 
 ```bash
@@ -120,8 +122,9 @@ dependencies {
 ./gradlew run              # Run the application
 ./gradlew build            # Build the project
 ./gradlew test             # Run tests
-./gradlew generateKeys     # Generate a new keypair
 ```
+
+To generate a new keypair, run `t0-init keygen` and set `PROVIDER_PRIVATE_KEY` to the private key it prints (see [`cli/README.md`](../cli/README.md)).
 
 ## Deployment
 
