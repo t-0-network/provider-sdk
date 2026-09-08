@@ -8,4 +8,6 @@
 __pycache__/
 *.pyc
 .venv/
+dist/
+*.egg-info/
 *.md
