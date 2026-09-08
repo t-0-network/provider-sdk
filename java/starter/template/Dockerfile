@@ -25,9 +25,6 @@ WORKDIR /app
 # Copy the installed distribution (includes all dependencies)
 COPY --from=build /app/build/install/provider/ ./
 
-# Copy .env file if it exists (for local development)
-COPY .env* ./
-
 # Expose the provider server port
 EXPOSE 8080
 

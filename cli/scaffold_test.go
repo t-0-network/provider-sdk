@@ -67,6 +67,16 @@ func TestScaffold_AllLanguages(t *testing.T) {
 			if _, err := os.Stat(filepath.Join(projectDir, "dot-gitignore")); err == nil {
 				t.Errorf("dot-gitignore still present in %s scaffold", lang)
 			}
+
+			// .dockerignore must exist for languages with Dockerfile-based workflows
+			if lang == "java" || lang == "csharp" || lang == "python" {
+				if _, err := os.Stat(filepath.Join(projectDir, ".dockerignore")); err != nil {
+					t.Errorf(".dockerignore missing in %s scaffold", lang)
+				}
+				if _, err := os.Stat(filepath.Join(projectDir, "dot-dockerignore")); err == nil {
+					t.Errorf("dot-dockerignore still present in %s scaffold", lang)
+				}
+			}
 		})
 	}
 }
