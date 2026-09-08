@@ -20,6 +20,7 @@ from t0_provider_sdk.api.tzero.v1.payment_intent.network_pb2 import UpdateQuoteR
 
 logger = logging.getLogger(__name__)
 
+
 def _now_timestamp() -> Timestamp:
     ts = Timestamp()
     ts.GetCurrentTime()

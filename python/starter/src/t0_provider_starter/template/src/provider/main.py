@@ -133,7 +133,9 @@ async def main() -> None:
     for sig in (signal.SIGINT, signal.SIGTERM):
         loop.add_signal_handler(sig, shutdown_event.set)
 
-    publish_task = asyncio.create_task(publish_quotes(network_client, shutdown_event, config.quote_publishing_interval_ms / 1000))
+    publish_task = asyncio.create_task(
+        publish_quotes(network_client, shutdown_event, config.quote_publishing_interval_ms / 1000)
+    )
 
     # TODO: Step 1.4 Verify that quotes for target currency are successfully received
     quote_task = asyncio.create_task(get_quote(network_client))
@@ -147,7 +149,9 @@ async def main() -> None:
     # Phase 3A — Pay-In Provider role. Comment out if you are only a beneficiary.
     # TODO: Step 3A.1 Replace with your own pay-in quote publishing logic
     intent_publish_task = asyncio.create_task(
-        publish_payment_intent_quotes(payment_intent_client, shutdown_event, config.quote_publishing_interval_ms / 1000),
+        publish_payment_intent_quotes(
+            payment_intent_client, shutdown_event, config.quote_publishing_interval_ms / 1000
+        ),
     )
 
     # Phase 3B — Beneficiary Provider role. Comment out if you are only a pay-in provider.
