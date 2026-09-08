@@ -98,7 +98,8 @@ public static partial class Program
             var outputPath = relativePath
                 .Replace("my-provider", projectName)
                 .Replace("MyProvider", pascalName)
-                .Replace("dot-gitignore", ".gitignore");
+                .Replace("dot-gitignore", ".gitignore")
+                .Replace("dot-dockerignore", ".dockerignore");
 
             var filePath = Path.Combine(targetDir, outputPath);
             var dir = Path.GetDirectoryName(filePath);

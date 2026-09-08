@@ -77,7 +77,7 @@ public final class TemplateExtractor {
             try {
                 Path relativePath = source.relativize(sourcePath);
                 // Rename dot-gitignore to .gitignore (dotfiles are excluded by Gradle's default copy)
-                String relStr = relativePath.toString().replace("dot-gitignore", ".gitignore");
+                String relStr = relativePath.toString().replace("dot-gitignore", ".gitignore").replace("dot-dockerignore", ".dockerignore");
                 Path targetPath = target.resolve(relStr);
 
                 if (Files.isDirectory(sourcePath)) {
@@ -144,7 +144,8 @@ public final class TemplateExtractor {
             || lower.endsWith(".env")
             || lower.equals("gradlew")
             || lower.equals("dockerfile")
-            || lower.equals("dot-gitignore");
+            || lower.equals("dot-gitignore")
+            || lower.equals("dot-dockerignore");
     }
 
     private void makeExecutable(Path file) {

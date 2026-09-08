@@ -11,7 +11,6 @@ FROM mcr.microsoft.com/dotnet/aspnet:10.0
 WORKDIR /app
 
 COPY --from=build /app .
-COPY .env* ./
 
 EXPOSE 8080
 
