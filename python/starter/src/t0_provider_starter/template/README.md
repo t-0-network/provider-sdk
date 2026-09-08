@@ -9,7 +9,7 @@ uv sync
 uv run python -m provider.main
 ```
 
-Share the provider public key (printed by the initializer; also visible at the top of `.env`) with the T-0 team so requests from the network can be signed against it.
+Share the provider public key (printed by the initializer; also on the comment line under `# Your provider's public key` in `.env`) with the T-0 team so t-0 can verify the requests you sign.
 
 ## Generated Project Structure
 
@@ -58,7 +58,7 @@ my-provider/
 
 ### Phase 1: Quoting
 
-1. Open `.env` and find your generated public key (marked as "Step 1.2"). Share it with the T-0 team to register your provider.
+1. Open `.env` and copy the public key on the comment line under `# Your provider's public key`. Share it with the T-0 team to register your provider.
 2. Implement your quote publishing logic in `src/provider/publish_quotes.py`.
 3. Start the dev server (`uv run python -m provider.main`) and verify quotes are published.
 4. Confirm quote retrieval works by checking the `get_quote` task output.
@@ -133,9 +133,9 @@ import sys
 
 sdk_logger = logging.getLogger("provider.sdk")
 sdk_logger.setLevel(logging.INFO)
-handler = logging.StreamHandler(sys.stderr)
-handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s %(message)s"))
-sdk_logger.addHandler(handler)
+log_handler = logging.StreamHandler(sys.stderr)
+log_handler.setFormatter(logging.Formatter("%(asctime)s %(levelname)s %(name)s %(message)s"))
+sdk_logger.addHandler(log_handler)
 
 app = new_asgi_app(
     config.network_public_key,

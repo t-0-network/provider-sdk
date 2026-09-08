@@ -15,13 +15,9 @@ cd my-provider
 dotnet run
 ```
 
-Or run directly from source:
-
-```bash
-dotnet run --project starter/T0.ProviderStarter -- my-provider
-```
-
 This creates a ready-to-run project with a secp256k1 keypair, environment config, provider service stubs, and a Dockerfile.
+
+`t0-init init --lang=csharp my-provider` scaffolds the same template with the unified CLI -- installation and options are in [cli/README.md](../cli/README.md).
 
 ## Generated Project Structure
 
@@ -103,7 +99,7 @@ docker run -p 8080:8080 --env-file .env my-provider
 
 | Issue | Solution |
 |-------|----------|
-| `PROVIDER_PRIVATE_KEY is required` | Copy `.env.example` to `.env` and fill in your private key |
+| `PROVIDER_PRIVATE_KEY is required` | `.env` is generated with a fresh key next to the `.csproj`; run from that directory. To generate a new key, run `t0-init keygen` and set `PROVIDER_PRIVATE_KEY` to the private key it prints (see [`cli/README.md`](../cli/README.md)) |
 | Signature verification failures | Ensure system clock is synchronized (NTP). Tolerance is +/- 60 seconds |
 | gRPC connection refused | Verify `TZERO_ENDPOINT` is correct and reachable |
 | Port already in use | Change `PORT` in `.env` or stop the conflicting process |

@@ -12,6 +12,7 @@
 
 ```
 proto/          Shared protobuf definitions (source of truth)
+cli/            Unified starter CLI (t0-init), embeds every starter template
 go/             Go SDK + starter CLI
 node/sdk/       TypeScript SDK (@t-0/provider-sdk)
 node/starter/   TypeScript starter CLI (@t-0/provider-starter-ts)
@@ -76,6 +77,20 @@ chmod +x gradlew
 java -jar cli/build/libs/provider-init-*.jar my-test-project
 cd my-test-project && ./gradlew build
 ```
+
+### Unified CLI
+
+`cli/` builds `t0-init`, which embeds every starter template from your checkout. Build it, run its tests, and scaffold a project from your tree:
+
+```sh
+cd cli
+go generate ./...
+go build -o /tmp/t0-init .
+go test ./...
+/tmp/t0-init init --lang=java --dir=/tmp/my-test-project my-test-project
+```
+
+Usage and every flag: [cli/README.md](cli/README.md). How the templates are embedded, what is synced to the product repositories and what CI verifies: [docs/CLI.md](docs/CLI.md).
 
 ## Protobuf Code Generation
 

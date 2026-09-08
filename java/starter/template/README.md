@@ -9,17 +9,12 @@ This is a starter template for building a provider integration with the T-0 Netw
 
 ## Quick Start
 
-1. **Configure your environment:**
-   ```bash
-   cp .env.example .env
-   ```
-
-2. **Update `.env` with your configuration:**
+1. **Review `.env`** (written with a fresh keypair during init):
    - `PROVIDER_PRIVATE_KEY` - Your provider's private key (generated during init)
    - `TZERO_ENDPOINT` - API endpoint (default: sandbox)
    - `PORT` - Port for your provider server
 
-3. **Run the application:**
+2. **Run the application:**
    ```bash
    ./gradlew run
    ```
@@ -30,7 +25,7 @@ Follow these steps in order to complete your integration:
 
 ### Step 1: Initial Setup
 
-1. **Step 1.1** ✅ Initialize the starter template (done when you run the app)
+1. **Step 1.1** ✅ Initialize the starter template (done by the initializer that created this project and wrote `.env`)
 2. **Step 1.2** Share your public key with the T-0 team (displayed on startup)
 3. **Step 1.3** Replace the sample quote publishing logic in `PublishQuotes.java`
 4. **Step 1.4** Verify quotes are received (check logs when running)
@@ -111,11 +106,12 @@ docker build -t my-provider .
 docker run -p 8080:8080 --env-file .env my-provider
 ```
 
-Or build a JAR:
+Or build the application distribution (what the Dockerfile does):
 ```bash
-./gradlew build
-java -jar build/libs/*.jar
+./gradlew installDist
+build/install/provider/bin/provider
 ```
+The launcher reads `.env` from the current working directory.
 
 ## Configuring logging
 

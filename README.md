@@ -4,7 +4,29 @@ SDKs and starter templates for building payment provider integrations with the T
 
 ## Quick Start
 
-Choose your platform and run the one-liner to scaffold a new provider project:
+Scaffold a new provider project with the unified CLI, or choose your platform and run its one-liner:
+
+### Unified CLI
+
+Install `t0-init` from the latest release:
+
+```bash
+curl -fsSL https://github.com/t-0-network/provider-sdk/releases/latest/download/start.sh | sh
+```
+
+PowerShell:
+
+```powershell
+iwr -useb https://github.com/t-0-network/provider-sdk/releases/latest/download/start.ps1 | iex
+```
+
+Then scaffold a project -- Go here; the other languages are `--lang=node|python|java|csharp`:
+
+```bash
+t0-init init --lang=go my-provider
+```
+
+Every flag, the language-specific options and the run command `init` prints per language: [cli/README.md](cli/README.md).
 
 ### Go
 
@@ -109,6 +131,7 @@ For direct SDK usage without the starter:
 ## Further Reading
 
 - [T-0 Network Documentation](https://docs.t-0.network/)
+- [Unified CLI](cli/README.md)
 - [Go Starter](go/starter/README.md) | [Go SDK](go/README.md)
 - [TypeScript Starter](node/starter/README.md) | [TypeScript SDK](node/sdk/README.md)
 - [Python Starter & SDK](python/README.md)

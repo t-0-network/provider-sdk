@@ -10,6 +10,8 @@ npx @t-0/provider-starter-ts
 
 The CLI will prompt for a project name, then create a ready-to-run project with a secp256k1 keypair (via OpenSSL), environment config, provider service stubs, and a Dockerfile.
 
+`t0-init init --lang=node my-provider` scaffolds the same template with the unified CLI; run `npm install && npm run dev` in the new project (the CLI prints this as its final step). Installation and options are in [cli/README.md](../../cli/README.md).
+
 ## Generated Project Structure
 
 ```
@@ -31,7 +33,6 @@ your-project-name/
 ├── Dockerfile                                    # Docker configuration
 ├── .env                                          # Environment variables (with generated keys)
 ├── .env.example                                  # Example environment file
-├── .eslintrc.json                                # ESLint configuration
 ├── .gitignore                                    # Git ignore rules
 ├── package.json                                  # Project dependencies
 └── tsconfig.json                                 # TypeScript configuration
@@ -98,7 +99,7 @@ If you only play one role, delete the files for the other role and remove the co
 npm run dev        # Run in development mode with ts-node
 npm run build      # Compile TypeScript to dist/
 npm start          # Run compiled production build
-npm run lint       # Lint TypeScript source with ESLint
+npm test           # Build, then run dist/lib.test.js with node --test
 ```
 
 ## Configuring logging
