@@ -18,6 +18,7 @@ This is a starter template for building a provider integration with the T-0 Netw
    - `PROVIDER_PRIVATE_KEY` - Your provider's private key (generated during init)
    - `TZERO_ENDPOINT` - API endpoint (default: sandbox)
    - `PORT` - Port for your provider server
+   - `QUOTE_PUBLISHING_INTERVAL` - Quote publishing frequency in milliseconds (default: 5000)
 
 3. **Run the application:**
    ```bash
