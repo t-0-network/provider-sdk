@@ -18,11 +18,11 @@ import (
 // Pay-In Provider role — Step 3A.1.
 // These quotes tell the network what exchange rates you're willing to accept
 // when an end-user pays via one of your supported payment methods.
-func PublishPaymentIntentQuotes(ctx context.Context, paymentIntentClient payment_intentconnect.PaymentIntentServiceClient) {
+func PublishPaymentIntentQuotes(ctx context.Context, paymentIntentClient payment_intentconnect.PaymentIntentServiceClient, interval time.Duration) {
 	// TODO: Step 3A.1 replace this with fetching pay-in quotes from your systems and publishing them.
 	// We recommend publishing at least once per 5 seconds, but not more than once per second.
 
-	ticker := time.NewTicker(5 * time.Second)
+	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
 	for {

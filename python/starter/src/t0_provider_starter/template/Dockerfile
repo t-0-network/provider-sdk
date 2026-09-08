@@ -6,8 +6,8 @@ WORKDIR /app
 # Install uv for fast dependency management
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
 
-COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-dev
+COPY pyproject.toml uv.lock* ./
+RUN uv sync --frozen --no-dev || uv sync --no-dev
 
 COPY . .
 
@@ -18,4 +18,6 @@ WORKDIR /app
 
 COPY --from=builder /app /app
 
-ENTRYPOINT ["uv", "run", "python", "-m", "provider.main"]
+ENV PATH="/app/.venv/bin:$PATH"
+
+ENTRYPOINT ["python", "-m", "provider.main"]
