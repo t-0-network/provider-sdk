@@ -1,0 +1,4 @@
+# Your private key does not belong in a build layer.
+.env
+.env.*
+.git/
