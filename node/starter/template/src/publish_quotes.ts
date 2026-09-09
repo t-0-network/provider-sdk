@@ -1,4 +1,4 @@
-import {type Client, NetworkService, PaymentMethodType, QuoteType} from "@t-0/provider-sdk";
+import {type Client, NetworkService, PaymentMethodType} from "@t-0/provider-sdk";
 import {decimalFromString} from "./lib";
 import {randomUUID} from "node:crypto";
 import {timestampFromDate} from "@bufbuild/protobuf/wkt";
@@ -24,7 +24,6 @@ export default async function publishQuotes(networkClient: Client<typeof Network
           }],
           currency: 'EUR',
           expiration: timestampFromDate(new Date(Date.now() + 30 * 1000)), // expiration time (30 seconds from now)
-          quoteType: QuoteType.REALTIME, // REALTIME is only one supported right now
           paymentMethod: PaymentMethodType.SEPA,
           timestamp: timestampFromDate(new Date()), // Current timestamp
         }]
