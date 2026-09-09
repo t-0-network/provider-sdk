@@ -39,6 +39,10 @@ public static class KeyGenerator
     {
         var privateKeyBytes = Convert.FromHexString(privateKeyHex);
         var privateKeyInt = new BigInteger(1, privateKeyBytes);
+
+        if (privateKeyInt.CompareTo(BigInteger.One) < 0 || privateKeyInt.CompareTo(Domain.N) >= 0)
+            throw new ArgumentException("private key must be in range [1, n)");
+
         var publicKeyPoint = Domain.G.Multiply(privateKeyInt).Normalize();
         var publicKeyBytes = publicKeyPoint.GetEncoded(false);
         return Convert.ToHexString(publicKeyBytes).ToLowerInvariant();

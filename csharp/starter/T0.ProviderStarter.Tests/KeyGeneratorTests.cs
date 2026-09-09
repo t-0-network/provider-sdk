@@ -1,4 +1,6 @@
 using System.Text.Json;
+using Org.BouncyCastle.Asn1.X9;
+using Org.BouncyCastle.Crypto.EC;
 using T0.ProviderStarter;
 
 namespace T0.ProviderStarter.Tests;
@@ -72,5 +74,40 @@ public class KeyGeneratorTests
         var (priv2, _) = KeyGenerator.Generate();
 
         Assert.NotEqual(priv1, priv2);
+    }
+
+    [Fact]
+    public void DerivePublicKey_ZeroScalar_ShouldThrow()
+    {
+        var zero = new string('0', 64);
+        Assert.Throws<ArgumentException>(() => KeyGenerator.DerivePublicKeyHex(zero));
+    }
+
+    [Fact]
+    public void DerivePublicKey_CurveOrderN_ShouldThrow()
+    {
+        var n = CustomNamedCurves.GetByName("secp256k1").N;
+        var nHex = n.ToString(16).PadLeft(64, '0');
+        Assert.Throws<ArgumentException>(() => KeyGenerator.DerivePublicKeyHex(nHex));
+    }
+
+    [Fact]
+    public void DerivePublicKey_OneScalar_ShouldSucceed()
+    {
+        var one = "0000000000000000000000000000000000000000000000000000000000000001";
+        var pubKey = KeyGenerator.DerivePublicKeyHex(one);
+        Assert.Equal(130, pubKey.Length);
+        Assert.StartsWith("04", pubKey);
+    }
+
+    [Fact]
+    public void DerivePublicKey_NMinusOne_ShouldSucceed()
+    {
+        var n = CustomNamedCurves.GetByName("secp256k1").N;
+        var nMinus1 = n.Subtract(Org.BouncyCastle.Math.BigInteger.One);
+        var hex = nMinus1.ToString(16).PadLeft(64, '0');
+        var pubKey = KeyGenerator.DerivePublicKeyHex(hex);
+        Assert.Equal(130, pubKey.Length);
+        Assert.StartsWith("04", pubKey);
     }
 }
