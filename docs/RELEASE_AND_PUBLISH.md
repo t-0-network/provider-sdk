@@ -20,7 +20,7 @@ Triggered by `gh workflow run release.yaml -f bump=<patch|minor|major> --ref mas
 2. **`release` job** runs only after the gate. Steps:
 
    1. **Calculate version** — read latest tag, parse semver, increment by the requested bump. Output: e.g. `1.1.15`.
-   2. **Bump package-level versions** — Node (`npm version` for sdk + starter), Python (`sed` on both `pyproject.toml`s), Java (`sed` on `gradle.properties`), C# (`sed` on both `.csproj`s).
+   2. **Bump package-level versions** — Node (`npm version` for sdk + starter), Python (`sed` on both `pyproject.toml`s, then `uv lock` to regenerate `python/uv.lock` — the lockfile records workspace member versions), Java (`sed` on `gradle.properties`), C# (`sed` on both `.csproj`s).
    3. **Bump SDK runtime version constants** — the four files a running server reports its own version from:
       - `go/sdkversion/version.go`
       - `node/sdk/src/version.ts`

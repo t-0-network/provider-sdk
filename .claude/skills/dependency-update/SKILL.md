@@ -21,11 +21,11 @@ Everything non-crypto — dev-only, routine, and behavior/strictness bumps alike
 
 **Tier 1 examples** (safe routine): test runners (`pytest`, `node:test`, JUnit), type stubs (`@types/*`), linters/formatters (when the changelog has no rule changes), build wrappers (gradle wrapper, typescript compiler, tsx), doc tooling. Anything declared under `devDependencies` / `dev-dependencies` / `[dependency-groups].dev` / `testImplementation(...)` / `<PackageReference>` test-only blocks. Patch and minor bumps to *runtime* deps that are not on the signing path.
 
-**Action:** these land automatically in the weekly `ci-batch` multi-ecosystem PR. Review the batch changelog once; if CI passes and nothing looks risky, merge. If one bump in the batch is bad, comment `@dependabot ignore this major version` (or `minor version`) on the PR — Dependabot rebuilds the batch without it.
+**Action:** these land automatically in the weekly `ci-batch` multi-ecosystem PR. Review the batch changelog once; if CI passes and nothing looks risky, merge. If one bump in the batch is bad, comment `@dependabot ignore <dependency-name> major version` (or `minor version`) on the PR — Dependabot rebuilds the batch without it. Use the named form, not `this`, because `ci-batch` is a grouped PR.
 
 **Tier 2 examples** (behavior/strictness jump): `ruff` major bump (new lint rules), `mypy` major (defaults flipped), `uvicorn` (request handling behavior), `io.grpc` (Android DNS, baggage), `buf.build/go/protovalidate` (constraint semantics). Any changelog entry that mentions defaults flipping, deprecations, removed APIs, stricter type/lint rules, or runtime behavior changes.
 
-**Action:** these also land in the weekly `ci-batch` PR alongside Tier 1. Read the changelog entry for the behavior change; if CI passes and the change is acceptable, merge with the batch. If the bump needs to be held back, comment `@dependabot ignore this major version` on the PR to exclude it from the batch.
+**Action:** these also land in the weekly `ci-batch` PR alongside Tier 1. Read the changelog entry for the behavior change; if CI passes and the change is acceptable, merge with the batch. If the bump needs to be held back, comment `@dependabot ignore <dependency-name> major version` on the PR to exclude it from the batch.
 
 ### Allowlist maintenance
 
