@@ -45,6 +45,11 @@ jobs:
         working-directory: .github/tools/sumtool
         run: go test -v ./...
 
+      - name: Assert SDK Go floor is deliberate
+        run: |
+          floor=$(go mod edit -json go/go.mod | jq -r .Go)
+          test "$floor" = "1.27.0" || { echo "::error::go/go.mod raised the SDK minimum Go to $floor. This is consumer-facing. If intended, update: every first-party go.mod, cross_test/go_helper/go.work, go/starter/template/Dockerfile golang tag, README 'Requires Go', and this check."; exit 1; }
+
       - name: Validate Go module state
         working-directory: go
         run: |
@@ -53,7 +58,10 @@ jobs:
 
       - name: Build cross-test helper
         working-directory: cross_test/go_helper
-        run: go vet ./... && go build -o go_helper .
+        run: |
+          go work use
+          git diff --exit-code go.work || (echo "go.work floor drifted; run 'go work use' in cross_test/go_helper and commit" && false)
+          go vet ./... && go build -o go_helper .
 
       # go/starter is its own module (published as go/starter/vX.Y.Z); the parent
       # module's ./... never reaches it.

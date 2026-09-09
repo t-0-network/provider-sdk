@@ -37,7 +37,6 @@ func PublishQuotes(ctx context.Context, networkClient paymentconnect.NetworkServ
 				PayOut: []*payment.UpdateQuoteRequest_Quote{ // The quote at which you want to take USDT and pay out local currency (off-ramp)
 					{
 						Currency:      currency,
-						QuoteType:     payment.QuoteType_QUOTE_TYPE_REALTIME, // REALTIME is only supported right now
 						PaymentMethod: paymentMethod,
 						Expiration:    expiration,
 						Timestamp:     timestamp,

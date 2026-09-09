@@ -11,21 +11,28 @@ This monorepo ships five SDKs that all sign or verify the same wire bytes agains
 
 Triggers: Dependabot PRs, "bump `<pkg>` to `<ver>`", "update dependency", "is this dep update safe to merge", "test the dep update locally". Out of scope: choosing a new dep for a greenfield component, or feature work that incidentally touches a dep.
 
-## Three-tier decision
+## Two-tier decision
 
-Classify the bump first, then act. The taxonomy mirrors the precedent in PR #98 (Tier 1 batch) and PR #99 (Tier 3 noble libs).
+All non-crypto dependencies land in a single weekly `ci-batch` multi-ecosystem PR (Dependabot manages the branch). Crypto / signing-path dependencies get solo PRs and follow the Tier 3 audit workflow. Classify the bump, then act.
 
-### Tier 1 — dev-only / safe routine
+### Tier 1+2 — batched (CI is the gate)
 
-Examples: test runners (`pytest`, `node:test`, JUnit), type stubs (`@types/*`), linters/formatters (when the changelog has no rule changes — otherwise Tier 2), build wrappers (gradle wrapper, typescript compiler, tsx), doc tooling. Anything declared under `devDependencies` / `dev-dependencies` / `[dependency-groups].dev` / `testImplementation(...)` / `<PackageReference>` test-only blocks. Patch and minor bumps to *runtime* deps that are not on the signing path also land here.
+Everything non-crypto — dev-only, routine, and behavior/strictness bumps alike — lands in the weekly `ci-batch` PR. The old Tier 1 / Tier 2 distinction (PR #98 pattern) is retired for PR shape; use the changelog-reading guidance below to decide whether the batch is safe to merge.
 
-**Action:** no new tests required. Run the existing suite for the affected ecosystem; if it passes, batch with the other Tier 1 bumps into one PR titled `chore(deps): batch safe dependabot updates`, body listing every `Supersedes #N`. PR #98 is the reference shape.
+**Tier 1 examples** (safe routine): test runners (`pytest`, `node:test`, JUnit), type stubs (`@types/*`), linters/formatters (when the changelog has no rule changes), build wrappers (gradle wrapper, typescript compiler, tsx), doc tooling. Anything declared under `devDependencies` / `dev-dependencies` / `[dependency-groups].dev` / `testImplementation(...)` / `<PackageReference>` test-only blocks. Patch and minor bumps to *runtime* deps that are not on the signing path.
 
-### Tier 2 — behavior or strictness jump
+**Action:** these land automatically in the weekly `ci-batch` multi-ecosystem PR. Review the batch changelog once; if CI passes and nothing looks risky, merge. If one bump in the batch is bad, comment `@dependabot ignore <dependency-name> major version` (or `minor version`) on the PR — Dependabot rebuilds the batch without it. Use the named form, not `this`, because `ci-batch` is a grouped PR.
 
-Examples seen on this repo: `ruff` major bump (new lint rules), `mypy` major (defaults flipped), `uvicorn` (request handling behavior), `io.grpc` (Android DNS, baggage), `buf.build/go/protovalidate` (constraint semantics). Any changelog entry that mentions defaults flipping, deprecations, removed APIs, stricter type/lint rules, or runtime behavior changes.
+**Tier 2 examples** (behavior/strictness jump): `ruff` major bump (new lint rules), `mypy` major (defaults flipped), `uvicorn` (request handling behavior), `io.grpc` (Android DNS, baggage), `buf.build/go/protovalidate` (constraint semantics). Any changelog entry that mentions defaults flipping, deprecations, removed APIs, stricter type/lint rules, or runtime behavior changes.
 
-**Action:** do not bump in this skill's flow. Surface a comment on the Dependabot PR with the changelog excerpt and the specific risk so a human can decide whether to take the change deliberately. No code change.
+**Action:** these also land in the weekly `ci-batch` PR alongside Tier 1. Read the changelog entry for the behavior change; if CI passes and the change is acceptable, merge with the batch. If the bump needs to be held back, comment `@dependabot ignore <dependency-name> major version` on the PR to exclude it from the batch.
+
+### Allowlist maintenance
+
+Dependabot's `ci-batch` entries use allowlist `patterns` in `.github/dependabot.yml`. A newly added non-crypto dependency is not in any allowlist, so Dependabot raises it as a solo PR (one dependency, one directory). Once you confirm it is non-crypto, add it to the matching ecosystem's `patterns` list so future bumps land in the batch.
+
+The crypto exclusion list (never add to any allowlist):
+`golang.org/x/crypto`, `github.com/btcsuite/*`, `github.com/decred/*`, `github.com/ethereum/go-ethereum`, `@noble/*`, `coincurve`, `pycryptodome`, `org.bouncycastle:*`, `BouncyCastle.Cryptography`
 
 ### Tier 3 — crypto / security path
 

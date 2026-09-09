@@ -4,7 +4,6 @@ import com.google.protobuf.Timestamp;
 import network.t0.sdk.proto.tzero.v1.common.Decimal;
 import network.t0.sdk.proto.tzero.v1.common.PaymentMethodType;
 import network.t0.sdk.proto.tzero.v1.payment.NetworkServiceGrpc;
-import network.t0.sdk.proto.tzero.v1.payment.QuoteType;
 import network.t0.sdk.proto.tzero.v1.payment.UpdateQuoteRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,7 +49,6 @@ public class PublishQuotes {
                     // The quote at which you want to take USDT and pay out local currency (off-ramp)
                     .addPayOut(UpdateQuoteRequest.Quote.newBuilder()
                             .setCurrency(currency)
-                            .setQuoteType(QuoteType.QUOTE_TYPE_REALTIME) // REALTIME is only supported right now
                             .setPaymentMethod(paymentMethod)
                             .setExpiration(expiration)
                             .setTimestamp(timestamp)

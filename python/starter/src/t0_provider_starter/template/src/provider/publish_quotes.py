@@ -17,7 +17,7 @@ from google.protobuf.timestamp_pb2 import Timestamp
 from t0_provider_sdk.api.tzero.v1.common.common_pb2 import Decimal
 from t0_provider_sdk.api.tzero.v1.common.payment_method_pb2 import PAYMENT_METHOD_TYPE_SEPA
 from t0_provider_sdk.api.tzero.v1.payment.network_connect import NetworkServiceClient
-from t0_provider_sdk.api.tzero.v1.payment.network_pb2 import QUOTE_TYPE_REALTIME, UpdateQuoteRequest
+from t0_provider_sdk.api.tzero.v1.payment.network_pb2 import UpdateQuoteRequest
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +58,6 @@ async def publish_quotes(
                         # The quote at which you want to take USDT and pay out local currency (off-ramp)
                         UpdateQuoteRequest.Quote(
                             currency=currency,
-                            quote_type=QUOTE_TYPE_REALTIME,  # REALTIME is the only supported type
                             payment_method=payment_method,
                             expiration=expiration,
                             timestamp=timestamp,

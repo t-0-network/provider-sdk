@@ -28,7 +28,6 @@ public class QuotePublisher(NetworkService.NetworkServiceClient client)
                 new UpdateQuoteRequest.Types.Quote
                 {
                     Currency = currency,
-                    QuoteType = QuoteType.Realtime,
                     PaymentMethod = paymentMethod,
                     Expiration = expiration,
                     Timestamp = timestamp,

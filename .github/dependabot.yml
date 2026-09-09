@@ -1,68 +1,140 @@
+# Dependency-update policy (see .claude/skills/dependency-update/SKILL.md):
+#   * ONE weekly PR ("ci-batch") for every dependency CI can validate, across all
+#     five ecosystems and every sub-project. Entries use ALLOWLIST `patterns`
+#     (Dependabot has no exclude-patterns for multi-ecosystem groups).
+#   * Crypto / signing-path libraries are intentionally NOT in any allowlist, so
+#     Dependabot raises them one dependency per PR. They follow the Tier 3 audit
+#     workflow. Never add them to a pattern below:
+#       golang.org/x/crypto, github.com/btcsuite/*, github.com/decred/*,
+#       github.com/ethereum/go-ethereum, @noble/*, coincurve, pycryptodome,
+#       org.bouncycastle:*, BouncyCastle.Cryptography
+#   * A new non-crypto dependency shows up as a solo PR until it is added to the
+#     matching allowlist.
 version: 2
+
+multi-ecosystem-groups:
+  ci-batch:
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Berlin"
+    labels: ["dependencies"]
+    commit-message:
+      prefix: "chore(deps)"
+
 updates:
   - package-ecosystem: "github-actions"
     directory: "/"
-    schedule:
-      interval: "weekly"
+    multi-ecosystem-group: "ci-batch"
+    patterns: ["*"]
+    cooldown:
+      default-days: 3
 
   - package-ecosystem: "gomod"
-    directory: "/go"
-    schedule:
-      interval: "weekly"
-    groups:
-      connectrpc:
-        patterns:
-          - "connectrpc.com/*"
-      google-golang:
-        patterns:
-          - "google.golang.org/*"
-
-  - package-ecosystem: "gomod"
-    directory: "/go/starter"
-    schedule:
-      interval: "weekly"
-
-  - package-ecosystem: "gomod"
-    directory: "/go/starter/template"
-    schedule:
-      interval: "weekly"
-    groups:
-      connectrpc:
-        patterns:
-          - "connectrpc.com/*"
-      google-golang:
-        patterns:
-          - "google.golang.org/*"
+    directories:
+      - "/go"
+      - "/go/starter"
+      - "/go/starter/template"
+      - "/cli"
+      - "/.github/tools/sumtool"
+    multi-ecosystem-group: "ci-batch"
+    cooldown:
+      default-days: 3
+    ignore:
+      - dependency-name: "github.com/t-0-network/provider-sdk/go"   # release.yaml owns the template pin
+    patterns:
+      - "connectrpc.com/*"
+      - "google.golang.org/*"
+      - "buf.build/*"                 # protovalidate + generated schema modules
+      - "golang.org/x/net"            # NOT golang.org/x/* — that would pull in x/crypto
+      - "golang.org/x/mod"
+      - "github.com/stretchr/*"
+      - "github.com/joho/*"
+      - "github.com/google/uuid"
 
   - package-ecosystem: "npm"
-    directory: "/node/sdk"
-    schedule:
-      interval: "weekly"
-    groups:
-      connectrpc:
-        patterns:
-          - "@connectrpc/*"
+    directories:
+      - "/node/sdk"
+      - "/node/starter"
+      - "/node/starter/template"      # no lockfile: only out-of-range bumps surface
+    multi-ecosystem-group: "ci-batch"
+    cooldown:
+      default-days: 3
+    ignore:
+      - dependency-name: "@t-0/provider-sdk"                       # release.yaml owns it
+    patterns:
+      - "@bufbuild/*"
+      - "@connectrpc/*"
+      - "@types/*"
+      - "typescript"
+      - "tsx"
+      - "ts-node"
+      - "dotenv"
+      - "chalk"
+      - "commander"
+      - "fs-extra"
+      - "inquirer"
+      - "tiny-invariant"
 
-  - package-ecosystem: "npm"
-    directory: "/node/starter"
-    schedule:
-      interval: "weekly"
-
-  - package-ecosystem: "pip"
+  - package-ecosystem: "uv"                                        # was "pip": pip never moved uv.lock
     directory: "/python"
-    schedule:
-      interval: "weekly"
+    multi-ecosystem-group: "ci-batch"
+    cooldown:
+      default-days: 3
+    patterns:
+      - "connectrpc"
+      - "protoc-gen-*"
+      - "protobuf"
+      - "protovalidate"
+      - "grpcio-*"
+      - "click"
+      - "python-dotenv"
+      - "pytest"
+      - "pytest-*"
+      - "ruff"
+      - "mypy"
+      - "uvicorn"
+      - "waitress"
+      - "hatchling"
 
   - package-ecosystem: "gradle"
     directory: "/java"
-    schedule:
-      interval: "weekly"
+    multi-ecosystem-group: "ci-batch"
+    cooldown:
+      default-days: 3
+    ignore:
+      - dependency-name: "network.t-0:provider-sdk-java"           # template, release-owned
+      - dependency-name: "com.github.t-0-network:provider-sdk"
+    patterns:
+      - "com.gradleup.*"              # nmcp, nmcp.aggregation, shadow  (fixes #334 + #342)
+      - "build.buf*"                  # buf plugin id AND build.buf:protovalidate
+      - "me.champeau.*"
+      - "org.jreleaser*"
+      - "gradle-wrapper"
+      - "io.grpc:*"                   # grpcVersion property -> 6 artifacts, one bump
+      - "com.google.protobuf:*"
+      - "org.slf4j:*"
+      - "javax.annotation:*"
+      - "info.picocli:*"
+      - "io.github.cdimascio:*"
+      - "ch.qos.logback:*"
+      - "org.junit.*"
+      - "org.assertj:*"
+      - "com.google.code.gson:*"
 
   - package-ecosystem: "nuget"
-    directory: "/csharp"
-    schedule:
-      interval: "weekly"
-    groups:
-      grpc:
-        patterns:
-          - "Grpc.*"
+    directory: "/csharp"                                           # discovers sdk, tests, starter, template
+    multi-ecosystem-group: "ci-batch"
+    cooldown:
+      default-days: 3
+    ignore:
+      - dependency-name: "T0.ProviderSdk"                          # template, release-owned
+    patterns:
+      - "Google.Protobuf"
+      - "Grpc.*"
+      - "ProtoValidate"
+      - "DotNetEnv"
+      - "coverlet.*"
+      - "Microsoft.NET.Test.Sdk"
+      - "xunit*"
