@@ -20,7 +20,7 @@ runs:
     - name: Install dependencies
       shell: bash
       working-directory: python
-      run: uv sync --all-packages
+      run: uv sync --locked --all-packages
 
     - name: Build packages
       shell: bash
