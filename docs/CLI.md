@@ -325,6 +325,7 @@ Everything else under `cli/` is owned by the repository it sits in and is never 
 | `JavaRepositories` | The accepted `--repository` values; the first is the default and must match the template's `val sdkRepository = "…"` line, which is rewritten when a different value is chosen. Empty: no `--repository` flag is registered and nothing is rewritten. |
 | `JavaSDKArtifacts` | Coordinates the Java template depends on at version `+`; a release build (`Version` other than `""` or `dev`) rewrites each `"<artifact>:+"` to `"<artifact>:<Version>"`. Empty: the template pins its SDK itself. |
 | `NextSteps` | Lines printed after `1. Navigate to your project:` and before the run command, numbered from 2 — what the user must do before the project works. |
+| `RunSteps` | `map[string]RunStep` overriding the built-in per-language run command. Lookup order: `<lang>/<role>` → `<lang>` → built-in default. `RunStep.Label` is printed verbatim as the numbered line (include the trailing colon); `RunStep.Command` is the highlighted line below it. Nil or empty keeps the built-in per-language command. |
 | `PostScaffold` | `func(ScaffoldOpts) error` run after the scaffold and before the keypair. An error aborts `init` and removes the target directory only when `init` created it. |
 
 `ScaffoldOpts` carries `Lang`, `Role`, `ProjectName`, `ProjectDir`, `ModulePath`, `JavaRepo` and `Version` to `PostScaffold`.
@@ -337,7 +338,7 @@ The rule: the ten synced files carry nothing product-specific — no product nam
 
 | File | Owner | Covers |
 |---|---|---|
-| `cli/config_test.go` | synced | Usage follows `Config` (no `--module`/`--repository` without Go/Java, `--role (required)`); `NextSteps` numbering; Java pins only configured artifacts and never on `dev`; repository rewrite only for a non-default value; `.env` marker, no-marker, comment-line, `0600` and no-`.env.example` behaviors. |
+| `cli/config_test.go` | synced | Usage follows `Config` (no `--module`/`--repository` without Go/Java, `--role (required)`); `NextSteps` numbering; `RunSteps` role, language and zero-value lookup; Java pins only configured artifacts and never on `dev`; repository rewrite only for a non-default value; `.env` marker, no-marker, comment-line, `0600` and no-`.env.example` behaviors. |
 | `cli/scaffold_test.go` | synced | Embed paths are forward-slash; `toPascalCase` and `sanitizeProjectName` tables; a `PostScaffold` error keeps a pre-existing directory. |
 | `cli/starters_test.go` | this repository | Starter languages match `Config.Languages`; embedded templates have Dockerfile and exactly one dockerignore variant; every language scaffolds and yields `.gitignore`, `.env`, `Dockerfile`, `.dockerignore` without `dot-` variants and entry files; fresh private key, derived public key, `NETWORK_PUBLIC_KEY` equals example, `0600` permissions. |
 | `cli/keygen_test.go` | synced | Key format and uniqueness. |
