@@ -19,4 +19,4 @@ runs:
     - name: Build Go cross-test helper
       shell: bash
       working-directory: cross_test/go_helper
-      run: go build -o go_helper .
+      run: go work use && go build -o go_helper .

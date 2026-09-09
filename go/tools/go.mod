@@ -1,6 +1,6 @@
 module github.com/t-0-network/provider-sdk/go/tools
 
-go 1.25.6
+go 1.27.0
 
 tool (
 	connectrpc.com/connect/cmd/protoc-gen-connect-go

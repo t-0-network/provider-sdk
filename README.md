@@ -34,7 +34,7 @@ Every flag, the language-specific options and the run command `init` prints per 
 go run github.com/t-0-network/provider-sdk/go/starter@latest my-provider
 ```
 
-Requires Go 1.25+. See [Go starter documentation](go/starter/README.md) for details.
+Requires Go 1.27+. See [Go starter documentation](go/starter/README.md) for details.
 
 ### TypeScript
 
