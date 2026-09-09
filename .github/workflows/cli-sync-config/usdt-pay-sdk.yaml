@@ -23,5 +23,9 @@ patterns:
         to: cli/go.sum
       - from: cli/internal/sync/main.go
         to: cli/internal/sync/main.go
+      - from: cli/config_test.go
+        to: cli/config_test.go
+      - from: cli/scaffold_test.go
+        to: cli/scaffold_test.go
     repositories:
       - t-0-network/usdt-pay-sdk

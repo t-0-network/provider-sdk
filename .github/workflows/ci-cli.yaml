@@ -41,7 +41,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v7
         with:
-          go-version: "stable"
+          go-version-file: cli/go.mod
           cache-dependency-path: cli/go.sum
 
       - name: Setup Node
@@ -215,7 +215,7 @@ jobs:
       - name: Setup Go
         uses: actions/setup-go@v7
         with:
-          go-version: "stable"
+          go-version-file: cli/go.mod
           cache-dependency-path: cli/go.sum
 
       - name: Setup Node
