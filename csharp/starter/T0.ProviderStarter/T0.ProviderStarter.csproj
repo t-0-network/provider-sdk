@@ -20,7 +20,7 @@
     <RepositoryUrl>https://github.com/t-0-network/provider-sdk</RepositoryUrl>
   </PropertyGroup>
 
-<ItemGroup>
+  <ItemGroup>
     <PackageReference Include="BouncyCastle.Cryptography" Version="2.7.0" />
   </ItemGroup>
 

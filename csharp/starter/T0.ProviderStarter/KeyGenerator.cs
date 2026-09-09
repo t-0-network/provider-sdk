@@ -27,13 +27,20 @@ public static class KeyGenerator
             privateKeyInt = new BigInteger(1, privateKeyBytes);
         } while (privateKeyInt.CompareTo(BigInteger.One) <= 0 || privateKeyInt.CompareTo(Domain.N) >= 0);
 
-        // Derive uncompressed public key
-        var publicKeyPoint = Domain.G.Multiply(privateKeyInt).Normalize();
-        var publicKeyBytes = publicKeyPoint.GetEncoded(false); // false = uncompressed (65 bytes)
+        var privateKeyHex = Convert.ToHexString(privateKeyBytes).ToLowerInvariant();
+        return (privateKeyHex, DerivePublicKeyHex(privateKeyHex));
+    }
 
-        return (
-            Convert.ToHexString(privateKeyBytes).ToLowerInvariant(),
-            Convert.ToHexString(publicKeyBytes).ToLowerInvariant()
-        );
+    /// <summary>
+    /// Derives the uncompressed secp256k1 public key (65 bytes, 0x04 prefix)
+    /// from a hex-encoded private key.
+    /// </summary>
+    public static string DerivePublicKeyHex(string privateKeyHex)
+    {
+        var privateKeyBytes = Convert.FromHexString(privateKeyHex);
+        var privateKeyInt = new BigInteger(1, privateKeyBytes);
+        var publicKeyPoint = Domain.G.Multiply(privateKeyInt).Normalize();
+        var publicKeyBytes = publicKeyPoint.GetEncoded(false);
+        return Convert.ToHexString(publicKeyBytes).ToLowerInvariant();
     }
 }
