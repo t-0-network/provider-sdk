@@ -25,7 +25,7 @@ dependencies {
 
     // Protobuf
     api("com.google.protobuf:protobuf-java:$protobufVersion")
-    api("build.buf:protovalidate:1.2.2")
+    api("build.buf:protovalidate:1.3.0")
 
     // BouncyCastle for crypto (secp256k1, Keccak-256)
     implementation("org.bouncycastle:bcprov-jdk18on:$bouncyCastleVersion")
