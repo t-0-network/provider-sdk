@@ -294,7 +294,7 @@ Every template is a buildable standalone project whose project name is the liter
 |---|---|---|---|
 | `.github/workflows/cli-sync-config/usdt-pay-sdk.yaml` | `t-0-network/usdt-pay-sdk` | `sync cli` | `Sync unified CLI from provider-sdk` |
 
-[`cli_sync.yaml`](../.github/workflows/cli_sync.yaml) runs on a push to `master` that touches `cli/**` (with `cli/config.go`, `cli/generate.go`, `cli/start.sh` and `cli/start.ps1` excluded from the trigger), the workflow itself, or `.github/workflows/cli-sync-config/**`, and on `workflow_dispatch`. It mints a GitHub App token scoped to the target repository and runs `wadackel/files-sync-action@v4` with the product's config, which opens a pull request in the product repository overwriting these eight files at the same paths:
+[`cli_sync.yaml`](../.github/workflows/cli_sync.yaml) runs on a push to `master` that touches `cli/**` (with `cli/config.go`, `cli/generate.go`, `cli/start.sh` and `cli/start.ps1` excluded from the trigger), the workflow itself, or `.github/workflows/cli-sync-config/**`, and on `workflow_dispatch`. It mints a GitHub App token scoped to the target repository and runs `wadackel/files-sync-action@v4` with the product's config, which opens a pull request in the product repository overwriting these ten files at the same paths:
 
 ```
 cli/main.go
@@ -305,9 +305,11 @@ cli/env.go
 cli/go.mod
 cli/go.sum
 cli/internal/sync/main.go
+cli/config_test.go
+cli/scaffold_test.go
 ```
 
-Everything else under `cli/` is owned by the repository it sits in and is never touched by the sync. In this repository that is `README.md`, `config.go`, `generate.go`, `config_test.go`, `scaffold_test.go`, `internal/sync/main_test.go`, `start.sh`, `start.ps1` and `internal/embed/`. A product repository keeps its own set alongside the eight synced files — its `config.go`, generator, tests, installers, any `overlay/` — which its own `docs/CLI.md` lists.
+Everything else under `cli/` is owned by the repository it sits in and is never touched by the sync. In this repository that is `README.md`, `config.go`, `generate.go`, `starters_test.go`, `internal/sync/main_test.go`, `start.sh`, `start.ps1` and `internal/embed/`. A product repository keeps its own set alongside the ten synced files — its `config.go`, generator, tests, installers — which its own `docs/CLI.md` lists.
 
 ### The `CLIConfig` contract
 
@@ -318,17 +320,16 @@ Everything else under `cli/` is owned by the repository it sits in and is never 
 | `ProductName` | `Usage: <ProductName> <command> [options]`; the banner `<PRODUCTNAME> — Project Initializer`; `version` prints `<ProductName> <Version>`; `init --version` prints `<ProductName> init <Version>`. |
 | `Command` | The usage line of the missing-name error: `Usage: <Command> <project-name> --lang=<language>` — for provider-sdk `Usage: t0 init <project-name> --lang=<language>`. |
 | `Description` | The `init` line in usage: `Initialize <Description>`. Empty: `a new <ProductName> project`. |
-| `RoleRequired`, `DefaultRole` | `--role` is registered when either is set. Usage shows `--role string        Role (required)` or `Role (default: <DefaultRole>)`; with `RoleRequired` an empty role is `[ERROR] --role is required` (exit 2). The template root becomes `internal/embed/<lang>/<role>`, the overlay root `overlay/<lang>/<role>`, and a missing template lists the available roles. provider-sdk leaves both empty. |
-| `Languages` | The accepted `--lang` values, in usage and validation. `--module` is registered when the list contains `go`. `TestScaffold_AllLanguages` scaffolds every entry. |
+| `RoleRequired`, `DefaultRole` | `--role` is registered when either is set. Usage shows `--role string        Role (required)` or `Role (default: <DefaultRole>)`; with `RoleRequired` an empty role is `[ERROR] --role is required` (exit 2). The template root becomes `internal/embed/<lang>/<role>`, and a missing template lists the available roles. provider-sdk leaves both empty. |
+| `Languages` | The accepted `--lang` values, in usage and validation. `--module` is registered when the list contains `go`. `TestRun_InstantiatesEveryStarter` scaffolds every entry. |
 | `JavaRepositories` | The accepted `--repository` values; the first is the default and must match the template's `val sdkRepository = "…"` line, which is rewritten when a different value is chosen. Empty: no `--repository` flag is registered and nothing is rewritten. |
 | `JavaSDKArtifacts` | Coordinates the Java template depends on at version `+`; a release build (`Version` other than `""` or `dev`) rewrites each `"<artifact>:+"` to `"<artifact>:<Version>"`. Empty: the template pins its SDK itself. |
 | `NextSteps` | Lines printed after `1. Navigate to your project:` and before the run command, numbered from 2 — what the user must do before the project works. |
-| `OverlayFS` | An `fs.FS` (typically an `embed.FS` of the product's `overlay/` directory) whose files under `overlay/<lang>[/<role>]/` are written verbatim over the scaffold after extraction, with `[INFO] Applying product overlay...` / `[OK] Overlay applied`. A missing overlay root is a no-op. |
-| `PostScaffold` | `func(ScaffoldOpts) error` run after the overlay and before the keypair. An error aborts `init` and removes the target directory only when `init` created it. |
+| `PostScaffold` | `func(ScaffoldOpts) error` run after the scaffold and before the keypair. An error aborts `init` and removes the target directory only when `init` created it. |
 
 `ScaffoldOpts` carries `Lang`, `Role`, `ProjectName`, `ProjectDir`, `ModulePath`, `JavaRepo` and `Version` to `PostScaffold`.
 
-The rule: the eight synced files carry nothing product-specific — no product name, language list, coordinates, next steps or file — and everything product-shaped lives behind `CLIConfig`. A downstream `config.go` that stops compiling after a sync is a breaking change of that contract; a new field's zero value must keep the existing behavior.
+The rule: the ten synced files carry nothing product-specific — no product name, language list, coordinates, next steps or file (test fixtures that exercise the generic mechanism with concrete values are not product-specific) — and everything product-shaped lives behind `CLIConfig`. A downstream `config.go` that stops compiling after a sync is a breaking change of that contract; a new field's zero value must keep the existing behavior.
 
 ---
 
@@ -336,8 +337,9 @@ The rule: the eight synced files carry nothing product-specific — no product n
 
 | File | Owner | Covers |
 |---|---|---|
-| `cli/config_test.go` | this repository | Usage follows `Config` (no `--module`/`--repository` without Go/Java, `--role (required)`); `NextSteps` numbering; Java pins only configured artifacts and never on `dev`; repository rewrite only for a non-default value; `.env` marker, no-marker, comment-line, `0600` and no-`.env.example` behaviors. |
-| `cli/scaffold_test.go` | this repository | Embed paths are forward-slash; every `Config.Languages` template scaffolds and yields `.gitignore` without `dot-gitignore`; `toPascalCase` and `sanitizeProjectName` tables; overlay overwrite, add, role scoping and no-op; `run()` applies `Config.OverlayFS`; a `PostScaffold` error keeps a pre-existing directory. |
+| `cli/config_test.go` | synced | Usage follows `Config` (no `--module`/`--repository` without Go/Java, `--role (required)`); `NextSteps` numbering; Java pins only configured artifacts and never on `dev`; repository rewrite only for a non-default value; `.env` marker, no-marker, comment-line, `0600` and no-`.env.example` behaviors. |
+| `cli/scaffold_test.go` | synced | Embed paths are forward-slash; `toPascalCase` and `sanitizeProjectName` tables; a `PostScaffold` error keeps a pre-existing directory. |
+| `cli/starters_test.go` | this repository | Starter languages match `Config.Languages`; embedded templates have Dockerfile and exactly one dockerignore variant; every language scaffolds and yields `.gitignore`, `.env`, `Dockerfile`, `.dockerignore` without `dot-` variants and entry files; fresh private key, derived public key, `NETWORK_PUBLIC_KEY` equals example, `0600` permissions. |
 | `cli/keygen_test.go` | synced | Key format and uniqueness. |
 | `cli/internal/sync/main_test.go` | this repository | Skip lists; `.tmpl` renaming for Go only; `{{MODULE_PATH}}` replacement. |
 
@@ -377,7 +379,7 @@ Files whose contents must survive untouched need a binary extension from the lis
 ### Adding a language
 
 1. Create `<lang>/starter/template/` as a buildable project named `my-provider`, with `.env.example` (carrying `PROVIDER_PRIVATE_KEY=` and the `# your_public_key_here` marker) and `dot-gitignore`. A location outside the convention is passed as `<lang>=<path>` in `generate.go`.
-2. Add `<lang>` to the `go:generate` line in `generate.go` and to `Languages` in `config.go`. Usage, validation and `TestScaffold_AllLanguages` follow from the list.
+2. Add `<lang>` to the `go:generate` line in `generate.go` and to `Languages` in `config.go`. Usage, validation and `TestRun_InstantiatesEveryStarter` follow from the list.
 3. Add the language's case to the `switch opts.Lang` in `printCompletion` in `main.go` — the step-2 heading and the run command. `main.go` is synced, so the case reaches every product on the next sync.
 4. Add a scaffold step and a compile-verify step for the language to `ci-cli.yaml`, and its template path to the workflow's `paths` lists.
-5. For a product that should offer the language: it adds its own `<lang>/starter/template/`, the `generate.go` entry and the `Languages` entry in its repository. The sync carries the eight files, never templates.
+5. For a product that should offer the language: it adds its own `<lang>/starter/template/`, the `generate.go` entry and the `Languages` entry in its repository. The sync carries the ten files, never templates.
