@@ -5,7 +5,7 @@ go 1.27.0
 require (
 	github.com/ethereum/go-ethereum v1.17.5
 	github.com/joho/godotenv v1.5.1
-	golang.org/x/mod v0.40.0
+	golang.org/x/mod v0.41.0
 )
 
 require (
