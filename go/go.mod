@@ -1,6 +1,6 @@
 module github.com/t-0-network/provider-sdk/go
 
-go 1.25.0
+go 1.26.0
 
 require (
 	buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go v1.36.12-20260825204119-511051f7f437.1
@@ -11,7 +11,7 @@ require (
 	github.com/btcsuite/btcd/btcec/v2 v2.5.0
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.1
 	github.com/stretchr/testify v1.12.1
-	golang.org/x/crypto v0.55.0
+	golang.org/x/crypto v0.56.0
 	golang.org/x/net v0.58.0
 	google.golang.org/protobuf v1.36.12
 )
