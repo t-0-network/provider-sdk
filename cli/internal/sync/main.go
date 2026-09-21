@@ -14,14 +14,13 @@
 package main
 
 import (
+	"bufio"
 	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"strings"
 )
-
-const goTemplateModulePath = "github.com/t-0-network/provider-sdk/go/starter/template"
 
 var skipDirs = map[string]bool{
 	"node_modules":  true,
@@ -98,7 +97,40 @@ func main() {
 	fmt.Println("done")
 }
 
+// baseLang returns the first path component of a lang key: "go/acquirer" → "go",
+// "node" → "node". Role-based starters use "lang/role" keys while the Go-specific
+// handling (.go→.tmpl rename, module-path replacement) applies to any Go starter.
+func baseLang(lang string) string {
+	if i := strings.IndexByte(lang, '/'); i >= 0 {
+		return lang[:i]
+	}
+	return lang
+}
+
+// goModulePath reads the module directive from go.mod in dir, or "" if absent.
+func goModulePath(dir string) string {
+	f, err := os.Open(filepath.Join(dir, "go.mod"))
+	if err != nil {
+		return ""
+	}
+	defer f.Close()
+	s := bufio.NewScanner(f)
+	for s.Scan() {
+		line := strings.TrimSpace(s.Text())
+		if after, ok := strings.CutPrefix(line, "module "); ok {
+			return strings.TrimSpace(after)
+		}
+	}
+	return ""
+}
+
 func copyTree(srcDir, destDir, lang string) error {
+	isGo := baseLang(lang) == "go"
+	goModPath := ""
+	if isGo {
+		goModPath = goModulePath(srcDir)
+	}
+
 	return filepath.WalkDir(srcDir, func(src string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -131,7 +163,7 @@ func copyTree(srcDir, destDir, lang string) error {
 		}
 
 		destRel := rel
-		if lang == "go" {
+		if isGo {
 			switch {
 			case strings.HasSuffix(base, ".go"):
 				destRel = destRel + ".tmpl"
@@ -152,9 +184,9 @@ func copyTree(srcDir, destDir, lang string) error {
 			return fmt.Errorf("reading %s: %w", src, err)
 		}
 
-		if lang == "go" && isTextFile(base) {
+		if isGo && goModPath != "" && isTextFile(base) {
 			content := string(data)
-			content = strings.ReplaceAll(content, goTemplateModulePath, "{{MODULE_PATH}}")
+			content = strings.ReplaceAll(content, goModPath, "{{MODULE_PATH}}")
 			data = []byte(content)
 		}
 

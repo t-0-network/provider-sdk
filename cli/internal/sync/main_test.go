@@ -57,11 +57,9 @@ func TestCopyTreeGoModulePathReplacement(t *testing.T) {
 	src := t.TempDir()
 	dest := t.TempDir()
 
-	content := `package main
-
-import "github.com/t-0-network/provider-sdk/go/starter/template/pkg"
-`
-	writeFile(t, filepath.Join(src, "main.go"), content)
+	const modPath = "github.com/t-0-network/provider-sdk/go/starter/template"
+	writeFile(t, filepath.Join(src, "go.mod"), "module "+modPath+"\n\ngo 1.27.0\n")
+	writeFile(t, filepath.Join(src, "main.go"), "package main\n\nimport \""+modPath+"/pkg\"\n")
 
 	if err := copyTree(src, dest, "go"); err != nil {
 		t.Fatalf("copyTree: %v", err)
@@ -76,8 +74,58 @@ import "github.com/t-0-network/provider-sdk/go/starter/template/pkg"
 	if expected := `import "{{MODULE_PATH}}/pkg"`; !contains(got, expected) {
 		t.Errorf("expected module path replacement\ngot: %s", got)
 	}
-	if contains(got, goTemplateModulePath) {
+	if contains(got, modPath) {
 		t.Error("original module path should have been replaced")
+	}
+}
+
+func TestCopyTreeGoRoleBased(t *testing.T) {
+	src := t.TempDir()
+	dest := t.TempDir()
+
+	const modPath = "example.com/my-product/go/starter/acquirer"
+	writeFile(t, filepath.Join(src, "go.mod"), "module "+modPath+"\n\ngo 1.27.0\n")
+	writeFile(t, filepath.Join(src, "cmd", "main.go"), "package main\n\nimport \""+modPath+"/internal\"\n")
+	writeFile(t, filepath.Join(src, "go.sum"), "h1:abc")
+
+	if err := copyTree(src, dest, "go/acquirer"); err != nil {
+		t.Fatalf("copyTree: %v", err)
+	}
+
+	assertExists(t, filepath.Join(dest, "cmd", "main.go.tmpl"))
+	assertNotExists(t, filepath.Join(dest, "cmd", "main.go"))
+	assertExists(t, filepath.Join(dest, "go.mod.tmpl"))
+	assertExists(t, filepath.Join(dest, "go.sum.tmpl"))
+
+	data, err := os.ReadFile(filepath.Join(dest, "cmd", "main.go.tmpl"))
+	if err != nil {
+		t.Fatalf("reading output: %v", err)
+	}
+	got := string(data)
+	if !contains(got, "{{MODULE_PATH}}/internal") {
+		t.Errorf("module path not replaced in role-based Go starter\ngot: %s", got)
+	}
+	if contains(got, modPath) {
+		t.Errorf("original module path still present\ngot: %s", got)
+	}
+}
+
+func TestCopyTreeNoGoModSkipsReplacement(t *testing.T) {
+	src := t.TempDir()
+	dest := t.TempDir()
+
+	writeFile(t, filepath.Join(src, "main.go"), "package main\n\nconst x = \"keep-me\"\n")
+
+	if err := copyTree(src, dest, "go"); err != nil {
+		t.Fatalf("copyTree: %v", err)
+	}
+
+	data, err := os.ReadFile(filepath.Join(dest, "main.go.tmpl"))
+	if err != nil {
+		t.Fatalf("reading output: %v", err)
+	}
+	if !contains(string(data), "keep-me") {
+		t.Error("content should be preserved when no go.mod is present")
 	}
 }
 
