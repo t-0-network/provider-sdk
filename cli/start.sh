@@ -34,11 +34,16 @@ main() {
     printf "Installed %s to %s/%s\n" "${BINARY_NAME}" "${install_dir}" "${BINARY_NAME}"
 
     if ! echo "${PATH}" | tr ':' '\n' | grep -qx "${install_dir}"; then
-        printf "\nAdd %s to your PATH:\n" "${install_dir}"
-        printf "  export PATH=\"%s:\$PATH\"\n" "${install_dir}"
+        printf "\n%s is not in your PATH. Add it permanently:\n" "${install_dir}"
+        printf "  echo 'export PATH=\"%s:\$PATH\"' >> ~/.bashrc  # or ~/.zshrc\n" "${install_dir}"
     fi
 
-    printf "\nVerify:\n  %s --version\n" "${BINARY_NAME}"
+    if [ $# -gt 0 ]; then
+        printf "\n"
+        "${install_dir}/${BINARY_NAME}" "$@"
+    else
+        printf "\nVerify:\n  %s --version\n" "${BINARY_NAME}"
+    fi
 }
 
 detect_os() {
@@ -73,4 +78,4 @@ pick_install_dir() {
     fi
 }
 
-main
+main "$@"
