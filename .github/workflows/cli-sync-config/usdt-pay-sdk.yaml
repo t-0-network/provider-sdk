@@ -23,6 +23,10 @@ patterns:
         to: cli/go.sum
       - from: cli/internal/sync/main.go
         to: cli/internal/sync/main.go
+      - from: cli/internal/gomod/gomod.go
+        to: cli/internal/gomod/gomod.go
+      - from: cli/internal/gomod/gomod_test.go
+        to: cli/internal/gomod/gomod_test.go
       - from: cli/config_test.go
         to: cli/config_test.go
       - from: cli/scaffold_test.go

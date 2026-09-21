@@ -32,7 +32,7 @@ A constant compiled or bundled into the SDK, so the running server can report wh
 | **Node SDK** | `node/sdk/package.json` — `"version"` | n/a (SDK isn't scaffolded) | `node/sdk/src/version.ts` — `export const SDK_VERSION = "X.Y.Z"` |
 | **Node Starter** | `node/starter/package.json` — `"version"` | `node/starter/template/package.json` — `"@t-0/provider-sdk": "^X.Y.Z"` (caret, rewritten by release) | n/a |
 | **Python SDK** | `python/sdk/pyproject.toml` — `version =` | n/a | `python/sdk/src/t0_provider_sdk/_version.py` — `__version__ = "X.Y.Z"` |
-| **Python Starter** | `python/starter/pyproject.toml` — `version =` | `python/starter/src/t0_provider_starter/template/pyproject.toml.template` — `t0-provider-sdk>=0.1.0` (floor, **NOT bumped**) | n/a |
+| **Python Starter** | `python/starter/pyproject.toml` — `version =` | `python/starter/template/pyproject.toml` — `t0-provider-sdk>=0.1.0` (floor, **NOT bumped**) | n/a |
 | **Java SDK** | `java/gradle.properties` — `version=X.Y.Z` | n/a (the `cli` module is the starter) | `java/sdk/src/main/resources/META-INF/sdk-version.properties` — `sdk.version=X.Y.Z` (classpath resource) |
 | **Java CLI** | (uses same `gradle.properties`) | `java/starter/template/build.gradle.kts` — `provider-sdk:+` (latest, **NOT bumped**) | n/a |
 | **C# SDK** | `csharp/sdk/T0.ProviderSdk/T0.ProviderSdk.csproj` — `<Version>` | n/a | n/a (not implemented yet) |

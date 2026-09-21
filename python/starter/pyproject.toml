@@ -27,4 +27,13 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/t0_provider_starter"]
-artifacts = ["template/**"]
+
+[tool.hatch.build.targets.wheel.force-include]
+"template" = "t0_provider_starter/template"
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/src/t0_provider_starter",
+    "/template",
+    "/pyproject.toml",
+]
