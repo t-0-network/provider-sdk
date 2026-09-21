@@ -195,11 +195,10 @@ TimestampOutOfRangeError, UnknownPublicKeyError, SignatureFailedError
 ## Starter Template System
 
 - Template files in `starter/template/`
-- `{{PROJECT_NAME}}` placeholder replaced during generation
-- Files with `.template` suffix have the suffix stripped (e.g., `pyproject.toml.template` → `pyproject.toml`)
+- `my-provider` literal replaced with the project name during scaffolding
 - `.env` created from `.env.example` with auto-generated private key
 - Template directory included in wheel via `force-include` in hatch config
-- `template/pyproject.toml.template` `dependencies` are **customer-facing** and independent of the workspace `python/pyproject.toml` dev pins — Dependabot does not touch them. Bump explicitly with a safety analysis: grep `template/src/**` for the dep's actual usage and confirm an existing pytest path covers the same API surface on the new version.
+- `template/pyproject.toml` `dependencies` are **customer-facing** and independent of the workspace `python/pyproject.toml` dev pins — Dependabot does not touch them. Bump explicitly with a safety analysis: grep `template/src/**` for the dep's actual usage and confirm an existing pytest path covers the same API surface on the new version.
 
 ## Documentation
 

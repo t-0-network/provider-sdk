@@ -105,7 +105,7 @@ func scaffold(opts ScaffoldOpts) error {
 	// Go module path: read the original path from go.mod.tmpl and build a
 	// boundary-aware regex so the scaffolder replaces it with --module.
 	var modRe *regexp.Regexp
-	if opts.ModulePath != "" {
+	if opts.ModulePath != "" && (opts.Lang == "go" || strings.HasPrefix(opts.Lang, "go/")) {
 		goModPath := path.Join(templateRoot, "go.mod.tmpl")
 		goModData, err := embeddedTemplates.ReadFile(goModPath)
 		if err != nil {

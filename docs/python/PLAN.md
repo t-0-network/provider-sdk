@@ -178,7 +178,7 @@ build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/t0_provider_starter"]
-force-include = {"src/t0_provider_starter/template" = "t0_provider_starter/template"}
+force-include = {"template" = "t0_provider_starter/template"}
 ```
 
 ### 1.4 `.gitignore`, `CLAUDE.md`, `.mcp.json`
