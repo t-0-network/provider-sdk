@@ -72,7 +72,7 @@ func main() {
 
 	for i, a := range langs {
 		for _, b := range langs[i+1:] {
-			ca, cb := filepath.Clean(a)+"/", filepath.Clean(b)+"/"
+			ca, cb := filepath.ToSlash(filepath.Clean(a))+"/", filepath.ToSlash(filepath.Clean(b))+"/"
 			if strings.HasPrefix(ca, cb) || strings.HasPrefix(cb, ca) {
 				fatalf("overlapping keys: %s and %s would share embed directory", a, b)
 			}
