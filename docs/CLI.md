@@ -260,14 +260,14 @@ Name substitution as seen in the scaffolds: Node's `package.json` `"name"`, Java
 |---|---|
 | `go` | `go/starter/template/` |
 | `node` | `node/starter/template/` |
-| `python` | `python/starter/src/t0_provider_starter/template/` |
+| `python` | `python/starter/template/` |
 | `java` | `java/starter/template/` |
 | `csharp` | `csharp/starter/template/` |
 
-The convention is `<lang>/starter/template/`; `generate.go` overrides it per language with `lang=path`, and Python is the one override:
+The convention is `<lang>/starter/template/`; `generate.go` can override it per language with `lang=path`. Python uses `python/starter/template/` (the starter package root is `python/starter/`, not `python/`):
 
 ```go
-//go:generate go run ./internal/sync go node python=python/starter/src/t0_provider_starter/template java csharp
+//go:generate go run ./internal/sync go node python=python/starter/template java csharp
 ```
 
 Every template is a buildable standalone project whose project name is the literal `my-provider` (PascalCase `MyProvider`, used by the C# namespace and the `<RootNamespace>` in the `.csproj`). Each ships `dot-gitignore` rather than `.gitignore`, because Gradle and NuGet packaging strip dotfiles; the scaffolder renames it. The Go template keeps its real module path (`github.com/t-0-network/provider-sdk/go/starter/template`); the scaffolder reads it from `go.mod.tmpl` at scaffold time and replaces it with the `--module` value. Python and Java templates ship a `README.md` that becomes the scaffolded project's README.

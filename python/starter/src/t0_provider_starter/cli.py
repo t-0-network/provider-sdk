@@ -49,12 +49,19 @@ def main(project_name: str, directory: str | None) -> None:
 
 
 def _copy_template(target_dir: Path, project_name: str) -> None:
-    """Copy the template directory to target, replacing placeholders."""
+    """Copy packaged resources or the source-checkout template."""
     template_ref = resources.files("t0_provider_starter") / "template"
+    if template_ref.is_dir():
+        with resources.as_file(template_ref) as template_path:
+            _copy_tree(template_path, target_dir, project_name)
+        return
 
-    # Use resources.as_file for proper extraction from packages
-    with resources.as_file(template_ref) as template_path:
-        _copy_tree(template_path, target_dir, project_name)
+    # Editable/source installs: force-include doesn't place the template
+    # inside the package resource directory, so fall back to the repo layout.
+    template_path = Path(__file__).resolve().parents[2] / "template"
+    if not template_path.is_dir():
+        raise FileNotFoundError(f"Starter template not found: {template_path}")
+    _copy_tree(template_path, target_dir, project_name)
 
 
 def _copy_tree(src: Path, dst: Path, project_name: str) -> None:
