@@ -27,21 +27,20 @@ main() {
 
     chmod +x "${tmpdir}/${BINARY_NAME}"
 
-    install_dir="$(pick_install_dir)"
-    mkdir -p "${install_dir}"
-
-    mv "${tmpdir}/${BINARY_NAME}" "${install_dir}/${BINARY_NAME}"
-    printf "Installed %s to %s/%s\n" "${BINARY_NAME}" "${install_dir}" "${BINARY_NAME}"
-
-    if ! echo "${PATH}" | tr ':' '\n' | grep -qx "${install_dir}"; then
-        printf "\n%s is not in your PATH. Add it permanently:\n" "${install_dir}"
-        printf "  echo 'export PATH=\"%s:\$PATH\"' >> ~/.bashrc  # or ~/.zshrc\n" "${install_dir}"
-    fi
-
     if [ $# -gt 0 ]; then
-        printf "\n"
-        "${install_dir}/${BINARY_NAME}" "$@"
+        "${tmpdir}/${BINARY_NAME}" init "$@"
     else
+        install_dir="$(pick_install_dir)"
+        mkdir -p "${install_dir}"
+
+        mv "${tmpdir}/${BINARY_NAME}" "${install_dir}/${BINARY_NAME}"
+        printf "Installed %s to %s/%s\n" "${BINARY_NAME}" "${install_dir}" "${BINARY_NAME}"
+
+        if ! echo "${PATH}" | tr ':' '\n' | grep -qx "${install_dir}"; then
+            printf "\n%s is not in your PATH. Add it permanently:\n" "${install_dir}"
+            printf "  echo 'export PATH=\"%s:\$PATH\"' >> ~/.bashrc  # or ~/.zshrc\n" "${install_dir}"
+        fi
+
         printf "\nVerify:\n  %s --version\n" "${BINARY_NAME}"
     fi
 }

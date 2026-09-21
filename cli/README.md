@@ -16,13 +16,13 @@ Windows (PowerShell) -- installs to `%LOCALAPPDATA%\t0-init\t0-init.exe` and add
 iwr -useb https://github.com/t-0-network/provider-sdk/releases/latest/download/start.ps1 | iex
 ```
 
-Or install and scaffold in one command:
+Or scaffold directly without installing -- downloads, runs, cleans up:
 
 ```bash
-curl -fsSL https://github.com/t-0-network/provider-sdk/releases/latest/download/start.sh | sh -s -- init --lang=go my-provider
+curl -fsSL https://github.com/t-0-network/provider-sdk/releases/latest/download/start.sh | sh -s -- --lang=go my-provider
 ```
 
-Without arguments, the installer prints the verification command (`t0-init --version`).
+Without arguments, the script installs `t0-init` permanently and prints the verification command.
 
 ## Create a project
 

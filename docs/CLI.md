@@ -35,19 +35,28 @@ Install only:
 curl -fsSL https://github.com/t-0-network/provider-sdk/releases/latest/download/start.sh | sh
 ```
 
-Install and scaffold in one command:
+Scaffold directly without installing -- downloads, runs, cleans up:
 
 ```bash
-curl -fsSL https://github.com/t-0-network/provider-sdk/releases/latest/download/start.sh | sh -s -- init --lang=go my-provider
+curl -fsSL https://github.com/t-0-network/provider-sdk/releases/latest/download/start.sh | sh -s -- --lang=go my-provider
 ```
 
-The script (`#!/bin/sh`, `set -eu`), step by step:
+The script (`#!/bin/sh`, `set -eu`) has two modes:
+
+**With arguments** (`sh -s -- --lang=go my-provider`):
+
+1. Detects OS and architecture (same as install mode).
+2. Downloads the binary into a `mktemp -d` directory.
+3. Runs `t0-init init` with the given arguments (`init` is prepended automatically).
+4. The temp directory is cleaned up on exit — nothing is installed.
+
+**Without arguments** (install mode):
 
 1. Maps `uname -s` to `linux`/`darwin` and `uname -m` to `amd64` (`x86_64`, `amd64`) or `arm64` (`aarch64`, `arm64`). Anything else exits 1 with `Error: unsupported OS: …` or `Error: unsupported architecture: …`.
 2. Downloads `https://github.com/t-0-network/provider-sdk/releases/latest/download/t0-init-<os>-<arch>` into a `mktemp -d` directory with `curl -fsSL`, or `wget -qO` when `curl` is absent; with neither it exits 1 with `Error: curl or wget is required`.
 3. `chmod +x`, then moves the file to `/usr/local/bin/t0-init` when `/usr/local/bin` is writable, otherwise to `${HOME}/.local/bin/t0-init` (directory created).
 4. Prints `Installed t0-init to <dir>/t0-init`. When `<dir>` is not on `PATH` it adds a note with the `export PATH` command.
-5. If arguments were passed (via `sh -s -- ...`), runs `t0-init` with those arguments. Otherwise prints `Verify:` and `  t0-init --version`.
+5. Prints `Verify:` and `  t0-init --version`.
 
 ### `start.ps1` — Windows
 

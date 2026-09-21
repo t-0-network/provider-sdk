@@ -7,7 +7,7 @@ SDKs and starter templates for building payment provider integrations with the T
 Scaffold a new provider project with one command -- this is Go; the other languages are `--lang=node|python|java|csharp`:
 
 ```bash
-curl -fsSL https://github.com/t-0-network/provider-sdk/releases/latest/download/start.sh | sh -s -- init --lang=go my-provider
+curl -fsSL https://github.com/t-0-network/provider-sdk/releases/latest/download/start.sh | sh -s -- --lang=go my-provider
 ```
 
 Windows (PowerShell):
