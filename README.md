@@ -4,70 +4,20 @@ SDKs and starter templates for building payment provider integrations with the T
 
 ## Quick Start
 
-Scaffold a new provider project with the unified CLI, or choose your platform and run its one-liner:
-
-### Unified CLI
-
-Install `t0-init` from the latest release:
+Scaffold a new provider project with one command -- this is Go; the other languages are `--lang=node|python|java|csharp`:
 
 ```bash
-curl -fsSL https://github.com/t-0-network/provider-sdk/releases/latest/download/start.sh | sh
+curl -fsSL https://github.com/t-0-network/provider-sdk/releases/latest/download/start.sh | sh -s -- init --lang=go my-provider
 ```
 
-PowerShell:
+Windows (PowerShell):
 
 ```powershell
 iwr -useb https://github.com/t-0-network/provider-sdk/releases/latest/download/start.ps1 | iex
-```
-
-Then scaffold a project -- Go here; the other languages are `--lang=node|python|java|csharp`:
-
-```bash
 t0-init init --lang=go my-provider
 ```
 
-Every flag, the language-specific options and the run command `init` prints per language: [cli/README.md](cli/README.md).
-
-### Go
-
-```bash
-go run github.com/t-0-network/provider-sdk/go/starter@latest my-provider
-```
-
-Requires Go 1.27+. See [Go starter documentation](go/starter/README.md) for details.
-
-### TypeScript
-
-```bash
-npx @t-0/provider-starter-ts
-```
-
-Requires Node.js LTS. See [TypeScript starter documentation](node/starter/README.md) for details.
-
-### Python
-
-```bash
-uvx t0-provider-starter my_provider
-```
-
-Requires Python 3.13+ and [uv](https://docs.astral.sh/uv/). See [Python documentation](python/README.md) for details.
-
-### Java
-
-```bash
-curl -fsSL -L https://github.com/t-0-network/provider-sdk/releases/latest/download/provider-init.jar -o provider-init.jar && java -jar provider-init.jar && rm provider-init.jar
-```
-
-Requires Java 17+. See [Java documentation](java/README.md) for details.
-
-### C#
-
-```bash
-dotnet tool install -g T0.ProviderStarter
-t0-provider-starter my-provider
-```
-
-Requires .NET 10.0+. See [C# documentation](csharp/README.md) for details.
+The install-only form, every flag, and the run command `init` prints per language: [cli/README.md](cli/README.md).
 
 ## What the Starter Creates
 
