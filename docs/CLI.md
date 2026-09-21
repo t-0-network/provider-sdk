@@ -288,7 +288,7 @@ Every template is a buildable standalone project whose project name is the liter
 `go generate ./...` in `cli/` runs `internal/sync`, which for each language deletes `cli/internal/embed/<lang>/` and copies the template in:
 
 - Skipped directories: `node_modules`, `dist`, `build`, `__pycache__`, `.venv`, `.git`, `.gradle`, `.idea`, `.vs`, `.DS_Store`, `obj`, `bin`, `.pytest_cache`, `.ruff_cache`. Skipped files: `.DS_Store`, `Thumbs.db`, `.env`, and every `.env.*` except `.env.example` — a developer's local key never enters the template.
-- Go only: `*.go`, `go.mod` and `go.sum` gain a `.tmpl` suffix so they are embedded as data rather than compiled into the CLI. The real module path is preserved; the scaffolder reads it from `go.mod.tmpl` at scaffold time.
+- Go only: `*.go`, `go.mod` and `go.sum` gain a `.tmpl` suffix so they are embedded as data rather than compiled into the CLI. The real module path is preserved; the scaffolder reads it from `go.mod.tmpl` at scaffold time. A source directory containing both `X` and `X.tmpl` for any file the rename would produce is refused — the `.tmpl` copy would silently overwrite the renamed one.
 - The executable bit is preserved (`gradlew`), other files are written `0666`.
 
 `cli/internal/embed/` is generated output; `scaffold.go` embeds it with `//go:embed all:internal/embed`. A language with no directory under `internal/embed/` in the build fails at scaffold time with `template not found for lang=<lang> — run 'go generate ./...' first`.
@@ -354,7 +354,7 @@ The rule: the twelve synced files carry nothing product-specific — no product 
 | `cli/starters_test.go` | this repository | Starter languages match `Config.Languages`; embedded templates have Dockerfile and exactly one dockerignore variant; every language scaffolds and yields `.gitignore`, `.env`, `Dockerfile`, `.dockerignore` without `dot-` variants and entry files; fresh private key, derived public key, `NETWORK_PUBLIC_KEY` equals example, `0600` permissions. |
 | `cli/keygen_test.go` | synced | Key format and uniqueness. |
 | `cli/internal/gomod/gomod_test.go` | synced | `ModulePath` parser: plain, tab-separated, quoted, comments, block form, missing. |
-| `cli/internal/sync/main_test.go` | this repository | Skip lists; `.tmpl` renaming for Go only; real module path preserved. |
+| `cli/internal/sync/main_test.go` | this repository | Skip lists; `.tmpl` renaming for Go only; real module path preserved; `X`/`X.tmpl` collision refused for Go. |
 
 Locally:
 
