@@ -95,13 +95,12 @@ func main() {
 			continue
 		}
 
-		goTemplate := false
-		if lang == "go" || strings.HasPrefix(lang, "go/") {
+		isGo := lang == "go" || strings.HasPrefix(lang, "go/")
+		if isGo {
 			data, _ := os.ReadFile(filepath.Join(srcDir, "go.mod"))
 			if gomod.ModulePath(data) == "" {
 				fatalf("%s: no module directive in %s/go.mod", lang, src)
 			}
-			goTemplate = true
 		}
 
 		fmt.Printf("syncing %s: %s → %s\n", lang, src, destDir)
@@ -111,7 +110,7 @@ func main() {
 			fatalf("creating %s: %v", destDir, err)
 		}
 
-		if err := copyTree(srcDir, destDir, goTemplate); err != nil {
+		if err := copyTree(srcDir, destDir, isGo); err != nil {
 			fatalf("copying %s: %v", lang, err)
 		}
 	}
@@ -119,10 +118,9 @@ func main() {
 	fmt.Println("done")
 }
 
-// copyTree copies srcDir to destDir. When goTemplate is true, .go/.mod/.sum files
-// are renamed to .tmpl; the file contents are copied verbatim (the real module path
-// is preserved so the template remains readable and debuggable).
-func copyTree(srcDir, destDir string, goTemplate bool) error {
+// copyTree copies srcDir to destDir. When isGo is true, .go/.mod/.sum files are
+// renamed to .tmpl so go:embed treats them as data, not source.
+func copyTree(srcDir, destDir string, isGo bool) error {
 	return filepath.WalkDir(srcDir, func(src string, d fs.DirEntry, err error) error {
 		if err != nil {
 			return err
@@ -155,7 +153,7 @@ func copyTree(srcDir, destDir string, goTemplate bool) error {
 		}
 
 		destRel := rel
-		if goTemplate && (strings.HasSuffix(base, ".go") || base == "go.mod" || base == "go.sum") {
+		if isGo && (strings.HasSuffix(base, ".go") || base == "go.mod" || base == "go.sum") {
 			destRel += ".tmpl"
 		}
 
