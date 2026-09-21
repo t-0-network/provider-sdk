@@ -36,7 +36,6 @@ dist/
 # Java
 java/build/
 java/sdk/build/
-java/starter/build/
 java/.gradle/
 java/starter/template/.gradle/
 java/starter/template/build/

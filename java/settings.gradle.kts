@@ -12,4 +12,5 @@ pluginManagement {
 rootProject.name = "provider-sdk-java"
 
 include("sdk")
-include("starter:template")
+include("starter-template")
+project(":starter-template").projectDir = file("starter/template")
