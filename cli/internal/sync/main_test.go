@@ -95,6 +95,77 @@ func TestCopyTreeNonGoSkipsRenaming(t *testing.T) {
 	assertNotExists(t, filepath.Join(dest, "main.go.tmpl"))
 }
 
+func TestCopyTreeRejectsTmplCollision(t *testing.T) {
+	t.Run("root", func(t *testing.T) {
+		src := t.TempDir()
+		dest := t.TempDir()
+
+		writeFile(t, filepath.Join(src, "go.mod"), "module example.com/my-provider\n\ngo 1.27.0\n")
+		writeFile(t, filepath.Join(src, "go.mod.tmpl"), "module {{MODULE_PATH}}\n")
+
+		err := copyTree(src, dest, true)
+		if err == nil {
+			t.Fatal("expected error for go.mod + go.mod.tmpl collision")
+		}
+		if !strings.Contains(err.Error(), "go.mod") || !strings.Contains(err.Error(), "go.mod.tmpl") {
+			t.Errorf("error should mention both files, got: %v", err)
+		}
+	})
+
+	t.Run("nested", func(t *testing.T) {
+		src := t.TempDir()
+		dest := t.TempDir()
+
+		writeFile(t, filepath.Join(src, "cmd", "main.go"), "package main")
+		writeFile(t, filepath.Join(src, "cmd", "main.go.tmpl"), "package main // tmpl")
+
+		err := copyTree(src, dest, true)
+		if err == nil {
+			t.Fatal("expected error for cmd/main.go + cmd/main.go.tmpl collision")
+		}
+		if !strings.Contains(err.Error(), "main.go") || !strings.Contains(err.Error(), "main.go.tmpl") {
+			t.Errorf("error should mention both files, got: %v", err)
+		}
+	})
+}
+
+func TestCopyTreeTmplCollisionInSkippedDirIgnored(t *testing.T) {
+	src := t.TempDir()
+	dest := t.TempDir()
+
+	writeFile(t, filepath.Join(src, "main.go"), "package main")
+	writeFile(t, filepath.Join(src, "build", "gen.go"), "package gen")
+	writeFile(t, filepath.Join(src, "build", "gen.go.tmpl"), "package gen // tmpl")
+
+	if err := copyTree(src, dest, true); err != nil {
+		t.Fatalf("copyTree: %v", err)
+	}
+
+	assertExists(t, filepath.Join(dest, "main.go.tmpl"))
+	assertNotExists(t, filepath.Join(dest, "build"))
+}
+
+func TestCopyTreeNonGoAllowsTmplSibling(t *testing.T) {
+	src := t.TempDir()
+	dest := t.TempDir()
+
+	writeFile(t, filepath.Join(src, "main.go"), "package main")
+	writeFile(t, filepath.Join(src, "main.go.tmpl"), "package main // tmpl")
+
+	if err := copyTree(src, dest, false); err != nil {
+		t.Fatalf("copyTree: %v", err)
+	}
+
+	assertExists(t, filepath.Join(dest, "main.go"))
+	assertExists(t, filepath.Join(dest, "main.go.tmpl"))
+	if got := readFile(t, filepath.Join(dest, "main.go")); got != "package main" {
+		t.Errorf("main.go = %q, want %q", got, "package main")
+	}
+	if got := readFile(t, filepath.Join(dest, "main.go.tmpl")); got != "package main // tmpl" {
+		t.Errorf("main.go.tmpl = %q, want %q", got, "package main // tmpl")
+	}
+}
+
 func TestMainRoleKey(t *testing.T) {
 	name := "sync"
 	if runtime.GOOS == "windows" {
@@ -168,6 +239,20 @@ func TestMainRoleKey(t *testing.T) {
 	cmd5.Dir = repo
 	if out, err := cmd5.CombinedOutput(); err != nil {
 		t.Fatalf("sibling keys should succeed: %v\n%s", err, out)
+	}
+
+	// Go starter with both go.mod and go.mod.tmpl should fail.
+	collisionDir := filepath.Join(repo, "go", "starter", "collision")
+	writeFile(t, filepath.Join(collisionDir, "go.mod"), "module example.com/collision\n\ngo 1.27.0\n")
+	writeFile(t, filepath.Join(collisionDir, "go.mod.tmpl"), "module {{MODULE_PATH}}\n")
+	writeFile(t, filepath.Join(collisionDir, "main.go"), "package main\n")
+
+	cmd6 := exec.Command(bin, "go/collision=go/starter/collision")
+	cmd6.Dir = repo
+	if out, err := cmd6.CombinedOutput(); err == nil {
+		t.Fatal("expected nonzero exit for go.mod + go.mod.tmpl collision")
+	} else if !strings.Contains(string(out), "go.mod") || !strings.Contains(string(out), "go.mod.tmpl") {
+		t.Errorf("expected collision error mentioning both files, got: %s", out)
 	}
 }
 
