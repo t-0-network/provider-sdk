@@ -175,16 +175,10 @@ jobs:
           cd node/sdk
           npm version ${{ steps.version.outputs.version }} --no-git-tag-version
 
-      - name: Update TS Starter version
-        run: |
-          cd node/starter
-          npm version ${{ steps.version.outputs.version }} --no-git-tag-version
-
-      - name: Update Python versions
+      - name: Update Python SDK version
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           sed -i "s/^version = \".*\"/version = \"${VERSION}\"/" python/sdk/pyproject.toml
-          sed -i "s/^version = \".*\"/version = \"${VERSION}\"/" python/starter/pyproject.toml
 
       - name: Regenerate Python lockfile
         working-directory: python
@@ -195,11 +189,10 @@ jobs:
           VERSION="${{ steps.version.outputs.version }}"
           sed -i "s/^version=.*/version=${VERSION}/" java/gradle.properties
 
-      - name: Update C# versions
+      - name: Update C# SDK version
         run: |
           VERSION="${{ steps.version.outputs.version }}"
           sed -i "s|<Version>.*</Version>|<Version>${VERSION}</Version>|" csharp/sdk/T0.ProviderSdk/T0.ProviderSdk.csproj
-          sed -i "s|<Version>.*</Version>|<Version>${VERSION}</Version>|" csharp/starter/T0.ProviderStarter/T0.ProviderStarter.csproj
 
       # --- Update SDK runtime version constants (they feed the health registry's t0: key) ---
       - name: Update SDK runtime version constants
@@ -262,24 +255,10 @@ jobs:
             ERRORS=$((ERRORS + 1))
           fi
 
-          # Validate Node Starter version
-          NODE_STARTER_VER=$(node -p "require('./node/starter/package.json').version")
-          if [ "$NODE_STARTER_VER" != "$VERSION" ]; then
-            echo "::error::Node Starter version mismatch: expected $VERSION, got $NODE_STARTER_VER"
-            ERRORS=$((ERRORS + 1))
-          fi
-
           # Validate Python SDK version
           PY_SDK_VER=$(grep '^version = ' python/sdk/pyproject.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
           if [ "$PY_SDK_VER" != "$VERSION" ]; then
             echo "::error::Python SDK version mismatch: expected $VERSION, got $PY_SDK_VER"
-            ERRORS=$((ERRORS + 1))
-          fi
-
-          # Validate Python Starter version
-          PY_STARTER_VER=$(grep '^version = ' python/starter/pyproject.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
-          if [ "$PY_STARTER_VER" != "$VERSION" ]; then
-            echo "::error::Python Starter version mismatch: expected $VERSION, got $PY_STARTER_VER"
             ERRORS=$((ERRORS + 1))
           fi
 
@@ -308,13 +287,6 @@ jobs:
           CSHARP_SDK_VER=$(grep '<Version>' csharp/sdk/T0.ProviderSdk/T0.ProviderSdk.csproj | sed 's/.*<Version>\(.*\)<\/Version>.*/\1/')
           if [ "$CSHARP_SDK_VER" != "$VERSION" ]; then
             echo "::error::C# SDK version mismatch: expected $VERSION, got $CSHARP_SDK_VER"
-            ERRORS=$((ERRORS + 1))
-          fi
-
-          # Validate C# Starter version
-          CSHARP_STARTER_VER=$(grep '<Version>' csharp/starter/T0.ProviderStarter/T0.ProviderStarter.csproj | sed 's/.*<Version>\(.*\)<\/Version>.*/\1/')
-          if [ "$CSHARP_STARTER_VER" != "$VERSION" ]; then
-            echo "::error::C# Starter version mismatch: expected $VERSION, got $CSHARP_STARTER_VER"
             ERRORS=$((ERRORS + 1))
           fi
 
@@ -365,9 +337,9 @@ jobs:
       # create the GitHub Release for that tag with `gh` + the App token — NOT the default
       # GITHUB_TOKEN, which the releases API rejects with HTTP 401.
       #
-      # The go/* Go module tags are NOT created here. They live in publish.yaml's "Publish Go"
+      # The go/vX.Y.Z module tag is NOT created here. It lives in publish.yaml's "Publish Go"
       # job, right before it rebuilds the template against the tagged tree — so nothing running
-      # on the release commit can race a public-proxy lookup ahead of the tags.
+      # on the release commit can race a public-proxy lookup ahead of the tag.
       - name: Commit version bump
         uses: stefanzweifel/git-auto-commit-action@v7
         with:

@@ -1,5 +1,7 @@
 # Python Provider SDK + Starter - Implementation Plan
 
+> **Superseded:** The per-ecosystem starter CLI described in this plan has been replaced by the unified CLI (`cli/`); see [`docs/CLI.md`](../CLI.md).
+
 > **Historical note (post-implementation):** the ConnectRPC PyPI distribution was renamed from `connect-python` to `connectrpc` at v0.10.0, and `protoc-gen-connect-python` to `protoc-gen-connectrpc`. Module imports are unchanged (`connectrpc.X`). Current floor pins are tracked in `python/CLAUDE.md`; the package names in this plan reflect the original (pre-rename) state and are preserved for historical accuracy.
 
 ## Context

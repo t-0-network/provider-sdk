@@ -273,7 +273,7 @@ Invalid POM / Missing required elements
 ```
 
 - Verify POM has: name, description, url, license, developer, scm
-- Check `sdk/build.gradle.kts` and `cli/build.gradle.kts` publishing blocks
+- Check `sdk/build.gradle.kts` publishing blocks
 
 ### Release Workflow Can't Push
 

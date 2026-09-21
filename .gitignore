@@ -20,7 +20,6 @@ go/starter/template/vendor/
 node_modules/
 *.tgz
 node/sdk/lib/
-node/starter/dist/
 node/starter/template/dist/
 node/starter/template/package-lock.json
 
@@ -38,7 +37,6 @@ dist/
 java/build/
 java/sdk/build/
 java/starter/build/
-java/cli/build/
 java/.gradle/
 java/starter/template/.gradle/
 java/starter/template/build/

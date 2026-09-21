@@ -15,12 +15,12 @@ For *which files* hold versions, see [`VERSIONING.md`](./VERSIONING.md).
 
 Triggered by `gh workflow run release.yaml -f bump=<patch|minor|major> --ref master`. Default bump is `patch`. Steps in order:
 
-1. **Build gate** — `build-go`, `build-node`, `build-java`, `build-python`, `build-csharp` all compile in parallel against the current commit. If any fails, the release is aborted and nothing changes.
+1. **Build gate** — `build-go`, `build-node`, `build-java`, `build-python`, `build-csharp`, `build-cli` all compile in parallel against the current commit. If any fails, the release is aborted and nothing changes.
 
 2. **`release` job** runs only after the gate. Steps:
 
    1. **Calculate version** — read latest tag, parse semver, increment by the requested bump. Output: e.g. `1.1.15`.
-   2. **Bump package-level versions** — Node (`npm version` for sdk + starter), Python (`sed` on both `pyproject.toml`s, then `uv lock` to regenerate `python/uv.lock` — the lockfile records workspace member versions), Java (`sed` on `gradle.properties`), C# (`sed` on both `.csproj`s).
+   2. **Bump package-level versions** — Node (`npm version` for sdk), Python (`sed` on `python/sdk/pyproject.toml`, then `uv lock`), Java (`sed` on `gradle.properties`), C# (`sed` on sdk `.csproj`).
    3. **Bump SDK runtime version constants** — the four files a running server reports its own version from:
       - `go/sdkversion/version.go`
       - `node/sdk/src/version.ts`
@@ -32,7 +32,7 @@ Triggered by `gh workflow run release.yaml -f bump=<patch|minor|major> --ref mas
    6. **Commit and tag** — single commit `Release X.Y.Z`, root tag `vX.Y.Z`.
    7. **Create GitHub Release** — `vX.Y.Z` with that title.
 
-   (The `go/*` module tags are **not** created here — they're created by `publish.yaml`'s `publish-go` job, right before it rebuilds the template against the tagged tree. See below.)
+   (The `go/vX.Y.Z` module tag is **not** created here — it's created by `publish.yaml`'s `publish-go` job, right before it rebuilds the template against the tagged tree. See below.)
 
 3. **Tag push triggers `publish.yaml`** automatically (next section).
 
@@ -74,15 +74,19 @@ Things not to do here:
 Triggered by a push of any tag matching `v[0-9]+.[0-9]+.[0-9]+`. Layout:
 
 ```
-build-go   build-node   build-java   build-python   build-csharp
-   \           |            |             |              /
-    \----------+----+-------+-------------+-------------/
-                    |
-        ┌───────────┼─────────────┬─────────────┬───────────────┐
-        │           │             │             │               │
-   publish-go   publish-node-*  publish-py-*  publish-java   publish-csharp
-                                                                 │
-                                                          verify-jitpack
+build-go  build-node  build-java  build-python  build-csharp  build-cli
+   \          |           |            |             |           /
+    \---------+-----------+------------+-------------+----------/
+                                   |
+     ┌──────────┬─────────────┬────┴────────┬───────────────┐
+     │          │             │             │               │
+publish-go  publish-node-sdk  publish-py-sdk  publish-java  publish-csharp
+     \          |             |             |               /
+      \---------+-------------+--------+---+              /
+                                       │                 /
+                                  publish-cli           /
+                                                       /
+                                             verify-jitpack (after publish-java)
 ```
 
 ### Build gate
@@ -107,13 +111,12 @@ Inlined per-job (rather than as a single shared `validate-versions` job) so each
 
 | Job | Runner | Validates | Then |
 |---|---|---|---|
-| `publish-go` | blacksmith | `go/sdkversion/version.go` matches tag | Creates + pushes the three Go module tags (`go/vX.Y.Z`, `go/starter/vX.Y.Z`, `go/starter/template/vX.Y.Z`). Tags are created here (not in `release.yaml`) so that nothing running on the release commit can race a public-proxy lookup ahead of them (see "Things not to do here" above). The job itself never queries `proxy.golang.org` for the SDK and does **not** warm it; the proxy indexes the tag on its own once GitHub has replicated it. Then it rebuilds the `file://` layout with `sumtool` from the tagged tree and runs `go build -mod=readonly ./...` in `go/starter/template` behind the same gate + chain as `release.yaml`, verifying that the `go.sum` entry `release.yaml` precomputed matches the tagged tree. `-mod=readonly` fails on a missing line as well as a wrong hash. This job pushes tags, never commits. No artifact upload — Go modules are served from the git tag itself. |
+| `publish-go` | blacksmith | `go/sdkversion/version.go` matches tag | Creates + pushes the Go module tag (`go/vX.Y.Z`). The tag is created here (not in `release.yaml`) so that nothing running on the release commit can race a public-proxy lookup ahead of it (see "Things not to do here" above). The job itself never queries `proxy.golang.org` for the SDK and does **not** warm it; the proxy indexes the tag on its own once GitHub has replicated it. Then it rebuilds the `file://` layout with `sumtool` from the tagged tree and runs `go build -mod=readonly ./...` in `go/starter/template` behind the same gate + chain as `release.yaml`, verifying that the `go.sum` entry `release.yaml` precomputed matches the tagged tree. `-mod=readonly` fails on a missing line as well as a wrong hash. This job pushes tags, never commits. No artifact upload — Go modules are served from the git tag itself. |
 | `publish-node-sdk` | **`ubuntu-latest`** (npm provenance requires GitHub-hosted) | `node/sdk/src/version.ts` + `node/sdk/package.json` match tag | `npm publish --provenance --access public`. |
-| `publish-node-starter` | **`ubuntu-latest`** | `node/starter/package.json` matches tag | `npm publish --provenance --access public`. |
 | `publish-python-sdk` | blacksmith, env `pypi-sdk` | `_version.py` + `pyproject.toml` match tag | `uv build --package t0-provider-sdk` then `uv publish --trusted-publishing always`. |
-| `publish-python-starter` | blacksmith, env `pypi-starter` | starter `pyproject.toml` matches tag | `uv build --package t0-provider-starter`, `uv publish`. |
-| `publish-java` | blacksmith (2vcpu — most time is Maven Central polling) | `META-INF/sdk-version.properties` + `gradle.properties` match tag | `./gradlew publishAggregationToCentralPortal`, then upload `provider-init.jar` to the GitHub Release. |
-| `publish-csharp` | blacksmith, env `nuget` | both csproj `<Version>`s match tag | `dotnet pack` for sdk and starter; `dotnet nuget push` to `nuget.org`. Auth via `NuGet/login@v1` OIDC → temporary key (no long-lived token). |
+| `publish-java` | blacksmith (2vcpu — most time is Maven Central polling) | `META-INF/sdk-version.properties` + `gradle.properties` match tag | `./gradlew publishAggregationToCentralPortal`. |
+| `publish-csharp` | blacksmith, env `nuget` | sdk csproj `<Version>` matches tag | `dotnet pack` for sdk; `dotnet nuget push` to `nuget.org`. Auth via `NuGet/login@v1` OIDC → temporary key (no long-lived token). |
+| `publish-cli` | blacksmith | — (waits for all builds + all SDK publishes) | Cross-compiles `t0-init` for linux/darwin × amd64/arm64, uploads binaries to the GitHub Release. |
 
 ### Post-publish verification
 
@@ -123,7 +126,7 @@ Inlined per-job (rather than as a single shared `validate-versions` job) so each
 
 ## Why version validation exists in two places
 
-The release workflow's "Validate updated files" step ensures the bump itself is internally consistent (all 14+ sites agree on the calculated version). The publish workflow's per-job validation ensures the **tagged commit** still has matching versions when the publish job runs — protection against:
+The release workflow's "Validate updated files" step ensures the bump itself is internally consistent (all version sites agree on the calculated version). The publish workflow's per-job validation ensures the **tagged commit** still has matching versions when the publish job runs — protection against:
 
 - A `vX.Y.Z` tag manually pushed against a commit where the bump wasn't completed.
 - A revert that left tags behind.
@@ -136,6 +139,5 @@ Both gates are necessary and inexpensive (each is a few greps).
 ## Operating notes
 
 - **Never trigger `publish.yaml` manually.** It will refuse to publish if the tag doesn't match the runtime constants, but it will also try to actually publish to npm / PyPI / Maven Central / NuGet on success — there's no "dry run" mode.
-- **Never `git tag vX.Y.Z` by hand.** `release.yaml` pushes the root `vX.Y.Z` tag (which triggers publish); `publish.yaml`'s `publish-go` job then creates the three `go/*` module tags. Don't create any of them manually.
+- **Never `git tag vX.Y.Z` by hand.** `release.yaml` pushes the root `vX.Y.Z` tag (which triggers publish); `publish.yaml`'s `publish-go` job then creates the `go/vX.Y.Z` module tag. Don't create any of them manually.
 - **Re-running a failed publish job:** safe for idempotent steps (Go tag push and readonly rebuild, JitPack verify). For npm/PyPI/Maven Central/NuGet, the registry rejects duplicate version uploads, so a re-run after a successful publish will fail loudly — that's the intended behaviour. If a publish job partially failed, fix the cause and ask the user before re-running.
-- **`provider-init.jar` upload:** `publish-java` writes the file to the existing GitHub Release with `--clobber`. The Release was created earlier by `release.yaml`.

@@ -253,11 +253,11 @@ Top level of each scaffold, from the template of the same name:
 
 | `--lang` | Top-level entries |
 |---|---|
-| `go` | `.env`, `.env.example`, `.gitignore`, `Dockerfile`, `go.mod`, `go.sum`, `cmd/`, `internal/` |
-| `node` | `.dockerignore`, `.env`, `.env.example`, `.gitignore`, `Dockerfile`, `package.json`, `tsconfig.json`, `src/` |
+| `go` | `.env`, `.env.example`, `.gitignore`, `Dockerfile`, `README.md`, `go.mod`, `go.sum`, `cmd/`, `internal/` |
+| `node` | `.dockerignore`, `.env`, `.env.example`, `.gitignore`, `Dockerfile`, `README.md`, `package.json`, `tsconfig.json`, `src/` |
 | `python` | `.env`, `.env.example`, `.gitignore`, `Dockerfile`, `README.md`, `pyproject.toml`, `src/` |
 | `java` | `.env`, `.env.example`, `.gitignore`, `Dockerfile`, `README.md`, `build.gradle.kts`, `settings.gradle.kts`, `gradlew`, `gradlew.bat`, `gradle/`, `src/` |
-| `csharp` | `.env`, `.env.example`, `.gitignore`, `Dockerfile`, `Program.cs`, `appsettings.json`, `<project-name>.csproj`, `Services/` |
+| `csharp` | `.env`, `.env.example`, `.gitignore`, `Dockerfile`, `README.md`, `Program.cs`, `appsettings.json`, `<project-name>.csproj`, `Services/` |
 
 Name substitution as seen in the scaffolds: Node's `package.json` `"name"`, Java's `settings.gradle.kts` `rootProject.name`, the C# `.csproj` file name, its `ENTRYPOINT ["dotnet", "<project-name>.dll"]` in `Dockerfile`, and the C# namespace `<PascalName>.Services`.
 
@@ -279,7 +279,7 @@ The convention is `<lang>/starter/template/`; `generate.go` can override it per 
 //go:generate go run ./internal/sync go node python java csharp
 ```
 
-Every template is a buildable standalone project whose project name is the literal `my-provider` (PascalCase `MyProvider`, used by the C# namespace and the `<RootNamespace>` in the `.csproj`). Each ships `dot-gitignore` rather than `.gitignore`, because Gradle and NuGet packaging strip dotfiles; the scaffolder renames it. The Go template keeps its real module path (`github.com/t-0-network/provider-sdk/go/starter/template`); the scaffolder reads it from `go.mod.tmpl` at scaffold time and replaces it with the `--module` value. Python and Java templates ship a `README.md` that becomes the scaffolded project's README.
+Every template is a buildable standalone project whose project name is the literal `my-provider` (PascalCase `MyProvider`, used by the C# namespace and the `<RootNamespace>` in the `.csproj`). Each ships `dot-gitignore` rather than `.gitignore`, because Gradle and NuGet packaging strip dotfiles; the scaffolder renames it. The Go template keeps its real module path (`github.com/t-0-network/provider-sdk/go/starter/template`); the scaffolder reads it from `go.mod.tmpl` at scaffold time and replaces it with the `--module` value. All five templates ship a `README.md` that becomes the scaffolded project's README.
 
 ---
 
@@ -393,6 +393,6 @@ Files whose contents must survive untouched need a binary extension from the lis
 
 1. Create `<lang>/starter/template/` as a buildable project named `my-provider`, with `.env.example` (carrying `PROVIDER_PRIVATE_KEY=` and the `# your_public_key_here` marker) and `dot-gitignore`. A location outside the convention is passed as `<lang>=<path>` in `generate.go`.
 2. Add `<lang>` to the `go:generate` line in `generate.go` and to `Languages` in `config.go`. Usage, validation and `TestRun_InstantiatesEveryStarter` follow from the list.
-3. Add the language's case to the `switch opts.Lang` in `printCompletion` in `main.go` — the step-2 heading and the run command. `main.go` is synced, so the case reaches every product on the next sync.
+3. Add the language's entry to the `defaultRunSteps` map in `main.go` — the step-2 heading and the run command. `main.go` is synced, so the entry reaches every product on the next sync.
 4. Add a scaffold step and a compile-verify step for the language to `ci-cli.yaml`, and its template path to the workflow's `paths` lists.
 5. For a product that should offer the language: it adds its own `<lang>/starter/template/`, the `generate.go` entry and the `Languages` entry in its repository. The sync carries the twelve files, never templates.

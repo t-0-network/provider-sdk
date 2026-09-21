@@ -1,21 +1,20 @@
-# T-0 Provider Starter -- TypeScript
+# my-provider
 
-CLI tool to scaffold a Node.js TypeScript provider project for the T-0 Network.
+T-0 Network provider implementation generated from the official TypeScript starter.
 
 ## Quick Start
 
 ```bash
-npx @t-0/provider-starter-ts
+npm install
+npm run dev
 ```
 
-The CLI will prompt for a project name, then create a ready-to-run project with a secp256k1 keypair (via OpenSSL), environment config, provider service stubs, and a Dockerfile.
-
-`t0-init init --lang=node my-provider` scaffolds the same template with the unified CLI; run `npm install && npm run dev` in the new project (the CLI prints this as its final step). Installation and options are in [cli/README.md](../../cli/README.md).
+Share the provider public key (printed by the initializer; also on the comment line under `# Your provider's public key` in `.env`) with the T-0 team so t-0 can verify the requests you sign.
 
 ## Generated Project Structure
 
 ```
-your-project-name/
+my-provider/
 ├── src/
 │   ├── index.ts                                  # Entry point
 │   ├── service.ts                                # Phase 2: ProviderService handlers
@@ -145,14 +144,4 @@ docker run -p 3000:3000 --env-file .env my-provider
 
 ## SDK Reference
 
-For direct SDK usage (without the starter), see the [TypeScript SDK documentation](../sdk/README.md).
-
-## Troubleshooting
-
-**"Directory already exists"** -- Choose a different project name.
-
-**"OpenSSL not found"** -- Install OpenSSL (`brew install openssl` on macOS, `sudo apt-get install openssl` on Debian/Ubuntu).
-
-**Key generation fails** -- Ensure OpenSSL is in your PATH: `openssl version`.
-
-**npm install fails** -- Check Node.js >= 18 and npm >= 8: `node --version && npm --version`.
+For direct SDK usage (without the starter), see the [TypeScript SDK documentation](https://github.com/t-0-network/provider-sdk/tree/master/node/sdk).

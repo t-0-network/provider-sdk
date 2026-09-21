@@ -9,8 +9,10 @@ on:
       - "node/starter/template/**"
       - "node/sdk/**"
       - "python/starter/template/**"
+      - "python/sdk/**"
       - "java/starter/template/**"
       - "csharp/starter/template/**"
+      - "csharp/sdk/**"
       - ".github/workflows/ci-cli.yaml"
   pull_request:
     branches: [master]
@@ -20,8 +22,10 @@ on:
       - "node/starter/template/**"
       - "node/sdk/**"
       - "python/starter/template/**"
+      - "python/sdk/**"
       - "java/starter/template/**"
       - "csharp/starter/template/**"
+      - "csharp/sdk/**"
       - ".github/workflows/ci-cli.yaml"
 
 concurrency:
@@ -217,11 +221,6 @@ jobs:
         with:
           go-version-file: cli/go.mod
           cache-dependency-path: cli/go.sum
-
-      - name: Setup Node
-        uses: actions/setup-node@v7
-        with:
-          node-version: lts/*
 
       - name: Sync templates (go generate)
         working-directory: cli

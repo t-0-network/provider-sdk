@@ -11,22 +11,21 @@ Protobuf encoding is not canonical — re-encoding a deserialized message produc
 ```
 proto/              Shared protobuf definitions (source of truth)
 cli/                Unified starter CLI (Go, cross-compiled static binary)
-go/                 Go SDK + starter CLI + template
+go/                 Go SDK + starter template
 node/sdk/           TypeScript SDK (@t-0/provider-sdk)
-node/starter/       TypeScript starter CLI + template
+node/starter/       TypeScript starter template
 python/sdk/         Python SDK (t0-provider-sdk)
-python/starter/     Python starter CLI + template
+python/starter/     Python starter template
 java/sdk/           Java SDK (network.t-0:provider-sdk-java)
-java/cli/           Java provider-init CLI (GitHub Release JAR)
 java/starter/       Java starter template
-csharp/             C# SDK + starter CLI + template
+csharp/             C# SDK + starter template
 cross_test/         Cross-language test vectors + shared Go helper
 .github/workflows/  CI, Release, Publish workflows
 ```
 
 ## Versioning
 
-All SDKs share a unified version managed via git tags (`vX.Y.Z`). The version lives in three categories of files (package-level, starter-template pin, runtime constant) across five ecosystems. **Whenever you add a new version site, also update [`release.yaml`](.github/workflows/release.yaml) (bump + validate) and [`publish.yaml`](.github/workflows/publish.yaml) (per-job tag-vs-version assertion) — otherwise the tag will silently drift.** Full file-by-file breakdown: [`docs/VERSIONING.md`](docs/VERSIONING.md). End-to-end CI flow: [`docs/RELEASE_AND_PUBLISH.md`](docs/RELEASE_AND_PUBLISH.md). Go requires additional module tags: `go/vX.Y.Z`, `go/starter/vX.Y.Z`, `go/starter/template/vX.Y.Z`.
+All SDKs share a unified version managed via git tags (`vX.Y.Z`). The version lives in three categories of files (package-level, starter-template pin, runtime constant) across five ecosystems. **Whenever you add a new version site, also update [`release.yaml`](.github/workflows/release.yaml) (bump + validate) and [`publish.yaml`](.github/workflows/publish.yaml) (per-job tag-vs-version assertion) — otherwise the tag will silently drift.** Full file-by-file breakdown: [`docs/VERSIONING.md`](docs/VERSIONING.md). End-to-end CI flow: [`docs/RELEASE_AND_PUBLISH.md`](docs/RELEASE_AND_PUBLISH.md). Go requires one additional module tag: `go/vX.Y.Z`.
 
 ## Workflows
 
@@ -37,7 +36,7 @@ All SDKs share a unified version managed via git tags (`vX.Y.Z`). The version li
 
 ## Starter Templates
 
-All starter templates are buildable standalone projects using `my-provider` as the literal project name (and `MyProvider` as PascalCase). The unified CLI (`cli/`) and each ecosystem's old starter replace these literals with the actual project name during scaffolding. Go's module path is read from `go.mod.tmpl` at scaffold time and replaced with the `--module` value. Each template ships `dot-gitignore` which the scaffolder renames to `.gitignore`.
+All starter templates are buildable standalone projects using `my-provider` as the literal project name (and `MyProvider` as PascalCase). The unified CLI (`cli/`) replaces these literals with the actual project name during scaffolding. Go's module path is read from `go.mod.tmpl` at scaffold time and replaced with the `--module` value. Each template ships `dot-gitignore` which the scaffolder renames to `.gitignore`.
 
 `cli/` is also the scaffolder of other products: `cli_sync.yaml` copies the files listed in `.github/workflows/cli-sync-config/<product>.yaml` into each product repo as a PR, overwriting them there. `config.go` is deliberately not in that list — it is where a product describes itself (`CLIConfig`: name and `Description` for usage, languages, roles, `JavaRepositories`/`JavaSDKArtifacts` for the Java template's registry choice and version pin, `NextSteps` printed after `init`, `RunSteps` for product-specific run commands, `PostScaffold` for anything else). Flags and usage text follow that config: a product without Go gets no `--module`, without `JavaRepositories` no `--repository`, without roles no `--role`. Keep the synced files free of product specifics and everything product-shaped behind `CLIConfig`; a downstream `config.go` that stops compiling after a sync is a breaking change of that contract.
 

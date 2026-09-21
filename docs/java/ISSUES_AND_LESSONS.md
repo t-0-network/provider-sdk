@@ -27,6 +27,8 @@ Historical issues encountered during development, extracted from git history. Or
 
 ## BufferedReader Stdin Bug (v1.0.33)
 
+> **Superseded:** The per-ecosystem `java/cli/` has been replaced by the unified CLI (`cli/`); see [`docs/CLI.md`](../CLI.md).
+
 **Problem:** When piping input to the CLI (`echo "name\n1" | java -jar provider-init.jar`), the repository prompt always received empty input regardless of what was piped.
 
 **Root cause:** `readLine()` created a new `BufferedReader(new InputStreamReader(System.in))` on every call. The first BufferedReader buffered all available stdin. The second call created a new BufferedReader over the now-empty stream.
@@ -60,6 +62,8 @@ Historical issues encountered during development, extracted from git history. Or
 **Fix:** Use `network.t-0:provider-sdk-java:<version>` for Maven Central dependencies.
 
 ## CLI Distribution — GitHub Releases (v1.0.23)
+
+> **Superseded:** The per-ecosystem `java/cli/` has been replaced by the unified CLI (`cli/`); see [`docs/CLI.md`](../CLI.md).
 
 **Problem:** Publishing the CLI to Maven Central was unnecessary complexity. Users don't resolve the CLI as a Gradle dependency — they download and run the JAR directly.
 

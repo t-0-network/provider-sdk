@@ -57,13 +57,10 @@ dependencies {
 // 2. In sdk/build.gradle.kts:
 //    - Comment out id("com.gradleup.nmcp") plugin
 //    - Uncomment the repositories { } block in publishing { }
-// 3. In cli/build.gradle.kts:
-//    - Comment out id("com.gradleup.nmcp") plugin
-//    - Uncomment the repositories { } block in publishing { }
-// 4. In .github/workflows/publish.yaml:
+// 3. In .github/workflows/publish.yaml:
 //    - Comment out NMCP publishing step
 //    - Uncomment JReleaser staging and deploy steps
-// 5. (Optional) Remove NMCP plugins from settings.gradle.kts pluginManagement
+// 4. (Optional) Remove NMCP plugins from settings.gradle.kts pluginManagement
 // ============================================================================
 /*
 jreleaser {

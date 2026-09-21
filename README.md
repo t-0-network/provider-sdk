@@ -19,9 +19,9 @@ t0-init init --lang=go my-provider
 
 The install-only form, every flag, and the run command `init` prints per language: [cli/README.md](cli/README.md).
 
-## What the Starter Creates
+## What `init` Creates
 
-Each starter generates a ready-to-run provider project with:
+Each scaffold generates a ready-to-run provider project with:
 
 - **secp256k1 keypair** -- auto-generated private key in `.env`, public key printed to console
 - **Provider service stubs** -- handler implementations for all T-0 Network RPC methods
@@ -82,11 +82,11 @@ For direct SDK usage without the starter:
 
 - [T-0 Network Documentation](https://docs.t-0.network/)
 - [Unified CLI](cli/README.md)
-- [Go Starter](go/starter/README.md) | [Go SDK](go/README.md)
-- [TypeScript Starter](node/starter/README.md) | [TypeScript SDK](node/sdk/README.md)
-- [Python Starter & SDK](python/README.md)
-- [Java Starter & SDK](java/README.md)
-- [C# Starter & SDK](csharp/README.md)
+- Go: [SDK](go/README.md) | [what `init` creates](go/starter/template/README.md)
+- TypeScript: [SDK](node/sdk/README.md) | [what `init` creates](node/starter/template/README.md)
+- Python: [SDK](python/README.md) | [what `init` creates](python/starter/template/README.md)
+- Java: [SDK](java/README.md) | [what `init` creates](java/starter/template/README.md)
+- C#: [SDK](csharp/README.md) | [what `init` creates](csharp/starter/template/README.md)
 
 ## Support
 

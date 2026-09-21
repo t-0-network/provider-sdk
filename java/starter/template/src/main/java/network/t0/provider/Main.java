@@ -113,7 +113,7 @@ public class Main {
         if (privateKey == null || privateKey.isEmpty()) {
             throw new ConfigurationException(
                     "PROVIDER_PRIVATE_KEY not set in .env file",
-                    "Generate a keypair with: ./gradlew generateKeys");
+                    "Generate a keypair with: t0-init keygen");
         }
 
         if (networkPublicKey == null || networkPublicKey.isEmpty()) {

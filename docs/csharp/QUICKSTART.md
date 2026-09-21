@@ -3,13 +3,13 @@
 ## Create a New Provider
 
 ```bash
-# Install and run the starter CLI
-dotnet tool install -g T0.ProviderStarter
-t0-provider-starter my-provider
+t0-init init --lang=csharp my-provider
 cd my-provider
 ```
 
-The starter generates a complete project with:
+Installation and options for `t0-init`: [`cli/README.md`](../../cli/README.md).
+
+The initializer generates a complete project with:
 - `.env` with auto-generated secp256k1 keypair
 - `PaymentHandler.cs` with all gRPC methods stubbed
 - `QuotePublisher.cs` for periodic quote publishing
