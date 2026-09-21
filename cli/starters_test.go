@@ -121,8 +121,9 @@ func TestRun_GoModulePathReplacement(t *testing.T) {
 	if err != nil {
 		t.Fatalf("reading go.mod: %v", err)
 	}
-	if !strings.HasPrefix(string(goMod), "module github.com/test/test-project\n") {
-		t.Errorf("go.mod should start with module github.com/test/test-project\ngot: %s", goMod)
+	firstLine := strings.SplitN(string(goMod), "\n", 2)[0]
+	if strings.TrimSpace(firstLine) != "module github.com/test/test-project" {
+		t.Errorf("go.mod first line = %q, want %q", firstLine, "module github.com/test/test-project")
 	}
 
 	mainGo, err := os.ReadFile(filepath.Join(projectDir, "cmd", "main.go"))
