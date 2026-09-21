@@ -22,7 +22,7 @@ func TestCopyTreeSkipsDirs(t *testing.T) {
 	writeFile(t, filepath.Join(src, "node_modules", "pkg.js"), "module")
 	writeFile(t, filepath.Join(src, ".DS_Store"), "store")
 
-	if err := copyTree(src, dest, ""); err != nil {
+	if err := copyTree(src, dest, false); err != nil {
 		t.Fatalf("copyTree: %v", err)
 	}
 
@@ -45,7 +45,7 @@ func TestCopyTreeGoTmplRenaming(t *testing.T) {
 	writeFile(t, filepath.Join(src, "go.sum"), "h1:abc")
 	writeFile(t, filepath.Join(src, "README.md"), "readme")
 
-	if err := copyTree(src, dest, "example.com/my-provider"); err != nil {
+	if err := copyTree(src, dest, true); err != nil {
 		t.Fatalf("copyTree: %v", err)
 	}
 
@@ -58,7 +58,7 @@ func TestCopyTreeGoTmplRenaming(t *testing.T) {
 	assertExists(t, filepath.Join(dest, "README.md"))
 }
 
-func TestCopyTreeGoModulePathReplacement(t *testing.T) {
+func TestCopyTreeGoModulePathPreserved(t *testing.T) {
 	src := t.TempDir()
 	dest := t.TempDir()
 
@@ -66,58 +66,18 @@ func TestCopyTreeGoModulePathReplacement(t *testing.T) {
 	writeFile(t, filepath.Join(src, "go.mod"), "module "+modPath+"\n\ngo 1.27.0\n")
 	writeFile(t, filepath.Join(src, "main.go"), "package main\n\nimport \""+modPath+"/pkg\"\n")
 
-	if err := copyTree(src, dest, modPath); err != nil {
+	if err := copyTree(src, dest, true); err != nil {
 		t.Fatalf("copyTree: %v", err)
 	}
 
 	got := readFile(t, filepath.Join(dest, "main.go.tmpl"))
-	if !strings.Contains(got, `"{{MODULE_PATH}}/pkg"`) {
-		t.Errorf("expected module path replacement\ngot: %s", got)
-	}
-	if strings.Contains(got, modPath) {
-		t.Error("original module path should have been replaced")
+	if !strings.Contains(got, `"`+modPath+`/pkg"`) {
+		t.Errorf("expected real module path preserved\ngot: %s", got)
 	}
 
 	gomod := readFile(t, filepath.Join(dest, "go.mod.tmpl"))
-	if !strings.HasPrefix(gomod, "module {{MODULE_PATH}}") {
-		t.Errorf("go.mod.tmpl should start with module {{MODULE_PATH}}\ngot: %s", gomod)
-	}
-}
-
-func TestCopyTreeModulePathBoundary(t *testing.T) {
-	src := t.TempDir()
-	dest := t.TempDir()
-
-	const modPath = "example.com/app"
-	writeFile(t, filepath.Join(src, "go.mod"),
-		"module "+modPath+"\n\ngo 1.27.0\n\nrequire example.com/app-extra v1.0.0\n")
-	writeFile(t, filepath.Join(src, "main.go"),
-		"package main\n\nimport (\n\t\""+modPath+"/pkg\"\n\t\"example.com/app-extra/lib\"\n\t\"example.com/app~tilde/x\"\n\t\"example.com/app+plus/y\"\n)\n")
-
-	if err := copyTree(src, dest, modPath); err != nil {
-		t.Fatalf("copyTree: %v", err)
-	}
-
-	got := readFile(t, filepath.Join(dest, "main.go.tmpl"))
-	if !strings.Contains(got, `"{{MODULE_PATH}}/pkg"`) {
-		t.Errorf("own module path should be replaced\ngot: %s", got)
-	}
-	if !strings.Contains(got, `"example.com/app-extra/lib"`) {
-		t.Errorf("similar module path should NOT be replaced\ngot: %s", got)
-	}
-
-	gomod := readFile(t, filepath.Join(dest, "go.mod.tmpl"))
-	if !strings.HasPrefix(gomod, "module {{MODULE_PATH}}") {
-		t.Errorf("go.mod module should be replaced\ngot: %s", gomod)
-	}
-	if !strings.Contains(gomod, "example.com/app-extra") {
-		t.Errorf("similar dependency should NOT be replaced\ngot: %s", gomod)
-	}
-	if !strings.Contains(got, `"example.com/app~tilde/x"`) {
-		t.Errorf("tilde-suffixed path should NOT be replaced\ngot: %s", got)
-	}
-	if !strings.Contains(got, `"example.com/app+plus/y"`) {
-		t.Errorf("plus-suffixed path should NOT be replaced\ngot: %s", got)
+	if !strings.HasPrefix(gomod, "module "+modPath) {
+		t.Errorf("go.mod.tmpl should start with module %s\ngot: %s", modPath, gomod)
 	}
 }
 
@@ -127,41 +87,12 @@ func TestCopyTreeNonGoSkipsRenaming(t *testing.T) {
 
 	writeFile(t, filepath.Join(src, "main.go"), "package main")
 
-	if err := copyTree(src, dest, ""); err != nil {
+	if err := copyTree(src, dest, false); err != nil {
 		t.Fatalf("copyTree: %v", err)
 	}
 
 	assertExists(t, filepath.Join(dest, "main.go"))
 	assertNotExists(t, filepath.Join(dest, "main.go.tmpl"))
-}
-
-func TestGoModulePath(t *testing.T) {
-	tests := []struct {
-		name    string
-		content string
-		want    string
-	}{
-		{"plain", "module example.com/foo\n\ngo 1.27.0\n", "example.com/foo"},
-		{"tab separated", "module\texample.com/foo\n", "example.com/foo"},
-		{"quoted", "module \"example.com/foo\"\n", "example.com/foo"},
-		{"comment before module", "// generated\nmodule example.com/foo\n", "example.com/foo"},
-		{"trailing comment", "module example.com/foo // indirect\n", "example.com/foo"},
-		{"adjacent comment", "module example.com/foo//comment\n", "example.com/foo"},
-		{"block form", "module (\n\texample.com/foo\n)\n", ""},
-		{"no module directive", "go 1.27.0\n\nrequire (\n)\n", ""},
-		{"no go.mod", "", ""},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			dir := t.TempDir()
-			if tt.content != "" {
-				writeFile(t, filepath.Join(dir, "go.mod"), tt.content)
-			}
-			if got := goModulePath(dir); got != tt.want {
-				t.Errorf("goModulePath() = %q, want %q", got, tt.want)
-			}
-		})
-	}
 }
 
 func TestMainRoleKey(t *testing.T) {
@@ -193,8 +124,8 @@ func TestMainRoleKey(t *testing.T) {
 
 	embedDir := filepath.Join(repo, "cli", "internal", "embed", "go", "acquirer")
 	mainTmpl := readFile(t, filepath.Join(embedDir, "cmd", "main.go.tmpl"))
-	if !strings.Contains(mainTmpl, `"{{MODULE_PATH}}/pkg"`) {
-		t.Errorf("main.go.tmpl should contain {{MODULE_PATH}}/pkg\ngot: %s", mainTmpl)
+	if !strings.Contains(mainTmpl, `"`+modPath+`/pkg"`) {
+		t.Errorf("main.go.tmpl should contain the real module path %s/pkg\ngot: %s", modPath, mainTmpl)
 	}
 	assertExists(t, filepath.Join(embedDir, "go.mod.tmpl"))
 

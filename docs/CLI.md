@@ -131,7 +131,7 @@ Checks run in this order, each on its own exit code:
 
 `init` records whether it created the target directory. When a later step fails it removes the directory only if it created it; a directory that existed beforehand is kept.
 
-What `--module` rewrites: the Go template is embedded with its module path replaced by `{{MODULE_PATH}}`, so `go.mod` becomes `module <path>` and the imports in `cmd/main.go` become `"<path>/internal"` and `"<path>/internal/handler"`.
+What `--module` rewrites: the Go template is embedded with its real module path preserved; at scaffold time the scaffolder reads the module directive from `go.mod.tmpl` and replaces it with the `--module` value, so `go.mod` becomes `module <path>` and the imports in `cmd/main.go` become `"<path>/internal"` and `"<path>/internal/handler"`.
 
 What `--repository` rewrites: the Java template declares `val sdkRepository = "jitpack"` in `build.gradle.kts`; `--repository=maven-central` rewrites that one line to `val sdkRepository = "maven-central"`. The build file itself selects the repository and the coordinates from that value — `https://jitpack.io` with `com.github.t-0-network:provider-sdk`, or Maven Central with `network.t-0:provider-sdk-java`. A release build of the CLI additionally pins both coordinates from `:+` to its own version; a `dev` build leaves `:+`.
 
@@ -160,7 +160,7 @@ Print the usage block above, exit 0.
 
 Steps, in the order they run and print:
 
-1. **Template extraction** — `[INFO] Extracting template files...` / `[OK] Template files extracted`. Every file under the embedded `internal/embed/<lang>/` is written into the target directory. File names and text contents have `my-provider` replaced by the project name and `MyProvider` by its PascalCase form; a `.tmpl` suffix is stripped; `dot-gitignore` becomes `.gitignore`; for Go, `{{MODULE_PATH}}` becomes the module path; for Java, the repository line and SDK pins described under `--repository`. Files with a binary extension (`.jar`, `.class`, `.exe`, `.png`, `.jpg`, `.gif`, `.ico`, `.zip`, `.gz`, `.tar`, `.woff`, `.woff2`, `.ttf`) are copied byte for byte. `gradlew` and `*.sh` are written with mode `0755`, everything else `0666` (before umask).
+1. **Template extraction** — `[INFO] Extracting template files...` / `[OK] Template files extracted`. Every file under the embedded `internal/embed/<lang>/` is written into the target directory. File names and text contents have `my-provider` replaced by the project name and `MyProvider` by its PascalCase form; a `.tmpl` suffix is stripped; `dot-gitignore` becomes `.gitignore`; for Go, the template's module path (read from `go.mod.tmpl`) becomes the `--module` value; for Java, the repository line and SDK pins described under `--repository`. Files with a binary extension (`.jar`, `.class`, `.exe`, `.png`, `.jpg`, `.gif`, `.ico`, `.zip`, `.gz`, `.tar`, `.woff`, `.woff2`, `.ttf`) are copied byte for byte. `gradlew` and `*.sh` are written with mode `0755`, everything else `0666` (before umask).
 2. **Keypair** — `[INFO] Generating secp256k1 keypair...` / `[OK] Keypair generated`.
 3. **`.env`** — `[INFO] Creating .env file...` / `[OK] Environment configured`. `.env.example` is read from the project; the first active `PROVIDER_PRIVATE_KEY=` line (or `PRIVATE_KEY=`) is replaced whole with the private key, and the marker line `# your_public_key_here` is replaced with `# <public key>`. A template with no marker gets `# Public key for the line above (share it with t-0): <public key>` inserted under the key line. The result is written to `.env` and `chmod 0600`; `.env` is written only when the template ships `.env.example`.
 4. **Completion output**.
@@ -270,7 +270,7 @@ The convention is `<lang>/starter/template/`; `generate.go` overrides it per lan
 //go:generate go run ./internal/sync go node python=python/starter/src/t0_provider_starter/template java csharp
 ```
 
-Every template is a buildable standalone project whose project name is the literal `my-provider` (PascalCase `MyProvider`, used by the C# namespace and the `<RootNamespace>` in the `.csproj`). Each ships `dot-gitignore` rather than `.gitignore`, because Gradle and NuGet packaging strip dotfiles; the scaffolder renames it. The Go template's own module path, `github.com/t-0-network/provider-sdk/go/starter/template`, is rewritten to `{{MODULE_PATH}}` when it is embedded. Python and Java templates ship a `README.md` that becomes the scaffolded project's README.
+Every template is a buildable standalone project whose project name is the literal `my-provider` (PascalCase `MyProvider`, used by the C# namespace and the `<RootNamespace>` in the `.csproj`). Each ships `dot-gitignore` rather than `.gitignore`, because Gradle and NuGet packaging strip dotfiles; the scaffolder renames it. The Go template keeps its real module path (`github.com/t-0-network/provider-sdk/go/starter/template`); the scaffolder reads it from `go.mod.tmpl` at scaffold time and replaces it with the `--module` value. Python and Java templates ship a `README.md` that becomes the scaffolded project's README.
 
 ---
 
@@ -279,7 +279,7 @@ Every template is a buildable standalone project whose project name is the liter
 `go generate ./...` in `cli/` runs `internal/sync`, which for each language deletes `cli/internal/embed/<lang>/` and copies the template in:
 
 - Skipped directories: `node_modules`, `dist`, `build`, `__pycache__`, `.venv`, `.git`, `.gradle`, `.idea`, `.vs`, `.DS_Store`, `obj`, `bin`, `.pytest_cache`, `.ruff_cache`. Skipped files: `.DS_Store`, `Thumbs.db`, `.env`, and every `.env.*` except `.env.example` — a developer's local key never enters the template.
-- Go only: `*.go`, `go.mod` and `go.sum` gain a `.tmpl` suffix so they are embedded as data rather than compiled into the CLI, and the module path is replaced with `{{MODULE_PATH}}` in text files.
+- Go only: `*.go`, `go.mod` and `go.sum` gain a `.tmpl` suffix so they are embedded as data rather than compiled into the CLI. The real module path is preserved; the scaffolder reads it from `go.mod.tmpl` at scaffold time.
 - The executable bit is preserved (`gradlew`), other files are written `0666`.
 
 `cli/internal/embed/` is generated output; `scaffold.go` embeds it with `//go:embed all:internal/embed`. A language with no directory under `internal/embed/` in the build fails at scaffold time with `template not found for lang=<lang> — run 'go generate ./...' first`.
@@ -294,7 +294,7 @@ Every template is a buildable standalone project whose project name is the liter
 |---|---|---|---|
 | `.github/workflows/cli-sync-config/usdt-pay-sdk.yaml` | `t-0-network/usdt-pay-sdk` | `sync cli` | `Sync unified CLI from provider-sdk` |
 
-[`cli_sync.yaml`](../.github/workflows/cli_sync.yaml) runs on a push to `master` that touches `cli/**` (with `cli/config.go`, `cli/generate.go`, `cli/start.sh` and `cli/start.ps1` excluded from the trigger), the workflow itself, or `.github/workflows/cli-sync-config/**`, and on `workflow_dispatch`. It mints a GitHub App token scoped to the target repository and runs `wadackel/files-sync-action@v4` with the product's config, which opens a pull request in the product repository overwriting these ten files at the same paths:
+[`cli_sync.yaml`](../.github/workflows/cli_sync.yaml) runs on a push to `master` that touches `cli/**` (with `cli/config.go`, `cli/generate.go`, `cli/start.sh` and `cli/start.ps1` excluded from the trigger), the workflow itself, or `.github/workflows/cli-sync-config/**`, and on `workflow_dispatch`. It mints a GitHub App token scoped to the target repository and runs `wadackel/files-sync-action@v4` with the product's config, which opens a pull request in the product repository overwriting these twelve files at the same paths:
 
 ```
 cli/main.go
@@ -305,11 +305,13 @@ cli/env.go
 cli/go.mod
 cli/go.sum
 cli/internal/sync/main.go
+cli/internal/gomod/gomod.go
+cli/internal/gomod/gomod_test.go
 cli/config_test.go
 cli/scaffold_test.go
 ```
 
-Everything else under `cli/` is owned by the repository it sits in and is never touched by the sync. In this repository that is `README.md`, `config.go`, `generate.go`, `starters_test.go`, `internal/sync/main_test.go`, `start.sh`, `start.ps1` and `internal/embed/`. A product repository keeps its own set alongside the ten synced files — its `config.go`, generator, tests, installers — which its own `docs/CLI.md` lists.
+Everything else under `cli/` is owned by the repository it sits in and is never touched by the sync. In this repository that is `README.md`, `config.go`, `generate.go`, `starters_test.go`, `internal/sync/main_test.go`, `start.sh`, `start.ps1` and `internal/embed/`. A product repository keeps its own set alongside the twelve synced files — its `config.go`, generator, tests, installers — which its own `docs/CLI.md` lists.
 
 ### The `CLIConfig` contract
 
@@ -330,7 +332,7 @@ Everything else under `cli/` is owned by the repository it sits in and is never 
 
 `ScaffoldOpts` carries `Lang`, `Role`, `ProjectName`, `ProjectDir`, `ModulePath`, `JavaRepo` and `Version` to `PostScaffold`.
 
-The rule: the ten synced files carry nothing product-specific — no product name, language list, coordinates, next steps or file (test fixtures that exercise the generic mechanism with concrete values are not product-specific) — and everything product-shaped lives behind `CLIConfig`. A downstream `config.go` that stops compiling after a sync is a breaking change of that contract; a new field's zero value must keep the existing behavior.
+The rule: the twelve synced files carry nothing product-specific — no product name, language list, coordinates, next steps or file (test fixtures that exercise the generic mechanism with concrete values are not product-specific) — and everything product-shaped lives behind `CLIConfig`. A downstream `config.go` that stops compiling after a sync is a breaking change of that contract; a new field's zero value must keep the existing behavior.
 
 ---
 
@@ -342,7 +344,8 @@ The rule: the ten synced files carry nothing product-specific — no product nam
 | `cli/scaffold_test.go` | synced | Embed paths are forward-slash; `toPascalCase` and `sanitizeProjectName` tables; a `PostScaffold` error keeps a pre-existing directory. |
 | `cli/starters_test.go` | this repository | Starter languages match `Config.Languages`; embedded templates have Dockerfile and exactly one dockerignore variant; every language scaffolds and yields `.gitignore`, `.env`, `Dockerfile`, `.dockerignore` without `dot-` variants and entry files; fresh private key, derived public key, `NETWORK_PUBLIC_KEY` equals example, `0600` permissions. |
 | `cli/keygen_test.go` | synced | Key format and uniqueness. |
-| `cli/internal/sync/main_test.go` | this repository | Skip lists; `.tmpl` renaming for Go only; `{{MODULE_PATH}}` replacement. |
+| `cli/internal/gomod/gomod_test.go` | synced | `ModulePath` parser: plain, tab-separated, quoted, comments, block form, missing. |
+| `cli/internal/sync/main_test.go` | this repository | Skip lists; `.tmpl` renaming for Go only; real module path preserved. |
 
 Locally:
 
@@ -383,4 +386,4 @@ Files whose contents must survive untouched need a binary extension from the lis
 2. Add `<lang>` to the `go:generate` line in `generate.go` and to `Languages` in `config.go`. Usage, validation and `TestRun_InstantiatesEveryStarter` follow from the list.
 3. Add the language's case to the `switch opts.Lang` in `printCompletion` in `main.go` — the step-2 heading and the run command. `main.go` is synced, so the case reaches every product on the next sync.
 4. Add a scaffold step and a compile-verify step for the language to `ci-cli.yaml`, and its template path to the workflow's `paths` lists.
-5. For a product that should offer the language: it adds its own `<lang>/starter/template/`, the `generate.go` entry and the `Languages` entry in its repository. The sync carries the ten files, never templates.
+5. For a product that should offer the language: it adds its own `<lang>/starter/template/`, the `generate.go` entry and the `Languages` entry in its repository. The sync carries the twelve files, never templates.

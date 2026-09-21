@@ -13,6 +13,7 @@ import (
 	"testing"
 
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
+	"github.com/t-0-network/provider-sdk/cli/internal/gomod"
 )
 
 func starterLangs(t *testing.T) []string {
@@ -111,6 +112,52 @@ func instantiate(t *testing.T, lang string) (string, string) {
 		t.Fatalf("run(%s): %v\n%s", lang, runErr, out)
 	}
 	return projectDir, out
+}
+
+func TestRun_GoModulePathReplacement(t *testing.T) {
+	projectDir, _ := instantiate(t, "go")
+
+	goMod, err := os.ReadFile(filepath.Join(projectDir, "go.mod"))
+	if err != nil {
+		t.Fatalf("reading go.mod: %v", err)
+	}
+	if !strings.HasPrefix(string(goMod), "module github.com/test/test-project\n") {
+		t.Errorf("go.mod should start with module github.com/test/test-project\ngot: %s", goMod)
+	}
+
+	mainGo, err := os.ReadFile(filepath.Join(projectDir, "cmd", "main.go"))
+	if err != nil {
+		t.Fatalf("reading cmd/main.go: %v", err)
+	}
+	if !strings.Contains(string(mainGo), `"github.com/test/test-project/internal"`) {
+		t.Errorf("cmd/main.go should import github.com/test/test-project/internal\ngot: %s", mainGo)
+	}
+
+	// Derive the template module path from the embedded go.mod.tmpl so this
+	// check stays effective when the template's module path changes.
+	goModTmpl, err := embeddedTemplates.ReadFile("internal/embed/go/go.mod.tmpl")
+	if err != nil {
+		t.Fatalf("reading embedded go.mod.tmpl: %v", err)
+	}
+	templateModule := gomod.ModulePath(goModTmpl)
+	if templateModule == "" {
+		t.Fatal("embedded go.mod.tmpl has no module directive")
+	}
+
+	filepath.WalkDir(projectDir, func(path string, d fs.DirEntry, err error) error {
+		if err != nil || d.IsDir() {
+			return err
+		}
+		data, err := os.ReadFile(path)
+		if err != nil {
+			return nil
+		}
+		if strings.Contains(string(data), templateModule) {
+			rel, _ := filepath.Rel(projectDir, path)
+			t.Errorf("%s still contains the template module path %q", rel, templateModule)
+		}
+		return nil
+	})
 }
 
 func TestStarters_HaveDockerfiles(t *testing.T) {
