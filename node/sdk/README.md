@@ -141,6 +141,21 @@ For custom proto registries (e.g. non-network schemas with custom predefined rul
 
 `createRequestDecoder` accepts the same `logger` option as `createService`. Response-validation failures from `encodeResponse` are logged at error level (`response_type`, `violations`, `sdk_version`) and returned as `500` with `violations` in the body. Each `Violation` includes `field`, `message`, and `ruleId` (the buf.validate rule identifier). Request-validation failures are returned in the 400 body but not logged, consistent with the Connect path.
 
+```ts
+import pino from "pino";
+
+const pinoLogger = pino();
+
+const decode = createRequestDecoder({
+  networkPublicKey: process.env.NETWORK_PUBLIC_KEY!,
+  logger: {
+    error: (msg, fields) => pinoLogger.error(fields, msg),
+  },
+});
+```
+
+If omitted, the SDK logs to **stderr** as a single JSON line per event (same default as `createService`).
+
 **Important constraints for standalone integrations:**
 
 - **Raw body bytes only.** Pass the exact wire bytes — no body parsers, no auto-decompression, never re-serialized protobuf. Protobuf encoding is not canonical; re-encoding produces different bytes and breaks verification.
