@@ -36,8 +36,8 @@ github.com/rodaine/protogofakeit v0.1.1 h1:ZKouljuRM3A+TArppfBqnH8tGZHOwM/pjvtXe
 github.com/rodaine/protogofakeit v0.1.1/go.mod h1:pXn/AstBYMaSfc1/RqH3N82pBuxtWgejz1AlYpY1mI0=
 github.com/stretchr/testify v1.12.1 h1:EuwCh5fleGS7H32xRwO3wRGT7DxrDhLAT6FF8MpWDWE=
 github.com/stretchr/testify v1.12.1/go.mod h1:MDEgiDPPsNp5cuIrHPPCyornHKgEVbtFUmoNlxoYthg=
-github.com/t-0-network/provider-sdk/go v1.1.42 h1:5xhn82OA0no3/50TW7p4H+2D0lsvttWXXNmScJLlmL4=
-github.com/t-0-network/provider-sdk/go v1.1.42/go.mod h1:ej7RxWLjuibzeYjvrdaSnuq+LSUw294fOyWoS2gQagE=
+github.com/t-0-network/provider-sdk/go v1.1.43 h1:eWwzcsJiDKTC0rll8tR+Y1twNU5kGbLHNR1Y4KYBPhs=
+github.com/t-0-network/provider-sdk/go v1.1.43/go.mod h1:ej7RxWLjuibzeYjvrdaSnuq+LSUw294fOyWoS2gQagE=
 go.yaml.in/yaml/v3 v3.0.5 h1:N6y/pJk8buWs9NY5ERU2HSMfm+IuD/OtfdAnq6kESPw=
 go.yaml.in/yaml/v3 v3.0.5/go.mod h1:HVTZu1O7/Vkt2N+BFy8Zza+lnLsABggaTM2ZpNIGuKg=
 golang.org/x/crypto v0.56.0 h1:GUh5Ii4J5jtcseSMiRqr1jXCNHoxjeV9Fmekc2oLy6Y=
