@@ -3,4 +3,4 @@
 // release.yaml workflow.
 package sdkversion
 
-const Version = "1.1.43"
+const Version = "1.1.44"
