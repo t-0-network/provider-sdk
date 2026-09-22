@@ -190,7 +190,6 @@ TimestampOutOfRangeError, UnknownPublicKeyError, SignatureFailedError
 Docs live in the top-level [`docs/python/`](../../docs/python/) directory:
 - [`ARCHITECTURE.md`](../../docs/python/ARCHITECTURE.md) — comprehensive architecture guide
 - [`PITFALLS.md`](../../docs/python/PITFALLS.md) — critical gotchas and lessons learned
-- [`PLAN.md`](../../docs/python/PLAN.md) — detailed implementation plan
 
 ## Git Workflow
 
