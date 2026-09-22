@@ -135,6 +135,8 @@ createService(networkPublicKeyHex, (r) => { /* ... */ }, {
 
 Same shape works for winston, bunyan, or any custom transport — the SDK only needs `error(msg, fields)` to exist.
 
+The same `logger` object is accepted by `createRequestDecoder`, so standalone integrations (Hono, Fastify, etc.) get the same structured error lines for response-validation failures.
+
 ## Deployment
 
 ```bash

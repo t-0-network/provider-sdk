@@ -3,27 +3,16 @@ import type { Interceptor } from "@connectrpc/connect";
 import { createValidator } from "@bufbuild/protovalidate";
 import { createValidateInterceptor } from "@connectrpc/validate";
 import type { DescMessage, MessageShape, Registry } from "@bufbuild/protobuf";
+import type { Logger } from "./logger.js";
+import { defaultLogger } from "./logger.js";
 
-/**
- * Minimal logger contract accepted by the SDK. Providers may pass `console`
- * directly, or adapt their preferred logger (e.g. pino) with:
- *
- *   { error: (msg, fields) => pinoInstance.error(fields, msg) }
- */
-export interface Logger {
-  error(msg: string, fields?: Record<string, unknown>): void;
-}
+export type { Logger } from "./logger.js";
 
 export interface ValidationInterceptorOptions {
   logger?: Logger;
   registry?: Registry;
+  version?: string;
 }
-
-const defaultLogger: Logger = {
-  error: (msg, fields) =>
-    // eslint-disable-next-line no-console
-    console.error(JSON.stringify({ msg, ...(fields ?? {}) })),
-};
 
 /**
  * Creates a ConnectRPC interceptor that validates requests and responses
@@ -54,21 +43,26 @@ export function createValidationInterceptor(loggerOrOptions?: Logger | Validatio
       const violations = result.violations.map((v) => ({
         field: v.field?.toString() ?? "",
         message: v.message,
+        ruleId: v.ruleId,
       }));
       const details = violations.map((v) => `${v.field}: ${v.message}`).join("; ");
-      logger.error("response validation failed", {
+      const fields: Record<string, unknown> = {
         rpc_method: `${req.service.typeName}/${req.method.name}`,
         response_type: schema.typeName,
         violations,
-      });
+      };
+      if (opts.version) fields.sdk_version = opts.version;
+      logger.error("response validation failed", fields);
       throw new ConnectError(`response validation failed: ${details}`, Code.Internal);
     }
     if (result.kind === "error") {
-      logger.error("response validation error", {
+      const fields: Record<string, unknown> = {
         rpc_method: `${req.service.typeName}/${req.method.name}`,
         response_type: schema.typeName,
         error: result.error.message,
-      });
+      };
+      if (opts.version) fields.sdk_version = opts.version;
+      logger.error("response validation error", fields);
       throw new ConnectError(`response validation error: ${result.error.message}`, Code.Internal);
     }
 

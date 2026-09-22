@@ -11,7 +11,8 @@ import {
   AppendLedgerEntriesRequest_Transaction_PayoutSchema,
 } from '../src/common/gen/tzero/v1/payment/provider_pb.js';
 import { create } from '@bufbuild/protobuf';
-import { createValidationInterceptor } from '../src/service/validate_response.js';
+import { createValidationInterceptor, createNetworkValidationInterceptor } from '../src/service/validate_response.js';
+import { SDK_VERSION } from '../src/version.js';
 
 const validator = createValidator();
 
@@ -147,7 +148,9 @@ describe('Validation interceptor', () => {
     assert.equal(fields.rpc_method, 'test.Service/Test');
     assert.equal(fields.response_type, DecimalSchema.typeName);
     assert.ok(Array.isArray(fields.violations));
-    assert.ok((fields.violations as unknown[]).length > 0, 'at least one violation reported');
+    const violations = fields.violations as Array<{ field: string; message: string; ruleId?: string }>;
+    assert.ok(violations.length > 0, 'at least one violation reported');
+    assert.ok(violations[0].ruleId !== undefined, 'ruleId present on violations');
   });
 
   it('custom logger is NOT called on valid response', async () => {
@@ -186,5 +189,44 @@ describe('Validation interceptor', () => {
       return true;
     });
     assert.equal(called, false, 'next should not be called for invalid request');
+  });
+});
+
+describe('createNetworkValidationInterceptor', () => {
+  it('logs sdk_version from SDK_VERSION on response validation failure', async () => {
+    const calls: Array<{ msg: string; fields?: Record<string, unknown> }> = [];
+    const logger = {
+      error: (msg: string, fields?: Record<string, unknown>) => {
+        calls.push({ msg, fields });
+      },
+    };
+    const netInterceptor = createNetworkValidationInterceptor(logger);
+    const handler = netInterceptor((req: any) =>
+      Promise.resolve({ stream: false, header: new Headers(), trailer: new Headers(), message: create(DecimalSchema, { exponent: 100 }) })
+    );
+
+    function makeReqLocal(message: Decimal) {
+      return {
+        stream: false as const,
+        service: { typeName: 'test.Service' },
+        method: { name: 'Test', kind: 0, input: DecimalSchema, output: DecimalSchema, idempotency: undefined },
+        header: new Headers(),
+        contextValues: undefined,
+        message,
+      };
+    }
+
+    await assert.rejects(
+      () => handler(makeReqLocal(create(DecimalSchema, { exponent: 2 }))),
+      (err: any) => {
+        assert.ok(err instanceof ConnectError);
+        assert.equal(err.code, Code.Internal);
+        return true;
+      },
+    );
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].fields!.sdk_version, SDK_VERSION, 'sdk_version equals SDK_VERSION');
+    const violations = calls[0].fields!.violations as Array<{ ruleId?: string }>;
+    assert.ok(violations[0].ruleId !== undefined, 'ruleId present');
   });
 });

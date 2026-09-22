@@ -5,8 +5,8 @@ import { file_tzero_v1_payment_network } from "../common/gen/tzero/v1/payment/ne
 import type { Logger } from "../common/validation.js";
 import { createValidationInterceptor } from "../common/validation.js";
 import { createRequestDecoder as createBaseRequestDecoder } from "../common/crypto/decode.js";
-import type { RequestDecoder } from "../common/crypto/decode.js";
-import type { CreateVerifierOptions } from "../common/crypto/request.js";
+import type { CreateDecoderOptions, RequestDecoder } from "../common/crypto/decode.js";
+import { SDK_VERSION } from "../version.js";
 
 // Re-export everything from the common layer for backward compatibility.
 export { createValidationInterceptor, type Logger, type ValidationInterceptorOptions } from "../common/validation.js";
@@ -25,14 +25,14 @@ export const networkRegistry = createRegistry(
  * Validation interceptor pre-configured for the t-0 network provider contract.
  */
 export function createNetworkValidationInterceptor(logger?: Logger): Interceptor {
-  return createValidationInterceptor({ logger, registry: networkRegistry });
+  return createValidationInterceptor({ logger, registry: networkRegistry, version: SDK_VERSION });
 }
 
 /**
  * Request decoder pre-configured for the t-0 network provider contract.
  */
-export function createRequestDecoder(opts: CreateVerifierOptions): RequestDecoder {
-  return createBaseRequestDecoder({ ...opts, registry: networkRegistry });
+export function createRequestDecoder(opts: Omit<CreateDecoderOptions, 'registry'>): RequestDecoder {
+  return createBaseRequestDecoder({ ...opts, registry: networkRegistry, version: opts.version ?? SDK_VERSION });
 }
 
 /**

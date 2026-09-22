@@ -4,9 +4,13 @@ import { createValidator } from '@bufbuild/protovalidate';
 import { createRequestVerifier, rejectRequest } from './request.js';
 import type { CreateVerifierOptions, RejectedRequest } from './request.js';
 import NetworkHeaders from '../headers.js';
+import type { Logger } from '../logger.js';
+import { defaultLogger } from '../logger.js';
 
 export interface CreateDecoderOptions extends CreateVerifierOptions {
   registry?: Registry;
+  logger?: Logger;
+  version?: string;
 }
 
 export type IncomingHeaders =
@@ -23,6 +27,7 @@ export type WireFormat = 'json' | 'proto';
 export interface Violation {
   field: string;
   message: string;
+  ruleId?: string;
 }
 
 export type DecodeError =
@@ -35,6 +40,7 @@ export interface WireResponse {
   status: number;
   headers: Record<string, string>;
   body: string | Uint8Array<ArrayBuffer>;
+  violations?: Violation[];
 }
 
 export type DecodeRequestFailure =
@@ -93,6 +99,8 @@ export function createRequestDecoder(opts: CreateDecoderOptions): RequestDecoder
   const verify = createRequestVerifier(opts);
   const validator = createValidator(opts.registry ? { registry: opts.registry } : undefined);
   const textDecoder = new TextDecoder('utf-8', { fatal: true });
+  const logger: Logger = opts.logger ?? defaultLogger;
+  const version = opts.version;
 
   return <Desc extends DescMessage>(schema: Desc, req: IncomingRequest): DecodeRequestResult<Desc> => {
     const body = normalizeBody(req.body);
@@ -129,6 +137,7 @@ export function createRequestDecoder(opts: CreateDecoderOptions): RequestDecoder
       const violations: Violation[] = valResult.violations.map(v => ({
         field: v.field?.toString() ?? '',
         message: v.message,
+        ruleId: v.ruleId,
       }));
       return {
         ok: false,
@@ -136,16 +145,48 @@ export function createRequestDecoder(opts: CreateDecoderOptions): RequestDecoder
       };
     }
     if (valResult.kind === 'error') {
+      const fields: Record<string, unknown> = {
+        request_type: schema.typeName,
+        error: valResult.error.message,
+      };
+      if (version) fields.sdk_version = version;
+      logger.error("request validation error", fields);
       return { ok: false, error: failResponse(500, 'internal', `Validation error: ${valResult.error.message}`, 'validation_error') };
     }
 
     const encodeResponse = <R extends DescMessage>(respSchema: R, resp: MessageShape<R>): WireResponse => {
       const respVal = validator.validate(respSchema, resp);
-      if (respVal.kind === 'invalid' || respVal.kind === 'error') {
+      if (respVal.kind === 'invalid') {
+        const violations: Violation[] = respVal.violations.map(v => ({
+          field: v.field?.toString() ?? '',
+          message: v.message,
+          ruleId: v.ruleId,
+        }));
+        const details = violations.map(v => `${v.field}: ${v.message}`).join('; ');
+        const fields: Record<string, unknown> = {
+          response_type: respSchema.typeName,
+          violations,
+        };
+        if (version) fields.sdk_version = version;
+        logger.error("response validation failed", fields);
         return {
           status: 500,
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code: 'internal', message: 'Response validation failed' }),
+          body: JSON.stringify({ code: 'internal', message: `response validation failed: ${details}`, violations }),
+          violations,
+        };
+      }
+      if (respVal.kind === 'error') {
+        const fields: Record<string, unknown> = {
+          response_type: respSchema.typeName,
+          error: respVal.error.message,
+        };
+        if (version) fields.sdk_version = version;
+        logger.error("response validation error", fields);
+        return {
+          status: 500,
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code: 'internal', message: `response validation error: ${respVal.error.message}` }),
         };
       }
       if (format === 'json') {

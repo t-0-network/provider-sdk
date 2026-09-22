@@ -139,6 +139,8 @@ The decoder accepts both fetch `Headers` and Node's `Record<string, string | str
 
 For custom proto registries (e.g. non-network schemas with custom predefined rules), use the generic `createRequestDecoder` from `@t-0/provider-sdk/crypto` and pass your own `registry`.
 
+`createRequestDecoder` accepts the same `logger` option as `createService`. Response-validation failures from `encodeResponse` are logged at error level (`response_type`, `violations`, `sdk_version`) and returned as `500` with `violations` in the body. Each `Violation` includes `field`, `message`, and `ruleId` (the buf.validate rule identifier). Request-validation failures are returned in the 400 body but not logged, consistent with the Connect path.
+
 **Important constraints for standalone integrations:**
 
 - **Raw body bytes only.** Pass the exact wire bytes — no body parsers, no auto-decompression, never re-serialized protobuf. Protobuf encoding is not canonical; re-encoding produces different bytes and breaks verification.

@@ -107,7 +107,7 @@ export const createService = (
       collected.push(Health.typeName);
       origService(Health, createHealthServiceImpl(collected, options?.version));
     },
-    interceptors: [createSignatureVerification(networkPublicKey), createValidationInterceptor({ logger: options?.logger, registry: options?.registry })],
+    interceptors: [createSignatureVerification(networkPublicKey), createValidationInterceptor({ logger: options?.logger, registry: options?.registry, version: options?.version })],
     readMaxBytes: options?.maxBodySize ?? DEFAULT_MAX_BODY_SIZE,
     grpcWeb: false,
     contextValues: (req: any) => {

@@ -4,11 +4,12 @@ import { randomBytes } from 'node:crypto';
 import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { toJsonString, toBinary, create } from '@bufbuild/protobuf';
 import {
-  createRequestDecoder,
   computeDigest,
   rejectRequest,
 } from '../src/index.js';
+import { createRequestDecoder } from '../src/service/validate_response.js';
 import { createRequestDecoder as createGenericDecoder } from '../src/crypto/index.js';
+import { createRequestDecoder as createBaseDecoder } from '../src/common/crypto/decode.js';
 import {
   HealthCheckRequestSchema,
   HealthCheckResponseSchema,
@@ -18,6 +19,7 @@ import {
   DecimalSchema,
 } from '../src/common/gen/tzero/v1/common/common_pb.js';
 import { networkRegistry } from '../src/service/validate_response.js';
+import { SDK_VERSION } from '../src/version.js';
 
 function newKeypair() {
   const priv = Uint8Array.from(randomBytes(32));
@@ -37,6 +39,18 @@ function sign(body: Uint8Array, priv: Uint8Array) {
     'x-signature': '0x' + sigBytes.toString('hex'),
     'x-public-key': '0x' + Buffer.from(secp256k1.getPublicKey(priv, false)).toString('hex'),
     'x-signature-timestamp': String(ts),
+  };
+}
+
+function spyLogger() {
+  const calls: Array<{ msg: string; fields?: Record<string, unknown> }> = [];
+  return {
+    logger: {
+      error: (msg: string, fields?: Record<string, unknown>) => {
+        calls.push({ msg, fields });
+      },
+    },
+    calls,
   };
 }
 
@@ -292,11 +306,14 @@ describe('createRequestDecoder (generic)', () => {
     assert.ok(parsed.violations.length > 0);
   });
 
-  it('encodeResponse returns 500 on invalid response', () => {
+  it('encodeResponse returns 500 on invalid response with violations and log', () => {
     const { priv, publicKeyHex } = newKeypair();
+    const { logger, calls } = spyLogger();
     const decode = createGenericDecoder({
       networkPublicKey: publicKeyHex,
       registry: networkRegistry,
+      logger,
+      version: '1.2.3',
     });
 
     const validMsg = create(DecimalSchema, { unscaled: BigInt(100), exponent: -2 });
@@ -315,6 +332,114 @@ describe('createRequestDecoder (generic)', () => {
     assert.equal(wire.status, 500);
     const parsed = JSON.parse(wire.body as string);
     assert.equal(parsed.code, 'internal');
+    assert.match(parsed.message, /response validation failed:/);
+    assert.ok(Array.isArray(parsed.violations));
+    assert.ok(parsed.violations.length > 0);
+    assert.ok(parsed.violations[0].field);
+    assert.ok(parsed.violations[0].message);
+
+    assert.ok(Array.isArray(wire.violations));
+    assert.ok(wire.violations!.length > 0);
+    assert.equal(wire.violations![0].field, parsed.violations[0].field);
+
+    assert.equal(calls.length, 1, 'logger.error called once for response validation failure');
+    assert.equal(calls[0].msg, 'response validation failed');
+    const fields = calls[0].fields!;
+    assert.equal(fields.response_type, DecimalSchema.typeName);
+    assert.equal(fields.sdk_version, '1.2.3');
+    assert.ok(Array.isArray(fields.violations));
+    const logViolations = fields.violations as Array<{ field: string; message: string; ruleId?: string }>;
+    assert.ok(logViolations.length > 0);
+    assert.ok(logViolations[0].field);
+    assert.ok(logViolations[0].message);
+  });
+
+  it('logger not called on valid round-trip', () => {
+    const { priv, publicKeyHex } = newKeypair();
+    const { logger, calls } = spyLogger();
+    const decode = createGenericDecoder({
+      networkPublicKey: publicKeyHex,
+      logger,
+    });
+
+    const msg = create(HealthCheckRequestSchema, { service: 'test' });
+    const jsonBody = new TextEncoder().encode(toJsonString(HealthCheckRequestSchema, msg));
+    const headers = { ...sign(jsonBody, priv), 'content-type': 'application/json' };
+
+    const result = decode(HealthCheckRequestSchema, { body: jsonBody, headers });
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+
+    const wire = result.encodeResponse(HealthCheckRequestSchema, msg);
+    assert.equal(wire.status, 200);
+    assert.equal(calls.length, 0, 'logger not called on success');
+  });
+
+  it('logger not called on request-validation 400', () => {
+    const { priv, publicKeyHex } = newKeypair();
+    const { logger, calls } = spyLogger();
+    const decode = createGenericDecoder({
+      networkPublicKey: publicKeyHex,
+      registry: networkRegistry,
+      logger,
+    });
+
+    const msg = create(DecimalSchema, { unscaled: BigInt(100), exponent: 99 });
+    const jsonBody = new TextEncoder().encode(
+      toJsonString(DecimalSchema, msg, { registry: networkRegistry }),
+    );
+    const headers = { ...sign(jsonBody, priv), 'content-type': 'application/json' };
+
+    const result = decode(DecimalSchema, { body: jsonBody, headers });
+    assert.equal(result.ok, false);
+    if (result.ok) return;
+    assert.equal(result.error.status, 400);
+    assert.equal(calls.length, 0, 'logger not called on request validation failure');
+  });
+
+  it('request-validation violations include ruleId', () => {
+    const { priv, publicKeyHex } = newKeypair();
+    const decode = createGenericDecoder({
+      networkPublicKey: publicKeyHex,
+      registry: networkRegistry,
+    });
+
+    const msg = create(DecimalSchema, { unscaled: BigInt(100), exponent: 99 });
+    const jsonBody = new TextEncoder().encode(
+      toJsonString(DecimalSchema, msg, { registry: networkRegistry }),
+    );
+    const headers = { ...sign(jsonBody, priv), 'content-type': 'application/json' };
+
+    const result = decode(DecimalSchema, { body: jsonBody, headers });
+    assert.equal(result.ok, false);
+    if (result.ok) return;
+    const parsed = JSON.parse(result.error.body as string);
+    assert.ok(parsed.violations[0].ruleId !== undefined, 'ruleId present on request violations');
+  });
+
+  it('omits sdk_version from log fields when version is undefined', () => {
+    const { priv, publicKeyHex } = newKeypair();
+    const { logger, calls } = spyLogger();
+    const decode = createBaseDecoder({
+      networkPublicKey: publicKeyHex,
+      registry: networkRegistry,
+      logger,
+    });
+
+    const validMsg = create(DecimalSchema, { unscaled: BigInt(100), exponent: -2 });
+    const jsonBody = new TextEncoder().encode(
+      toJsonString(DecimalSchema, validMsg, { registry: networkRegistry }),
+    );
+    const headers = { ...sign(jsonBody, priv), 'content-type': 'application/json' };
+
+    const result = decode(DecimalSchema, { body: jsonBody, headers });
+    if (!result.ok) assert.fail('decode should succeed');
+
+    const badResponse = create(DecimalSchema, { unscaled: BigInt(100), exponent: 99 });
+    result.encodeResponse(DecimalSchema, badResponse);
+
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].fields!.sdk_version, undefined, 'sdk_version omitted when version not set');
   });
 });
 
@@ -353,6 +478,30 @@ describe('createRequestDecoder (network-preconfigured)', () => {
     const parsed = JSON.parse(result.error.body as string);
     assert.ok(parsed.violations.length > 0);
   });
+
+  it('logger passes through and sdk_version defaults to SDK_VERSION', () => {
+    const { priv, publicKeyHex } = newKeypair();
+    const { logger, calls } = spyLogger();
+    const decode = createRequestDecoder({ networkPublicKey: publicKeyHex, logger });
+
+    const validMsg = create(DecimalSchema, { unscaled: BigInt(100), exponent: -2 });
+    const jsonBody = new TextEncoder().encode(
+      toJsonString(DecimalSchema, validMsg, { registry: networkRegistry }),
+    );
+    const headers = { ...sign(jsonBody, priv), 'content-type': 'application/json' };
+
+    const result = decode(DecimalSchema, { body: jsonBody, headers });
+    if (!result.ok) assert.fail('decode should succeed');
+
+    const badResponse = create(DecimalSchema, { unscaled: BigInt(100), exponent: 99 });
+    const wire = result.encodeResponse(DecimalSchema, badResponse);
+    assert.equal(wire.status, 500);
+
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].msg, 'response validation failed');
+    assert.equal(calls[0].fields!.sdk_version, SDK_VERSION, 'sdk_version defaults to SDK_VERSION');
+    assert.ok(Array.isArray(calls[0].fields!.violations));
+  });
 });
 
 describe('createRequestDecoder (generic, from crypto subpath)', () => {
@@ -368,5 +517,30 @@ describe('createRequestDecoder (generic, from crypto subpath)', () => {
     assert.equal(result.ok, true);
     if (!result.ok) return;
     assert.equal(result.request.service, 'generic');
+  });
+
+  it('sdk_version defaults to SDK_VERSION from crypto subpath', () => {
+    const { priv, publicKeyHex } = newKeypair();
+    const { logger, calls } = spyLogger();
+    const decode = createGenericDecoder({
+      networkPublicKey: publicKeyHex,
+      registry: networkRegistry,
+      logger,
+    });
+
+    const validMsg = create(DecimalSchema, { unscaled: BigInt(100), exponent: -2 });
+    const jsonBody = new TextEncoder().encode(
+      toJsonString(DecimalSchema, validMsg, { registry: networkRegistry }),
+    );
+    const headers = { ...sign(jsonBody, priv), 'content-type': 'application/json' };
+
+    const result = decode(DecimalSchema, { body: jsonBody, headers });
+    if (!result.ok) assert.fail('decode should succeed');
+
+    const badResponse = create(DecimalSchema, { unscaled: BigInt(100), exponent: 99 });
+    result.encodeResponse(DecimalSchema, badResponse);
+
+    assert.equal(calls.length, 1);
+    assert.equal(calls[0].fields!.sdk_version, SDK_VERSION, 'crypto subpath also defaults sdk_version');
   });
 });
