@@ -4,13 +4,13 @@ TypeScript SDK for building provider integrations with the T-0 Network. All comm
 
 ## Quick Start
 
-Bootstrap a new provider project:
+Scaffold a new provider project:
 
 ```bash
-npx @t-0/provider-starter-ts
+t0-init init --lang=node my-provider
 ```
 
-See [starter README](../starter/README.md) for details on the generated project.
+Installation and options: [cli/README.md](../../cli/README.md). What `init` creates: [starter template README](../starter/template/README.md).
 
 ## Installation
 

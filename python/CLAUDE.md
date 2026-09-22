@@ -42,12 +42,7 @@ python/
 │       ├── common/             # headers
 │       ├── network/            # signing transport, client factory
 │       └── provider/           # middleware, interceptor, handler
-├── starter/                    # t0-provider-starter CLI package
-│   ├── pyproject.toml
-│   ├── template/               # Project template (force-included in wheel)
-│   └── src/t0_provider_starter/
-│       ├── cli.py              # Click-based CLI entry point
-│       └── keygen.py           # secp256k1 keypair generation
+├── starter/template/           # Project template (scaffolded by the unified CLI)
 └── tests/
     └── cross_test/             # Go interop tests (uses shared cross_test/go_helper/)
         ├── test_cross_signature.py   # Crypto interop (hash, sign, verify)
@@ -83,15 +78,6 @@ buf generate             # Generate Python + ConnectRPC stubs into src/t0_provid
 ```
 
 Generated code is committed to the repository.
-
-## Starter CLI
-
-```bash
-uvx t0-provider-starter my_provider       # Create new project
-uvx t0-provider-starter my_provider -d .  # Create in current directory
-```
-
-The CLI generates a complete project with `.env` (private key auto-generated), `pyproject.toml`, `Dockerfile`, and provider service stubs.
 
 ## Cross-Tests with Go SDK
 
@@ -192,12 +178,11 @@ DEFAULT_BASE_URL, DEFAULT_TIMEOUT
 TimestampOutOfRangeError, UnknownPublicKeyError, SignatureFailedError
 ```
 
-## Starter Template System
+## Starter Template
 
-- Template files in `starter/template/`
+- Template files in `starter/template/`, scaffolded by the unified CLI (`cli/`)
 - `my-provider` literal replaced with the project name during scaffolding
 - `.env` created from `.env.example` with auto-generated private key
-- Template directory included in wheel via `force-include` in hatch config
 - `template/pyproject.toml` `dependencies` are **customer-facing** and independent of the workspace `python/pyproject.toml` dev pins — Dependabot does not touch them. Bump explicitly with a safety analysis: grep `template/src/**` for the dep's actual usage and confirm an existing pytest path covers the same API surface on the new version.
 
 ## Documentation
@@ -205,7 +190,6 @@ TimestampOutOfRangeError, UnknownPublicKeyError, SignatureFailedError
 Docs live in the top-level [`docs/python/`](../../docs/python/) directory:
 - [`ARCHITECTURE.md`](../../docs/python/ARCHITECTURE.md) — comprehensive architecture guide
 - [`PITFALLS.md`](../../docs/python/PITFALLS.md) — critical gotchas and lessons learned
-- [`PLAN.md`](../../docs/python/PLAN.md) — detailed implementation plan
 
 ## Git Workflow
 

@@ -32,13 +32,13 @@ Everything non-crypto — dev-only, routine, and behavior/strictness bumps alike
 Dependabot's `ci-batch` entries use allowlist `patterns` in `.github/dependabot.yml`. A newly added non-crypto dependency is not in any allowlist, so Dependabot raises it as a solo PR (one dependency, one directory). Once you confirm it is non-crypto, add it to the matching ecosystem's `patterns` list so future bumps land in the batch.
 
 The crypto exclusion list (never add to any allowlist):
-`golang.org/x/crypto`, `github.com/btcsuite/*`, `github.com/decred/*`, `github.com/ethereum/go-ethereum`, `@noble/*`, `coincurve`, `pycryptodome`, `org.bouncycastle:*`, `BouncyCastle.Cryptography`
+`golang.org/x/crypto`, `github.com/btcsuite/*`, `github.com/decred/*`, `@noble/*`, `coincurve`, `pycryptodome`, `org.bouncycastle:*`, `BouncyCastle.Cryptography`
 
 ### Tier 3 — crypto / security path
 
 Identification is principle-based, not a hard-coded list — a future crypto dep must not silently slip into Tier 1. A dep is Tier 3 if **any** of these hold:
 
-- It is imported (directly or transitively reachable) by code that produces or verifies the request signature, computes the request digest, derives keys, or validates the signature timestamp. Trace from the per-language signer/verifier entry points: `go/crypto/`, `node/sdk/src/client/signer.ts` + `node/sdk/src/service/service.ts`, `python/sdk/src/.../crypto/`, `java/sdk/src/main/java/.../crypto/`, `csharp/sdk/T0.ProviderSdk/Crypto/`.
+- It is imported (directly or transitively reachable) by code that produces or verifies the request signature, computes the request digest, derives keys, or validates the signature timestamp. Trace from the per-language signer/verifier entry points: `go/crypto/`, `cli/keygen.go`, `node/sdk/src/client/signer.ts` + `node/sdk/src/service/service.ts`, `python/sdk/src/.../crypto/`, `java/sdk/src/main/java/.../crypto/`, `csharp/sdk/T0.ProviderSdk/Crypto/`.
 - It is consumed by tests under `cross_test/` or by the per-language consumers of `cross_test/test_vectors.json` listed in the reference table below.
 - The package self-describes as crypto, hash, signature, curve, kdf, mac, or rng (e.g. anything in `@noble/*`, `org.bouncycastle:*`, `golang.org/x/crypto`, `coincurve`, `BouncyCastle.Cryptography`, `secp256k1`-named libs, etc. — these are illustrative, not exhaustive).
 
@@ -68,11 +68,12 @@ Manifests, build/test commands, version-inspection commands, single-dep bump com
 
 | Ecosystem | Manifest(s) | Install + build + test | Inspect installed version | Bump single dep |
 | --- | --- | --- | --- | --- |
-| Go | `go/go.mod`, `go/starter/go.mod`, `go/starter/template/go.mod` | `cd go && go test ./...` | `go list -m <pkg>` | edit `go.mod` → `go mod tidy` |
-| Node | `node/sdk/package.json`, `node/starter/package.json` | `cd node/sdk && npm ci && npm run build && npm test` | `npm ls <pkg>` | `npm install <pkg>@x.y.z` |
-| Python | `python/pyproject.toml` (workspace), `python/sdk/pyproject.toml` | `cd python && uv sync --all-packages && uv run pytest -v` | `uv pip show <pkg>` or `uv tree` | edit `pyproject.toml` → `uv sync --all-packages` |
-| Java | `java/sdk/build.gradle.kts`, `java/cli/build.gradle.kts`, `java/starter/build.gradle.kts` | `cd java && ./gradlew build` | `./gradlew :sdk:dependencyInsight --dependency <pkg>` | edit `build.gradle.kts` → `./gradlew build` |
-| C# | `csharp/sdk/T0.ProviderSdk/T0.ProviderSdk.csproj` and sibling projects | `cd csharp && dotnet build && dotnet test` | `dotnet list package` (per project) | `dotnet add package <pkg> -v x.y.z` |
+| Go SDK | `go/go.mod`, `go/starter/template/go.mod` | `cd go && go test ./...` | `go list -m <pkg>` | edit `go.mod` → `go mod tidy` |
+| Unified CLI | `cli/go.mod` | `cd cli && go generate ./... && go test ./...` | `go list -m <pkg>` | edit `go.mod` → `go mod tidy` |
+| Node | `node/sdk/package.json`, `node/starter/template/package.json` | `cd node/sdk && npm ci && npm run build && npm test` | `npm ls <pkg>` | `npm install <pkg>@x.y.z` |
+| Python | `python/pyproject.toml` (workspace), `python/sdk/pyproject.toml`, `python/starter/template/pyproject.toml` | `cd python && uv sync --all-packages && uv run pytest -v` | `uv pip show <pkg>` or `uv tree` | edit `pyproject.toml` → `uv sync --all-packages` |
+| Java | `java/sdk/build.gradle.kts`, `java/starter/template/build.gradle.kts` | `cd java && ./gradlew build` | `./gradlew :sdk:dependencyInsight --dependency <pkg>` | edit `build.gradle.kts` → `./gradlew build` |
+| C# | `csharp/sdk/T0.ProviderSdk/T0.ProviderSdk.csproj`, `csharp/starter/template/my-provider.csproj` | `cd csharp && dotnet build && dotnet test` | `dotnet list package` (per project) | `dotnet add package <pkg> -v x.y.z` |
 
 Cross-language test vector consumers (re-run these in Tier 3 step 6 to confirm byte-identical signature output across the bump):
 

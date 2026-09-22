@@ -1,4 +1,4 @@
-# CLAUDE.md - Go SDK & Starter
+# CLAUDE.md - Go SDK
 
 ## CRITICAL CRYPTOGRAPHIC REQUIREMENT
 
@@ -35,10 +35,7 @@ go/
 ├── network/              # Network client with signing transport
 ├── provider/             # Server, handler, signature verification middleware
 ├── examples/             # Usage examples (test files)
-├── starter/              # Starter CLI
-│   ├── main.go           # Generator: fetches template, rewrites imports, generates keys
-│   └── template/         # Embedded project template
-└── tools/                # Build tooling
+└── starter/template/     # Starter template (scaffolded by the unified CLI)
 ```
 
 ## Key Packages
@@ -52,10 +49,8 @@ go/
 
 ## Module Tags
 
-Three Go modules require separate tags for releases:
+The SDK module requires a separate tag for releases:
 - `go/vX.Y.Z` — SDK module
-- `go/starter/vX.Y.Z` — Starter CLI module
-- `go/starter/template/vX.Y.Z` — Template module
 
 ## Architecture Notes
 
@@ -67,12 +62,6 @@ Three Go modules require separate tags for releases:
 - Signature errors stored in context, converted to ConnectRPC errors by interceptor
 - Uses `github.com/decred/dcrd/dcrec/secp256k1/v4` for signing/verification
 - Uses `golang.org/x/crypto/sha3.NewLegacyKeccak256()` — must be Legacy variant, not standard SHA-3
-
-## Starter
-
-- Uses Go module cache to fetch template (`go mod download`)
-- Key generation uses `github.com/ethereum/go-ethereum/crypto`
-- Rewrites import paths in generated `.go` files to match the new module name
 
 ## Git Workflow
 

@@ -37,7 +37,7 @@ csharp/
 │   ├── T0Config.cs                   # Typed configuration
 │   └── T0ProviderServer.cs           # Server builder
 ├── sdk/T0.ProviderSdk.Tests/         # Unit tests
-└── starter/T0.ProviderStarter/       # Project scaffolding CLI
+└── starter/template/                 # Starter template (scaffolded by the unified CLI)
 ```
 
 ## Key Design Decisions

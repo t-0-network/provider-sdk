@@ -1,6 +1,6 @@
-# T-0 Network Provider Starter - Java
+# my-provider
 
-This is a starter template for building a provider integration with the T-0 Network.
+T-0 Network provider implementation generated from the official Java starter.
 
 ## Prerequisites
 

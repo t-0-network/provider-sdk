@@ -29,14 +29,10 @@ A constant compiled or bundled into the SDK, so the running server can report wh
 | Ecosystem | (A) Package version | (B) Starter-template pin | (C) Runtime constant |
 |---|---|---|---|
 | **Go** | `go/go.mod` (module path; tagged via git, not edited at release time) | `go/starter/template/go.mod` line 9 — `github.com/t-0-network/provider-sdk/go vX.Y.Z` (exact, rewritten by release) | `go/sdkversion/version.go` — `const Version = "X.Y.Z"` |
-| **Node SDK** | `node/sdk/package.json` — `"version"` | n/a (SDK isn't scaffolded) | `node/sdk/src/version.ts` — `export const SDK_VERSION = "X.Y.Z"` |
-| **Node Starter** | `node/starter/package.json` — `"version"` | `node/starter/template/package.json` — `"@t-0/provider-sdk": "^X.Y.Z"` (caret, rewritten by release) | n/a |
-| **Python SDK** | `python/sdk/pyproject.toml` — `version =` | n/a | `python/sdk/src/t0_provider_sdk/_version.py` — `__version__ = "X.Y.Z"` |
-| **Python Starter** | `python/starter/pyproject.toml` — `version =` | `python/starter/template/pyproject.toml` — `t0-provider-sdk>=0.1.0` (floor, **NOT bumped**) | n/a |
-| **Java SDK** | `java/gradle.properties` — `version=X.Y.Z` | n/a (the `cli` module is the starter) | `java/sdk/src/main/resources/META-INF/sdk-version.properties` — `sdk.version=X.Y.Z` (classpath resource) |
-| **Java CLI** | (uses same `gradle.properties`) | `java/starter/template/build.gradle.kts` — `provider-sdk:+` (latest, **NOT bumped**) | n/a |
-| **C# SDK** | `csharp/sdk/T0.ProviderSdk/T0.ProviderSdk.csproj` — `<Version>` | n/a | n/a (not implemented yet) |
-| **C# Starter** | `csharp/starter/T0.ProviderStarter/T0.ProviderStarter.csproj` — `<Version>` | `csharp/starter/template/my-provider.csproj` — `T0.ProviderSdk" Version="X.Y.Z"` (rewritten by release) | n/a |
+| **Node** | `node/sdk/package.json` — `"version"` | `node/starter/template/package.json` — `"@t-0/provider-sdk": "^X.Y.Z"` (caret, rewritten by release) | `node/sdk/src/version.ts` — `export const SDK_VERSION = "X.Y.Z"` |
+| **Python** | `python/sdk/pyproject.toml` — `version =` | `python/starter/template/pyproject.toml` — `t0-provider-sdk>=0.1.0` (floor, **NOT bumped**) | `python/sdk/src/t0_provider_sdk/_version.py` — `__version__ = "X.Y.Z"` |
+| **Java** | `java/gradle.properties` — `version=X.Y.Z` | `java/starter/template/build.gradle.kts` — `provider-sdk:+` (latest, **NOT bumped**) | `java/sdk/src/main/resources/META-INF/sdk-version.properties` — `sdk.version=X.Y.Z` (classpath resource) |
+| **C#** | `csharp/sdk/T0.ProviderSdk/T0.ProviderSdk.csproj` — `<Version>` | `csharp/starter/template/my-provider.csproj` — `T0.ProviderSdk" Version="X.Y.Z"` (rewritten by release) | n/a (not implemented yet) |
 
 ---
 
@@ -46,9 +42,9 @@ When a new SDK is published, customer projects scaffolded from the starter shoul
 
 | Strategy | Used by | Behaviour | Implication for customers |
 |---|---|---|---|
-| **Exact pin, rewritten on release** | Go (`vX.Y.Z`), C# (embedded `Version="X.Y.Z"`) | The starter literally references one version. The release workflow rewrites the line. | A customer who scaffolded **before** the bump keeps the old version until they re-run the starter or manually edit `go.mod` / regenerate from the new CLI. |
+| **Exact pin, rewritten on release** | Go (`vX.Y.Z`), C# (embedded `Version="X.Y.Z"`) | The template literally references one version. The release workflow rewrites the line. | A customer who scaffolded **before** the bump keeps the old version until they re-scaffold or manually edit `go.mod`. |
 | **Caret range, rewritten on release** | Node (`^X.Y.Z`) | Range allows minor/patch updates within the same major; release rewrites the floor. | `npm install` after a minor bump pulls the new version automatically. Re-scaffolding is unnecessary for minor/patch. |
-| **Floor only, NOT rewritten** | Python (`>=0.1.0`) | Lower bound only. `uv sync` / `pip install` always resolves to the newest published version. | Customers always get the latest by default. The starter never has to be re-released to bump SDK pins. |
+| **Floor only, NOT rewritten** | Python (`>=0.1.0`) | Lower bound only. `uv sync` / `pip install` always resolves to the newest published version. | Customers always get the latest by default. The template never has to be re-released to bump SDK pins. |
 | **Floating latest, NOT rewritten** | Java (`+`) | Gradle resolves to the newest published artifact every build. | Same as Python — but reproducibility relies on a lock file or pinning manually in their own `build.gradle.kts` if they want determinism. |
 
 Trade-off: exact-pin gives reproducible scaffolds at the cost of stale starters; floor/floating gives auto-upgrade at the cost of non-deterministic generation. We don't try to unify the strategies — we follow the convention of each ecosystem.
@@ -61,9 +57,9 @@ What a customer runs to pick up a new SDK version:
 |---|---|---|
 | Go | `go/starter/template/go.mod` line 9: `github.com/t-0-network/provider-sdk/go vX.Y.Z` (exact) | `go get -u github.com/t-0-network/provider-sdk/go && go mod tidy` |
 | Node | `node/starter/template/package.json`: `"@t-0/provider-sdk": "^X.Y.Z"` (caret) | `npm install` (lockfile bump within same major) |
-| Python | starter `pyproject.toml.template`: `"t0-provider-sdk>=0.1.0"` (floor) | `uv sync` (always picks latest) |
+| Python | `python/starter/template/pyproject.toml`: `"t0-provider-sdk>=0.1.0"` (floor) | `uv sync` (always picks latest) |
 | Java | `java/starter/template/build.gradle.kts`: `provider-sdk:+` (latest) | `./gradlew build --refresh-dependencies` |
-| C# | `csharp/starter/template/my-provider.csproj`: pinned per-CLI release | redownload starter CLI |
+| C# | `csharp/starter/template/my-provider.csproj`: pinned per release | re-scaffold or edit `.csproj` |
 
 ---
 
@@ -99,12 +95,10 @@ Skip any of those four and the next release will silently drift.
 
 ```bash
 # Package-level
-grep '^version' python/sdk/pyproject.toml python/starter/pyproject.toml
+grep '^version' python/sdk/pyproject.toml
 grep '^version' java/gradle.properties
 node -p "require('./node/sdk/package.json').version"
-node -p "require('./node/starter/package.json').version"
 grep '<Version>' csharp/sdk/T0.ProviderSdk/T0.ProviderSdk.csproj
-grep '<Version>' csharp/starter/T0.ProviderStarter/T0.ProviderStarter.csproj
 
 # Starter-template pins
 grep 'provider-sdk' go/starter/template/go.mod

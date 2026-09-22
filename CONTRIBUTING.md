@@ -13,14 +13,13 @@
 ```
 proto/          Shared protobuf definitions (source of truth)
 cli/            Unified starter CLI (t0-init), embeds every starter template
-go/             Go SDK + starter CLI
+go/             Go SDK + starter template
 node/sdk/       TypeScript SDK (@t-0/provider-sdk)
-node/starter/   TypeScript starter CLI (@t-0/provider-starter-ts)
+node/starter/   TypeScript starter template
 python/sdk/     Python SDK (t0-provider-sdk)
-python/starter/ Python starter CLI (t0-provider-starter)
+python/starter/ Python starter template
 java/sdk/       Java SDK (network.t-0:provider-sdk-java)
-java/cli/       Java provider-init CLI (GitHub Release JAR)
-java/starter/   Java starter template (embedded in CLI)
+java/starter/   Java starter template
 ```
 
 ## Development Setup
@@ -68,14 +67,6 @@ cd csharp && dotnet test                              # C# ↔ Go (included in t
 cd java
 chmod +x gradlew
 ./gradlew build --no-daemon
-```
-
-#### Testing the Init CLI
-
-```sh
-./gradlew :cli:shadowJar
-java -jar cli/build/libs/provider-init-*.jar my-test-project
-cd my-test-project && ./gradlew build
 ```
 
 ### Unified CLI
@@ -149,14 +140,9 @@ Run tests per language:
 - `StartServer()` returns immediately after confirming the server is listening (or 5s timeout). It returns a `ServerShutdownFn` for graceful shutdown (idempotent, safe for concurrent calls)
 - Default max request body size: 1 MB (configurable via `WithMaxBodySize`)
 
-**Starter:**
-- Uses Go module cache to fetch the template (`go mod download`)
-- Key generation uses `github.com/ethereum/go-ethereum/crypto`
-- The starter rewrites import paths in generated `.go` files to match the new module name
-
 **Module Tags:**
-- Three Go modules require separate tags: `go/vX.Y.Z`, `go/starter/vX.Y.Z`, `go/starter/template/vX.Y.Z`
-- The release workflow creates all three tags automatically
+- The SDK module requires a separate tag: `go/vX.Y.Z`
+- The release workflow creates this tag automatically
 
 ### Node/TypeScript
 
@@ -164,11 +150,6 @@ Run tests per language:
 - Dual ESM/CJS output: `lib/esm/` (via `tsconfig.esm.json`) and `lib/cjs/` (via `tsconfig.cjs.json`)
 - The middleware chain pattern: `signatureValidation(nodeAdapter(createService(...)))` -- `signatureValidation` streams raw bytes for hashing before ConnectRPC deserializes
 - Uses `@noble/secp256k1` for signing and `@noble/hashes` for Keccak-256
-
-**Starter:**
-- Key generation requires OpenSSL (`openssl ecparam` + `openssl ec`)
-- Uses `inquirer` for interactive prompts, `chalk` for colored output
-- Generates a complete git repository with `npm install` run automatically
 
 **Publishing:**
 - npm provenance requires GitHub-hosted runners (`ubuntu-latest`). Blacksmith/self-hosted runners are rejected by npm
@@ -220,12 +201,9 @@ Reference for porting changes from the Go SDK:
 ```
 java/
 ├── sdk/                    # Core SDK library (published to Maven Central + JitPack)
-├── cli/                    # Init CLI tool (published as GitHub Release asset)
-├── starter/template/       # Template for new projects (embedded in CLI)
+├── starter/template/       # Template for new projects (scaffolded by t0-init)
 └── gradle.properties       # Version management
 ```
-
-The CLI is a separate Gradle module because Java has no `go run`/`npx` equivalent -- it must be distributed as a self-contained fat JAR (Shadow JAR) with the template embedded as resources.
 
 **Publishing:**
 
@@ -233,9 +211,6 @@ The CLI is a separate Gradle module because Java has no `go run`/`npx` equivalen
 |----------|---------|-------------|
 | SDK | Maven Central | `network.t-0:provider-sdk-java` |
 | SDK | JitPack (alternative) | `com.github.t-0-network:provider-sdk` |
-| CLI | GitHub Releases | `provider-init.jar` |
-
-Only the SDK is published to Maven Central and JitPack. The CLI (`provider-init.jar`) is published exclusively via GitHub Releases because it is a one-time scaffolding tool, not a library dependency. Users download it, run it to generate a project, then delete it. The generated project depends on the SDK artifact (resolved by Gradle), not on the CLI. Publishing the CLI to Maven Central would add unnecessary signing, POM metadata, and review overhead for an artifact that no build tool ever resolves as a dependency.
 
 **Template Dual-Mode Build:**
 - When built as part of the SDK repo: uses `:sdk` project dependency

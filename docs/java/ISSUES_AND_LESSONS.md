@@ -25,14 +25,6 @@ Historical issues encountered during development, extracted from git history. Or
 
 **Also:** Tags don't use `v`-prefix (they're `1.0.33`, not `v1.0.33`), so the CLI must not prepend `v` when constructing the dependency version.
 
-## BufferedReader Stdin Bug (v1.0.33)
-
-**Problem:** When piping input to the CLI (`echo "name\n1" | java -jar provider-init.jar`), the repository prompt always received empty input regardless of what was piped.
-
-**Root cause:** `readLine()` created a new `BufferedReader(new InputStreamReader(System.in))` on every call. The first BufferedReader buffered all available stdin. The second call created a new BufferedReader over the now-empty stream.
-
-**Fix:** Store a single `BufferedReader` instance as a field and reuse it across all `readLine()` calls.
-
 ## Docker Build — Project Name in Install Path (v1.0.29)
 
 **Problem:** `docker build` failed with `COPY --from=build /app/build/install/provider/ ./` because the install directory was named after `rootProject.name` (the user's project name), not `provider`.
@@ -58,12 +50,6 @@ Historical issues encountered during development, extracted from git history. Or
 **Problem:** Template's `build.gradle.kts` used dependency group `network.t0` but the actual Maven Central group is `network.t-0` (with hyphen).
 
 **Fix:** Use `network.t-0:provider-sdk-java:<version>` for Maven Central dependencies.
-
-## CLI Distribution — GitHub Releases (v1.0.23)
-
-**Problem:** Publishing the CLI to Maven Central was unnecessary complexity. Users don't resolve the CLI as a Gradle dependency — they download and run the JAR directly.
-
-**Fix:** Removed CLI from Maven Central/JitPack publishing. CLI JAR is now uploaded as a GitHub Release asset by the Publish workflow. Users download via: `curl -fsSL -L https://github.com/t-0-network/provider-sdk/releases/latest/download/provider-init.jar -o provider-init.jar`
 
 ## Maven Central Publishing — JReleaser to NMCP Migration (v1.0.19)
 

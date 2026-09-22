@@ -6,7 +6,7 @@
 #     Dependabot raises them one dependency per PR. They follow the Tier 3 audit
 #     workflow. Never add them to a pattern below:
 #       golang.org/x/crypto, github.com/btcsuite/*, github.com/decred/*,
-#       github.com/ethereum/go-ethereum, @noble/*, coincurve, pycryptodome,
+#       @noble/*, coincurve, pycryptodome,
 #       org.bouncycastle:*, BouncyCastle.Cryptography
 #   * A new non-crypto dependency shows up as a solo PR until it is added to the
 #     matching allowlist.
@@ -34,7 +34,6 @@ updates:
   - package-ecosystem: "gomod"
     directories:
       - "/go"
-      - "/go/starter"
       - "/go/starter/template"
       - "/cli"
       - "/.github/tools/sumtool"
@@ -56,7 +55,6 @@ updates:
   - package-ecosystem: "npm"
     directories:
       - "/node/sdk"
-      - "/node/starter"
       - "/node/starter/template"      # no lockfile: only out-of-range bumps surface
     multi-ecosystem-group: "ci-batch"
     cooldown:
@@ -71,10 +69,6 @@ updates:
       - "tsx"
       - "ts-node"
       - "dotenv"
-      - "chalk"
-      - "commander"
-      - "fs-extra"
-      - "inquirer"
       - "tiny-invariant"
 
   - package-ecosystem: "uv"                                        # was "pip": pip never moved uv.lock
@@ -107,16 +101,14 @@ updates:
       - dependency-name: "network.t-0:provider-sdk-java"           # template, release-owned
       - dependency-name: "com.github.t-0-network:provider-sdk"
     patterns:
-      - "com.gradleup.*"              # nmcp, nmcp.aggregation, shadow  (fixes #334 + #342)
+      - "com.gradleup.*"              # nmcp, nmcp.aggregation  (fixes #334 + #342)
       - "build.buf*"                  # buf plugin id AND build.buf:protovalidate
       - "me.champeau.*"
-      - "org.jreleaser*"
       - "gradle-wrapper"
       - "io.grpc:*"                   # grpcVersion property -> 6 artifacts, one bump
       - "com.google.protobuf:*"
       - "org.slf4j:*"
       - "javax.annotation:*"
-      - "info.picocli:*"
       - "io.github.cdimascio:*"
       - "ch.qos.logback:*"
       - "org.junit.*"
@@ -124,7 +116,7 @@ updates:
       - "com.google.code.gson:*"
 
   - package-ecosystem: "nuget"
-    directory: "/csharp"                                           # discovers sdk, tests, starter, template
+    directory: "/csharp"                                           # discovers sdk, tests, template
     multi-ecosystem-group: "ci-batch"
     cooldown:
       default-days: 3

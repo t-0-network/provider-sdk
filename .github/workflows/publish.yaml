@@ -52,12 +52,6 @@ jobs:
           npm ci
           npm run build
 
-      - name: Build Starter
-        working-directory: node/starter
-        run: |
-          npm ci
-          npm run build
-
   build-java:
     name: Build Java
     runs-on: blacksmith-4vcpu-ubuntu-2404
@@ -107,7 +101,6 @@ jobs:
         run: |
           uv sync
           uv build --package t0-provider-sdk
-          uv build --package t0-provider-starter
 
   build-csharp:
     name: Build C#
@@ -190,13 +183,11 @@ jobs:
       # answers first — docs/RELEASE_AND_PUBLISH.md, "Things not to do here").
       # Lightweight tags need no git identity; re-running this job is safe — re-pushing an
       # identical tag is a no-op.
-      - name: Create and push Go module tags
+      - name: Create and push Go module tag
         run: |
           VERSION="${GITHUB_REF#refs/tags/v}"
           git tag "go/v${VERSION}"
-          git tag "go/starter/v${VERSION}"
-          git tag "go/starter/template/v${VERSION}"
-          git push origin "go/v${VERSION}" "go/starter/v${VERSION}" "go/starter/template/v${VERSION}"
+          git push origin "go/v${VERSION}"
 
       # Verify the template builds against the tagged SDK source using a local
       # file:// GOPROXY (same sumtool technique as release.yaml and ci-go.yaml).
@@ -255,47 +246,6 @@ jobs:
         working-directory: node/sdk
         run: npm publish --provenance --access public
 
-  publish-node-starter:
-    name: Publish Node Starter
-    # publish-node-sdk is in this list on purpose. The starter ships the
-    # template, whose package.json pins @t-0/provider-sdk at ^<this version>,
-    # and the scaffolder runs `npm install` in the generated project right
-    # away. If the starter reached npm first, anyone scaffolding in that window
-    # would be installing against an SDK version that is not published yet.
-    needs: [build-go, build-node, build-java, build-python, build-csharp, build-cli, publish-node-sdk]
-    # Must use github-hosted runner: npm --provenance requires it (Blacksmith = "self-hosted", rejected by npm)
-    runs-on: ubuntu-latest
-    permissions:
-      id-token: write
-      contents: read
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-        with:
-          show-progress: false
-
-      - name: Setup Node
-        uses: actions/setup-node@v7
-        with:
-          node-version: lts/*
-
-      - name: Verify Starter version matches tag
-        run: |
-          VERSION="${GITHUB_REF#refs/tags/v}"
-          PKG=$(node -p "require('./node/starter/package.json').version")
-          [ "$PKG" = "$VERSION" ] || { echo "::error::node/starter/package.json has $PKG, tag is v$VERSION"; exit 1; }
-          echo "Node Starter version $PKG matches tag"
-
-      - name: Build
-        working-directory: node/starter
-        run: |
-          npm ci
-          npm run build
-
-      - name: Publish
-        working-directory: node/starter
-        run: npm publish --provenance --access public
-
   publish-python-sdk:
     name: Publish Python SDK
     needs: [build-go, build-node, build-java, build-python, build-csharp, build-cli]
@@ -332,59 +282,16 @@ jobs:
         working-directory: python
         run: uv publish --trusted-publishing always dist/t0_provider_sdk-*
 
-  publish-python-starter:
-    name: Publish Python Starter
-    needs: [build-go, build-node, build-java, build-python, build-csharp, build-cli]
-    runs-on: blacksmith-4vcpu-ubuntu-2404
-    environment: pypi-starter
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-        with:
-          show-progress: false
-
-      - name: Setup Python
-        uses: actions/setup-python@v7
-        with:
-          python-version: "3.13"
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
-
-      - name: Verify Starter version matches tag
-        run: |
-          VERSION="${GITHUB_REF#refs/tags/v}"
-          PKG=$(grep '^version = ' python/starter/pyproject.toml | head -1 | sed 's/version = "\(.*\)"/\1/')
-          [ "$PKG" = "$VERSION" ] || { echo "::error::python/starter/pyproject.toml has $PKG, tag is v$VERSION"; exit 1; }
-          echo "Python Starter version $PKG matches tag"
-
-      - name: Build
-        working-directory: python
-        run: uv build --package t0-provider-starter
-
-      - name: Publish
-        working-directory: python
-        run: uv publish --trusted-publishing always dist/t0_provider_starter-*
-
   publish-java:
     name: Publish Java
     needs: [build-go, build-node, build-java, build-python, build-csharp, build-cli]
     # 2vcpu is sufficient — most time is spent polling Maven Central for deployment status
     runs-on: blacksmith-2vcpu-ubuntu-2404
     steps:
-      - name: Generate GitHub App Token
-        id: app-token
-        uses: actions/create-github-app-token@v3
-        with:
-          client-id: ${{ vars.CI_APP_CLIENT_ID }}
-          private-key: ${{ secrets.CI_APP_PRIVATE_KEY }}
-          owner: ${{ github.repository_owner }}
-          repositories: provider-sdk
-
       - name: Checkout
         uses: actions/checkout@v7
         with:
-          fetch-depth: 0
+          show-progress: false
 
       - name: Setup Java
         uses: actions/setup-java@v6
@@ -422,20 +329,6 @@ jobs:
           MAVEN_CENTRAL_USERNAME: ${{ vars.OSSRH_USERNAME }}
           MAVEN_CENTRAL_PASSWORD: ${{ secrets.OSSRH_PASSWORD }}
 
-      # Runs even if "Publish to Maven Central" failed — e.g. the version was already
-      # published in a prior/duplicate deployment (Central rejects re-publishing an existing
-      # version). The CLI jar must still reach the GitHub Release regardless. Uses the App
-      # token, not GITHUB_TOKEN, which the releases API now rejects (same fix as release.yaml).
-      - name: Upload provider-init.jar to GitHub Release
-        if: ${{ !cancelled() }}
-        working-directory: java
-        env:
-          GH_TOKEN: ${{ steps.app-token.outputs.token }}
-          VERSION: ${{ steps.version.outputs.version }}
-        run: |
-          cp cli/build/libs/provider-init-${VERSION}.jar cli/build/libs/provider-init.jar
-          gh release upload "v${VERSION}" cli/build/libs/provider-init.jar --clobber
-
   publish-csharp:
     name: Publish C# (NuGet)
     needs: [build-go, build-node, build-java, build-python, build-csharp, build-cli]
@@ -452,22 +345,16 @@ jobs:
         with:
           dotnet-version: "10.0.x"
 
-      - name: Verify SDK + Starter versions match tag
+      - name: Verify SDK version matches tag
         run: |
           VERSION="${GITHUB_REF#refs/tags/v}"
           SDK_VER=$(grep '<Version>' csharp/sdk/T0.ProviderSdk/T0.ProviderSdk.csproj | sed 's/.*<Version>\(.*\)<\/Version>.*/\1/')
-          STARTER_VER=$(grep '<Version>' csharp/starter/T0.ProviderStarter/T0.ProviderStarter.csproj | sed 's/.*<Version>\(.*\)<\/Version>.*/\1/')
-          [ "$SDK_VER" = "$VERSION" ]     || { echo "::error::C# SDK csproj has $SDK_VER, tag is v$VERSION"; exit 1; }
-          [ "$STARTER_VER" = "$VERSION" ] || { echo "::error::C# Starter csproj has $STARTER_VER, tag is v$VERSION"; exit 1; }
-          echo "C# SDK + Starter versions $VERSION match tag"
+          [ "$SDK_VER" = "$VERSION" ] || { echo "::error::C# SDK csproj has $SDK_VER, tag is v$VERSION"; exit 1; }
+          echo "C# SDK version $VERSION matches tag"
 
       - name: Pack SDK
         working-directory: csharp
         run: dotnet pack sdk/T0.ProviderSdk/T0.ProviderSdk.csproj -c Release
-
-      - name: Pack Starter
-        working-directory: csharp
-        run: dotnet pack starter/T0.ProviderStarter/T0.ProviderStarter.csproj -c Release
 
       - name: NuGet login (OIDC → temp API key)
         uses: NuGet/login@v1
@@ -477,9 +364,6 @@ jobs:
 
       - name: Publish SDK to NuGet
         run: dotnet nuget push csharp/sdk/T0.ProviderSdk/bin/Release/*.nupkg --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
-
-      - name: Publish Starter to NuGet
-        run: dotnet nuget push csharp/starter/T0.ProviderStarter/bin/Release/*.nupkg --api-key ${{ steps.nuget-login.outputs.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
 
   publish-cli:
     name: Publish Unified CLI

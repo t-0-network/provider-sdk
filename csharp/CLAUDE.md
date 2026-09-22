@@ -1,4 +1,4 @@
-# CLAUDE.md - C# SDK & Starter
+# CLAUDE.md - C# SDK
 
 ## CRITICAL CRYPTOGRAPHIC REQUIREMENT
 
@@ -20,7 +20,6 @@ VerifySignature(rawBodyBytes, signature);
 ```bash
 cd csharp/sdk/T0.ProviderSdk && dotnet build           # Build SDK
 cd csharp/sdk/T0.ProviderSdk.Tests && dotnet test       # Run tests
-cd csharp/starter/T0.ProviderStarter && dotnet build     # Build starter CLI
 ```
 
 ## Project Structure
@@ -37,7 +36,7 @@ csharp/
 │   ├── T0Config.cs               # Typed config with FromEnvironment()
 │   └── T0ProviderServer.cs       # Server builder (wraps ASP.NET Core)
 ├── sdk/T0.ProviderSdk.Tests/     # Unit tests (xUnit)
-└── starter/T0.ProviderStarter/   # Project scaffolding CLI (NuGet tool)
+└── starter/template/             # Starter template (scaffolded by the unified CLI)
 ```
 
 ## Key Classes
@@ -92,15 +91,9 @@ headers = { X-Public-Key: "0x...", X-Signature: "0x...", X-Signature-Timestamp: 
 | `provider.NewHttpHandler()` | `T0ProviderServer` |
 | `provider.StartServer()` | `T0ProviderServer.RunAsync()` |
 
-## Starter CLI
+## Starter Template
 
-```bash
-dotnet run --project starter/T0.ProviderStarter -- my-provider
-```
-
-Generates a complete provider project with `.env` (auto-generated keypair), `PaymentHandler`, `QuotePublisher`, `Dockerfile`, and `appsettings.json`.
-
-Template files live in `starter/template/` as a buildable standalone project using `my-provider` as the project name and `MyProvider` as the namespace. `TemplateFiles.cs` reads them from disk at runtime. The scaffolder replaces `my-provider` with the project name, `MyProvider` with the PascalCase name, and renames `dot-gitignore` → `.gitignore`.
+Template files live in `starter/template/` as a buildable standalone project using `my-provider` as the project name and `MyProvider` as the namespace. The unified CLI (`cli/`) scaffolds new projects from this template, replacing `my-provider` with the project name and `MyProvider` with the PascalCase name.
 
 ## Cross-Language Testing
 

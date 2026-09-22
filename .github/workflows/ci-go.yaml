@@ -63,12 +63,6 @@ jobs:
           git diff --exit-code go.work || (echo "go.work floor drifted; run 'go work use' in cross_test/go_helper and commit" && false)
           go vet ./... && go build -o go_helper .
 
-      # go/starter is its own module (published as go/starter/vX.Y.Z); the parent
-      # module's ./... never reaches it.
-      - name: Build legacy Go starter CLI
-        working-directory: go/starter
-        run: go vet ./... && go build ./...
-
       - name: Run Tests
         working-directory: go
         run: go test -v ./...

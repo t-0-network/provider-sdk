@@ -1,16 +1,14 @@
-# T-0 Provider Starter -- Go
+# my-provider
 
-CLI tool to scaffold a Go provider project for the T-0 Network.
+T-0 Network provider implementation generated from the official Go starter.
 
 ## Quick Start
 
 ```bash
-go run github.com/t-0-network/provider-sdk/go/starter@latest my-provider
+go run ./cmd
 ```
 
-This creates a ready-to-run project with a secp256k1 keypair, environment config, provider service stubs, and a Dockerfile.
-
-`t0-init init --lang=go my-provider` scaffolds the same template with the unified CLI and prints `go run ./cmd` as the next step -- installation and options are in [cli/README.md](../../cli/README.md).
+Share the provider public key (printed by the initializer; also on the comment line under `# Your provider's public key` in `.env`) with the T-0 team so t-0 can verify the requests you sign.
 
 ## Generated Project Structure
 
@@ -61,7 +59,7 @@ my-provider/
 
 1. Review the generated keys in `.env` -- share your public key (shown as a comment) with the T-0 team to register your provider.
 2. Edit `internal/publish_quotes.go` to implement your quote publishing logic.
-3. Start the development server: `go run ./cmd/main.go`
+3. Start the development server: `go run ./cmd`
 4. Verify quotes are received by the network.
 
 ### Phase 2: Payments
@@ -95,18 +93,11 @@ If you only play one role, delete the files for the other role and remove the co
 ## Available Commands
 
 ```bash
-go run ./cmd/main.go         # Run in development mode
+go run ./cmd             # Run in development mode
 go build -o provider ./cmd/  # Build for production
-go test ./...                # Run tests
-go fmt ./...                 # Format code
-go vet ./...                 # Static analysis
-```
-
-## Deployment
-
-```bash
-docker build -t my-provider:latest .
-docker run -p 8080:8080 --env-file .env my-provider:latest
+go test ./...            # Run tests
+go fmt ./...             # Format code
+go vet ./...             # Static analysis
 ```
 
 ## Configuring logging
@@ -152,14 +143,13 @@ return connect.NewResponse(resp), nil
 
 **Bridging to zap or zerolog**: both libraries expose `slog.Handler` adapters (`zap.NewSlogHandler`, `slogzerolog.NewHandler` and similar). Build your bridge handler and pass `slog.New(handler)` to `provider.WithLogger`.
 
+## Deployment
+
+```bash
+docker build -t my-provider:latest .
+docker run -p 8080:8080 --env-file .env my-provider:latest
+```
+
 ## SDK Reference
 
-For direct SDK usage (without the starter), see the [Go SDK documentation](../README.md).
-
-## Troubleshooting
-
-**"Directory already exists"** -- Choose a different project name.
-
-**"Go not found"** -- Install Go from [golang.org](https://golang.org/dl/) and ensure it's in your PATH.
-
-**Module download fails** -- Check your internet connection and Go module proxy settings: `go env GOPROXY`.
+For direct SDK usage (without the starter), see the [Go SDK documentation](https://github.com/t-0-network/provider-sdk/tree/master/go).

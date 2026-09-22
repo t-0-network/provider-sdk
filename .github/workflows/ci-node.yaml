@@ -40,12 +40,12 @@ jobs:
 
       # Test the starter template against the freshly built SDK.
       # The template has no lockfile (industry standard for scaffold
-      # tools — create.ts regenerates one via `npm install` at scaffold
-      # time). We pack the local SDK and install it directly so the
-      # template always tests against unreleased SDK changes, and CI
-      # works even on release commits where the new version isn't
-      # published to npm yet. --no-save and --package-lock=false keep test-only
-      # file paths out of the release-managed manifest and template.
+      # tools — the unified CLI prints `npm install` as the next step).
+      # We pack the local SDK and install it directly so the template
+      # always tests against unreleased SDK changes, and CI works even
+      # on release commits where the new version isn't published to npm
+      # yet. --no-save and --package-lock=false keep test-only file
+      # paths out of the release-managed manifest and template.
       - name: Pack SDK for template test
         working-directory: node/sdk
         run: npm pack

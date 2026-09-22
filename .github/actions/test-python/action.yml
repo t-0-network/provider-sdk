@@ -27,7 +27,6 @@ runs:
       working-directory: python
       run: |
         uv build --package t0-provider-sdk
-        uv build --package t0-provider-starter
 
     - name: Test
       shell: bash
