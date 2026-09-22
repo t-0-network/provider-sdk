@@ -3,11 +3,11 @@
 ## Create a New Provider
 
 ```bash
-t0-init init --lang=csharp my-provider
+curl -fsSL https://github.com/t-0-network/provider-sdk/releases/latest/download/start.sh | sh -s -- --lang=csharp my-provider
 cd my-provider
 ```
 
-Installation and options for `t0-init`: [`cli/README.md`](../../cli/README.md).
+All flags and the install-only form: [`cli/README.md`](../../cli/README.md).
 
 The initializer generates a complete project with:
 - `.env` with auto-generated secp256k1 keypair

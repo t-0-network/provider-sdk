@@ -10,13 +10,13 @@ Python SDK for building T-0 Network payment provider integrations. The SDK provi
 
 ## Quick Start
 
-Scaffold a new provider project:
+Scaffold a new provider project with one command:
 
 ```bash
-t0-init init --lang=python my_provider
+curl -fsSL https://github.com/t-0-network/provider-sdk/releases/latest/download/start.sh | sh -s -- --lang=python my_provider
 ```
 
-Installation and options: [cli/README.md](../cli/README.md). What `init` creates: [starter template README](starter/template/README.md).
+All flags and the install-only form: [cli/README.md](../cli/README.md). What `init` creates: [starter template README](starter/template/README.md).
 
 ## Installation
 

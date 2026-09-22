@@ -4,13 +4,13 @@ TypeScript SDK for building provider integrations with the T-0 Network. All comm
 
 ## Quick Start
 
-Scaffold a new provider project:
+Scaffold a new provider project with one command:
 
 ```bash
-t0-init init --lang=node my-provider
+curl -fsSL https://github.com/t-0-network/provider-sdk/releases/latest/download/start.sh | sh -s -- --lang=node my-provider
 ```
 
-Installation and options: [cli/README.md](../../cli/README.md). What `init` creates: [starter template README](../starter/template/README.md).
+All flags and the install-only form: [cli/README.md](../../cli/README.md). What `init` creates: [starter template README](../starter/template/README.md).
 
 ## Installation
 
