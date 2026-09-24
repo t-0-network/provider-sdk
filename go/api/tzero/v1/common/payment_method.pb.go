@@ -11,6 +11,7 @@ import (
 	protoreflect "google.golang.org/protobuf/reflect/protoreflect"
 	protoimpl "google.golang.org/protobuf/runtime/protoimpl"
 	descriptorpb "google.golang.org/protobuf/types/descriptorpb"
+	timestamppb "google.golang.org/protobuf/types/known/timestamppb"
 	reflect "reflect"
 	sync "sync"
 	unsafe "unsafe"
@@ -1673,12 +1674,10 @@ func (*PaymentDetails_IndonesianEWallet_) isPaymentDetails_Details() {}
 func (*PaymentDetails_ProviderDefined_) isPaymentDetails_Details() {}
 
 type PaymentDetails_Sepa struct {
-	state protoimpl.MessageState `protogen:"open.v1"`
-	// Check digits are 98 minus a MOD-97-10 remainder, so they always fall in
-	// 02-98. The BBAN that follows is 11 to 30 characters.
-	Iban             string `protobuf:"bytes,20,opt,name=iban,proto3" json:"iban,omitempty"`
-	BeneficiaryName  string `protobuf:"bytes,30,opt,name=beneficiary_name,json=beneficiaryName,proto3" json:"beneficiary_name,omitempty"`
-	PaymentReference string `protobuf:"bytes,40,opt,name=payment_reference,json=paymentReference,proto3" json:"payment_reference,omitempty"`
+	state            protoimpl.MessageState `protogen:"open.v1"`
+	Iban             string                 `protobuf:"bytes,20,opt,name=iban,proto3" json:"iban,omitempty"`
+	BeneficiaryName  string                 `protobuf:"bytes,30,opt,name=beneficiary_name,json=beneficiaryName,proto3" json:"beneficiary_name,omitempty"`
+	PaymentReference string                 `protobuf:"bytes,40,opt,name=payment_reference,json=paymentReference,proto3" json:"payment_reference,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
 }
@@ -2120,8 +2119,7 @@ func (*PaymentDetails_IndianBankTransfer_Imps) isPaymentDetails_IndianBankTransf
 
 type PaymentDetails_Swift struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Beneficiary's bank SWIFT/BIC code (8 or 11 characters). The party prefix is
-	// alphanumeric; the location code rejects the two positions no BIC can occupy.
+	// Beneficiary's bank SWIFT/BIC code (8 or 11 characters). The party prefix is alphanumeric.
 	SwiftCode string `protobuf:"bytes,10,opt,name=swift_code,json=swiftCode,proto3" json:"swift_code,omitempty"`
 	// Beneficiary's account number (format varies by country)
 	// Could be IBAN, account number, or other format
@@ -2721,28 +2719,40 @@ func (x *PaymentDetails_PakistanMobileWallet) GetPaymentReference() string {
 	return ""
 }
 
-// PIX - Brazilian instant payment system
-// PIX allows transfers using a Pix key (CPF, CNPJ, email, phone, or random EVP)
-// or traditional bank account details (bank code, branch, account number)
+// *
+// Pix payment instructions using a key pair, a BR Code, or both.
+// When br_code is present, it is the payment instruction to present to the payer.
 type PaymentDetails_Pix struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Pix key type - determines the format of pix_key_value
+	// *
+	// Pix key type; supplied together with key_value when a separate key is available.
+	// no validation: key presence is constrained by the message-level key-pair rule.
 	KeyType PaymentDetails_Pix_KeyType `protobuf:"varint,10,opt,name=key_type,json=keyType,proto3,enum=tzero.v1.common.PaymentDetails_Pix_KeyType" json:"key_type,omitempty"`
-	// Pix key value - format depends on pix_key_type:
-	// - CPF: 11 digits (e.g., "12345678901")
-	// - CNPJ: 14 digits (e.g., "12345678000195")
-	// - EMAIL: valid email address
-	// - PHONE: international format with country code (e.g., "+5511999999999")
-	// - EVP: 32-character UUID (e.g., "123e4567-e89b-12d3-a456-426614174000")
+	// *
+	// Pix key value; its format is determined by key_type.
+	// CPF: 11 digits; CNPJ: 14 digits; EMAIL: email address.
+	// PHONE: international format (e.g., "+5511999999999").
+	// EVP: UUID with hyphens (e.g., "123e4567-e89b-12d3-a456-426614174000").
 	KeyValue string `protobuf:"bytes,20,opt,name=key_value,json=keyValue,proto3" json:"key_value,omitempty"`
 	// Beneficiary's full name
 	BeneficiaryName string `protobuf:"bytes,30,opt,name=beneficiary_name,json=beneficiaryName,proto3" json:"beneficiary_name,omitempty"`
 	// (Optional) Beneficiary's CPF (11 digits) or CNPJ (14 digits) for verification
 	BeneficiaryTaxId *string `protobuf:"bytes,40,opt,name=beneficiary_tax_id,json=beneficiaryTaxId,proto3,oneof" json:"beneficiary_tax_id,omitempty"`
-	// (Optional) Payment description/reference
+	// *
+	// Payment reference; for QR-based payments, carries the Pix txid used for
+	// reconciliation, distinct from the payment's end-to-end ID.
 	PaymentReference *string `protobuf:"bytes,50,opt,name=payment_reference,json=paymentReference,proto3,oneof" json:"payment_reference,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// *
+	// Complete Pix Copia e Cola payload. Present it unchanged as copyable text or
+	// encode it unchanged into a QR image; do not substitute a transfer by key.
+	BrCode *string `protobuf:"bytes,60,opt,name=br_code,json=brCode,proto3,oneof" json:"br_code,omitempty"`
+	// *
+	// Provider-reported validity deadline for receipt of funds associated with
+	// br_code. Late-payment handling is agreed with the provider; absence means unspecified.
+	// no validation: historical expiry is valid; br_code presence is constrained at message level.
+	BrCodeExpiresAt *timestamppb.Timestamp `protobuf:"bytes,70,opt,name=br_code_expires_at,json=brCodeExpiresAt,proto3" json:"br_code_expires_at,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *PaymentDetails_Pix) Reset() {
@@ -2808,6 +2818,20 @@ func (x *PaymentDetails_Pix) GetPaymentReference() string {
 		return *x.PaymentReference
 	}
 	return ""
+}
+
+func (x *PaymentDetails_Pix) GetBrCode() string {
+	if x != nil && x.BrCode != nil {
+		return *x.BrCode
+	}
+	return ""
+}
+
+func (x *PaymentDetails_Pix) GetBrCodeExpiresAt() *timestamppb.Timestamp {
+	if x != nil {
+		return x.BrCodeExpiresAt
+	}
+	return nil
 }
 
 // The China National Advanced Payment System
@@ -4782,7 +4806,7 @@ var File_tzero_v1_common_payment_method_proto protoreflect.FileDescriptor
 
 const file_tzero_v1_common_payment_method_proto_rawDesc = "" +
 	"\n" +
-	"$tzero/v1/common/payment_method.proto\x12\x0ftzero.v1.common\x1a\x1bbuf/validate/validate.proto\x1a google/protobuf/descriptor.proto\"\xac\x7f\n" +
+	"$tzero/v1/common/payment_method.proto\x12\x0ftzero.v1.common\x1a\x1bbuf/validate/validate.proto\x1a google/protobuf/descriptor.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\x89\x82\x01\n" +
 	"\x0ePaymentDetails\x12:\n" +
 	"\x04sepa\x18\n" +
 	" \x01(\v2$.tzero.v1.common.PaymentDetails.SepaH\x00R\x04sepa\x12=\n" +
@@ -4817,9 +4841,9 @@ const file_tzero_v1_common_payment_method_proto_rawDesc = "" +
 	"\x12thai_bank_transfer\x18\xc0\x02 \x01(\v20.tzero.v1.common.PaymentDetails.ThaiBankTransferH\x00R\x10thaiBankTransfer\x12s\n" +
 	"\x18indonesian_bank_transfer\x18\xca\x02 \x01(\v26.tzero.v1.common.PaymentDetails.IndonesianBankTransferH\x00R\x16indonesianBankTransfer\x12d\n" +
 	"\x13indonesian_e_wallet\x18\xd4\x02 \x01(\v21.tzero.v1.common.PaymentDetails.IndonesianEWalletH\x00R\x11indonesianEWallet\x12]\n" +
-	"\x10provider_defined\x18\xde\x02 \x01(\v2/.tzero.v1.common.PaymentDetails.ProviderDefinedH\x00R\x0fproviderDefined\x1a\xcd\x01\n" +
-	"\x04Sepa\x12R\n" +
-	"\x04iban\x18\x14 \x01(\tB>\xbaH;r9\x10\x0f\x18\"23^[A-Z]{2}(0[2-9]|[1-8][0-9]|9[0-8])[A-Z0-9]{11,30}$R\x04iban\x124\n" +
+	"\x10provider_defined\x18\xde\x02 \x01(\v2/.tzero.v1.common.PaymentDetails.ProviderDefinedH\x00R\x0fproviderDefined\x1a\xb5\x01\n" +
+	"\x04Sepa\x12:\n" +
+	"\x04iban\x18\x14 \x01(\tB&\xbaH#r!\x10\x0f\x18\"2\x1b^[A-Z]{2}[0-9]{2}[A-Z0-9]+$R\x04iban\x124\n" +
 	"\x10beneficiary_name\x18\x1e \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18FR\x0fbeneficiaryName\x125\n" +
 	"\x11payment_reference\x18( \x01(\tB\b\xbaH\x05r\x03\x18\x8c\x01R\x10paymentReference:\x04\x88\xa6\x1d\n" +
 	"\x1a\xf7\x01\n" +
@@ -4884,11 +4908,11 @@ const file_tzero_v1_common_payment_method_proto_rawDesc = "" +
 	"\x1bBENEFICIARY_TYPE_INDIVIDUAL\x10\n" +
 	"\x12\x1c\n" +
 	"\x18BENEFICIARY_TYPE_COMPANY\x10\x14:\x04\x88\xa6\x1ddB\x0f\n" +
-	"\x06method\x12\x05\xbaH\x02\b\x01\x1a\xbe\x06\n" +
-	"\x05Swift\x12`\n" +
+	"\x06method\x12\x05\xbaH\x02\b\x01\x1a\xae\x06\n" +
+	"\x05Swift\x12X\n" +
 	"\n" +
 	"swift_code\x18\n" +
-	" \x01(\tBA\xbaH>r<\x10\b\x18\v26^[A-Z0-9]{4}[A-Z]{2}[A-Z2-9][A-NP-Z0-9]([A-Z0-9]{3})?$R\tswiftCode\x120\n" +
+	" \x01(\tB9\xbaH6r4\x10\b\x18\v2.^[A-Z0-9]{4}[A-Z]{2}[A-Z0-9]{2}([A-Z0-9]{3})?$R\tswiftCode\x120\n" +
 	"\x0eaccount_number\x18\x14 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18\"R\raccountNumber\x125\n" +
 	"\x10beneficiary_name\x18\x1e \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\x8c\x01R\x0fbeneficiaryName\x12;\n" +
@@ -4901,10 +4925,10 @@ const file_tzero_v1_common_payment_method_proto_rawDesc = "" +
 	"^[A-Z]{2}$\x98\x01\x02R\vbankCountry\x12D\n" +
 	"\x10account_currency\x18P \x01(\tB\x14\xbaH\x11r\x0f2\n" +
 	"^[A-Z]{3}$\x98\x01\x03H\x00R\x0faccountCurrency\x88\x01\x01\x12c\n" +
-	"\x11intermediary_bank\x18Z \x01(\v26.tzero.v1.common.PaymentDetails.Swift.IntermediaryBankR\x10intermediaryBank\x1a\xcd\x01\n" +
-	"\x10IntermediaryBank\x12`\n" +
+	"\x11intermediary_bank\x18Z \x01(\v26.tzero.v1.common.PaymentDetails.Swift.IntermediaryBankR\x10intermediaryBank\x1a\xc5\x01\n" +
+	"\x10IntermediaryBank\x12X\n" +
 	"\n" +
-	"swift_code\x18\x01 \x01(\tBA\xbaH>r<\x10\b\x18\v26^[A-Z0-9]{4}[A-Z]{2}[A-Z2-9][A-NP-Z0-9]([A-Z0-9]{3})?$R\tswiftCode\x12'\n" +
+	"swift_code\x18\x01 \x01(\tB9\xbaH6r4\x10\b\x18\v2.^[A-Z0-9]{4}[A-Z]{2}[A-Z0-9]{2}([A-Z0-9]{3})?$R\tswiftCode\x12'\n" +
 	"\tbank_name\x18\x02 \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\x8c\x01R\bbankName\x12.\n" +
 	"\x0eaccount_number\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x18\"R\raccountNumber:\x04\x88\xa6\x1d\x14B\x13\n" +
@@ -4953,10 +4977,10 @@ const file_tzero_v1_common_payment_method_proto_rawDesc = "" +
 	"\x16recipient_account_name\x18\x1e \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\x8c\x01R\x14recipientAccountName\x12=\n" +
 	"\x13purpose_of_transfer\x18( \x01(\tB\b\xbaH\x05r\x03\x18\x8c\x01H\x00R\x11purposeOfTransfer\x88\x01\x01:\x04\x88\xa6\x1dxB\x16\n" +
-	"\x14_purpose_of_transfer\x1a\xbb\x02\n" +
-	"\x14PakistanBankTransfer\x12Q\n" +
+	"\x14_purpose_of_transfer\x1a\xa9\x02\n" +
+	"\x14PakistanBankTransfer\x12?\n" +
 	"\x04iban\x18\n" +
-	" \x01(\tB=\xbaH:r8\x10\x18\x18\x1822^PK(0[2-9]|[1-8][0-9]|9[0-8])[A-Z]{4}[A-Z0-9]{16}$R\x04iban\x125\n" +
+	" \x01(\tB+\xbaH(r&\x10\x18\x18\x182 ^PK[0-9]{2}[A-Z]{4}[A-Z0-9]{16}$R\x04iban\x125\n" +
 	"\x10beneficiary_name\x18\x14 \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\x8c\x01R\x0fbeneficiaryName\x12F\n" +
 	"\x10beneficiary_cnic\x18\x19 \x01(\tB\x16\xbaH\x13r\x11\x10\r\x18\r2\v^[0-9]{13}$H\x00R\x0fbeneficiaryCnic\x88\x01\x01\x125\n" +
@@ -4978,15 +5002,18 @@ const file_tzero_v1_common_payment_method_proto_rawDesc = "" +
 	" PAKISTAN_WALLET_PROVIDER_SADAPAY\x10\x1e\x12$\n" +
 	" PAKISTAN_WALLET_PROVIDER_NAYAPAY\x10(\x12\"\n" +
 	"\x1ePAKISTAN_WALLET_PROVIDER_OTHER\x10d:\x05\x88\xa6\x1d\x8c\x01B\x14\n" +
-	"\x12_payment_reference\x1a\xf9\x03\n" +
-	"\x03Pix\x12P\n" +
+	"\x12_payment_reference\x1a\xc4\a\n" +
+	"\x03Pix\x12F\n" +
 	"\bkey_type\x18\n" +
-	" \x01(\x0e2+.tzero.v1.common.PaymentDetails.Pix.KeyTypeB\b\xbaH\x05\x82\x01\x02 \x00R\akeyType\x12&\n" +
-	"\tkey_value\x18\x14 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18MR\bkeyValue\x125\n" +
+	" \x01(\x0e2+.tzero.v1.common.PaymentDetails.Pix.KeyTypeR\akeyType\x12$\n" +
+	"\tkey_value\x18\x14 \x01(\tB\a\xbaH\x04r\x02\x18MR\bkeyValue\x125\n" +
 	"\x10beneficiary_name\x18\x1e \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\x8c\x01R\x0fbeneficiaryName\x12L\n" +
 	"\x12beneficiary_tax_id\x18( \x01(\tB\x19\xbaH\x16r\x14\x10\v\x18\x0e2\x0e^[0-9]{11,14}$H\x00R\x10beneficiaryTaxId\x88\x01\x01\x12:\n" +
-	"\x11payment_reference\x182 \x01(\tB\b\xbaH\x05r\x03\x18\x8c\x01H\x01R\x10paymentReference\x88\x01\x01\"\x82\x01\n" +
+	"\x11payment_reference\x182 \x01(\tB\b\xbaH\x05r\x03\x18\x8c\x01H\x01R\x10paymentReference\x88\x01\x01\x12(\n" +
+	"\abr_code\x18< \x01(\tB\n" +
+	"\xbaH\ar\x05\x10\x01\x18\x80\x04H\x02R\x06brCode\x88\x01\x01\x12G\n" +
+	"\x12br_code_expires_at\x18F \x01(\v2\x1a.google.protobuf.TimestampR\x0fbrCodeExpiresAt\"\x82\x01\n" +
 	"\aKeyType\x12\x18\n" +
 	"\x14KEY_TYPE_UNSPECIFIED\x10\x00\x12\x10\n" +
 	"\fKEY_TYPE_CPF\x10\n" +
@@ -4994,9 +5021,14 @@ const file_tzero_v1_common_payment_method_proto_rawDesc = "" +
 	"\rKEY_TYPE_CNPJ\x10\x14\x12\x12\n" +
 	"\x0eKEY_TYPE_EMAIL\x10\x1e\x12\x12\n" +
 	"\x0eKEY_TYPE_PHONE\x10(\x12\x10\n" +
-	"\fKEY_TYPE_EVP\x102:\x05\x88\xa6\x1d\x96\x01B\x15\n" +
+	"\fKEY_TYPE_EVP\x102:\xdc\x02\xbaH\xd3\x02\x1ap\n" +
+	"\fpix.key_pair\x120key_type and key_value must be supplied together\x1a.(this.key_type == 0) == (this.key_value == '')\x1ag\n" +
+	"\x13pix.payment_address\x12%a Pix key pair or br_code is required\x1a)this.key_value != '' || has(this.br_code)\x1av\n" +
+	"\x1bpix.expiry_requires_br_code\x12#br_code_expires_at requires br_code\x1a2!has(this.br_code_expires_at) || has(this.br_code)\x88\xa6\x1d\x96\x01B\x15\n" +
 	"\x13_beneficiary_tax_idB\x14\n" +
-	"\x12_payment_reference\x1a\xec\x04\n" +
+	"\x12_payment_referenceB\n" +
+	"\n" +
+	"\b_br_code\x1a\xec\x04\n" +
 	"\x05Cnaps\x12?\n" +
 	"\x0eaccount_number\x18\n" +
 	" \x01(\tB\x18\xbaH\x15r\x13\x10\x06\x18\x192\r^[0-9]{6,25}$R\raccountNumber\x125\n" +
@@ -5138,10 +5170,10 @@ const file_tzero_v1_common_payment_method_proto_rawDesc = "" +
 	"\x0eaccount_number\x18\x14 \x01(\tB\x13\xbaH\x10r\x0e\x10\x01\x18\x142\b^[0-9]+$R\raccountNumber\x12-\n" +
 	"\faccount_name\x18\x1e \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\x8c\x01R\vaccountName\x12&\n" +
-	"\treference\x18( \x01(\tB\b\xbaH\x05r\x03\x18\x8c\x01R\treference:\x05\x88\xa6\x1d\x84\x02\x1a\x98\x02\n" +
-	"\x06Uaefts\x12E\n" +
+	"\treference\x18( \x01(\tB\b\xbaH\x05r\x03\x18\x8c\x01R\treference:\x05\x88\xa6\x1d\x84\x02\x1a\xfe\x01\n" +
+	"\x06Uaefts\x12+\n" +
 	"\x04iban\x18\n" +
-	" \x01(\tB1\xbaH.r,2'^AE(0[2-9]|[1-8][0-9]|9[0-8])[0-9]{19}$\x98\x01\x17R\x04iban\x125\n" +
+	" \x01(\tB\x17\xbaH\x14r\x122\r^AE[0-9]{21}$\x98\x01\x17R\x04iban\x125\n" +
 	"\x10beneficiary_name\x18\x14 \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\x8c\x01R\x0fbeneficiaryName\x127\n" +
 	"\fpurpose_code\x18\x1e \x01(\tB\x14\xbaH\x11r\x0f2\n" +
@@ -5168,10 +5200,10 @@ const file_tzero_v1_common_payment_method_proto_rawDesc = "" +
 	"\xbaH\ar\x05\x10\x01\x18\x8c\x01R\x0fbeneficiaryName\x12:\n" +
 	"\x11payment_reference\x182 \x01(\tB\b\xbaH\x05r\x03\x18\x8c\x01H\x01R\x10paymentReference\x88\x01\x01:\x05\x88\xa6\x1d\xa2\x02B\x14\n" +
 	"\vdestination\x12\x05\xbaH\x02\b\x01B\x14\n" +
-	"\x12_payment_reference\x1a\xdd\x04\n" +
-	"\x04Fast\x12R\n" +
+	"\x12_payment_reference\x1a\xc3\x04\n" +
+	"\x04Fast\x128\n" +
 	"\x04iban\x18\n" +
-	" \x01(\tB<\xbaH9r722^TR(0[2-9]|[1-8][0-9]|9[0-8])[0-9]{6}[A-Z0-9]{16}$\x98\x01\x1aH\x00R\x04iban\x12B\n" +
+	" \x01(\tB\"\xbaH\x1fr\x1d2\x18^TR[0-9]{8}[A-Z0-9]{16}$\x98\x01\x1aH\x00R\x04iban\x12B\n" +
 	"\x05proxy\x18\x14 \x01(\v2*.tzero.v1.common.PaymentDetails.Fast.ProxyH\x00R\x05proxy\x125\n" +
 	"\x10beneficiary_name\x18\x1e \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\x8c\x01R\x0fbeneficiaryName\x12:\n" +
@@ -5361,7 +5393,8 @@ var file_tzero_v1_common_payment_method_proto_goTypes = []any{
 	(*PaymentDetails_Cnaps_Person)(nil),                             // 54: tzero.v1.common.PaymentDetails.Cnaps.Person
 	(*PaymentDetails_Fast_Proxy)(nil),                               // 55: tzero.v1.common.PaymentDetails.Fast.Proxy
 	(*PaymentDetails_IndonesianBankTransfer_Account)(nil),           // 56: tzero.v1.common.PaymentDetails.IndonesianBankTransfer.Account
-	(*descriptorpb.MessageOptions)(nil),                             // 57: google.protobuf.MessageOptions
+	(*timestamppb.Timestamp)(nil),                                   // 57: google.protobuf.Timestamp
+	(*descriptorpb.MessageOptions)(nil),                             // 58: google.protobuf.MessageOptions
 }
 var file_tzero_v1_common_payment_method_proto_depIdxs = []int32{
 	17, // 0: tzero.v1.common.PaymentDetails.sepa:type_name -> tzero.v1.common.PaymentDetails.Sepa
@@ -5405,27 +5438,28 @@ var file_tzero_v1_common_payment_method_proto_depIdxs = []int32{
 	3,  // 38: tzero.v1.common.PaymentDetails.Ach.account_type:type_name -> tzero.v1.common.PaymentDetails.Ach.AchAccountType
 	4,  // 39: tzero.v1.common.PaymentDetails.PakistanMobileWallet.wallet_provider:type_name -> tzero.v1.common.PaymentDetails.PakistanMobileWallet.PakistanWalletProvider
 	5,  // 40: tzero.v1.common.PaymentDetails.Pix.key_type:type_name -> tzero.v1.common.PaymentDetails.Pix.KeyType
-	53, // 41: tzero.v1.common.PaymentDetails.Cnaps.business:type_name -> tzero.v1.common.PaymentDetails.Cnaps.Business
-	54, // 42: tzero.v1.common.PaymentDetails.Cnaps.person:type_name -> tzero.v1.common.PaymentDetails.Cnaps.Person
-	6,  // 43: tzero.v1.common.PaymentDetails.Rtp.account_type:type_name -> tzero.v1.common.PaymentDetails.Rtp.RtpAccountType
-	7,  // 44: tzero.v1.common.PaymentDetails.ChileanBankTransfer.account_type:type_name -> tzero.v1.common.PaymentDetails.ChileanBankTransfer.AccountType
-	8,  // 45: tzero.v1.common.PaymentDetails.PeruBankTransfer.document_type:type_name -> tzero.v1.common.PaymentDetails.PeruBankTransfer.DocumentType
-	9,  // 46: tzero.v1.common.PaymentDetails.PeruBankTransfer.account_type:type_name -> tzero.v1.common.PaymentDetails.PeruBankTransfer.AccountType
-	10, // 47: tzero.v1.common.PaymentDetails.ColombianAch.document_type:type_name -> tzero.v1.common.PaymentDetails.ColombianAch.DocumentType
-	11, // 48: tzero.v1.common.PaymentDetails.ColombianAch.account_type:type_name -> tzero.v1.common.PaymentDetails.ColombianAch.AccountType
-	12, // 49: tzero.v1.common.PaymentDetails.ColombianBreb.document_type:type_name -> tzero.v1.common.PaymentDetails.ColombianBreb.DocumentType
-	13, // 50: tzero.v1.common.PaymentDetails.ColombianBreb.account_type:type_name -> tzero.v1.common.PaymentDetails.ColombianBreb.AccountType
-	55, // 51: tzero.v1.common.PaymentDetails.Fast.proxy:type_name -> tzero.v1.common.PaymentDetails.Fast.Proxy
-	15, // 52: tzero.v1.common.PaymentDetails.PromptPay.proxy_type:type_name -> tzero.v1.common.PaymentDetails.PromptPay.ProxyType
-	56, // 53: tzero.v1.common.PaymentDetails.IndonesianBankTransfer.account:type_name -> tzero.v1.common.PaymentDetails.IndonesianBankTransfer.Account
-	14, // 54: tzero.v1.common.PaymentDetails.Fast.Proxy.proxy_type:type_name -> tzero.v1.common.PaymentDetails.Fast.Proxy.ProxyType
-	57, // 55: tzero.v1.common.payment_method_type:extendee -> google.protobuf.MessageOptions
-	0,  // 56: tzero.v1.common.payment_method_type:type_name -> tzero.v1.common.PaymentMethodType
-	57, // [57:57] is the sub-list for method output_type
-	57, // [57:57] is the sub-list for method input_type
-	56, // [56:57] is the sub-list for extension type_name
-	55, // [55:56] is the sub-list for extension extendee
-	0,  // [0:55] is the sub-list for field type_name
+	57, // 41: tzero.v1.common.PaymentDetails.Pix.br_code_expires_at:type_name -> google.protobuf.Timestamp
+	53, // 42: tzero.v1.common.PaymentDetails.Cnaps.business:type_name -> tzero.v1.common.PaymentDetails.Cnaps.Business
+	54, // 43: tzero.v1.common.PaymentDetails.Cnaps.person:type_name -> tzero.v1.common.PaymentDetails.Cnaps.Person
+	6,  // 44: tzero.v1.common.PaymentDetails.Rtp.account_type:type_name -> tzero.v1.common.PaymentDetails.Rtp.RtpAccountType
+	7,  // 45: tzero.v1.common.PaymentDetails.ChileanBankTransfer.account_type:type_name -> tzero.v1.common.PaymentDetails.ChileanBankTransfer.AccountType
+	8,  // 46: tzero.v1.common.PaymentDetails.PeruBankTransfer.document_type:type_name -> tzero.v1.common.PaymentDetails.PeruBankTransfer.DocumentType
+	9,  // 47: tzero.v1.common.PaymentDetails.PeruBankTransfer.account_type:type_name -> tzero.v1.common.PaymentDetails.PeruBankTransfer.AccountType
+	10, // 48: tzero.v1.common.PaymentDetails.ColombianAch.document_type:type_name -> tzero.v1.common.PaymentDetails.ColombianAch.DocumentType
+	11, // 49: tzero.v1.common.PaymentDetails.ColombianAch.account_type:type_name -> tzero.v1.common.PaymentDetails.ColombianAch.AccountType
+	12, // 50: tzero.v1.common.PaymentDetails.ColombianBreb.document_type:type_name -> tzero.v1.common.PaymentDetails.ColombianBreb.DocumentType
+	13, // 51: tzero.v1.common.PaymentDetails.ColombianBreb.account_type:type_name -> tzero.v1.common.PaymentDetails.ColombianBreb.AccountType
+	55, // 52: tzero.v1.common.PaymentDetails.Fast.proxy:type_name -> tzero.v1.common.PaymentDetails.Fast.Proxy
+	15, // 53: tzero.v1.common.PaymentDetails.PromptPay.proxy_type:type_name -> tzero.v1.common.PaymentDetails.PromptPay.ProxyType
+	56, // 54: tzero.v1.common.PaymentDetails.IndonesianBankTransfer.account:type_name -> tzero.v1.common.PaymentDetails.IndonesianBankTransfer.Account
+	14, // 55: tzero.v1.common.PaymentDetails.Fast.Proxy.proxy_type:type_name -> tzero.v1.common.PaymentDetails.Fast.Proxy.ProxyType
+	58, // 56: tzero.v1.common.payment_method_type:extendee -> google.protobuf.MessageOptions
+	0,  // 57: tzero.v1.common.payment_method_type:type_name -> tzero.v1.common.PaymentMethodType
+	58, // [58:58] is the sub-list for method output_type
+	58, // [58:58] is the sub-list for method input_type
+	57, // [57:58] is the sub-list for extension type_name
+	56, // [56:57] is the sub-list for extension extendee
+	0,  // [0:56] is the sub-list for field type_name
 }
 
 func init() { file_tzero_v1_common_payment_method_proto_init() }
