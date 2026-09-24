@@ -1,5 +1,8 @@
+import datetime
+
 from buf.validate import validate_pb2 as _validate_pb2
 from google.protobuf import descriptor_pb2 as _descriptor_pb2
+from google.protobuf import timestamp_pb2 as _timestamp_pb2
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
@@ -318,7 +321,7 @@ class PaymentDetails(_message.Message):
         payment_reference: str
         def __init__(self, wallet_provider: _Optional[_Union[PaymentDetails.PakistanMobileWallet.PakistanWalletProvider, str]] = ..., mobile_number: _Optional[str] = ..., cnic: _Optional[str] = ..., beneficiary_name: _Optional[str] = ..., payment_reference: _Optional[str] = ...) -> None: ...
     class Pix(_message.Message):
-        __slots__ = ("key_type", "key_value", "beneficiary_name", "beneficiary_tax_id", "payment_reference")
+        __slots__ = ("key_type", "key_value", "beneficiary_name", "beneficiary_tax_id", "payment_reference", "br_code", "br_code_expires_at")
         class KeyType(int, metaclass=_enum_type_wrapper.EnumTypeWrapper):
             __slots__ = ()
             KEY_TYPE_UNSPECIFIED: _ClassVar[PaymentDetails.Pix.KeyType]
@@ -338,12 +341,16 @@ class PaymentDetails(_message.Message):
         BENEFICIARY_NAME_FIELD_NUMBER: _ClassVar[int]
         BENEFICIARY_TAX_ID_FIELD_NUMBER: _ClassVar[int]
         PAYMENT_REFERENCE_FIELD_NUMBER: _ClassVar[int]
+        BR_CODE_FIELD_NUMBER: _ClassVar[int]
+        BR_CODE_EXPIRES_AT_FIELD_NUMBER: _ClassVar[int]
         key_type: PaymentDetails.Pix.KeyType
         key_value: str
         beneficiary_name: str
         beneficiary_tax_id: str
         payment_reference: str
-        def __init__(self, key_type: _Optional[_Union[PaymentDetails.Pix.KeyType, str]] = ..., key_value: _Optional[str] = ..., beneficiary_name: _Optional[str] = ..., beneficiary_tax_id: _Optional[str] = ..., payment_reference: _Optional[str] = ...) -> None: ...
+        br_code: str
+        br_code_expires_at: _timestamp_pb2.Timestamp
+        def __init__(self, key_type: _Optional[_Union[PaymentDetails.Pix.KeyType, str]] = ..., key_value: _Optional[str] = ..., beneficiary_name: _Optional[str] = ..., beneficiary_tax_id: _Optional[str] = ..., payment_reference: _Optional[str] = ..., br_code: _Optional[str] = ..., br_code_expires_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
     class Cnaps(_message.Message):
         __slots__ = ("account_number", "cnaps_code", "beneficiary_name_local", "beneficiary_name", "business", "person", "payment_reference")
         class Business(_message.Message):
