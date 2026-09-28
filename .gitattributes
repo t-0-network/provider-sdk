@@ -1,0 +1,6 @@
+# Generated protobuf/gRPC code: exclude from GitHub language stats and collapse in PR diffs
+csharp/sdk/T0.ProviderSdk/Api/**        linguist-generated=true
+node/sdk/src/common/gen/**              linguist-generated=true
+java/sdk/gen/**                         linguist-generated=true
+go/api/**                               linguist-generated=true
+python/sdk/src/t0_provider_sdk/api/**   linguist-generated=true
