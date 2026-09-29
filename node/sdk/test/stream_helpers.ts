@@ -14,7 +14,8 @@ import type { SignerFunction } from '../src/common/client/client.js';
 
 // test.v1.StreamTest (cross_test/stream_test.proto), built by hand on google.protobuf.StringValue
 // so that no code has to be generated for it. Unary is not served by the Go helper, only by the
-// local test servers in streaming.test.ts and unary_wire.test.ts, which check unary calls.
+// local test servers in streaming.test.ts and unary_wire.test.ts, which check unary calls. Bidi is
+// served by neither: streaming.test.ts checks that the SDK refuses it before sending anything.
 const streamTestFile = createFileRegistry(
   create(FileDescriptorProtoSchema, {
     name: 'test/v1/stream_test.proto',
@@ -27,6 +28,7 @@ const streamTestFile = createFileRegistry(
         { name: 'ClientStream', inputType: '.google.protobuf.StringValue', outputType: '.google.protobuf.StringValue', clientStreaming: true },
         { name: 'ServerStream', inputType: '.google.protobuf.StringValue', outputType: '.google.protobuf.StringValue', serverStreaming: true },
         { name: 'Unary', inputType: '.google.protobuf.StringValue', outputType: '.google.protobuf.StringValue' },
+        { name: 'Bidi', inputType: '.google.protobuf.StringValue', outputType: '.google.protobuf.StringValue', clientStreaming: true, serverStreaming: true },
       ],
     }],
   }),
@@ -37,6 +39,7 @@ export const StreamTest = streamTestFile.getService('test.v1.StreamTest') as Gen
   clientStream: { methodKind: 'client_streaming'; input: typeof StringValueSchema; output: typeof StringValueSchema };
   serverStream: { methodKind: 'server_streaming'; input: typeof StringValueSchema; output: typeof StringValueSchema };
   unary: { methodKind: 'unary'; input: typeof StringValueSchema; output: typeof StringValueSchema };
+  bidi: { methodKind: 'bidi_streaming'; input: typeof StringValueSchema; output: typeof StringValueSchema };
 }>;
 
 export function newKeypair() {

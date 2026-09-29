@@ -50,7 +50,8 @@ async function bootStreamServer(clientPublicKeyHex: string): Promise<StreamServe
   const received: string[] = [];
   const waiters = new Set<() => void>();
 
-  const impl: ServiceImpl<typeof StreamTest> = {
+  // Bidi is not implemented. A bidi request that got through would still be recorded as a check.
+  const impl: Omit<ServiceImpl<typeof StreamTest>, 'bidi'> = {
     async clientStream(reqs) {
       const got: string[] = [];
       for await (const req of reqs) {
@@ -361,6 +362,17 @@ describe('createClient routes unary and streaming calls to their own transport',
       });
       await assert.rejects(Promise.race([client.clientStream(stalled()), giveUp]), isCode(Code.DeadlineExceeded));
       assert.equal(srv.checks.length, 0, 'nothing is sent without a first message');
+    });
+  });
+
+  it('a bidirectional stream fails with unimplemented and sends nothing', async () => {
+    await withServer(async (srv, key) => {
+      const client = createClient(key.privateKeyHex, srv.url, StreamTest);
+      const drain = async () => {
+        for await (const _ of client.bidi(stringValues('m1'))) { /* drain */ }
+      };
+      await assert.rejects(drain(), isCode(Code.Unimplemented));
+      assert.equal(srv.checks.length, 0, 'nothing is sent');
     });
   });
 });

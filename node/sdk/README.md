@@ -218,7 +218,7 @@ const quote = await networkClient.getQuote({
 
 #### Streaming calls
 
-Client-streaming and server-streaming methods work on the same client and go out as `application/connect+proto`. A streaming call is signed over its **first request message only**: the signature headers cover the first envelope exactly as sent, its 5-byte prefix (flags and big-endian length) included. The request goes out as soon as that first message is available, and later messages are streamed unsigned and unbuffered. A client stream closed before its first message is still sent, signed over empty bytes, and the network rejects it. Bidirectional streaming is not supported.
+Client-streaming and server-streaming methods work on the same client and go out as `application/connect+proto`. A streaming call is signed over its **first request message only**: the signature headers cover the first envelope exactly as sent, its 5-byte prefix (flags and big-endian length) included. The request goes out as soon as that first message is available, and later messages are streamed unsigned and unbuffered. A client stream closed before its first message is still sent, signed over empty bytes, and the network rejects it. A bidirectional-streaming call fails with `unimplemented` and sends nothing.
 
 Timeouts are off by default. Pass them as the fourth argument; a call's own `timeoutMs` overrides them:
 

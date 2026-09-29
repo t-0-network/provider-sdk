@@ -1,4 +1,4 @@
-import {createClient as createConnectClient} from "@connectrpc/connect";
+import {Code, ConnectError, createClient as createConnectClient} from "@connectrpc/connect";
 import {validateReadWriteMaxBytes, type CommonTransportOptions} from "@connectrpc/connect/protocol";
 import {createTransport} from "@connectrpc/connect/protocol-connect";
 import CreateSigner from "./signer.js";
@@ -12,7 +12,8 @@ import {DescService} from "@bufbuild/protobuf";
  *
  * Unary calls are signed over the whole request body. Client-streaming and server-streaming calls
  * are signed over their first request message only, and the request goes out as soon as that
- * message is available. Bidirectional streaming is not supported.
+ * message is available. A bidirectional-streaming call is not supported: it fails with
+ * `unimplemented` and sends nothing.
  */
 export function createClient<T extends DescService>(signer: string | Buffer | ((data: Buffer) => Promise<Signature>) | Buffer<ArrayBufferLike>, endpoint: string, svc: T, opts?: ClientOptions) {
     const sign: SignerFunction = typeof signer === "string" || Buffer.isBuffer(signer) ? CreateSigner(signer) : signer;
@@ -24,7 +25,14 @@ export function createClient<T extends DescService>(signer: string | Buffer | ((
 
     return createConnectClient(svc, {
         unary: unaryTransport.unary.bind(unaryTransport),
-        stream: streamTransport.stream.bind(streamTransport),
+        stream: (method, signal, timeoutMs, header, input, contextValues) => {
+            // The signing fetch client sends a stream's request whole before it reads the response,
+            // so a bidi call could not interleave the two. It fails before anything is sent.
+            if (method.methodKind === "bidi_streaming") {
+                return Promise.reject(new ConnectError("bidirectional streams are not supported", Code.Unimplemented));
+            }
+            return streamTransport.stream(method, signal, timeoutMs, header, input, contextValues);
+        },
     });
 }
 
