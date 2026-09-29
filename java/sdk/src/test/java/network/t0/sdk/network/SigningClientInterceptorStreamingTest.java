@@ -23,6 +23,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -34,6 +35,7 @@ import java.util.Arrays;
 import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Tests the call {@link NetworkClient.SigningClientInterceptor} wraps around the underlying call:
@@ -56,6 +58,10 @@ class SigningClientInterceptorStreamingTest {
             stringMethod(MethodType.UNARY, "Unary");
     private static final MethodDescriptor<StringValue, StringValue> CLIENT_STREAM =
             stringMethod(MethodType.CLIENT_STREAMING, "ClientStream");
+    private static final MethodDescriptor<StringValue, StringValue> SERVER_STREAM =
+            stringMethod(MethodType.SERVER_STREAMING, "ServerStream");
+    private static final MethodDescriptor<StringValue, StringValue> BIDI_STREAM =
+            stringMethod(MethodType.BIDI_STREAMING, "BidiStream");
 
     private Signer signer;
     private FakeChannel channel;
@@ -88,6 +94,25 @@ class SigningClientInterceptorStreamingTest {
         assertThat(raw.headers.getAll(SIGNATURE)).hasSize(1);
         assertThat(raw.headers.get(SIGNATURE_TIMESTAMP)).isEqualTo(String.valueOf(FIXED_TIMESTAMP_MS));
         assertThat(raw.headers.get(PUBLIC_KEY)).isEqualTo("0x" + HexUtils.bytesToHex(signer.getPublicKey()));
+    }
+
+    @Test
+    @DisplayName("Client stream: the call starts and the first message goes out before the second exists")
+    void clientStreamSendsTheFirstMessageAtOnce() {
+        ClientCall<StringValue, StringValue> call = intercepted.newCall(CLIENT_STREAM, CallOptions.DEFAULT);
+        call.start(new RecordingListener<>(), new Metadata());
+        call.request(1);
+        call.sendMessage(value("m1"));
+
+        // Nothing is held back to sign the stream: the transport already has the signed first message.
+        RecordingCall raw = channel.lastCall();
+        assertThat(raw.events).containsExactly("start", "request:1", "send");
+        assertThat(raw.sent).containsExactly(bytes("m1"));
+        assertThat(verifies(raw.headers, bytes("m1"))).isTrue();
+
+        call.sendMessage(value("m2"));
+        call.halfClose();
+        assertThat(raw.events).containsExactly("start", "request:1", "send", "send", "halfClose");
     }
 
     @Test
@@ -148,6 +173,51 @@ class SigningClientInterceptorStreamingTest {
         assertThat(signature64Hex(raw.headers)).isEqualTo(vec.get("expected_signature").getAsString());
     }
 
+    // ==================== Server streaming ====================
+
+    @Test
+    @DisplayName("Server stream: one signature, over the request's unframed bytes")
+    void serverStreamSignsTheRequest() {
+        ClientCall<StringValue, StringValue> call = intercepted.newCall(SERVER_STREAM, CallOptions.DEFAULT);
+        call.start(new RecordingListener<>(), new Metadata());
+        call.request(1);
+        call.sendMessage(value("hello"));
+        call.halfClose();
+
+        RecordingCall raw = channel.lastCall();
+        assertThat(raw.method.getType()).isEqualTo(MethodType.SERVER_STREAMING);
+        assertThat(raw.events).containsExactly("start", "request:1", "send", "halfClose");
+        assertThat(raw.sent).containsExactly(bytes("hello"));
+        assertThat(raw.headers.getAll(SIGNATURE)).hasSize(1);
+        assertThat(raw.headers.getAll(PUBLIC_KEY)).hasSize(1);
+        assertThat(raw.headers.getAll(SIGNATURE_TIMESTAMP)).hasSize(1);
+        assertThat(verifies(raw.headers, bytes("hello"))).isTrue();
+        assertThat(verifies(raw.headers, frame(bytes("hello")))).isFalse();
+    }
+
+    // ==================== Bidirectional streaming ====================
+
+    @Test
+    @DisplayName("Bidi stream: closed with UNIMPLEMENTED on start, no underlying call is created")
+    void bidiStreamIsRefused() {
+        RecordingListener<StringValue> listener = new RecordingListener<>();
+        ClientCall<StringValue, StringValue> call = intercepted.newCall(BIDI_STREAM, CallOptions.DEFAULT);
+        call.start(listener, new Metadata());
+
+        assertThat(listener.closeStatus).isNotNull();
+        assertThat(listener.closeStatus.getCode()).isEqualTo(Status.Code.UNIMPLEMENTED);
+        assertThat(listener.closeStatus.getDescription()).contains("bidirectional");
+        assertThat(channel.lastCall()).isNull();
+
+        // What a caller does next, such as a stub cleaning up, is ignored.
+        assertThat(call.isReady()).isFalse();
+        call.request(1);
+        call.sendMessage(value("m1"));
+        call.halfClose();
+        call.cancel("done", null);
+        assertThat(channel.lastCall()).isNull();
+    }
+
     // ==================== Before the deferred start ====================
 
     @Test
@@ -184,6 +254,55 @@ class SigningClientInterceptorStreamingTest {
         assertThat(listener.closeStatus.getDescription()).isEqualTo("caller gave up");
         // Nothing was signed: there was no message.
         assertThat(raw.headers.get(SIGNATURE)).isNull();
+    }
+
+    @Test
+    @DisplayName("cancel() before start() does not throw and starts nothing")
+    void cancelBeforeStartStartsNothing() {
+        ClientCall<StringValue, StringValue> call = intercepted.newCall(CLIENT_STREAM, CallOptions.DEFAULT);
+        call.cancel("never started", null);
+
+        // Without a listener there is nothing to notify: the cancellation just reaches the
+        // unstarted underlying call, as the ClientCall contract allows.
+        RecordingCall raw = channel.lastCall();
+        assertThat(raw.events).containsExactly("cancel");
+        assertThat(raw.headers).isNull();
+    }
+
+    @Test
+    @DisplayName("A marshaller failing on the first message surfaces to the caller; nothing is started")
+    void marshallerFailureOnFirstMessageStartsNothing() {
+        IllegalStateException failure = new IllegalStateException("cannot marshal");
+        MethodDescriptor<StringValue, StringValue> failing = CLIENT_STREAM.toBuilder(
+                new MethodDescriptor.Marshaller<StringValue>() {
+                    @Override
+                    public InputStream stream(StringValue value) {
+                        throw failure;
+                    }
+
+                    @Override
+                    public StringValue parse(InputStream stream) {
+                        throw new UnsupportedOperationException();
+                    }
+                },
+                CLIENT_STREAM.getResponseMarshaller()).build();
+
+        RecordingListener<StringValue> listener = new RecordingListener<>();
+        ClientCall<StringValue, StringValue> call = intercepted.newCall(failing, CallOptions.DEFAULT);
+        call.start(listener, new Metadata());
+        call.request(1);
+
+        assertThatThrownBy(() -> call.sendMessage(value("m1"))).isSameAs(failure);
+        RecordingCall raw = channel.lastCall();
+        assertThat(raw.events).isEmpty();
+        assertThat(raw.headers).isNull();
+
+        // A stub cancels the call on such an exception: the listener is closed, and nothing was signed.
+        call.cancel("marshalling failed", failure);
+        assertThat(raw.events).containsExactly("start", "request:1", "cancel");
+        assertThat(raw.headers.get(SIGNATURE)).isNull();
+        assertThat(listener.closeStatus.getCode()).isEqualTo(Status.Code.CANCELLED);
+        assertThat(listener.closeStatus.getCause()).isSameAs(failure);
     }
 
     // ==================== Unary ====================

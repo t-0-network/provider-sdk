@@ -5,11 +5,16 @@ import io.grpc.CallOptions;
 import io.grpc.Channel;
 import io.grpc.ClientCall;
 import io.grpc.ClientInterceptors;
+import io.grpc.Context;
 import io.grpc.Deadline;
 import io.grpc.Metadata;
 import io.grpc.MethodDescriptor;
 import io.grpc.MethodDescriptor.MethodType;
 import io.grpc.Server;
+import io.grpc.ServerCall;
+import io.grpc.ServerCallHandler;
+import io.grpc.ServerInterceptor;
+import io.grpc.ServerInterceptors;
 import io.grpc.Status;
 import io.grpc.StatusRuntimeException;
 import io.grpc.health.v1.HealthCheckRequest;
@@ -26,7 +31,10 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
 import java.time.Duration;
+import java.util.Map;
+import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -119,10 +127,55 @@ class DefaultDeadlineInterceptorTest {
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
-    /** The clients apply the deadlines to real calls; the server never answers. */
+    /** The clients apply the deadlines to real calls. */
     @Nested
     @DisplayName("Through the clients")
     class ThroughTheClients {
+
+        @Test
+        @DisplayName("The default create() sends unary calls a 15 s deadline and server streams none")
+        void defaultCreateDeadlinesReachTheServer() throws Exception {
+            // Milliseconds left on each call's deadline when it reaches the server, by method.
+            Map<String, Optional<Long>> remainingMs = new ConcurrentHashMap<>();
+            ServerInterceptor recorder = new ServerInterceptor() {
+                @Override
+                public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(
+                        ServerCall<ReqT, RespT> call, Metadata headers, ServerCallHandler<ReqT, RespT> next) {
+                    // The server turns the grpc-timeout header into the deadline of the call's context.
+                    remainingMs.put(call.getMethodDescriptor().getBareMethodName(),
+                            Optional.ofNullable(Context.current().getDeadline())
+                                    .map(deadline -> deadline.timeRemaining(TimeUnit.MILLISECONDS)));
+                    return next.startCall(call, headers);
+                }
+            };
+            Server server = NettyServerBuilder.forPort(0)
+                    .addService(ServerInterceptors.intercept(new HealthGrpc.HealthImplBase() {
+                        @Override
+                        public void check(HealthCheckRequest request, StreamObserver<HealthCheckResponse> observer) {
+                            observer.onNext(HealthCheckResponse.getDefaultInstance());
+                            observer.onCompleted();
+                        }
+
+                        @Override
+                        public void watch(HealthCheckRequest request, StreamObserver<HealthCheckResponse> observer) {
+                            observer.onNext(HealthCheckResponse.getDefaultInstance());
+                            observer.onCompleted();
+                        }
+                    }, recorder))
+                    .build()
+                    .start();
+            try (var client = BlockingNetworkClient.create("http://localhost:" + server.getPort(),
+                    Signer.fromHex(PRIVATE_KEY_HEX), HealthGrpc::newBlockingStub)) {
+
+                client.stub().check(HealthCheckRequest.getDefaultInstance());
+                client.stub().watch(HealthCheckRequest.getDefaultInstance()).forEachRemaining(response -> { });
+            } finally {
+                server.shutdownNow();
+            }
+
+            assertThat(remainingMs.get("Check")).hasValueSatisfying(ms -> assertThat(ms).isBetween(14_000L, 15_000L));
+            assertThat(remainingMs.get("Watch")).isEmpty();
+        }
 
         @Test
         @DisplayName("create(..., timeoutSeconds) bounds unary calls")

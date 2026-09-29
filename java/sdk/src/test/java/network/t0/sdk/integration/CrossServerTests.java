@@ -2,29 +2,50 @@ package network.t0.sdk.integration;
 
 import com.google.protobuf.StringValue;
 import io.grpc.CallOptions;
+import io.grpc.Channel;
+import io.grpc.ClientInterceptors;
+import io.grpc.ManagedChannel;
+import io.grpc.Metadata;
 import io.grpc.MethodDescriptor;
 import io.grpc.MethodDescriptor.MethodType;
+import io.grpc.Status;
 import io.grpc.health.v1.HealthCheckRequest;
 import io.grpc.health.v1.HealthCheckResponse;
 import io.grpc.health.v1.HealthGrpc;
+import io.grpc.okhttp.OkHttpChannelBuilder;
 import io.grpc.protobuf.ProtoUtils;
 import io.grpc.stub.BlockingClientCall;
 import io.grpc.stub.ClientCallStreamObserver;
 import io.grpc.stub.ClientCalls;
 import io.grpc.stub.ClientResponseObserver;
+import io.grpc.stub.MetadataUtils;
 import io.grpc.stub.StreamObserver;
+import network.t0.sdk.common.Headers;
+import network.t0.sdk.crypto.Keccak256;
+import network.t0.sdk.crypto.SignResult;
 import network.t0.sdk.crypto.Signer;
 import network.t0.sdk.network.BlockingNetworkClient;
+import network.t0.sdk.network.SigningInterceptors;
 import network.t0.sdk.provider.ProviderServer;
 import network.t0.sdk.proto.tzero.v1.payment.*;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
+import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.ServerSocket;
 import java.nio.charset.StandardCharsets;
+import java.security.SecureRandom;
+import java.time.Clock;
+import java.time.Duration;
+import java.time.Instant;
+import java.time.ZoneOffset;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
@@ -86,17 +107,11 @@ class CrossServerTests {
     @Test
     void javaClient_goServer_healthCheck() throws Exception {
         skipOrFailIfNoHelper();
-        int port = findFreePort();
-
-        Process goServer = new ProcessBuilder(GO_HELPER, "serve", String.valueOf(port), "0x" + PUBLIC_KEY)
-                .redirectErrorStream(true)
-                .start();
+        GoServer goServer = startGoServer();
 
         try {
-            waitForPort(port, 10_000);
-
             try (var client = BlockingNetworkClient.create(
-                    "http://localhost:" + port,
+                    "http://localhost:" + goServer.port(),
                     Signer.fromHex(PRIVATE_KEY),
                     HealthGrpc::newBlockingStub)) {
 
@@ -107,25 +122,18 @@ class CrossServerTests {
                         .isEqualTo(HealthCheckResponse.ServingStatus.SERVING);
             }
         } finally {
-            goServer.destroyForcibly();
-            goServer.waitFor(5, TimeUnit.SECONDS);
+            stop(goServer);
         }
     }
 
     @Test
     void javaClient_goServer_payOut() throws Exception {
         skipOrFailIfNoHelper();
-        int port = findFreePort();
-
-        Process goServer = new ProcessBuilder(GO_HELPER, "serve", String.valueOf(port), "0x" + PUBLIC_KEY)
-                .redirectErrorStream(true)
-                .start();
+        GoServer goServer = startGoServer();
 
         try {
-            waitForPort(port, 10_000);
-
             try (var client = BlockingNetworkClient.create(
-                    "http://localhost:" + port,
+                    "http://localhost:" + goServer.port(),
                     Signer.fromHex(PRIVATE_KEY),
                     ProviderServiceGrpc::newBlockingStub)) {
 
@@ -147,8 +155,7 @@ class CrossServerTests {
                         .isEqualTo(io.grpc.Status.Code.INVALID_ARGUMENT);
             }
         } finally {
-            goServer.destroyForcibly();
-            goServer.waitFor(5, TimeUnit.SECONDS);
+            stop(goServer);
         }
     }
 
@@ -223,24 +230,62 @@ class CrossServerTests {
     // answers 401 (UNAUTHENTICATED) otherwise. Java signs that message without its gRPC prefix.
     // The methods are built by hand and called through the SDK's channel, so the signing and
     // default-deadline interceptors apply.
+    //
+    // The helper logs its verdict for each call: "<path> verified over the first payload" (the
+    // unframed message, what Java signs) or "... envelope" (the framed one), or
+    // "<path> rejected: <reason>". The tests wait for those lines: the client alone sees only
+    // UNAUTHENTICATED, whatever the reason.
 
     private static final MethodDescriptor<StringValue, StringValue> CLIENT_STREAM =
             streamTestMethod(MethodType.CLIENT_STREAMING, "ClientStream");
     private static final MethodDescriptor<StringValue, StringValue> SERVER_STREAM =
             streamTestMethod(MethodType.SERVER_STREAMING, "ServerStream");
 
+    private static final String CLIENT_STREAM_VERIFIED =
+            "/test.v1.StreamTest/ClientStream verified over the first payload";
+    private static final String SERVER_STREAM_VERIFIED =
+            "/test.v1.StreamTest/ServerStream verified over the first payload";
+    private static final String CLIENT_STREAM_REJECTED = "/test.v1.StreamTest/ClientStream rejected: ";
+
     @Test
     @Timeout(30)
     void javaClient_goServer_clientStream() throws Exception {
         skipOrFailIfNoHelper();
-        int port = findFreePort();
-        Process goServer = startGoServer(port);
+        GoServer goServer = startGoServer();
 
-        try (var client = streamClient(port, PRIVATE_KEY)) {
+        try (var client = streamClient(goServer.port(), PRIVATE_KEY)) {
             CompletableFuture<String> result = new CompletableFuture<>();
             StreamObserver<StringValue> requests = ClientCalls.asyncClientStreamingCall(
                     client.getChannel().newCall(CLIENT_STREAM, CallOptions.DEFAULT), resultObserver(result));
             requests.onNext(StringValue.of("m1"));
+            requests.onNext(StringValue.of("m2"));
+            requests.onNext(StringValue.of("m3"));
+            requests.onCompleted();
+
+            assertThat(result.get(10, TimeUnit.SECONDS)).isEqualTo("m1,m2,m3");
+            goServer.waitForLog(CLIENT_STREAM_VERIFIED);
+        } finally {
+            stop(goServer);
+        }
+    }
+
+    /**
+     * The signed first message goes out when it is sent: the helper verifies it before the rest of
+     * the stream exists. A client that held the stream back to sign it would time out here.
+     */
+    @Test
+    @Timeout(30)
+    void javaClient_goServer_clientStream_firstMessageIsNotBuffered() throws Exception {
+        skipOrFailIfNoHelper();
+        GoServer goServer = startGoServer();
+
+        try (var client = streamClient(goServer.port(), PRIVATE_KEY)) {
+            CompletableFuture<String> result = new CompletableFuture<>();
+            StreamObserver<StringValue> requests = ClientCalls.asyncClientStreamingCall(
+                    client.getChannel().newCall(CLIENT_STREAM, CallOptions.DEFAULT), resultObserver(result));
+            requests.onNext(StringValue.of("m1"));
+            goServer.waitForLog(CLIENT_STREAM_VERIFIED, 0, Duration.ofSeconds(10));
+
             requests.onNext(StringValue.of("m2"));
             requests.onNext(StringValue.of("m3"));
             requests.onCompleted();
@@ -251,15 +296,37 @@ class CrossServerTests {
         }
     }
 
+    /**
+     * A first message larger than HTTP/2's initial 64 KiB flow-control window, and random so that
+     * compression would not shrink it: the helper reads it whole before it verifies it.
+     */
+    @Test
+    @Timeout(30)
+    void javaClient_goServer_clientStream_largeFirstMessage() throws Exception {
+        skipOrFailIfNoHelper();
+        GoServer goServer = startGoServer();
+
+        byte[] random = new byte[192 * 1024];
+        new SecureRandom().nextBytes(random);
+        String large = Base64.getEncoder().encodeToString(random); // 256 KiB
+        try (var client = streamClient(goServer.port(), PRIVATE_KEY)) {
+            CompletableFuture<String> result = sendClientStream(client.getChannel(), List.of(large, "tail"));
+
+            assertThat(result.get(10, TimeUnit.SECONDS)).isEqualTo(large + ",tail");
+            goServer.waitForLog(CLIENT_STREAM_VERIFIED);
+        } finally {
+            stop(goServer);
+        }
+    }
+
     /** BlockingClientCall.write waits for isReady() before each message, the first one included. */
     @Test
     @Timeout(30)
     void javaClient_goServer_clientStream_blockingWrite() throws Exception {
         skipOrFailIfNoHelper();
-        int port = findFreePort();
-        Process goServer = startGoServer(port);
+        GoServer goServer = startGoServer();
 
-        try (var client = streamClient(port, PRIVATE_KEY)) {
+        try (var client = streamClient(goServer.port(), PRIVATE_KEY)) {
             BlockingClientCall<StringValue, StringValue> call =
                     ClientCalls.blockingClientStreamingCall(client.getChannel(), CLIENT_STREAM, CallOptions.DEFAULT);
             for (String value : List.of("m1", "m2", "m3")) {
@@ -278,10 +345,9 @@ class CrossServerTests {
     @Timeout(30)
     void javaClient_goServer_clientStream_readinessDrivenSender() throws Exception {
         skipOrFailIfNoHelper();
-        int port = findFreePort();
-        Process goServer = startGoServer(port);
+        GoServer goServer = startGoServer();
 
-        try (var client = streamClient(port, PRIVATE_KEY)) {
+        try (var client = streamClient(goServer.port(), PRIVATE_KEY)) {
             ReadinessDrivenSender sender = new ReadinessDrivenSender(List.of("m1", "m2", "m3"));
             ClientCalls.asyncClientStreamingCall(client.getChannel().newCall(CLIENT_STREAM, CallOptions.DEFAULT), sender);
             sender.drain();
@@ -296,16 +362,16 @@ class CrossServerTests {
     @Timeout(30)
     void javaClient_goServer_serverStream() throws Exception {
         skipOrFailIfNoHelper();
-        int port = findFreePort();
-        Process goServer = startGoServer(port);
+        GoServer goServer = startGoServer();
 
-        try (var client = streamClient(port, PRIVATE_KEY)) {
+        try (var client = streamClient(goServer.port(), PRIVATE_KEY)) {
             Iterator<StringValue> replies = ClientCalls.blockingServerStreamingCall(
                     client.getChannel(), SERVER_STREAM, CallOptions.DEFAULT, StringValue.of("hello"));
             List<String> received = new ArrayList<>();
             replies.forEachRemaining(reply -> received.add(reply.getValue()));
 
             assertThat(received).containsExactly("hello", "hello", "hello");
+            goServer.waitForLog(SERVER_STREAM_VERIFIED);
         } finally {
             stop(goServer);
         }
@@ -316,22 +382,104 @@ class CrossServerTests {
     @Timeout(30)
     void javaClient_goServer_clientStream_unknownKeyIsRejected() throws Exception {
         skipOrFailIfNoHelper();
-        int port = findFreePort();
-        Process goServer = startGoServer(port);
+        GoServer goServer = startGoServer();
 
         String otherPrivateKey = "0000000000000000000000000000000000000000000000000000000000000001";
-        try (var client = streamClient(port, otherPrivateKey)) {
+        try (var client = streamClient(goServer.port(), otherPrivateKey)) {
             CompletableFuture<String> result = new CompletableFuture<>();
             StreamObserver<StringValue> requests = ClientCalls.asyncClientStreamingCall(
                     client.getChannel().newCall(CLIENT_STREAM, CallOptions.DEFAULT), resultObserver(result));
             requests.onNext(StringValue.of("m1"));
             requests.onCompleted();
 
-            ExecutionException thrown = org.junit.jupiter.api.Assertions.assertThrows(
-                    ExecutionException.class, () -> result.get(10, TimeUnit.SECONDS));
-            assertThat(io.grpc.Status.fromThrowable(thrown.getCause()).getCode())
-                    .isEqualTo(io.grpc.Status.Code.UNAUTHENTICATED);
+            assertUnauthenticated(result);
+            goServer.waitForLog(CLIENT_STREAM_REJECTED + "unknown public key");
         } finally {
+            stop(goServer);
+        }
+    }
+
+    /** A stream closed before its first message is signed over empty bytes, and has nothing to verify. */
+    @Test
+    @Timeout(30)
+    void javaClient_goServer_emptyClientStreamIsRejected() throws Exception {
+        skipOrFailIfNoHelper();
+        GoServer goServer = startGoServer();
+
+        try (var client = streamClient(goServer.port(), PRIVATE_KEY)) {
+            assertUnauthenticated(sendClientStream(client.getChannel(), List.of()));
+            goServer.waitForLog(CLIENT_STREAM_REJECTED + "no first message");
+        } finally {
+            stop(goServer);
+        }
+    }
+
+    @Test
+    @Timeout(30)
+    void unsignedClientStreamIsRejected() throws Exception {
+        skipOrFailIfNoHelper();
+        GoServer goServer = startGoServer();
+        ManagedChannel channel = plainChannel(goServer.port());
+
+        try {
+            assertUnauthenticated(sendClientStream(channel, List.of("m1")));
+            goServer.waitForLog(CLIENT_STREAM_REJECTED + "unknown public key");
+        } finally {
+            shutdown(channel);
+            stop(goServer);
+        }
+    }
+
+    /**
+     * The helper verifies over the first message only. Hand-built headers over the first message
+     * pass, which shows they are built right; the same headers over the whole stream do not.
+     */
+    @Test
+    @Timeout(30)
+    void signatureOverTheWholeStreamIsRejected() throws Exception {
+        skipOrFailIfNoHelper();
+        GoServer goServer = startGoServer();
+        ManagedChannel channel = plainChannel(goServer.port());
+
+        try {
+            List<String> values = List.of("m1", "m2", "m3");
+            ByteArrayOutputStream wholeStream = new ByteArrayOutputStream();
+            values.forEach(v -> wholeStream.writeBytes(StringValue.of(v).toByteArray()));
+
+            Channel signedOverFirst = ClientInterceptors.intercept(channel, MetadataUtils.newAttachHeadersInterceptor(
+                    signatureHeaders(StringValue.of("m1").toByteArray(), System.currentTimeMillis())));
+            assertThat(sendClientStream(signedOverFirst, values).get(10, TimeUnit.SECONDS)).isEqualTo("m1,m2,m3");
+            goServer.waitForLog(CLIENT_STREAM_VERIFIED);
+
+            int afterFirstCall = goServer.logLength();
+            Channel signedOverAll = ClientInterceptors.intercept(channel, MetadataUtils.newAttachHeadersInterceptor(
+                    signatureHeaders(wholeStream.toByteArray(), System.currentTimeMillis())));
+            assertUnauthenticated(sendClientStream(signedOverAll, values));
+            goServer.waitForLog(CLIENT_STREAM_REJECTED + "signature does not verify over the first message",
+                    afterFirstCall, Duration.ofSeconds(10));
+        } finally {
+            shutdown(channel);
+            stop(goServer);
+        }
+    }
+
+    /** The helper checks the timestamp when the headers arrive; this signer's clock is two minutes behind. */
+    @Test
+    @Timeout(30)
+    void staleSignatureTimestampIsRejected() throws Exception {
+        skipOrFailIfNoHelper();
+        GoServer goServer = startGoServer();
+        ManagedChannel channel = plainChannel(goServer.port());
+
+        try {
+            Clock twoMinutesAgo = Clock.fixed(Instant.now().minus(2, ChronoUnit.MINUTES), ZoneOffset.UTC);
+            Channel stale = ClientInterceptors.intercept(channel,
+                    SigningInterceptors.withClock(Signer.fromHex(PRIVATE_KEY), twoMinutesAgo));
+
+            assertUnauthenticated(sendClientStream(stale, List.of("m1")));
+            goServer.waitForLog(CLIENT_STREAM_REJECTED + "timestamp is outside the allowed time window");
+        } finally {
+            shutdown(channel);
             stop(goServer);
         }
     }
@@ -345,10 +493,13 @@ class CrossServerTests {
                 .build();
     }
 
-    private static Process startGoServer(int port) throws Exception {
-        Process goServer = new ProcessBuilder(GO_HELPER, "serve", String.valueOf(port), "0x" + PUBLIC_KEY)
+    /** Starts {@code go_helper serve} on a free port, trusting {@link #PUBLIC_KEY}; one per test. */
+    private static GoServer startGoServer() throws Exception {
+        int port = findFreePort();
+        Process process = new ProcessBuilder(GO_HELPER, "serve", String.valueOf(port), "0x" + PUBLIC_KEY)
                 .redirectErrorStream(true)
                 .start();
+        GoServer goServer = new GoServer(process, port);
         try {
             waitForPort(port, 10_000);
         } catch (Exception e) {
@@ -358,9 +509,108 @@ class CrossServerTests {
         return goServer;
     }
 
-    private static void stop(Process goServer) throws InterruptedException {
-        goServer.destroyForcibly();
-        goServer.waitFor(5, TimeUnit.SECONDS);
+    private static void stop(GoServer goServer) throws InterruptedException {
+        goServer.process.destroyForcibly();
+        goServer.process.waitFor(5, TimeUnit.SECONDS);
+    }
+
+    /**
+     * A running {@code go_helper serve} and what it has printed so far. A daemon thread drains its
+     * output (stdout and the Go log on stderr, merged), so the tests can wait for the verifier's
+     * lines and the process never blocks on a full pipe.
+     */
+    private static final class GoServer {
+        private final Process process;
+        private final int port;
+        private final StringBuilder log = new StringBuilder(); // guarded by this
+
+        GoServer(Process process, int port) {
+            this.process = process;
+            this.port = port;
+            Thread reader = new Thread(this::readLog, "go_helper-log-" + port);
+            reader.setDaemon(true);
+            reader.start();
+        }
+
+        int port() {
+            return port;
+        }
+
+        /** How much has been logged so far: the offset to wait for later lines from. */
+        synchronized int logLength() {
+            return log.length();
+        }
+
+        void waitForLog(String text) throws InterruptedException {
+            waitForLog(text, 0, Duration.ofSeconds(10));
+        }
+
+        /** Waits until {@code text} appears in the log at or after {@code fromOffset}. */
+        synchronized void waitForLog(String text, int fromOffset, Duration timeout) throws InterruptedException {
+            long deadline = System.nanoTime() + timeout.toNanos();
+            while (log.indexOf(text, fromOffset) < 0) {
+                long remaining = deadline - System.nanoTime();
+                if (remaining <= 0) {
+                    throw new AssertionError(
+                            "go_helper did not log \"" + text + "\" within " + timeout + "; its log:\n" + log);
+                }
+                TimeUnit.NANOSECONDS.timedWait(this, remaining);
+            }
+        }
+
+        private void readLog() {
+            try (BufferedReader reader = new BufferedReader(
+                    new InputStreamReader(process.getInputStream(), StandardCharsets.UTF_8))) {
+                for (String line = reader.readLine(); line != null; line = reader.readLine()) {
+                    append(line);
+                }
+            } catch (IOException e) {
+                // The process was stopped.
+            }
+        }
+
+        private synchronized void append(String line) {
+            log.append(line).append('\n');
+            notifyAll();
+        }
+    }
+
+    /** A channel to the helper without the SDK's interceptors, built like the SDK's own. */
+    private static ManagedChannel plainChannel(int port) {
+        return OkHttpChannelBuilder.forAddress("localhost", port).usePlaintext().build();
+    }
+
+    private static void shutdown(ManagedChannel channel) throws InterruptedException {
+        channel.shutdownNow();
+        channel.awaitTermination(5, TimeUnit.SECONDS);
+    }
+
+    /** The signature headers the SDK sends, built by hand over the given bytes. */
+    private static Metadata signatureHeaders(byte[] signed, long timestampMs) {
+        SignResult signature = Signer.fromHex(PRIVATE_KEY)
+                .sign(Keccak256.hash(signed, Headers.encodeTimestamp(timestampMs)));
+        Metadata headers = new Metadata();
+        headers.put(Metadata.Key.of(Headers.PUBLIC_KEY, Metadata.ASCII_STRING_MARSHALLER), signature.getPublicKeyHex());
+        headers.put(Metadata.Key.of(Headers.SIGNATURE, Metadata.ASCII_STRING_MARSHALLER), signature.getSignatureHex());
+        headers.put(Metadata.Key.of(Headers.SIGNATURE_TIMESTAMP, Metadata.ASCII_STRING_MARSHALLER),
+                String.valueOf(timestampMs));
+        return headers;
+    }
+
+    /** Sends the values on a new ClientStream call and half-closes it. */
+    private static CompletableFuture<String> sendClientStream(Channel channel, List<String> values) {
+        CompletableFuture<String> result = new CompletableFuture<>();
+        StreamObserver<StringValue> requests = ClientCalls.asyncClientStreamingCall(
+                channel.newCall(CLIENT_STREAM, CallOptions.DEFAULT), resultObserver(result));
+        values.forEach(value -> requests.onNext(StringValue.of(value)));
+        requests.onCompleted();
+        return result;
+    }
+
+    private static void assertUnauthenticated(CompletableFuture<String> result) {
+        ExecutionException thrown = org.junit.jupiter.api.Assertions.assertThrows(
+                ExecutionException.class, () -> result.get(10, TimeUnit.SECONDS));
+        assertThat(Status.fromThrowable(thrown.getCause()).getCode()).isEqualTo(Status.Code.UNAUTHENTICATED);
     }
 
     /** Any SDK client: the streams are called on its channel, not its stub. */

@@ -169,8 +169,13 @@ class HealthServiceIntegrationTest {
         try {
             HealthGrpc.HealthBlockingStub plainStub = HealthGrpc.newBlockingStub(channel);
 
+            // Refused on the missing headers, before any signature check: not a transport or
+            // server error that would also surface as a StatusRuntimeException.
             assertThatThrownBy(() -> plainStub.check(HealthCheckRequest.getDefaultInstance()))
-                    .isInstanceOf(StatusRuntimeException.class);
+                    .isInstanceOfSatisfying(StatusRuntimeException.class, e -> {
+                        assertThat(e.getStatus().getCode()).isEqualTo(Status.Code.INVALID_ARGUMENT);
+                        assertThat(e.getStatus().getDescription()).contains("missing required header");
+                    });
         } finally {
             channel.shutdown();
             channel.awaitTermination(2, TimeUnit.SECONDS);

@@ -9,6 +9,7 @@ import io.grpc.ClientInterceptors;
 import io.grpc.ManagedChannel;
 import io.grpc.Metadata;
 import io.grpc.MethodDescriptor;
+import io.grpc.Status;
 import io.grpc.okhttp.OkHttpChannelBuilder;
 import network.t0.sdk.common.Headers;
 import network.t0.sdk.crypto.Keccak256;
@@ -60,7 +61,8 @@ import java.util.concurrent.TimeUnit;
  *
  * <p><b>Streaming calls:</b> for client- and server-streaming calls the signature covers only the
  * first request message; later messages are sent as-is. A call starts when its first message is
- * sent, and its {@code isReady()} reports {@code true} until then.
+ * sent, and its {@code isReady()} reports {@code true} until then. Bidirectional streaming calls are
+ * not supported: they close with {@code UNIMPLEMENTED} when started, and nothing is sent.
  *
  * <p><b>Thread Safety:</b> Client instances are thread-safe. The underlying gRPC channel
  * and stubs support concurrent use from multiple threads. The signing interceptor creates
@@ -291,7 +293,9 @@ public abstract class NetworkClient implements Closeable {
      * gRPC framer, so it signs the marshalled message without the 5-byte gRPC prefix; the network
      * accepts that through its unframed fallback. Later messages of a stream are sent as-is: they
      * are not signed and do not touch the headers, which went out when the call started. A call
-     * half-closed before any message signs empty bytes. Bidirectional streams are not supported.
+     * half-closed before any message signs empty bytes. Bidirectional streams are not supported: such
+     * a call never creates an underlying call and closes its listener with {@code UNIMPLEMENTED} when
+     * started.
      *
      * <p><b>Deferred start:</b> the underlying call starts when the first message (or
      * {@code halfClose()}) arrives, because the signature headers must be complete before it
@@ -340,6 +344,12 @@ public abstract class NetworkClient implements Closeable {
                 MethodDescriptor<ReqT, RespT> method,
                 CallOptions callOptions,
                 Channel next) {
+
+            // Fail fast: with the deferred start, a bidi caller that waits for a response before
+            // sending would hang, and the network does not accept bidi streams anyway.
+            if (method.getType() == MethodDescriptor.MethodType.BIDI_STREAMING) {
+                return new BidiNotSupportedCall<>();
+            }
 
             // Create a method descriptor that accepts raw bytes for the request.
             // This allows us to send pre-serialized bytes without re-encoding.
@@ -480,6 +490,41 @@ public abstract class NetworkClient implements Closeable {
                     log.trace("Signed request: timestamp={}, signature={}", timestampMs, signResult.getSignatureHex());
                 }
             };
+        }
+
+        /**
+         * The call handed out for a bidirectional stream. It closes its listener on start, as
+         * grpc-java's own calls do when they fail to start, and ignores everything else.
+         */
+        private static final class BidiNotSupportedCall<ReqT, RespT> extends ClientCall<ReqT, RespT> {
+
+            @Override
+            public void start(Listener<RespT> responseListener, Metadata headers) {
+                responseListener.onClose(
+                        Status.UNIMPLEMENTED.withDescription("bidirectional streams are not supported"),
+                        new Metadata());
+            }
+
+            @Override
+            public void request(int numMessages) {
+            }
+
+            @Override
+            public void cancel(String message, Throwable cause) {
+            }
+
+            @Override
+            public void halfClose() {
+            }
+
+            @Override
+            public void sendMessage(ReqT message) {
+            }
+
+            @Override
+            public boolean isReady() {
+                return false;
+            }
         }
     }
 

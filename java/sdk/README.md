@@ -222,7 +222,7 @@ For client-streaming and server-streaming calls, `SigningClientInterceptor` sign
 digest = Keccak256(first_message_bytes || timestamp_le_u64)
 ```
 
-A client stream closed before its first message signs empty bytes, which the network rejects. Bidirectional streaming is not supported.
+A client stream closed before its first message signs empty bytes, which the network rejects. Bidirectional streaming is not supported: such a call closes with `UNIMPLEMENTED` when it starts, and nothing is sent.
 
 The call starts when the first message is sent, since the signature headers must be complete before it starts. Until then `isReady()` reports `true`, so readiness-gated senders (`BlockingClientCall.write`, `while (requestStream.isReady())` loops) send that message; `onReady()` is first delivered after it, so a sender driven only by `onReady` callbacks must send its first message directly. `cancel()` before the first message still delivers `onClose(CANCELLED)`.
 
