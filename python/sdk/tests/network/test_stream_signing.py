@@ -27,18 +27,6 @@ URL = "http://example.test/test.v1.StreamTest/ClientStream"
 
 CONNECT_STREAM = "application/connect+proto"
 GRPC = "application/grpc+proto"
-GRPC_WEB = "application/grpc-web+proto"
-
-# Any codec: Connect JSON streams are enveloped too.
-ENVELOPED_CONTENT_TYPES = [
-    CONNECT_STREAM,
-    "application/connect+json",
-    GRPC,
-    "application/grpc",
-    "Application/Connect+Proto; charset=utf-8",
-]
-# gRPC-Web is not enveloped here: the network signs and verifies its whole body.
-WHOLE_BODY_CONTENT_TYPES = [GRPC_WEB, "application/grpc-web", "application/proto", "application/json"]
 
 
 def _envelope(payload: bytes) -> bytes:
@@ -74,17 +62,14 @@ class _FakeClient:
     async def stream(self, method, url, headers=None, content=None):
         self.events.append("request sent")
         self.headers, self.content = headers, content
-        if content is None or isinstance(content, bytes):
-            self.body = content
-        else:
-            chunks = []
-            try:
-                if self.read_body:
-                    async for chunk in content:
-                        chunks.append(chunk)
-            finally:
-                await content.aclose()
-            self.body = b"".join(chunks)
+        chunks = []
+        try:
+            if self.read_body:
+                async for chunk in content:
+                    chunks.append(chunk)
+        finally:
+            await content.aclose()
+        self.body = b"".join(chunks)
         yield "response"
 
 
@@ -103,16 +88,13 @@ class _FakeSyncClient:
     def stream(self, method, url, headers=None, content=None, timeout=None):
         self.events.append("request sent")
         self.headers, self.content, self.timeout = headers, content, timeout
-        if content is None or isinstance(content, bytes):
-            self.body = content
-        else:
-            chunks = []
-            try:
-                if self.read_body:
-                    chunks.extend(content)
-            finally:
-                content.close()
-            self.body = b"".join(chunks)
+        chunks = []
+        try:
+            if self.read_body:
+                chunks.extend(content)
+        finally:
+            content.close()
+        self.body = b"".join(chunks)
         yield "response"
 
 
@@ -155,11 +137,6 @@ BAD_FIRST_CHUNKS = {
     "empty first chunk": ([b"", ENV1], Code.INVALID_ARGUMENT),
 }
 
-TRUNCATED_BODIES = {
-    "partial prefix": ENV1[:3],
-    "partial payload": ENV1[:-1],
-}
-
 
 def _closing_source(chunks: list[bytes], events: list[str]):
     try:
@@ -178,10 +155,9 @@ async def _closing_asource(chunks: list[bytes], events: list[str]):
 
 @pytest.mark.asyncio
 class TestSigningClientStream:
-    @pytest.mark.parametrize("content_type", [CONNECT_STREAM, GRPC])
-    async def test_empty_enveloped_iterator_is_signed_over_nothing(self, content_type: str) -> None:
+    async def test_empty_stream_is_signed_over_nothing(self) -> None:
         fake = _FakeClient()
-        await _send(fake, content_type, _agen())
+        await _send(fake, CONNECT_STREAM, _agen())
 
         _assert_signed_over(fake.headers, b"")
         assert fake.body == b""
@@ -259,86 +235,18 @@ class TestSigningClientStream:
         assert Source.closed
         assert fake.events == []
 
-    async def test_bytes_content_is_signed_whole(self) -> None:
+    async def test_stream_is_signed_over_its_first_envelope(self) -> None:
         fake = _FakeClient()
-        body = ENV1 + ENV2
-        await _send(fake, "application/proto", body)
-
-        _assert_signed_over(fake.headers, body)
-        assert fake.content is body
-
-    @pytest.mark.parametrize("content_type", ENVELOPED_CONTENT_TYPES)
-    async def test_enveloped_iterator_is_signed_over_its_first_envelope(self, content_type: str) -> None:
-        fake = _FakeClient()
-        await _send(fake, content_type, _agen(ENV1, ENV2))
+        await _send(fake, CONNECT_STREAM, _agen(ENV1, ENV2))
 
         _assert_signed_over(fake.headers, ENV1)
         assert fake.body == ENV1 + ENV2
 
-    @pytest.mark.parametrize("content_type", WHOLE_BODY_CONTENT_TYPES)
-    async def test_other_iterator_is_signed_whole(self, content_type: str) -> None:
-        """connectrpc hands gRPC-Web bodies over as envelope iterators too; the content type decides."""
-        events: list[str] = []
-        fake = _FakeClient(events)
-        await _send(fake, content_type, _closing_asource([ENV1, ENV2], events))
-
-        _assert_signed_over(fake.headers, ENV1 + ENV2)
-        assert fake.content == ENV1 + ENV2
-        assert events == ["source closed", "request sent"]
-
-    async def test_other_iterator_source_closed_when_reading_fails(self) -> None:
-        class Source:
-            closed = False
-            chunks = [ENV1]
-
-            def __aiter__(self):
-                return self
-
-            async def __anext__(self) -> bytes:
-                if self.chunks:
-                    return self.chunks.pop()
-                raise ValueError("encoding failed")
-
-            async def aclose(self) -> None:
-                Source.closed = True
-
-        fake = _FakeClient()
-        with pytest.raises(ValueError, match="encoding failed"):
-            await _send(fake, GRPC_WEB, Source())
-        assert Source.closed
-        assert fake.events == [], "nothing is sent"
-
-    @pytest.mark.parametrize("content_type", ENVELOPED_CONTENT_TYPES)
-    async def test_enveloped_bytes_are_signed_over_the_first_envelope(self, content_type: str) -> None:
-        fake = _FakeClient()
-        body = ENV1 + ENV2
-        await _send(fake, content_type, body)
-
-        _assert_signed_over(fake.headers, ENV1)
-        assert fake.content is body
-
-    async def test_empty_enveloped_bytes_are_signed_over_nothing(self) -> None:
-        fake = _FakeClient()
-        await _send(fake, CONNECT_STREAM, b"")
-
-        _assert_signed_over(fake.headers, b"")
-        assert fake.content == b""
-
-    @pytest.mark.parametrize("body", TRUNCATED_BODIES.keys())
-    async def test_refuses_enveloped_bytes_ending_inside_the_first_envelope(self, body: str) -> None:
-        fake = _FakeClient()
-        with pytest.raises(ConnectError) as exc:
-            await _send(fake, CONNECT_STREAM, TRUNCATED_BODIES[body])
-        assert exc.value.code == Code.INVALID_ARGUMENT
-        assert exc.value.message == BROKEN_FIRST_MESSAGE
-        assert fake.events == [], "nothing is sent"
-
 
 class TestSigningSyncClientStream:
-    @pytest.mark.parametrize("content_type", [CONNECT_STREAM, GRPC])
-    def test_empty_enveloped_iterator_is_signed_over_nothing(self, content_type: str) -> None:
+    def test_empty_stream_is_signed_over_nothing(self) -> None:
         fake = _FakeSyncClient()
-        _send_sync(fake, content_type, iter([]))
+        _send_sync(fake, CONNECT_STREAM, iter([]))
 
         _assert_signed_over(fake.headers, b"")
         assert fake.body == b""
@@ -462,107 +370,9 @@ class TestSigningSyncClientStream:
         _send_sync(fake, CONNECT_STREAM, iter([ENV1]))
         assert fake.timeout is None
 
-    def test_bytes_content_is_signed_whole(self) -> None:
+    def test_stream_is_signed_over_its_first_envelope(self) -> None:
         fake = _FakeSyncClient()
-        body = ENV1 + ENV2
-        _send_sync(fake, "application/proto", body, timeout=5.0)
-
-        _assert_signed_over(fake.headers, body)
-        assert fake.content is body
-        assert fake.timeout == 5.0
-
-    @pytest.mark.parametrize("content_type", ENVELOPED_CONTENT_TYPES)
-    def test_enveloped_iterator_is_signed_over_its_first_envelope(self, content_type: str) -> None:
-        fake = _FakeSyncClient()
-        _send_sync(fake, content_type, iter([ENV1, ENV2]))
+        _send_sync(fake, CONNECT_STREAM, iter([ENV1, ENV2]))
 
         _assert_signed_over(fake.headers, ENV1)
         assert fake.body == ENV1 + ENV2
-
-    @pytest.mark.parametrize("content_type", WHOLE_BODY_CONTENT_TYPES)
-    def test_other_iterator_is_signed_whole(self, content_type: str) -> None:
-        events: list[str] = []
-        fake = _FakeSyncClient(events)
-        _send_sync(fake, content_type, _closing_source([ENV1, ENV2], events), timeout=5.0)
-
-        _assert_signed_over(fake.headers, ENV1 + ENV2)
-        assert fake.content == ENV1 + ENV2
-        assert events == ["source closed", "request sent"]
-        assert fake.timeout is not None
-        assert 4.0 < fake.timeout <= 5.0
-
-    def test_other_iterator_source_closed_when_reading_fails(self) -> None:
-        class Source:
-            closed = False
-            chunks = [ENV1]
-
-            def __iter__(self):
-                return self
-
-            def __next__(self) -> bytes:
-                if self.chunks:
-                    return self.chunks.pop()
-                raise ValueError("encoding failed")
-
-            def close(self) -> None:
-                Source.closed = True
-
-        fake = _FakeSyncClient()
-        with pytest.raises(ValueError, match="encoding failed"):
-            _send_sync(fake, GRPC_WEB, Source())
-        assert Source.closed
-        assert fake.events == [], "nothing is sent"
-
-    def test_whole_body_read_is_deducted_from_the_timeout(self) -> None:
-        def source():
-            time.sleep(0.05)
-            yield ENV1
-
-        fake = _FakeSyncClient()
-        _send_sync(fake, GRPC_WEB, source(), timeout=10.0)
-
-        assert fake.timeout is not None
-        assert 9.0 < fake.timeout <= 10.0 - 0.05
-
-    def test_body_read_after_the_timeout_is_not_sent(self) -> None:
-        events: list[str] = []
-
-        def source():
-            try:
-                yield ENV1
-                time.sleep(0.3)
-                yield ENV2
-            finally:
-                events.append("source closed")
-
-        started = time.monotonic()
-        with pytest.raises(TimeoutError):
-            _send_sync(_FakeSyncClient(events), GRPC_WEB, source(), timeout=0.05)
-        assert time.monotonic() - started >= 0.3
-        assert events == ["source closed"], "nothing is sent and the source is closed"
-
-    @pytest.mark.parametrize("content_type", ENVELOPED_CONTENT_TYPES)
-    def test_enveloped_bytes_are_signed_over_the_first_envelope(self, content_type: str) -> None:
-        fake = _FakeSyncClient()
-        body = ENV1 + ENV2
-        _send_sync(fake, content_type, body, timeout=5.0)
-
-        _assert_signed_over(fake.headers, ENV1)
-        assert fake.content is body
-        assert fake.timeout == 5.0
-
-    def test_empty_enveloped_bytes_are_signed_over_nothing(self) -> None:
-        fake = _FakeSyncClient()
-        _send_sync(fake, CONNECT_STREAM, b"")
-
-        _assert_signed_over(fake.headers, b"")
-        assert fake.content == b""
-
-    @pytest.mark.parametrize("body", TRUNCATED_BODIES.keys())
-    def test_refuses_enveloped_bytes_ending_inside_the_first_envelope(self, body: str) -> None:
-        fake = _FakeSyncClient()
-        with pytest.raises(ConnectError) as exc:
-            _send_sync(fake, CONNECT_STREAM, TRUNCATED_BODIES[body])
-        assert exc.value.code == Code.INVALID_ARGUMENT
-        assert exc.value.message == BROKEN_FIRST_MESSAGE
-        assert fake.events == [], "nothing is sent"

@@ -4,8 +4,9 @@ These wrappers add T-0 Network signature headers to outgoing requests before
 delegating to the underlying pyqwest client. ConnectRPC uses exactly three methods
 on the client: get(), post(), and stream(); get() is refused.
 
-The content type decides what is signed: enveloped requests (Connect streaming, gRPC) over their
-first envelope as sent, everything else over the whole body. See docs/STREAMING.md.
+post() carries Connect unary calls and is signed over its whole body. stream() carries every
+streaming call and every gRPC call (unary included) as envelopes, one per chunk, and is signed over
+its first envelope as sent. See docs/STREAMING.md.
 """
 
 from __future__ import annotations
@@ -29,7 +30,7 @@ from t0_provider_sdk.common.headers import (
 from t0_provider_sdk.crypto.hash import legacy_keccak256
 
 if TYPE_CHECKING:
-    from collections.abc import AsyncIterator, Iterable, Iterator
+    from collections.abc import AsyncIterable, AsyncIterator, Iterable, Iterator
     from contextlib import AbstractAsyncContextManager, AbstractContextManager
 
     from t0_provider_sdk.crypto.signer import SignFn
@@ -56,7 +57,7 @@ def _sign_request(
     4. signature, public_key = sign(digest)
     5. Set X-Public-Key, X-Signature, X-Signature-Timestamp headers
 
-    body is what the signature covers: the whole body, or an enveloped request's first envelope.
+    body is what the signature covers: the whole body of post(), or the first envelope of stream().
     """
     timestamp_ms = _timestamp_ms()
     timestamp_bytes = struct.pack("<Q", timestamp_ms)
@@ -71,24 +72,8 @@ def _sign_request(
     return headers
 
 
-def _is_enveloped(headers: pyqwest.Headers | None) -> bool:
-    """Whether only the first envelope is signed. Not for gRPC-Web: the network verifies its whole body."""
-    content_type = headers.get("content-type") if headers is not None else None
-    media_type = (content_type or "").partition(";")[0].strip().lower()
-    return media_type == "application/grpc" or media_type.startswith(("application/connect+", "application/grpc+"))
-
-
 def _broken_first_message() -> ConnectError:
     return ConnectError(Code.INVALID_ARGUMENT, "streaming request ends inside its first message")
-
-
-def _first_envelope(body: bytes) -> bytes:
-    if not body:
-        return b""
-    size = _ENVELOPE_PREFIX_SIZE + int.from_bytes(body[1:_ENVELOPE_PREFIX_SIZE], "big")
-    if len(body) < _ENVELOPE_PREFIX_SIZE or len(body) < size:
-        raise _broken_first_message()
-    return body[:size]
 
 
 def _require_one_envelope(chunk: bytes) -> None:
@@ -201,17 +186,10 @@ class SigningClient:
         self,
         method: str,
         url: str,
-        headers: pyqwest.Headers | None = None,
-        content: bytes | AsyncIterator[bytes] | None = None,
+        headers: pyqwest.Headers | None,
+        content: AsyncIterable[bytes],
     ) -> AbstractAsyncContextManager[pyqwest.Response]:
-        enveloped = _is_enveloped(headers)
-        if content is None or isinstance(content, (bytes, bytearray, memoryview)):
-            body = bytes(content or b"")
-            headers = _sign_request(self._sign_fn, _first_envelope(body) if enveloped else body, headers)
-            return self._inner.stream(method, url, headers=headers, content=content)
-        if enveloped:
-            return self._stream_signing_first_envelope(method, url, headers, aiter(content))
-        return self._stream_signing_whole_body(method, url, headers, aiter(content))
+        return self._stream_signing_first_envelope(method, url, headers, aiter(content))
 
     # The body is read when the context is entered, which connectrpc does inside its call timeout.
 
@@ -232,18 +210,6 @@ class SigningClient:
         async with self._inner.stream(method, url, headers=headers, content=content) as response:
             yield response
 
-    @asynccontextmanager
-    async def _stream_signing_whole_body(
-        self, method: str, url: str, headers: pyqwest.Headers | None, source: AsyncIterator[bytes]
-    ) -> AsyncIterator[pyqwest.Response]:
-        try:
-            body = b"".join([chunk async for chunk in source])
-            headers = _sign_request(self._sign_fn, body, headers)
-        finally:
-            await _aclose(source)
-        async with self._inner.stream(method, url, headers=headers, content=body) as response:
-            yield response
-
 
 class SigningSyncClient:
     """Sync signing wrapper for pyqwest.SyncClient.
@@ -255,8 +221,8 @@ class SigningSyncClient:
     stream) before waiting for a response. Bidirectional streams are not supported; only the
     factory-built clients reject them.
 
-    A blocked source is not interrupted: the time it takes to yield the first message (for a
-    whole-body iterator, the whole body) is deducted from the call's timeout, and if none is left,
+    A blocked source is not interrupted: the time it takes to yield the first message is deducted
+    from the call's timeout, and if none is left,
     nothing is sent, the source is closed and the call fails with TimeoutError (DEADLINE_EXCEEDED
     in connectrpc). Bounding the time of each read is up to the source. See docs/STREAMING.md.
     """
@@ -283,18 +249,11 @@ class SigningSyncClient:
         self,
         method: str,
         url: str,
-        headers: pyqwest.Headers | None = None,
-        content: bytes | Iterable[bytes] | None = None,
+        headers: pyqwest.Headers | None,
+        content: Iterable[bytes],
         timeout: float | None = None,
     ) -> AbstractContextManager[pyqwest.SyncResponse]:
-        enveloped = _is_enveloped(headers)
-        if content is None or isinstance(content, (bytes, bytearray, memoryview)):
-            body = bytes(content or b"")
-            headers = _sign_request(self._sign_fn, _first_envelope(body) if enveloped else body, headers)
-            return self._inner.stream(method, url, headers=headers, content=content, timeout=timeout)
-        if enveloped:
-            return self._stream_signing_first_envelope(method, url, headers, iter(content), timeout)
-        return self._stream_signing_whole_body(method, url, headers, iter(content), timeout)
+        return self._stream_signing_first_envelope(method, url, headers, iter(content), timeout)
 
     @contextmanager
     def _stream_signing_first_envelope(
@@ -317,23 +276,4 @@ class SigningSyncClient:
             raise
         content = _SyncChain(first, source)
         with self._inner.stream(method, url, headers=headers, content=content, timeout=timeout) as response:
-            yield response
-
-    @contextmanager
-    def _stream_signing_whole_body(
-        self,
-        method: str,
-        url: str,
-        headers: pyqwest.Headers | None,
-        source: Iterator[bytes],
-        timeout: float | None,
-    ) -> Iterator[pyqwest.SyncResponse]:
-        started = time.monotonic()
-        try:
-            body = b"".join(source)
-            timeout = _remaining_timeout(timeout, started, "the request body")
-            headers = _sign_request(self._sign_fn, body, headers)
-        finally:
-            _close(source)
-        with self._inner.stream(method, url, headers=headers, content=body, timeout=timeout) as response:
             yield response

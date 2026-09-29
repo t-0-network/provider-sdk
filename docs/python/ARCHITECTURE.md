@@ -167,7 +167,7 @@ Message byte layout:
 
 > **CRITICAL INVARIANT:** The body bytes used for signing and verification MUST be the exact bytes from the HTTP request. Re-encoding a deserialized Protobuf message produces different bytes and will cause signature verification to fail.
 
-**Streaming RPCs:** for an enveloped request (`application/connect+*`, `application/grpc`, `application/grpc+*`) `body` is only the **first envelope**, exactly as sent (flags ‖ uint32be length ‖ payload); a Connect unary request is signed over its whole body. See [docs/STREAMING.md](../STREAMING.md#what-is-signed).
+**Streaming RPCs and gRPC:** a request that goes through `stream()` (Connect streams and every gRPC call) is signed over its **first envelope** only, exactly as sent (flags ‖ uint32be length ‖ payload); a Connect unary request (`post()`) is signed over its whole body. See [docs/STREAMING.md](../STREAMING.md#what-is-signed).
 
 #### 2.1.2 Digest Computation
 
@@ -667,7 +667,7 @@ Both classes share the signing logic via the `_sign_request()` helper, which tak
 4. `signature, pub_key = sign_fn(digest)`
 5. Set headers: `X-Public-Key = "0x" + pub_key.hex()`, `X-Signature = "0x" + signature.hex()`, `X-Signature-Timestamp = str(timestamp_ms)`
 
-What `body` is (the whole body, or the first envelope of an enveloped request) and how `stream()` reads, checks, sends and closes an iterator body: [docs/STREAMING.md](../STREAMING.md#what-is-signed).
+What `body` is (the whole body of `post()`, or the first envelope of `stream()`) and how `stream()` reads, checks, sends and closes its body: [docs/STREAMING.md](../STREAMING.md#what-is-signed).
 
 #### 4.3.2 `client.py` -- Generic Client Factory
 
