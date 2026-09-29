@@ -4,7 +4,6 @@ import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import {
   Code,
-  ConnectError,
   createClient as createConnectClient,
   createConnectRouter,
   type ServiceImpl,
@@ -15,7 +14,7 @@ import { createClient } from '../src/client/client.js';
 import { CreateSigner } from '../src/client/signer.js';
 import { transportOptions } from '../src/common/client/client.js';
 import { computeDigest, NetworkHeaders, parsePublicKey, publicKeysEqual, verifySignature } from '../src/crypto/index.js';
-import { StreamTest, bufferingFetchClient, newKeypair, stringValues } from './stream_helpers.js';
+import { StreamTest, bufferingFetchClient, isCode, newKeypair, stringValues } from './stream_helpers.js';
 
 interface Check {
   procedure: string;
@@ -190,14 +189,6 @@ async function withServer(fn: (srv: StreamServer, key: ReturnType<typeof newKeyp
   } finally {
     await srv.close();
   }
-}
-
-function isCode(code: Code) {
-  return (err: unknown) => {
-    assert.ok(err instanceof ConnectError, `want a ConnectError, got ${err}`);
-    assert.equal(err.code, code, `code of ${err.message}`);
-    return true;
-  };
 }
 
 describe('Streaming calls are signed over the first request envelope', { timeout: 20_000 }, () => {

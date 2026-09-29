@@ -6,12 +6,12 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import path from 'node:path';
 import fs from 'node:fs';
 import type { AddressInfo } from 'node:net';
-import { Code, ConnectError, createClient as createConnectClient } from '@connectrpc/connect';
+import { Code, createClient as createConnectClient } from '@connectrpc/connect';
 import { createTransport } from '@connectrpc/connect/protocol-connect';
 import { createClient } from '../src/client/client.js';
 import { CreateSigner } from '../src/client/signer.js';
 import { transportOptions } from '../src/common/client/client.js';
-import { StreamTest, bufferingFetchClient, stringValues } from './stream_helpers.js';
+import { StreamTest, bufferingFetchClient, isCode, stringValues } from './stream_helpers.js';
 
 const GO_HELPER = path.resolve(import.meta.dirname, '..', '..', '..', 'cross_test', 'go_helper', 'go_helper');
 
@@ -52,14 +52,6 @@ async function freePort(): Promise<number> {
   const { port } = srv.address() as AddressInfo;
   await new Promise<void>((r) => srv.close(() => r()));
   return port;
-}
-
-function isCode(code: Code) {
-  return (err: unknown) => {
-    assert.ok(err instanceof ConnectError, `want a ConnectError, got ${err}`);
-    assert.equal(err.code, code, `code of ${err.message}`);
-    return true;
-  };
 }
 
 if (!goAvailable() && process.env.CI) {

@@ -1,3 +1,4 @@
+import assert from 'node:assert/strict';
 import { randomBytes } from 'node:crypto';
 import { create, createFileRegistry } from '@bufbuild/protobuf';
 import type { GenService } from '@bufbuild/protobuf/codegenv2';
@@ -6,6 +7,7 @@ import {
   file_google_protobuf_wrappers,
   type StringValueSchema,
 } from '@bufbuild/protobuf/wkt';
+import { Code, ConnectError } from '@connectrpc/connect';
 import { universalClientResponseFromFetch, type UniversalClientFn } from '@connectrpc/connect/protocol';
 import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { signatureHeaders } from '../src/common/client/sign.js';
@@ -69,5 +71,14 @@ export function bufferingFetchClient(signer?: SignerFunction): UniversalClientFn
     }
     const res = await fetch(req.url, { method: req.method, headers: req.header, body, signal: req.signal });
     return universalClientResponseFromFetch(res);
+  };
+}
+
+// For assert.rejects: the error is a ConnectError with this code.
+export function isCode(code: Code) {
+  return (err: unknown) => {
+    assert.ok(err instanceof ConnectError, `want a ConnectError, got ${err}`);
+    assert.equal(err.code, code, `code of ${err.message}`);
+    return true;
   };
 }

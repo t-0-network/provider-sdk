@@ -142,7 +142,7 @@ async function sendThroughSigningClient(t: TestContext, contentType: string, met
   return sent[0];
 }
 
-describe('The signing HTTP client signs a body that is not enveloped whole', () => {
+describe('The signing HTTP client signs a body whole unless its content type is enveloped', () => {
   it('joins a body of several chunks, signs it and sends it as one buffer', async (t) => {
     const s = await sendThroughSigningClient(t, 'application/proto', 'POST', [Buffer.from('0a05', 'hex'), Buffer.from('hello')]);
     assert.equal(s.body.toString('hex'), '0a0568656c6c6f');
@@ -168,7 +168,7 @@ describe('The signing HTTP client signs a body that is not enveloped whole', () 
     });
   }
   for (const contentType of ['application/connect+proto', 'Application/Connect+Proto; charset=utf-8', 'application/grpc', 'application/grpc+proto']) {
-    it(`signs ${contentType} over its first envelope`, async (t) => {
+    it(`treats ${contentType} as enveloped: refuses a first chunk of two envelopes`, async (t) => {
       await assert.rejects(sendThroughSigningClient(t, contentType, 'POST', [twoEnvelopes]), /not one complete envelope/);
     });
   }
