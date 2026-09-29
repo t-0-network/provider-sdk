@@ -366,10 +366,14 @@ describe('createClient routes unary and streaming calls to their own transport',
     });
   });
 
-  it('a negative or NaN timeout is refused', () => {
-    for (const opts of [{ unaryTimeoutMs: -1 }, { streamTimeoutMs: -1 }, { unaryTimeoutMs: NaN }]) {
-      assert.throws(() => createClient(newKeypair().privateKeyHex, 'http://127.0.0.1:9', StreamTest, opts), RangeError);
+  it('a timeout that is negative, NaN, or too large for a Node timer is refused', () => {
+    // From 2^31 ms (Infinity included) Node fires a timer at once: every call would fail at once.
+    for (const ms of [-1, NaN, Infinity, 2 ** 31]) {
+      for (const opts of [{ unaryTimeoutMs: ms }, { streamTimeoutMs: ms }]) {
+        assert.throws(() => createClient(newKeypair().privateKeyHex, 'http://127.0.0.1:9', StreamTest, opts), RangeError);
+      }
     }
+    assert.doesNotThrow(() => createClient(newKeypair().privateKeyHex, 'http://127.0.0.1:9', StreamTest, { unaryTimeoutMs: 2 ** 31 - 1 }));
   });
 
   it('the stream timeout covers the wait for the first message', async () => {

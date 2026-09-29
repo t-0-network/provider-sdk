@@ -49,7 +49,7 @@ A server stream's single request message is its first envelope. A client stream 
 
 `ClientOptions.unaryTimeoutMs` and `streamTimeoutMs` are the transports' `defaultTimeoutMs`: each call's deadline, sent as `Connect-Timeout-Ms` and enforced locally. A call's own `timeoutMs` overrides them.
 
-| Option | Default | `0` | Negative or `NaN` |
+| Option | Default | `0` | Negative, `NaN`, or above 2^31 − 1 (`Infinity` included) |
 |---|---|---|---|
 | `unaryTimeoutMs` | 15 000 ms (as in the other SDKs) | no timeout | `RangeError` from `createClient` |
 | `streamTimeoutMs` | none: an upload or download takes as long as it takes | no timeout | `RangeError` from `createClient` |

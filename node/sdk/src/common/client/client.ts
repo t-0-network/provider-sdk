@@ -53,13 +53,15 @@ export function transportOptions(signer: SignerFunction, endpoint: string, timeo
 // As in the other SDKs.
 const DEFAULT_UNARY_TIMEOUT_MS = 15_000;
 
-// undefined: the default; 0: no timeout.
+// undefined: the default; 0: no timeout. Node's timers fire at once from 2^31 ms, Infinity included.
+const MAX_TIMEOUT_MS = 2 ** 31 - 1;
+
 function timeoutOption(name: string, ms: number | undefined, byDefault: number | undefined): number | undefined {
     if (ms === undefined) {
         return byDefault;
     }
-    if (!(ms >= 0)) {
-        throw new RangeError(`${name} must be 0 (no timeout) or a positive number of milliseconds, got ${ms}`);
+    if (!(ms >= 0 && ms <= MAX_TIMEOUT_MS)) {
+        throw new RangeError(`${name} must be 0 (no timeout) or a number of milliseconds up to ${MAX_TIMEOUT_MS}, got ${ms}`);
     }
     return ms === 0 ? undefined : ms;
 }
@@ -69,7 +71,7 @@ function timeoutOption(name: string, ms: number | undefined, byDefault: number |
  */
 export interface ClientOptions {
     /**
-     * Deadline of each unary call in ms; `0` for none. A call's own `timeoutMs` overrides it.
+     * Deadline of each unary call in ms, at most 2^31 − 1; `0` for none. A call's own `timeoutMs` overrides it.
      * Default: 15_000.
      */
     unaryTimeoutMs?: number;
