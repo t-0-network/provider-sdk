@@ -202,9 +202,7 @@ class SignatureVerificationInterceptorTest {
     }
 
     // ==================== Timestamp Validation Tests ====================
-    //
-    // These run the interceptor on a fake call with a fixed clock: the headers carry a valid
-    // signature, so only the timestamp decides.
+    // Valid signatures on a fake call with a fixed clock: only the timestamp decides.
 
     @Test
     @DisplayName("Should accept timestamp within validity window and pass the call on")
@@ -213,7 +211,6 @@ class SignatureVerificationInterceptorTest {
 
         assertThat(outcome.call.closeStatus).isNull();
         assertThat(outcome.handler.started).isTrue();
-        // The body goes through the signature check to the handler.
         assertThat(outcome.handler.messages).containsExactly(BODY);
     }
 

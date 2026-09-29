@@ -69,7 +69,7 @@ The network's verification logic on its own ingress mirrors this dual-path with 
 
 ## Streaming calls (client side)
 
-For client- and server-streaming calls the Java SDK's `NetworkClient` signs **only the first request message**, with the same framing as unary calls: the marshalled message without its 5-byte gRPC prefix, `Keccak256(first_message_bytes || ts_le_u64)`. Later messages are sent unsigned, and the headers go out once, when the call starts. The network verifies a streaming request over its first message, accepting the first frame with or without the prefix over gRPC, exactly like the unary dual-path above. The verifier described here is the provider side, which still checks every inbound message; providers do not serve streaming RPCs.
+For client- and server-streaming calls `NetworkClient` signs **only the first request message**, unframed as for unary calls; the network accepts the first frame with or without its prefix over gRPC, like the unary dual-path above. The provider-side verifier described here still checks every inbound message; providers serve no streams. Details: [`STREAMING.md`](STREAMING.md).
 
 ## CRITICAL: do not remove either path
 

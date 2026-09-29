@@ -216,23 +216,17 @@ The interceptor tries the unframed payload first, then reconstructs the gRPC fra
 
 ## Streaming Calls
 
-For client-streaming and server-streaming calls, `SigningClientInterceptor` signs **only the first request message**. Later messages are sent as-is, unsigned, and the signature headers go out once, when the call starts. As for unary calls, the interceptor sits above the gRPC framer, so the signed bytes are the first message **without** its 5-byte gRPC prefix; the T-0 Network accepts that through its unframed fallback:
+For client- and server-streaming calls, `SigningClientInterceptor` signs **only the first request message** (unframed, as for unary calls); later messages are sent unsigned. The call starts when that first message is sent. Bidirectional streaming is not supported: such a call closes with `UNIMPLEMENTED` and nothing is sent.
 
-```
-digest = Keccak256(first_message_bytes || timestamp_le_u64)
-```
-
-A client stream closed before its first message signs empty bytes, which the network rejects. Bidirectional streaming is not supported: such a call closes with `UNIMPLEMENTED` when it starts, and nothing is sent.
-
-The call starts when the first message is sent, since the signature headers must be complete before it starts. Until then `isReady()` reports `true`, so readiness-gated senders (`BlockingClientCall.write`, `while (requestStream.isReady())` loops) send that message; `onReady()` is first delivered after it, so a sender driven only by `onReady` callbacks must send its first message directly. `cancel()` before the first message still delivers `onClose(CANCELLED)`.
-
-Streaming calls get no default deadline, since a stream can run as long as an upload or a download takes. Set one per client, or per stub with `stub(timeout, unit)`:
+Streaming calls get no default deadline. Set one per client, or per stub with `stub(timeout, unit)`:
 
 ```java
 // 15 s for unary calls, 10 min for streaming calls
 AsyncNetworkClient.create(endpoint, signer, NetworkServiceGrpc::newStub,
         Duration.ofSeconds(15), Duration.ofMinutes(10));
 ```
+
+Details (readiness, cancellation, empty streams, deadlines, tests): [`docs/java/STREAMING.md`](../../docs/java/STREAMING.md).
 
 ---
 

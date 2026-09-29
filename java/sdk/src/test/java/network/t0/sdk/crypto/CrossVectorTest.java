@@ -161,10 +161,8 @@ class CrossVectorTest {
     }
 
     /**
-     * Streaming requests sign only their first message. Each case's signed bytes are derived
-     * from its body: the first envelope (5-byte prefix and payload) or, for a signer above the
-     * gRPC framer like this SDK, the first payload alone. That this SDK's client emits the
-     * first_payload case is checked in {@code SigningClientInterceptorStreamingTest}.
+     * Signed bytes (derived from each case's body), digest and signature of every stream case.
+     * That the client emits the first_payload case is tested in SigningClientInterceptorStreamingTest.
      */
     @Test
     void streamSigningCases_shouldMatchVectorBytes() {
@@ -200,11 +198,7 @@ class CrossVectorTest {
         }
     }
 
-    /**
-     * The first message of an enveloped body (flags byte, big-endian uint32 length, payload):
-     * the whole envelope for {@code first_envelope}, the payload for {@code first_payload}.
-     * An empty body has no first message and signs empty bytes.
-     */
+    /** The first envelope (flags, uint32be length, payload) or its payload; empty for an empty body. */
     private static byte[] firstMessage(byte[] body, String covers) {
         if (body.length == 0) {
             return body;

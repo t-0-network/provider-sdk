@@ -127,7 +127,6 @@ class DefaultDeadlineInterceptorTest {
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
-    /** The clients apply the deadlines to real calls. */
     @Nested
     @DisplayName("Through the clients")
     class ThroughTheClients {
@@ -209,7 +208,7 @@ class DefaultDeadlineInterceptorTest {
                 CompletableFuture<Status> bounded = watch(withStreamTimeout.stub());
 
                 assertThat(bounded.get(10, TimeUnit.SECONDS).getCode()).isEqualTo(Status.Code.DEADLINE_EXCEEDED);
-                // Well past the 500 ms unary timeout, the stream without a stream timeout is still open.
+                // Past the 500 ms unary timeout, the stream without a stream timeout is still open.
                 Thread.sleep(1_000);
                 assertThat(unbounded).isNotDone();
 

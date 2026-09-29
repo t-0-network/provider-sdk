@@ -54,15 +54,9 @@ import java.util.concurrent.TimeUnit;
  * }
  * }</pre>
  *
- * <p><b>Deadlines:</b> every call without a deadline of its own gets one when it is created:
- * {@value #DEFAULT_TIMEOUT_SECONDS} seconds for unary calls by default, none for streaming calls.
- * The {@code create} overloads of the concrete clients set both; {@code stub(timeout, unit)} sets
- * a deadline for the calls of one stub.
- *
- * <p><b>Streaming calls:</b> for client- and server-streaming calls the signature covers only the
- * first request message; later messages are sent as-is. A call starts when its first message is
- * sent, and its {@code isReady()} reports {@code true} until then. Bidirectional streaming calls are
- * not supported: they close with {@code UNIMPLEMENTED} when started, and nothing is sent.
+ * <p>Unary calls get a default deadline of {@value #DEFAULT_TIMEOUT_SECONDS} seconds, streaming calls
+ * none. Client- and server-streaming calls are signed over their first request message only;
+ * bidirectional streams fail with {@code UNIMPLEMENTED}. See {@code docs/java/STREAMING.md}.
  *
  * <p><b>Thread Safety:</b> Client instances are thread-safe. The underlying gRPC channel
  * and stubs support concurrent use from multiple threads. The signing interceptor creates
@@ -142,7 +136,7 @@ public abstract class NetworkClient implements Closeable {
         if (signer == null) {
             throw new IllegalArgumentException("signer must not be null");
         }
-        // Validates the timeouts before a channel exists that would have to be shut down.
+        // Validates the timeouts before there is a channel to shut down.
         DefaultDeadlineInterceptor deadlines = new DefaultDeadlineInterceptor(unaryTimeout, streamTimeout);
 
         EndpointInfo endpointInfo = parseEndpoint(endpoint);
@@ -158,8 +152,7 @@ public abstract class NetworkClient implements Closeable {
 
         ManagedChannel channel = builder.build();
 
-        // The last interceptor runs first: the deadline is set before the signing interceptor
-        // creates the underlying call.
+        // The last listed runs first: the deadline is set before the signing interceptor creates the call.
         Channel interceptedChannel = ClientInterceptors.intercept(
                 channel, new SigningClientInterceptor(signer, Clock.systemUTC()), deadlines);
 
@@ -168,9 +161,6 @@ public abstract class NetworkClient implements Closeable {
 
     /**
      * Returns the underlying gRPC channel with the signing and default-deadline interceptors applied.
-     *
-     * <p>Calls made on it directly, for example with a hand-built {@link MethodDescriptor}, are
-     * signed and get the default deadlines like the stub's calls.
      *
      * @return the intercepted channel that signs all outgoing requests
      */
@@ -288,33 +278,13 @@ public abstract class NetworkClient implements Closeable {
      * <p>The implementation uses {@link ByteArrayMarshaller} to send pre-serialized
      * bytes, avoiding double-encoding that would break signature verification.
      *
-     * <p><b>What is signed:</b> the first request message only - the whole request of a unary or
-     * server-streaming call, the first message of a client stream. The interceptor sits above the
-     * gRPC framer, so it signs the marshalled message without the 5-byte gRPC prefix; the network
-     * accepts that through its unframed fallback. Later messages of a stream are sent as-is: they
-     * are not signed and do not touch the headers, which went out when the call started. A call
-     * half-closed before any message signs empty bytes. Bidirectional streams are not supported: such
-     * a call never creates an underlying call and closes its listener with {@code UNIMPLEMENTED} when
-     * started.
-     *
-     * <p><b>Deferred start:</b> the underlying call starts when the first message (or
-     * {@code halfClose()}) arrives, because the signature headers must be complete before it
-     * starts. Until then:
-     * <ul>
-     *   <li>{@code isReady()} returns {@code true}, so isReady-gated senders such as
-     *       {@code BlockingClientCall.write} send the first message instead of waiting on a call
-     *       that cannot start without it. {@code onReady()} is first delivered after that message,
-     *       so a sender driven only by onReady callbacks has to send its first message directly.</li>
-     *   <li>{@code request()} is buffered and passed on when the call starts.</li>
-     *   <li>{@code cancel()} starts the underlying call and cancels it at once: a call that was
-     *       never started never notifies its listener, so without this the listener would not get
-     *       {@code onClose(CANCELLED)}.</li>
-     * </ul>
+     * <p>Only the first request message is signed, without its 5-byte gRPC prefix (this interceptor
+     * sits above the framer); later stream messages are sent unsigned. The underlying call starts on
+     * that first message, since the headers must be complete by then. Bidirectional streams are
+     * refused with {@code UNIMPLEMENTED}. See {@code docs/java/STREAMING.md}.
      *
      * <p>This class is thread-safe. Each call to {@link #interceptCall} creates
-     * independent state for that specific call. As for any {@link ClientCall}, the methods of the
-     * returned call are expected to be called serially, except {@code request()}, which may be
-     * called from any thread.
+     * independent state for that specific call.
      */
     static class SigningClientInterceptor implements ClientInterceptor {
 
@@ -345,8 +315,8 @@ public abstract class NetworkClient implements Closeable {
                 CallOptions callOptions,
                 Channel next) {
 
-            // Fail fast: with the deferred start, a bidi caller that waits for a response before
-            // sending would hang, and the network does not accept bidi streams anyway.
+            // The network accepts no bidi streams, and with the deferred start a bidi caller that
+            // awaits a response before sending would hang: fail fast.
             if (method.getType() == MethodDescriptor.MethodType.BIDI_STREAMING) {
                 return new BidiNotSupportedCall<>();
             }
@@ -391,14 +361,11 @@ public abstract class NetworkClient implements Closeable {
                         throw new RuntimeException("Failed to serialize message for signing", e);
                     }
 
+                    // Only the first message is signed; later stream messages go out as-is.
                     if (!started) {
-                        // First message: sign the exact bytes we will send, then start the
-                        // actual call with the signed headers.
                         addSignatureHeaders(messageBytes, clock.millis());
                         startRawCall();
                     }
-                    // Later messages of a stream are sent as-is: the signature covers the first
-                    // message only, and the headers already went out when the call started.
 
                     // CRITICAL: Send the EXACT bytes we signed, not the original message.
                     // This prevents double-serialization which would produce different bytes.
@@ -431,10 +398,8 @@ public abstract class NetworkClient implements Closeable {
 
                 @Override
                 public void cancel(String message, Throwable cause) {
-                    // An unstarted call never calls its listener, so cancelling it alone would
-                    // leave the listener without onClose. Start it first (nothing was signed yet,
-                    // and the cancellation follows at once) so the listener gets onClose(CANCELLED)
-                    // on the call's executor, as for any other cancelled call.
+                    // An unstarted call never notifies its listener: start it (unsigned) so the
+                    // listener still gets onClose(CANCELLED).
                     if (!started && responseListener != null) {
                         startRawCall();
                     }
@@ -443,8 +408,8 @@ public abstract class NetworkClient implements Closeable {
 
                 @Override
                 public boolean isReady() {
-                    // Before the first message the call cannot start, so it cannot become ready:
-                    // report ready so an isReady-gated sender sends that message.
+                    // Unstarted, the call can never become ready: report ready so that
+                    // isReady-gated senders send the first message, which starts it.
                     return !started || rawCall.isReady();
                 }
 
@@ -472,8 +437,7 @@ public abstract class NetworkClient implements Closeable {
                     }
                 }
 
-                // Called once, before the call starts: the headers are handed to the underlying
-                // call at start and must not change afterwards.
+                // Before start only: once started, the headers belong to the transport.
                 private void addSignatureHeaders(byte[] messageBytes, long timestampMs) {
                     byte[] timestampBytes = Headers.encodeTimestamp(timestampMs);
                     byte[] digest = Keccak256.hash(messageBytes, timestampBytes);
@@ -493,8 +457,8 @@ public abstract class NetworkClient implements Closeable {
         }
 
         /**
-         * The call handed out for a bidirectional stream. It closes its listener on start, as
-         * grpc-java's own calls do when they fail to start, and ignores everything else.
+         * Handed out for bidi streams: closes its listener on start, as grpc-java calls that fail
+         * to start do, and ignores everything else.
          */
         private static final class BidiNotSupportedCall<ReqT, RespT> extends ClientCall<ReqT, RespT> {
 
@@ -531,15 +495,9 @@ public abstract class NetworkClient implements Closeable {
     // --- Default deadlines ---
 
     /**
-     * gRPC client interceptor that gives each call a deadline unless it already has one.
-     *
-     * <p>Unary calls get the unary timeout. Streaming calls (client, server and bidi streaming,
-     * and calls of unknown type) get the stream timeout, or no deadline when none is set: a stream
-     * can run as long as an upload or a download takes. The deadline is computed when each call is
-     * created, never once for a stored stub. A deadline the call already has, for example from
-     * {@code stub(timeout, unit)} or {@code withDeadlineAfter} on a stub, is kept.
-     *
-     * <p>This class is thread-safe: it is immutable.
+     * gRPC client interceptor that gives each call without a deadline one when the call is created:
+     * the unary timeout for unary calls, the stream timeout (possibly none) for all others.
+     * See {@code docs/java/STREAMING.md}.
      */
     static final class DefaultDeadlineInterceptor implements ClientInterceptor {
 

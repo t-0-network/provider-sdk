@@ -29,9 +29,7 @@ GitHub issue #89 raised concern that the framed path looked like dead code — i
 
 ## Streaming Calls & Deadlines (client side)
 
-- `NetworkClient.SigningClientInterceptor` signs **only the first request message** of a client- or server-streaming call (unframed, like unary) and starts the call when that message arrives; later messages are sent unsigned and never touch the headers. Before that start `isReady()` returns `true` and `cancel()` starts-then-cancels so the listener still gets `onClose(CANCELLED)`. Bidi calls are refused locally: the call closes with `UNIMPLEMENTED` on `start()` and no underlying call is created.
-- `NetworkClient.DefaultDeadlineInterceptor` gives each call without a deadline one when it is created: unary 15 s (`DEFAULT_TIMEOUT_SECONDS`, or `create(..., timeoutSeconds)`), streams none unless `create(..., Duration unary, Duration stream)` sets one.
-- The provider-side `SignatureVerificationInterceptor` still verifies every inbound message; providers serve no streams.
+`SigningClientInterceptor` signs only the first message of a client/server stream (unframed) and defers the call's start until then; bidi is refused with `UNIMPLEMENTED`. `DefaultDeadlineInterceptor`: unary 15 s, streams none by default. Read [`docs/java/STREAMING.md`](../docs/java/STREAMING.md) before touching either.
 
 ---
 
@@ -47,7 +45,7 @@ cd java && ./gradlew test --tests "network.t0.sdk.integration.CrossServerTests" 
 Tests cover:
 - **Go→Java**: Health check + PayOut (via `--grpc`)
 - **Java→Go**: Health check (Java `BlockingNetworkClient` → Go server with dual-framing)
-- **Java→Go streaming**: client and server streaming over gRPC (h2c) against `test.v1.StreamTest`, which the helper verifies over the first message only. The tests read the helper's log for its verdict (`verified over the first payload`, `rejected: <reason>`), e.g. to show the first message is verified before the rest of the stream is sent
+- **Java→Go streaming**: client and server streams against `test.v1.StreamTest`, checked through the helper's log (see [`STREAMING.md`](../docs/java/STREAMING.md#how-it-is-tested))
 
 In CI, tests **fail** (not skip) if the Go helper binary is missing.
 
@@ -116,6 +114,7 @@ See [`docs/java/ISSUES_AND_LESSONS.md`](../../docs/java/ISSUES_AND_LESSONS.md) f
 
 Docs live in the top-level [`docs/java/`](../../docs/java/) directory:
 - [`SIGNATURE_VERIFICATION.md`](../../docs/java/SIGNATURE_VERIFICATION.md) — dual-path verification rationale (CRITICAL — read before touching `SignatureVerificationInterceptor`)
+- [`STREAMING.md`](../docs/java/STREAMING.md) — streaming signing, deferred start, deadlines, and how they are tested
 - [`GITHUB_SETUP.md`](../../docs/java/GITHUB_SETUP.md) — CI/CD, secrets, publishing setup
 - [`PROTO_SCHEMA_MANAGEMENT.md`](../../docs/java/PROTO_SCHEMA_MANAGEMENT.md) — protobuf code generation
 - [`ISSUES_AND_LESSONS.md`](../../docs/java/ISSUES_AND_LESSONS.md) — historical issues and solutions

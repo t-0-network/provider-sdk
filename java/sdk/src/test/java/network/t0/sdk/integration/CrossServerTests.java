@@ -223,18 +223,8 @@ class CrossServerTests {
         }
     }
 
-    // --- Streaming: Java client -> Go server over gRPC (h2c) ---
-    //
-    // go_helper serves test.v1.StreamTest (cross_test/stream_test.proto) behind a verifier that
-    // checks the signature over the first request message only, as the T-0 Network does, and
-    // answers 401 (UNAUTHENTICATED) otherwise. Java signs that message without its gRPC prefix.
-    // The methods are built by hand and called through the SDK's channel, so the signing and
-    // default-deadline interceptors apply.
-    //
-    // The helper logs its verdict for each call: "<path> verified over the first payload" (the
-    // unframed message, what Java signs) or "... envelope" (the framed one), or
-    // "<path> rejected: <reason>". The tests wait for those lines: the client alone sees only
-    // UNAUTHENTICATED, whatever the reason.
+    // --- Streaming: Java client -> Go server over gRPC (h2c), see docs/java/STREAMING.md ---
+    // The client sees only UNAUTHENTICATED, whatever the reason: the tests read the helper's log.
 
     private static final MethodDescriptor<StringValue, StringValue> CLIENT_STREAM =
             streamTestMethod(MethodType.CLIENT_STREAMING, "ClientStream");
@@ -269,10 +259,7 @@ class CrossServerTests {
         }
     }
 
-    /**
-     * The signed first message goes out when it is sent: the helper verifies it before the rest of
-     * the stream exists. A client that held the stream back to sign it would time out here.
-     */
+    /** A client that buffered the stream to sign it would time out waiting for the log line. */
     @Test
     @Timeout(30)
     void javaClient_goServer_clientStream_firstMessageIsNotBuffered() throws Exception {
@@ -296,10 +283,7 @@ class CrossServerTests {
         }
     }
 
-    /**
-     * A first message larger than HTTP/2's initial 64 KiB flow-control window, and random so that
-     * compression would not shrink it: the helper reads it whole before it verifies it.
-     */
+    /** Larger than HTTP/2's initial 64 KiB window, and random so compression cannot shrink it. */
     @Test
     @Timeout(30)
     void javaClient_goServer_clientStream_largeFirstMessage() throws Exception {
@@ -377,7 +361,6 @@ class CrossServerTests {
         }
     }
 
-    /** The verifier is not a pass-through: a stream signed by an unknown key is refused. */
     @Test
     @Timeout(30)
     void javaClient_goServer_clientStream_unknownKeyIsRejected() throws Exception {
@@ -399,7 +382,6 @@ class CrossServerTests {
         }
     }
 
-    /** A stream closed before its first message is signed over empty bytes, and has nothing to verify. */
     @Test
     @Timeout(30)
     void javaClient_goServer_emptyClientStreamIsRejected() throws Exception {
@@ -430,10 +412,7 @@ class CrossServerTests {
         }
     }
 
-    /**
-     * The helper verifies over the first message only. Hand-built headers over the first message
-     * pass, which shows they are built right; the same headers over the whole stream do not.
-     */
+    /** Hand-built headers over the first message pass (the control); over the whole stream they do not. */
     @Test
     @Timeout(30)
     void signatureOverTheWholeStreamIsRejected() throws Exception {
@@ -463,7 +442,6 @@ class CrossServerTests {
         }
     }
 
-    /** The helper checks the timestamp when the headers arrive; this signer's clock is two minutes behind. */
     @Test
     @Timeout(30)
     void staleSignatureTimestampIsRejected() throws Exception {
@@ -515,9 +493,8 @@ class CrossServerTests {
     }
 
     /**
-     * A running {@code go_helper serve} and what it has printed so far. A daemon thread drains its
-     * output (stdout and the Go log on stderr, merged), so the tests can wait for the verifier's
-     * lines and the process never blocks on a full pipe.
+     * A running {@code go_helper serve} and its merged output, drained by a daemon thread so the
+     * process never blocks on a full pipe.
      */
     private static final class GoServer {
         private final Process process;
@@ -639,8 +616,8 @@ class CrossServerTests {
     }
 
     /**
-     * Sends only while the call reports ready: the flow-control pattern of the gRPC examples.
-     * {@link #drain()} runs once from the caller for the first message and then on each onReady.
+     * Sends only while the call reports ready. {@link #drain()} runs once from the caller for the
+     * first message, since onReady comes only after it, then on each onReady.
      */
     private static final class ReadinessDrivenSender implements ClientResponseObserver<StringValue, StringValue> {
         final CompletableFuture<String> result = new CompletableFuture<>();

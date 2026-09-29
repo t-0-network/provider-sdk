@@ -38,9 +38,8 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
- * Tests the call {@link NetworkClient.SigningClientInterceptor} wraps around the underlying call:
- * what it signs, when it starts that call, and how it behaves before the start. The underlying
- * call is a recording fake, so the tests see exactly what reaches the transport.
+ * Tests {@link NetworkClient.SigningClientInterceptor} over a recording fake of the underlying call.
+ * See {@code docs/java/STREAMING.md}.
  */
 class SigningClientInterceptorStreamingTest {
 
@@ -104,7 +103,6 @@ class SigningClientInterceptorStreamingTest {
         call.request(1);
         call.sendMessage(value("m1"));
 
-        // Nothing is held back to sign the stream: the transport already has the signed first message.
         RecordingCall raw = channel.lastCall();
         assertThat(raw.events).containsExactly("start", "request:1", "send");
         assertThat(raw.sent).containsExactly(bytes("m1"));
@@ -209,7 +207,6 @@ class SigningClientInterceptorStreamingTest {
         assertThat(listener.closeStatus.getDescription()).contains("bidirectional");
         assertThat(channel.lastCall()).isNull();
 
-        // What a caller does next, such as a stub cleaning up, is ignored.
         assertThat(call.isReady()).isFalse();
         call.request(1);
         call.sendMessage(value("m1"));
@@ -226,7 +223,7 @@ class SigningClientInterceptorStreamingTest {
         ClientCall<StringValue, StringValue> call = intercepted.newCall(CLIENT_STREAM, CallOptions.DEFAULT);
         call.start(new RecordingListener<>(), new Metadata());
 
-        // The fake throws if asked before start, as ClientCallImpl does: it is not asked.
+        // The fake throws on isReady() before start, like ClientCallImpl.
         assertThat(call.isReady()).isTrue();
         assertThat(channel.lastCall().events).isEmpty();
 
@@ -252,7 +249,6 @@ class SigningClientInterceptorStreamingTest {
         assertThat(listener.closeStatus).isNotNull();
         assertThat(listener.closeStatus.getCode()).isEqualTo(Status.Code.CANCELLED);
         assertThat(listener.closeStatus.getDescription()).isEqualTo("caller gave up");
-        // Nothing was signed: there was no message.
         assertThat(raw.headers.get(SIGNATURE)).isNull();
     }
 
@@ -262,8 +258,7 @@ class SigningClientInterceptorStreamingTest {
         ClientCall<StringValue, StringValue> call = intercepted.newCall(CLIENT_STREAM, CallOptions.DEFAULT);
         call.cancel("never started", null);
 
-        // Without a listener there is nothing to notify: the cancellation just reaches the
-        // unstarted underlying call, as the ClientCall contract allows.
+        // No listener to notify: the cancel just reaches the unstarted call, as ClientCall allows.
         RecordingCall raw = channel.lastCall();
         assertThat(raw.events).containsExactly("cancel");
         assertThat(raw.headers).isNull();
@@ -297,7 +292,7 @@ class SigningClientInterceptorStreamingTest {
         assertThat(raw.events).isEmpty();
         assertThat(raw.headers).isNull();
 
-        // A stub cancels the call on such an exception: the listener is closed, and nothing was signed.
+        // A stub cancels the call on such an exception.
         call.cancel("marshalling failed", failure);
         assertThat(raw.events).containsExactly("start", "request:1", "cancel");
         assertThat(raw.headers.get(SIGNATURE)).isNull();
@@ -326,12 +321,7 @@ class SigningClientInterceptorStreamingTest {
 
     // ==================== Cross-language vector ====================
 
-    /**
-     * The grpc-client-stream-unframed case of stream_signing_cases is what this SDK produces:
-     * sending the three payloads of its body through the interceptor, with the vector's clock,
-     * gives the vector's signature, and the payloads reach the transport unchanged, so the gRPC
-     * framer puts the vector's body on the wire.
-     */
+    /** The vector's payloads, sent at its timestamp, give its signature and, framed, its body. */
     @Test
     @DisplayName("Emits the grpc-client-stream-unframed vector's signature")
     void emitsUnframedStreamVectorSignature() {

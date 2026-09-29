@@ -169,8 +169,7 @@ class HealthServiceIntegrationTest {
         try {
             HealthGrpc.HealthBlockingStub plainStub = HealthGrpc.newBlockingStub(channel);
 
-            // Refused on the missing headers, before any signature check: not a transport or
-            // server error that would also surface as a StatusRuntimeException.
+            // Pin the cause: a transport error would be a StatusRuntimeException too.
             assertThatThrownBy(() -> plainStub.check(HealthCheckRequest.getDefaultInstance()))
                     .isInstanceOfSatisfying(StatusRuntimeException.class, e -> {
                         assertThat(e.getStatus().getCode()).isEqualTo(Status.Code.INVALID_ARGUMENT);

@@ -56,8 +56,7 @@ public final class AsyncNetworkClient<S extends AbstractAsyncStub<S>> extends Ne
     /**
      * Creates a new AsyncNetworkClient for the given endpoint and stub type.
      *
-     * <p>Unary calls get a default deadline of {@value #DEFAULT_TIMEOUT_SECONDS} seconds; streaming
-     * calls get none.
+     * <p>Default deadlines: {@value #DEFAULT_TIMEOUT_SECONDS} seconds for unary calls, none for streams.
      *
      * @param endpoint    the T-0 Network endpoint (e.g., "https://api.t-0.network" or "api.t-0.network:443")
      * @param signer      the signer to use for signing requests
@@ -76,13 +75,10 @@ public final class AsyncNetworkClient<S extends AbstractAsyncStub<S>> extends Ne
     /**
      * Creates a new AsyncNetworkClient for the given endpoint and stub type.
      *
-     * <p>Unary calls without a deadline of their own get one of {@code timeoutSeconds}; streaming
-     * calls get none.
-     *
      * @param endpoint       the T-0 Network endpoint (e.g., "https://api.t-0.network" or "api.t-0.network:443")
      * @param signer         the signer to use for signing requests
      * @param stubFactory    the stub factory (e.g., {@code NetworkServiceGrpc::newStub})
-     * @param timeoutSeconds the default deadline in seconds for unary calls; must be positive
+     * @param timeoutSeconds the default deadline in seconds for unary calls (streams get none); must be positive
      * @param <S>            the async stub type
      * @return a new AsyncNetworkClient instance
      * @throws IllegalArgumentException if the endpoint or signer is invalid, or timeoutSeconds is not positive
@@ -98,10 +94,7 @@ public final class AsyncNetworkClient<S extends AbstractAsyncStub<S>> extends Ne
     /**
      * Creates a new AsyncNetworkClient with separate default deadlines for unary and streaming calls.
      *
-     * <p>Each call without a deadline of its own gets one when it is created: {@code unaryTimeout}
-     * for unary calls, {@code streamTimeout} for client-, server- and bidi-streaming calls. A stream
-     * can run as long as an upload or a download takes, so {@code null} or {@link Duration#ZERO}
-     * means no stream deadline; bound a stream with {@link #stub(long, TimeUnit)} instead.
+     * <p>See {@code docs/java/STREAMING.md}.
      *
      * @param endpoint      the T-0 Network endpoint (e.g., "https://api.t-0.network" or "api.t-0.network:443")
      * @param signer        the signer to use for signing requests
