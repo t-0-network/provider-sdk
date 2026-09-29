@@ -2,13 +2,20 @@
 
 from coincurve import PrivateKey, PublicKey
 
+PRIVATE_KEY_HEX_LENGTH = 64
+
 
 def private_key_from_hex(hex_key: str) -> PrivateKey:
-    """Create a PrivateKey from a hex-encoded string.
+    """Create a PrivateKey from a hex-encoded string of 32 bytes.
 
-    Supports optional '0x' prefix.
+    Supports optional '0x' prefix. Raises ValueError for an empty key or one of another length.
     """
+    if not hex_key:
+        raise ValueError("private key must not be null or empty")
     cleaned = hex_key.removeprefix("0x")
+    # Checked here: the curve library would accept a shorter key and pad it.
+    if len(cleaned) != PRIVATE_KEY_HEX_LENGTH:
+        raise ValueError("private key must be 32 bytes (64 hex characters)")
     return PrivateKey(bytes.fromhex(cleaned))
 
 

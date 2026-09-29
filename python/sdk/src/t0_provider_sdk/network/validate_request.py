@@ -1,8 +1,7 @@
 """ConnectRPC interceptor that validates outgoing requests against buf.validate rules.
 
-Invalid requests are rejected with Code.INVALID_ARGUMENT before they are sent.
-
-Go equivalent: network client uses connectrpc.com/validate interceptor.
+Invalid requests are rejected with Code.INVALID_ARGUMENT before they are sent. The client
+factories do not install it; pass it to a generated client's ``interceptors`` to use it.
 """
 
 from __future__ import annotations

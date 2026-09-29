@@ -17,7 +17,7 @@ from connectrpc.compat import google_protobuf_json_codec
 from connectrpc.errors import ConnectError
 from connectrpc.protocol import ProtocolType
 
-from t0_provider_sdk.crypto.signer import new_signer_from_hex
+from t0_provider_sdk.crypto.signer import SignFn, new_signer_from_hex
 from t0_provider_sdk.network.options import (
     DEFAULT_BASE_URL,
     DEFAULT_STREAM_TIMEOUT,
@@ -47,11 +47,12 @@ def new_service_client(
     private_key: str,
     client_class: type[T],
     *,
-    base_url: str = DEFAULT_BASE_URL,
+    base_url: str | None = DEFAULT_BASE_URL,
     timeout: float = DEFAULT_TIMEOUT,
     stream_timeout: float = DEFAULT_STREAM_TIMEOUT,
     wire_format: WireFormat = WireFormat.BINARY,
     protocol: Protocol = Protocol.CONNECT,
+    sign_fn: SignFn | None = None,
 ) -> T:
     """Create an async ConnectRPC client with signing transport.
 
@@ -60,15 +61,18 @@ def new_service_client(
     raise ConnectError UNIMPLEMENTED. See docs/STREAMING.md.
 
     Args:
-        private_key: Hex-encoded secp256k1 private key (with or without 0x prefix).
+        private_key: Hex-encoded secp256k1 private key of 32 bytes (with or without 0x prefix).
+            Ignored when sign_fn is given.
         client_class: Generated ConnectRPC async client class (e.g. NetworkServiceClient).
-        base_url: Base URL of the T-0 Network API.
+        base_url: Base URL of the T-0 Network API, an http:// or https:// URL. None means the
+            default; an empty string raises ValueError.
         timeout: Timeout of unary calls in seconds, 15 by default.
         stream_timeout: Timeout of client- and server-streaming calls in seconds, including the
             wait for the first request message, 300 by default.
         wire_format: WireFormat.BINARY (default) or WireFormat.JSON.
         protocol: Protocol.CONNECT (default) or Protocol.GRPC. gRPC on an http:// base URL uses
             HTTP/2 without TLS.
+        sign_fn: Signs each request in place of private_key, e.g. with a key held elsewhere.
 
     Each timeout must be positive and at most 2147483647 ms; there is no way to turn one off. A
     call's own ``timeout_ms`` (same bounds) replaces the default, whether shorter or longer.
@@ -76,10 +80,11 @@ def new_service_client(
     Returns:
         An instance of client_class configured with signing transport.
     """
+    base_url = _checked_base_url(base_url)
     unary_ms, stream_ms = _default_timeouts_ms(timeout, stream_timeout)
     protocol = Protocol(protocol)
     transport = _transport(base_url, protocol, sync=False)
-    signing_client = SigningClient(new_signer_from_hex(private_key), transport=transport)
+    signing_client = SigningClient(sign_fn or new_signer_from_hex(private_key), transport=transport)
     client = client_class(base_url, http_client=signing_client, **_client_kwargs(wire_format, protocol))  # type: ignore[call-arg]
     _set_default_timeouts(client, unary_ms, stream_ms)
     _reject_bidi_streams(client)
@@ -90,36 +95,55 @@ def new_service_client_sync(
     private_key: str,
     client_class: type[T],
     *,
-    base_url: str = DEFAULT_BASE_URL,
+    base_url: str | None = DEFAULT_BASE_URL,
     timeout: float = DEFAULT_TIMEOUT,
     stream_timeout: float = DEFAULT_STREAM_TIMEOUT,
     wire_format: WireFormat = WireFormat.BINARY,
     protocol: Protocol = Protocol.CONNECT,
+    sign_fn: SignFn | None = None,
 ) -> T:
     """Create a sync ConnectRPC client with signing transport.
 
     Signing, timeouts and the rejection of bidirectional streams work as in new_service_client.
 
     Args:
-        private_key: Hex-encoded secp256k1 private key (with or without 0x prefix).
+        private_key: Hex-encoded secp256k1 private key of 32 bytes (with or without 0x prefix).
+            Ignored when sign_fn is given.
         client_class: Generated ConnectRPC sync client class (e.g. NetworkServiceClientSync).
-        base_url: Base URL of the T-0 Network API.
+        base_url: Base URL of the T-0 Network API; see new_service_client.
         timeout: Timeout of unary calls in seconds, 15 by default.
         stream_timeout: Timeout of client- and server-streaming calls in seconds, 300 by default.
         wire_format: WireFormat.BINARY (default) or WireFormat.JSON.
         protocol: Protocol.CONNECT (default) or Protocol.GRPC.
+        sign_fn: Signs each request in place of private_key.
 
     Returns:
         An instance of client_class configured with signing transport.
     """
+    base_url = _checked_base_url(base_url)
     unary_ms, stream_ms = _default_timeouts_ms(timeout, stream_timeout)
     protocol = Protocol(protocol)
     transport = _transport(base_url, protocol, sync=True)
-    signing_client = SigningSyncClient(new_signer_from_hex(private_key), transport=transport)
+    signing_client = SigningSyncClient(sign_fn or new_signer_from_hex(private_key), transport=transport)
     client = client_class(base_url, http_client=signing_client, **_client_kwargs(wire_format, protocol))  # type: ignore[call-arg]
     _set_default_timeouts(client, unary_ms, stream_ms)
     _reject_bidi_streams(client)
     return client
+
+
+def _checked_base_url(base_url: str | None) -> str:
+    if base_url is None:
+        return DEFAULT_BASE_URL
+    if base_url == "":
+        raise ValueError("base URL is not set")
+    try:
+        parts = urlsplit(base_url)
+        valid = parts.scheme in ("http", "https") and bool(parts.hostname)
+    except ValueError:
+        valid = False
+    if not valid:
+        raise ValueError("base URL is not valid")
+    return base_url
 
 
 def _client_kwargs(wire_format: WireFormat, protocol: Protocol) -> dict[str, Any]:
