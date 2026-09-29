@@ -74,16 +74,22 @@ func (s *ProviderServiceImplementation) AppendLedgerEntries(
 ) (*connect.Response[networkproto.AppendLedgerEntriesResponse], error) {
     return connect.NewResponse(&networkproto.AppendLedgerEntriesResponse{}), nil
 }
+
+func (s *ProviderServiceImplementation) ApprovePaymentQuotes(
+    ctx context.Context, req *connect.Request[networkproto.ApprovePaymentQuoteRequest],
+) (*connect.Response[networkproto.ApprovePaymentQuoteResponse], error) {
+    return connect.NewResponse(&networkproto.ApprovePaymentQuoteResponse{}), nil
+}
 ```
 
 Initialize the provider handler and start the server:
 
 ```go
 networkPublicKey := "0x049bb924..."
-var handler providerconnect.ProviderServiceHandler = &ProviderServiceImplementation{}
-providerServiceHandler, err := provider.NewProviderHandler(
+var handler paymentconnect.ProviderServiceHandler = &ProviderServiceImplementation{}
+providerServiceHandler, err := provider.NewHttpHandler(
     provider.NetworkPublicKeyHexed(networkPublicKey),
-    provider.Handler(providerconnect.NewProviderServiceHandler, handler),
+    provider.Handler(paymentconnect.NewProviderServiceHandler, handler),
 )
 if err != nil {
     log.Fatalf("Failed to create provider service handler: %v", err)
@@ -130,7 +136,7 @@ if err != nil {
 _, err = networkClient.UpdateQuote(ctx, connect.NewRequest(&networkproto.UpdateQuoteRequest{...}))
 
 // Get a quote
-_, err = networkClient.GetPayoutQuote(ctx, connect.NewRequest(&networkproto.GetPayoutQuoteRequest{...}))
+_, err = networkClient.GetQuote(ctx, connect.NewRequest(&networkproto.GetQuoteRequest{...}))
 
 // Create payment
 _, err = networkClient.CreatePayment(ctx, connect.NewRequest(&networkproto.CreatePaymentRequest{...}))
@@ -157,10 +163,7 @@ Details: [`docs/go/STREAMING.md`](../docs/go/STREAMING.md).
 
 ## Examples
 
-- [Payout Provider Flow](examples/payout_provider_flow_test.go)
-- [Provider Service](examples/provider_service_test.go)
-- [Network Client](examples/network_client_test.go)
-
+The [starter template](starter/template/) is a complete provider: the server and handlers in `internal/handler/`, network client calls in `internal/` and `cmd/main.go`.
 
 ## Development
 

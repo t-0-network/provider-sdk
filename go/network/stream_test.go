@@ -429,11 +429,7 @@ func TestSigningTransport_EmptyStreamSignsEmptyBytes(t *testing.T) {
 			})
 			st := NewSigningTransport(key.sign, time.Now, WithTransport(recorder))
 
-			req := newStreamRequest(t, context.Background(), body)
-			if body == nil {
-				req.Body = nil
-			}
-			resp, err := st.RoundTrip(req)
+			resp, err := st.RoundTrip(newStreamRequest(t, context.Background(), body))
 			require.NoError(t, err)
 			resp.Body.Close()
 
@@ -537,7 +533,6 @@ func TestSigningTransport_FirstEnvelopeDoesNotModifyRequest(t *testing.T) {
 	rest := []byte{0, 0, 0, 0, 2, 0x0a, 0x00}
 	body := io.NopCloser(bytes.NewReader(append(append([]byte{}, first...), rest...)))
 	req := newStreamRequest(t, context.Background(), body)
-	req.Body = body
 	req.ContentLength = -1
 
 	resp, err := st.RoundTrip(req)
@@ -568,7 +563,6 @@ func TestSigningTransport_WholeBodyDoesNotModifyRequest(t *testing.T) {
 	body := io.NopCloser(bytes.NewReader(whole))
 	req := newStreamRequest(t, context.Background(), body)
 	req.Header.Set("Content-Type", "application/grpc-web+proto")
-	req.Body = body
 
 	resp, err := st.RoundTrip(req)
 	require.NoError(t, err)
@@ -814,7 +808,6 @@ type streamSigningCase struct {
 	ContentType       string `json:"content_type"`
 	BodyHex           string `json:"body_hex"`
 	Covers            string `json:"covers"`
-	SignedHex         string `json:"signed_hex"`
 	TimestampMs       int64  `json:"timestamp_ms"`
 	ExpectedSignature string `json:"expected_signature"`
 }
