@@ -84,14 +84,17 @@ Go, Node and Python speak ConnectRPC. Java and C# speak gRPC.
 ## Other options
 
 - The base URL defaults to `https://api.t-0.network`. An empty value is refused with "base URL is
-  not set", and a value without an `http` or `https` scheme or without a host is refused with "base
-  URL is not valid". A missing scheme is not added.
+  not set". A value is refused with "base URL is not valid" unless it starts with `http://` or
+  `https://`, has a host and no user info, and has a port from 1 to 65535 when it gives one. The host is an IP address
+  (IPv6 in brackets) or a name made of ASCII letters, digits, `-` and `.`, so a name with `_` is
+  refused. A missing scheme is not added.
 - The signer is a hex private key or a signing function (in Java and C#, an interface that the
-  `Signer` class implements). A `0x` prefix is allowed. An empty key is refused with "private key
-  must not be null or empty", and a key of another length with "private key must be 32 bytes (64 hex
-  characters)".
-- The gRPC clients (Java and C#) send an HTTP/2 keepalive ping every 30 seconds with a 10 second
-  timeout.
+  `Signer` class implements). A `0x` or `0X` prefix is allowed. An empty key is refused with "private
+  key must not be null or empty", and anything other than 64 hex characters with "private key must be
+  32 bytes (64 hex characters)". A key of 0, or not below the secp256k1 group order, is refused with
+  "private key must be in range [1, n-1]".
+- The gRPC clients (Java and C#) send an HTTP/2 keepalive ping every 5 minutes while a call is open,
+  with a 10 second timeout.
 
 ## Option names
 
