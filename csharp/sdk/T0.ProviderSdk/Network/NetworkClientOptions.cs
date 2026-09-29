@@ -22,9 +22,10 @@ public sealed class NetworkClientOptions
     /// </summary>
     /// <exception cref="ArgumentException">
     /// The value is empty, or is not <c>http://</c> or <c>https://</c> followed by a host, an optional
-    /// port from 1 to 65535 and an optional trailing '/'. The host is an IPv4 address, an IPv6 address
-    /// in brackets, or a name of labels of ASCII letters, digits and inner '-' separated by '.', whose
-    /// last label starts with a letter. User info, a path, a query and a fragment are refused.
+    /// port from 1 to 65535 and an optional trailing '/'. The host is an IPv4 address (four decimal
+    /// numbers 0..255 without leading zeros), an IPv6 address in brackets, or a name of labels of
+    /// ASCII letters, digits and inner '-' separated by '.', whose last label starts with a letter.
+    /// User info, a path, a query and a fragment are refused.
     /// </exception>
     [AllowNull]
     public string BaseUrl
@@ -119,7 +120,9 @@ public sealed class NetworkClientOptions
         foreach (var range in host.Split('.'))
         {
             var octet = host[range];
-            if (++octets > 4 || octet.Length is 0 or > 3 || octet.ContainsAnyExceptInRange('0', '9') || int.Parse(octet) > 255)
+            // Decimal 0..255 without leading zeros, which some parsers read as octal.
+            if (++octets > 4 || octet.Length is 0 or > 3 || octet.ContainsAnyExceptInRange('0', '9')
+                || (octet.Length > 1 && octet[0] == '0') || int.Parse(octet) > 255)
                 return false;
         }
         return octets == 4;

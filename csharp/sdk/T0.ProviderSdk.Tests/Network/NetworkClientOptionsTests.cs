@@ -32,6 +32,9 @@ public class NetworkClientOptionsTests
     [InlineData("https://api.t-0.network/")]
     [InlineData("http://h:8080/")]
     [InlineData("HTTPS://example.com")]
+    [InlineData("HTTPS://api.t-0.network")]
+    [InlineData("http://localhost:8080/")]
+    [InlineData("http://255.255.255.255:1")]
     public void BaseUrl_AcceptsHttpAndHttpsUrls(string url)
     {
         Assert.Equal(url, new NetworkClientOptions { BaseUrl = url }.BaseUrl);
@@ -66,6 +69,7 @@ public class NetworkClientOptionsTests
     [InlineData("http://localhost.")] // trailing dot: an empty last label
     [InlineData("http://256.1.1.1")]
     [InlineData("http://a.1b")]
+    [InlineData("http://01.2.3.4")] // IPv4 octets have no leading zeros
     [InlineData("https://api.t-0.network/v1")]
     [InlineData("https://api.t-0.network/v1/")]
     [InlineData("https://api.t-0.network?x")]
