@@ -53,8 +53,8 @@ envelopes — and `signed_hex` the part that is signed: the first envelope, pref
 or its payload alone (`covers: first_payload`, what the Java SDK covers over gRPC). The network
 accepts both over gRPC. `content_type` is what the request carries: it is how a client decides
 to sign the first envelope rather than the whole body. `empty-client-stream` is a client stream
-closed before its first message: the SDKs other than Go sign those empty bytes; Go refuses the
-call locally.
+closed before its first message: every SDK signs those empty bytes and sends the request, and the
+network rejects it.
 
 `signature_verification` answers one question: does this signature verify against this
 public key for this body and timestamp. It stops there on purpose. Whether a request is

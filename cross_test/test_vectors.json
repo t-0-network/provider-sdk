@@ -201,7 +201,7 @@
       "timestamp_ms": 1706000000000,
       "expected_hash": "205b5a560465f237a233995387de1c76ce3f5391fc531244d3e4c82bb3da665a",
       "expected_signature": "5c515d14860086b51fb127e0e821e3db6019a107f2d4778e17081d6cff2718266ca29ec28569a32bfe5c6e94c70d199f7324cf7813ad3f040e58cbad052a7315",
-      "note": "A client stream closed before its first message. Node, Python, Java and C# sign these empty bytes and send; the network rejects the call. Go refuses it locally with invalid_argument."
+      "note": "A client stream closed before its first message. Every SDK signs these empty bytes and sends the request; the network rejects the call."
     }
   ]
 }
