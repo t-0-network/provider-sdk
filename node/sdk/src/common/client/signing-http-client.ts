@@ -21,13 +21,17 @@ export function createSigningFetchClient(signer: SignerFunction, fetchFn?: typeo
     return async (req) => {
         const it = (req.body ?? emptyBody)[Symbol.asyncIterator]();
 
-        let first: FirstEnvelope;
+        let first: Uint8Array | undefined;
         let headers: [string, string][];
         try {
             // For a client stream this waits for the caller's first message, which the call's
             // deadline or signal must be able to end.
-            first = await untilAborted(readFirstEnvelope(it), req.signal);
-            headers = await signatureHeaders(signer, first.envelope);
+            const r = await untilAborted(it.next(), req.signal);
+            if (r.done !== true) {
+                first = r.value;
+                requireOneEnvelope(first);
+            }
+            headers = await signatureHeaders(signer, first ?? new Uint8Array(0));
         } catch (e) {
             it.return?.().catch(() => {});
             throw e;
@@ -48,62 +52,28 @@ export function createSigningFetchClient(signer: SignerFunction, fetchFn?: typeo
     };
 }
 
-interface FirstEnvelope {
-    // The signed bytes: the first envelope, or nothing if the body has no messages.
-    envelope: Uint8Array;
-    // Bytes read past the first envelope. Connect yields one envelope per chunk, so this is
-    // normally empty.
-    rest: Uint8Array;
-    // Whether the body has ended.
-    done: boolean;
-}
-
-// readFirstEnvelope reads the body up to the end of its first envelope, as the length in its
-// 5-byte prefix gives it, whatever the chunking.
-async function readFirstEnvelope(it: AsyncIterator<Uint8Array>): Promise<FirstEnvelope> {
-    const chunks: Uint8Array[] = [];
-    let size = 0;
-    let end = -1;
-    for (;;) {
-        if (end < 0 && size >= 5) {
-            const head = joined(chunks, size);
-            end = 5 + new DataView(head.buffer, head.byteOffset, head.byteLength).getUint32(1);
-        }
-        if (end >= 0 && size >= end) {
-            const bytes = joined(chunks, size);
-            return {envelope: bytes.subarray(0, end), rest: bytes.subarray(end), done: false};
-        }
-
-        const r = await it.next();
-        if (r.done === true) {
-            if (size === 0) {
-                return {envelope: new Uint8Array(0), rest: new Uint8Array(0), done: true};
-            }
-            throw new ConnectError("streaming request ends inside its first message", Code.InvalidArgument);
-        }
-        chunks.push(r.value);
-        size += r.value.byteLength;
+// connect-es hands the HTTP client one complete envelope per chunk (transformJoinEnvelopes), so the
+// first chunk is the first envelope. It is checked rather than trusted: a change in that framing
+// must fail the call, never sign bytes that are not the first envelope.
+function requireOneEnvelope(chunk: Uint8Array): void {
+    const size = chunk.byteLength >= 5
+        ? 5 + new DataView(chunk.buffer, chunk.byteOffset, chunk.byteLength).getUint32(1)
+        : -1;
+    if (size !== chunk.byteLength) {
+        throw new ConnectError("the first request chunk is not one complete envelope", Code.Internal);
     }
-}
-
-// joined concatenates chunks in place, so that they are copied at most once per call.
-function joined(chunks: Uint8Array[], size: number): Uint8Array {
-    if (chunks.length > 1) {
-        chunks.splice(0, chunks.length, Buffer.concat(chunks, size));
-    }
-    return chunks[0];
 }
 
 // bodyStream sends the first envelope, then pulls the rest of the body one chunk at a time, as
 // the connection takes it.
-function bodyStream(first: FirstEnvelope, it: AsyncIterator<Uint8Array>): ReadableStream<Uint8Array> {
-    const pending = [first.envelope, first.rest].filter((chunk) => chunk.byteLength > 0);
-    let done = first.done;
+function bodyStream(first: Uint8Array | undefined, it: AsyncIterator<Uint8Array>): ReadableStream<Uint8Array> {
+    let pending = first;
+    let done = first === undefined;
     return new ReadableStream<Uint8Array>({
         async pull(controller) {
-            const chunk = pending.shift();
-            if (chunk !== undefined) {
-                controller.enqueue(chunk);
+            if (pending !== undefined) {
+                controller.enqueue(pending);
+                pending = undefined;
                 return;
             }
             const r = done ? undefined : await it.next();

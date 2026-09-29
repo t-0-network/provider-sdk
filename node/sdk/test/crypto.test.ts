@@ -1004,39 +1004,27 @@ describe('Stream signing cases', () => {
     });
   }
 
-  // Connect hands the HTTP client one envelope per chunk, but the signed bytes follow the length
-  // prefix, not the chunking.
-  const chunkings: [string, (body: Buffer) => Buffer[]][] = [
-    ['the whole body in one chunk', (body) => (body.length > 0 ? [body] : [])],
-    ['one byte per chunk', (body) => [...body].map((b) => Buffer.from([b]))],
-    ['7-byte chunks across envelope boundaries', (body) => {
-      const chunks: Buffer[] = [];
-      for (let at = 0; at < body.length; at += 7) {
-        chunks.push(body.subarray(at, at + 7));
-      }
-      return chunks;
-    }],
+  // Connect hands the HTTP client one envelope per chunk, so the first chunk is signed as the first
+  // envelope. Any other first chunk fails the call, and nothing is sent, rather than signing bytes
+  // that are not the first envelope.
+  const multi = vectors.stream_signing_cases.find((v: any) => v.name === 'connect-client-stream');
+  const multiBody = Buffer.from(multi.body_hex, 'hex');
+  const multiFirst = Buffer.from(multi.signed_hex, 'hex');
+  const badFirstChunks: [string, Buffer[]][] = [
+    ['the whole body in one chunk', [multiBody]],
+    ['one byte per chunk', [...multiBody].map((b) => Buffer.from([b]))],
+    ['the first envelope split across chunks', [multiFirst.subarray(0, 7), multiBody.subarray(7)]],
+    ['a body that ends inside its first envelope', [multiFirst.subarray(0, multiFirst.length - 1)]],
+    ['an empty first chunk', [Buffer.alloc(0), multiBody]],
   ];
-  for (const [name, chunk] of chunkings) {
-    it(`the streaming HTTP client signs the first envelope whatever the chunking: ${name}`, async (t) => {
-      for (const vec of firstEnvelopeCases) {
-        const body = Buffer.from(vec.body_hex, 'hex');
-        const sent = await sendThroughSigningClient(t, vec, chunk(body));
-        nodeAssert.ok(sent, `${vec.name}: the request is sent`);
-        nodeAssert.equal(sent.headers.get(NetworkHeaders.Signature), '0x' + vec.expected_signature, vec.name);
-        nodeAssert.equal(sent.body.toString('hex'), vec.body_hex, vec.name);
-      }
+  for (const [name, chunks] of badFirstChunks) {
+    it(`the streaming HTTP client refuses a first chunk that is not one envelope: ${name}`, async (t) => {
+      let sent: SentRequest | undefined;
+      await nodeAssert.rejects(
+        async () => { sent = await sendThroughSigningClient(t, multi, chunks); },
+        (err: unknown) => err instanceof ConnectError && err.code === Code.Internal,
+      );
+      nodeAssert.equal(sent, undefined, 'nothing is sent');
     });
   }
-
-  it('the streaming HTTP client refuses a body that ends inside its first envelope', async (t) => {
-    const vec = vectors.stream_signing_cases.find((v: any) => v.name === 'connect-client-stream');
-    const firstEnvelope = Buffer.from(vec.signed_hex, 'hex');
-    let sent: SentRequest | undefined;
-    await nodeAssert.rejects(
-      async () => { sent = await sendThroughSigningClient(t, vec, [firstEnvelope.subarray(0, firstEnvelope.length - 1)]); },
-      (err: unknown) => err instanceof ConnectError && err.code === Code.InvalidArgument,
-    );
-    nodeAssert.equal(sent, undefined, 'nothing is sent');
-  });
 });
