@@ -38,12 +38,23 @@ assertion rather than a sign-then-verify round trip.
 | `request_signing` | one signing case with a text `body` |
 | `request_signing_cases` | signing cases with a `body_hex`, so a body can be binary, framed or empty |
 | `signature_verification` | a presented request → does it verify |
+| `stream_signing_cases` | a streaming request body → the bytes its signature covers, and the signature |
 
 `body_hex` is the exact preimage: whatever the transport put in the body, before the
 timestamp is appended and before anything decodes it. `grpc-framed-body` carries the gRPC
 frame (`0x00` + `uint32be(length)` + message) because that is what the network signs when
 it calls a provider over gRPC, while Connect callers sign the message alone — the Java
 provider verifies against both.
+
+`stream_signing_cases` are streaming requests (client streaming, server streaming), whose
+signature covers only the first message. `body_hex` is the whole body as sent — several
+envelopes — and `signed_hex` the part that is signed: the first envelope, prefix included
+(`covers: first_envelope`, what a signer below the gRPC framer covers — Go, Node, Python, C#),
+or its payload alone (`covers: first_payload`, what the Java SDK covers over gRPC). The network
+accepts both over gRPC. `content_type` is what the request carries: it is how a client decides
+to sign the first envelope rather than the whole body. `empty-client-stream` is a client stream
+closed before its first message: the SDKs other than Go sign those empty bytes; Go refuses the
+call locally.
 
 `signature_verification` answers one question: does this signature verify against this
 public key for this body and timestamp. It stops there on purpose. Whether a request is
@@ -82,6 +93,13 @@ CI builds the helper automatically (each language's CI workflow sets up Go and b
 | `serve <port> <hex_public_key>` | Provider server (h2c, Connect + gRPC) |
 | `call-pay-out <url> <hex_private_key> [--grpc]` | Signed PayOut RPC |
 | `call-health <url> <hex_private_key> [--grpc]` | Signed health check |
+| `call-client-stream <url> <hex_private_key> [--grpc]` | Signed client stream: `test.v1.StreamTest/ClientStream` |
+| `call-server-stream <url> <hex_private_key> [--grpc]` | Signed server stream: `test.v1.StreamTest/ServerStream` |
+
+`serve` also serves `test.v1.StreamTest` ([`stream_test.proto`](stream_test.proto), reference
+only) behind a verifier that checks the signature over the first request message, as the T-0
+Network does for streaming RPCs. Each SDK's streaming cross test calls it with hand-built methods
+on `google.protobuf.StringValue`.
 
 Default protocol is Connect (HTTP/1.1). Pass `--grpc` for gRPC protocol over h2c.
 
@@ -90,6 +108,7 @@ Default protocol is Connect (HTTP/1.1). Pass `--grpc` for gRPC protocol over h2c
 | Direction | Python | Node | C# | Java |
 |---|---|---|---|---|
 | **Lang→Go** | ✅ Health | ✅ Health | ✅ Health | ✅ Health + PayOut |
+| **Lang→Go streaming** | ✅ Client + server stream | ✅ Client + server stream | ✅ Client + server stream | ✅ Client + server stream |
 | **Go→Lang** | ✅ Health (ASGI+WSGI) | ✅ Health | ✅ Health + PayOut | ✅ Health + PayOut |
 
 | Language pair | Test file | Protocol |

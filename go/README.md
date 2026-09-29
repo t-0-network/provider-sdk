@@ -136,7 +136,22 @@ _, err = networkClient.GetPayoutQuote(ctx, connect.NewRequest(&networkproto.GetP
 _, err = networkClient.CreatePayment(ctx, connect.NewRequest(&networkproto.CreatePaymentRequest{...}))
 ```
 
-**Client options:** `WithBaseURL` (default: `https://api.t-0.network`), `WithTimeout` (default: 15s), `WithSignatureFunction`, `WithConnectOptions`, `WithHTTPTransport`.
+**Client options:** `WithBaseURL` (default: `https://api.t-0.network`), `WithTimeout` (unary calls, default: 15s), `WithStreamTimeout` (streaming calls, default: none), `WithSignatureFunction`, `WithConnectOptions`, `WithHTTPTransport`.
+
+#### Streaming calls
+
+The same client signs client-streaming (upload) and server-streaming (download) calls. For those the signature covers only the **first request message** — its envelope exactly as sent, 5-byte prefix included — and the request goes out as soon as that message is sent; later messages are streamed as they come, never buffered. Unary calls keep whole-body signing.
+
+```go
+stream := client.Upload(ctx) // a client-streaming method
+if err := stream.Send(firstChunk); err != nil { /* ... */ } // signs and sends the request
+if err := stream.Send(nextChunk); err != nil { /* ... */ }
+resp, err := stream.CloseAndReceive()
+```
+
+- Send the first message (or call `CloseAndReceive`) before waiting for a response: the request is only sent once the first message exists. A stream closed before its first message fails with `invalid_argument`.
+- Streams have no timeout by default, since an upload or download can take as long as it takes. Bound one with the call's context, or set `WithStreamTimeout`. `WithTimeout` applies to unary calls only.
+- Bidirectional streams are not supported.
 
 ## Examples
 

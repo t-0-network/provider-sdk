@@ -16,6 +16,8 @@ All SDKs share cross-language test infrastructure in `cross_test/` to verify cry
 | Python | `python/sdk/tests/crypto/test_cross_vectors.py` |
 | C# | `csharp/sdk/T0.ProviderSdk.Tests/Crypto/CrossTestVectors.cs` |
 
+`stream_signing_cases` covers streaming RPCs, whose signature covers only the first request message. See [`cross_test/README.md`](../cross_test/README.md).
+
 ## Go helper
 
 A single Go binary at `cross_test/go_helper/` that all server-to-server tests share.
@@ -39,6 +41,10 @@ CI builds it automatically (each language's CI workflow sets up Go and builds it
 | `serve <port> <hex_public_key>` | Start a provider server (h2c, Connect + gRPC) |
 | `call-pay-out <url> <key> [--grpc]` | Signed PayOut RPC |
 | `call-health <url> <key> [--grpc]` | Signed health check |
+| `call-client-stream <url> <key> [--grpc]` | Signed `test.v1.StreamTest/ClientStream` (sends m1, m2, m3) |
+| `call-server-stream <url> <key> [--grpc]` | Signed `test.v1.StreamTest/ServerStream` |
+
+`serve` also mounts `test.v1.StreamTest` ([`cross_test/stream_test.proto`](../cross_test/stream_test.proto), reference only — every SDK builds the two methods by hand on `google.protobuf.StringValue`). Its verifier checks a streaming request the way the T-0 Network does: the signature over the first envelope only (or, for gRPC, its payload without the prefix), before the handler reads the rest.
 
 Default protocol is Connect (HTTP/1.1). Pass `--grpc` for gRPC protocol over h2c.
 
@@ -47,7 +53,10 @@ Default protocol is Connect (HTTP/1.1). Pass `--grpc` for gRPC protocol over h2c
 | Direction | Python | Node | C# | Java |
 |---|---|---|---|---|
 | **Lang→Go** | Health | Health | Health | Health + PayOut |
+| **Lang→Go streaming** | Client + server stream (async + sync) | Client + server stream | Client + server stream | Client + server stream |
 | **Go→Lang** | Health (ASGI+WSGI) | Health | Health + PayOut | Health + PayOut |
+
+Streaming runs one way only: providers don't serve streaming RPCs, so there is no Go→Lang streaming test.
 
 ### Test files
 
