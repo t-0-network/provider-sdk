@@ -93,8 +93,6 @@ CI builds the helper automatically (each language's CI workflow sets up Go and b
 | `serve <port> <hex_public_key>` | Provider server (h2c, Connect + gRPC) |
 | `call-pay-out <url> <hex_private_key> [--grpc]` | Signed PayOut RPC |
 | `call-health <url> <hex_private_key> [--grpc]` | Signed health check |
-| `call-client-stream <url> <hex_private_key> [--grpc]` | Signed client stream: `test.v1.StreamTest/ClientStream` |
-| `call-server-stream <url> <hex_private_key> [--grpc]` | Signed server stream: `test.v1.StreamTest/ServerStream` |
 
 `serve` also serves `test.v1.StreamTest` ([`stream_test.proto`](stream_test.proto), reference
 only) behind a verifier that checks the signature over the first request message, as the T-0
@@ -122,10 +120,9 @@ It logs its verdict on each request to stderr before the handler reads past the 
 The streaming cross tests of every SDK wait for these lines, so their wording is a contract: they
 check the framing, that the request went out with its first message (message 2 is produced only
 once message 1 is logged as verified), and why a request was refused. `go test ./...` here pins
-the verifier (`TestVerifyFirstEnvelope`) and runs the Go client against it over Connect, Connect
-JSON and gRPC (`TestGoClientAgainstHelper`; Go signs below the gRPC framer, so it is always
-verified over the envelope). Go CI also runs `call-client-stream` and `call-server-stream` against
-`serve`. The Go client's side: [`docs/go/STREAMING.md`](../docs/go/STREAMING.md).
+the verifier and runs the Go client against it over Connect, Connect JSON and gRPC (Go signs below
+the gRPC framer, so it is always verified over the envelope). The client rules:
+[`docs/STREAMING.md`](../docs/STREAMING.md).
 
 Default protocol is Connect (HTTP/1.1). Pass `--grpc` for gRPC protocol over h2c.
 
