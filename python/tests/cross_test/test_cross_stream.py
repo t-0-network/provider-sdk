@@ -29,7 +29,7 @@ import pyqwest
 import pytest
 from connectrpc.client import ConnectClient, ConnectClientSync
 from connectrpc.code import Code
-from connectrpc.compat import google_protobuf_binary_codec
+from connectrpc.compat import google_protobuf_binary_codec, google_protobuf_json_codec
 from connectrpc.errors import ConnectError
 from connectrpc.method import IdempotencyLevel, MethodInfo
 from connectrpc.protocol import ProtocolType
@@ -182,6 +182,19 @@ class _UncompressedStreamTestClient(_StreamTestClient):
 class _UncompressedStreamTestClientSync(_StreamTestClientSync):
     def __init__(self, address: str, **kwargs: object) -> None:
         super().__init__(address, send_compression=None, **kwargs)
+
+
+# Connect JSON (application/connect+json), uncompressed so that the test can read the signed bytes.
+
+
+class _JsonStreamTestClient(_StreamTestClient):
+    def __init__(self, address: str, **kwargs: object) -> None:
+        ConnectClient.__init__(self, address, codec=google_protobuf_json_codec(), send_compression=None, **kwargs)  # type: ignore[arg-type]
+
+
+class _JsonStreamTestClientSync(_StreamTestClientSync):
+    def __init__(self, address: str, **kwargs: object) -> None:
+        ConnectClientSync.__init__(self, address, codec=google_protobuf_json_codec(), send_compression=None, **kwargs)  # type: ignore[arg-type]
 
 
 # -- The Go server and its log --
@@ -398,6 +411,11 @@ async def _stream_of(*values: str) -> AsyncIterator[StringValue]:
 def _sync_stream_of(*values: str) -> Iterator[StringValue]:
     for value in values:
         yield StringValue(value=value)
+
+
+def _json_envelope(value: str) -> bytes:
+    payload = f'"{value}"'.encode()
+    return bytes([0]) + len(payload).to_bytes(4, "big") + payload
 
 
 COMPRESSION = pytest.mark.parametrize(
@@ -662,3 +680,42 @@ class TestPythonSyncClientGoServerStream:
         client = _sync_client(HealthClientSync, go_server.url, protocol)
         response = client.check(health_pb2.HealthCheckRequest(service=HEALTH_SERVICE_FQN))
         assert response.status == health_pb2.HealthCheckResponse.SERVING
+
+
+# The signature covers the bytes as sent, whatever the codec: Connect JSON streams are signed over
+# their first envelope and verified by the Go helper like binary ones.
+
+
+@pytest.mark.asyncio
+async def test_async_connect_json_streams(go_server: _GoServer, monkeypatch: pytest.MonkeyPatch) -> None:
+    client = _JsonStreamTestClient(go_server.url, http_client=SigningClient(new_signer_from_hex(CLIENT_PRIVATE_KEY)))
+    signed = _record_signed(monkeypatch)
+    mark = go_server.mark()
+
+    response = await client.client_stream(_stream_of(*MESSAGES))
+    assert response.value == ",".join(MESSAGES)
+    go_server.wait_for_log(CLIENT_STREAM_VERIFIED, since=mark)
+
+    received = [msg.value async for msg in client.server_stream(StringValue(value="hello"))]
+    assert received == ["hello"] * 3
+    go_server.wait_for_log(SERVER_STREAM_VERIFIED, since=mark)
+
+    assert signed == [_json_envelope(MESSAGES[0]), _json_envelope("hello")]
+
+
+def test_sync_connect_json_streams(go_server: _GoServer, monkeypatch: pytest.MonkeyPatch) -> None:
+    client = _JsonStreamTestClientSync(
+        go_server.url, http_client=SigningSyncClient(new_signer_from_hex(CLIENT_PRIVATE_KEY))
+    )
+    signed = _record_signed(monkeypatch)
+    mark = go_server.mark()
+
+    response = client.client_stream(_sync_stream_of(*MESSAGES))
+    assert response.value == ",".join(MESSAGES)
+    go_server.wait_for_log(CLIENT_STREAM_VERIFIED, since=mark)
+
+    received = [msg.value for msg in client.server_stream(StringValue(value="hello"))]
+    assert received == ["hello"] * 3
+    go_server.wait_for_log(SERVER_STREAM_VERIFIED, since=mark)
+
+    assert signed == [_json_envelope(MESSAGES[0]), _json_envelope("hello")]

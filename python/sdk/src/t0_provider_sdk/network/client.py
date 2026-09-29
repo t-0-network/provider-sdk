@@ -129,9 +129,9 @@ def _set_default_timeouts(client: object, unary_ms: int, stream_ms: int | None) 
 def _reject_bidi_streams(client: object) -> None:
     """Makes the client's bidirectional calls fail at once, before anything is sent.
 
-    The signing transport sends a stream once it has signed the first message, and only client-
-    and server-streaming requests are defined to be signed that way; the network serves no
-    bidirectional streams. Failing here is clearer than a rejection from the network.
+    A policy, not a limit of the signing: the network does not accept bidirectional streams
+    (#370), and the signing transport sends a stream only once its first message is signed, so a
+    bidi caller that waited for a response first would block. Failing here is clearer than either.
     """
     if getattr(client, "execute_bidi_stream", None) is not None:
         setattr(client, "execute_bidi_stream", _bidi_stream_unsupported)  # noqa: B010

@@ -31,7 +31,14 @@ GRPC = "application/grpc+proto"
 GRPC_WEB = "application/grpc-web+proto"
 
 # The media type decides, parameters dropped and case ignored.
-ENVELOPED_CONTENT_TYPES = [CONNECT_STREAM, GRPC, "application/grpc", "Application/Connect+Proto; charset=utf-8"]
+# Any codec: Connect JSON streams are envelopes too.
+ENVELOPED_CONTENT_TYPES = [
+    CONNECT_STREAM,
+    "application/connect+json",
+    GRPC,
+    "application/grpc",
+    "Application/Connect+Proto; charset=utf-8",
+]
 # gRPC-Web is not enveloped here: the network signs and verifies its whole body.
 WHOLE_BODY_CONTENT_TYPES = [GRPC_WEB, "application/grpc-web", "application/proto", "application/json"]
 

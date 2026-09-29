@@ -84,6 +84,9 @@ func TestVerifyFirstEnvelope(t *testing.T) {
 	p1, p2 := payloadOf(t, "m1"), payloadOf(t, "m2")
 	env1, env2 := envelopeOf(p1), envelopeOf(p2)
 	body := concat(env1, env2)
+	// The verifier reads envelopes, whatever the codec: Connect JSON streams are signed alike.
+	jsonEnv1 := envelopeOf([]byte(`"m1"`))
+	jsonBody := concat(jsonEnv1, envelopeOf([]byte(`"m2"`)))
 	now := time.Now()
 
 	cases := []struct {
@@ -95,6 +98,8 @@ func TestVerifyFirstEnvelope(t *testing.T) {
 		reason      string // part of the rejection
 	}{
 		{"connect, first envelope", "application/connect+proto", body, signatureHeaders(t, clientPrivateKey, env1, now), "envelope", ""},
+		{"connect+json, first envelope", "application/connect+json", jsonBody, signatureHeaders(t, clientPrivateKey, jsonEnv1, now), "envelope", ""},
+		{"connect+json, whole body", "application/connect+json", jsonBody, signatureHeaders(t, clientPrivateKey, jsonBody, now), "", "signature does not verify over the first message"},
 		{"grpc, first envelope", "application/grpc", body, signatureHeaders(t, clientPrivateKey, env1, now), "envelope", ""},
 		{"grpc+proto, first payload", "application/grpc+proto", body, signatureHeaders(t, clientPrivateKey, p1, now), "payload", ""},
 		{"connect, first payload", "application/connect+proto", body, signatureHeaders(t, clientPrivateKey, p1, now), "", "signature does not verify over the first message"},
@@ -177,12 +182,13 @@ func serveHelper(t *testing.T) (string, *syncBuffer) {
 }
 
 // The Go SDK client against the helper's verifier, over the protocols `call-client-stream` and
-// `call-server-stream` use: Connect over HTTP/1.1 and gRPC over h2c.
+// `call-server-stream` use, Connect over HTTP/1.1 and gRPC over h2c, and over Connect JSON.
 var helperProtocols = []struct {
 	name string
 	opts []network.ClientOption
 }{
 	{"connect", nil},
+	{"connect-json", []network.ClientOption{network.WithConnectOptions(connect.WithProtoJSON())}},
 	{"grpc", []network.ClientOption{
 		network.WithConnectOptions(connect.WithGRPC()),
 		network.WithHTTPTransport(newH2CTransport()),

@@ -270,6 +270,7 @@ var streamProtocols = []struct {
 	compressed bool
 }{
 	{name: "connect"},
+	{name: "connect-json", opts: []connect.ClientOption{connect.WithProtoJSON()}},
 	{name: "connect-gzip", opts: []connect.ClientOption{connect.WithSendGzip()}, compressed: true},
 	{name: "grpc", opts: []connect.ClientOption{connect.WithGRPC()}},
 	{name: "grpc-gzip", opts: []connect.ClientOption{connect.WithGRPC(), connect.WithSendGzip()}, compressed: true},
