@@ -427,18 +427,20 @@ public abstract class NetworkClient implements Closeable {
                     synchronized (lock) {
                         this.responseListener = responseListener;
                         this.headers = headers;
+                        // Under the lock, so that no start (which removes the listener) can come first
+                        // and leave the listener on a long-lived context. CALLBACK_EXECUTOR runs it later.
+                        context.addListener(contextListener, CALLBACK_EXECUTOR);
                         Deadline deadline = callOptions.getDeadline();
                         if (deadline != null) {
                             deadlineTimer = deadline.runOnExpiration(
                                     () -> CALLBACK_EXECUTOR.execute(this::startUnsigned), DEADLINE_TIMER);
                         }
                     }
-                    context.addListener(contextListener, CALLBACK_EXECUTOR);
 
                     // The call is ready for its first message, and only that message starts rawCall: a
                     // sender that sends only on onReady needs this one, or both wait for ever.
                     Executor executor = callOptions.getExecutor() != null ? callOptions.getExecutor() : CALLBACK_EXECUTOR;
-                    executor.execute(() -> callbacks.execute(() -> {
+                    executor.execute(() -> callbacks.execute(context.wrap(() -> {
                         boolean waiting;
                         synchronized (lock) {
                             waiting = !started && !starting;
@@ -446,7 +448,7 @@ public abstract class NetworkClient implements Closeable {
                         if (waiting) {
                             responseListener.onReady();
                         }
-                    }));
+                    })));
                 }
 
                 @Override
@@ -592,29 +594,37 @@ public abstract class NetworkClient implements Closeable {
                     }
                     context.removeListener(contextListener);
                     int requests;
+                    // rawCall runs its callbacks in callContext, which cancel() may have cancelled: the
+                    // caller's listener runs in the caller's context, so that a call it makes there
+                    // (a retry, say) does not end at once as cancelled.
+                    Listener<RespT> inCallerContext = new Listener<RespT>() {
+                        @Override
+                        public void onHeaders(Metadata responseHeaders) {
+                            callbacks.execute(context.wrap(() -> listener.onHeaders(responseHeaders)));
+                        }
+
+                        @Override
+                        public void onMessage(RespT message) {
+                            callbacks.execute(context.wrap(() -> listener.onMessage(message)));
+                        }
+
+                        @Override
+                        public void onClose(Status status, Metadata trailers) {
+                            callbacks.execute(context.wrap(() -> listener.onClose(status, trailers)));
+                        }
+
+                        @Override
+                        public void onReady() {
+                            callbacks.execute(context.wrap(listener::onReady));
+                        }
+                    };
+                    // Started in callContext too, so a call that is created only now cannot open a
+                    // stream in whatever context this thread has.
+                    Context previous = callContext.attach();
                     try {
-                        rawCall.start(new Listener<RespT>() {
-                            @Override
-                            public void onHeaders(Metadata responseHeaders) {
-                                callbacks.execute(() -> listener.onHeaders(responseHeaders));
-                            }
-
-                            @Override
-                            public void onMessage(RespT message) {
-                                callbacks.execute(() -> listener.onMessage(message));
-                            }
-
-                            @Override
-                            public void onClose(Status status, Metadata trailers) {
-                                callbacks.execute(() -> listener.onClose(status, trailers));
-                            }
-
-                            @Override
-                            public void onReady() {
-                                callbacks.execute(listener::onReady);
-                            }
-                        }, startHeaders);
+                        rawCall.start(inCallerContext, startHeaders);
                     } finally {
+                        callContext.detach(previous);
                         synchronized (lock) {
                             started = true;
                             starting = false;

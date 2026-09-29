@@ -8,6 +8,7 @@ import io.grpc.Channel;
 import io.grpc.ClientCall;
 import io.grpc.ClientInterceptors;
 import io.grpc.Context;
+import io.grpc.Contexts;
 import io.grpc.Metadata;
 import io.grpc.MethodDescriptor;
 import io.grpc.MethodDescriptor.MethodType;
@@ -361,7 +362,22 @@ class SigningClientInterceptorStreamingTest {
         assertThat(raw.events).containsExactly("start", "request:1", "cancel");
         assertThat(raw.headers.get(SIGNATURE)).isNull();
         assertThat(listener.closeStatus.getCode()).isEqualTo(Status.Code.CANCELLED);
-        assertThat(listener.closeStatus.getCause()).isSameAs(failure);
+        // A real call may wrap the cause; the caller's must be in the chain.
+        assertThat(causeChain(listener.closeStatus.getCause())).contains(failure);
+    }
+
+    @Test
+    @DisplayName("After cancel() before the first message, the listener runs in the caller's context")
+    void listenerRunsInTheCallersContextAfterCancel() {
+        RecordingListener<StringValue> listener = new RecordingListener<>();
+        List<Boolean> cancelledInOnClose = new ArrayList<>();
+        listener.onCloseAction = () -> cancelledInOnClose.add(Context.current().isCancelled());
+        ClientCall<StringValue, StringValue> call = intercepted.newCall(CLIENT_STREAM, callOptions());
+        call.start(listener, new Metadata());
+        call.cancel("caller gave up", null);
+
+        // A call made from onClose (a retry, say) must not start out cancelled.
+        assertThat(cancelledInOnClose).containsExactly(false);
     }
 
     // ==================== onReady before the first message ====================
@@ -754,6 +770,14 @@ class SigningClientInterceptorStreamingTest {
         assertThat(raw.events()).containsExactly(expected);
     }
 
+    private static List<Throwable> causeChain(Throwable t) {
+        List<Throwable> chain = new ArrayList<>();
+        for (; t != null && !chain.contains(t); t = t.getCause()) {
+            chain.add(t);
+        }
+        return chain;
+    }
+
     private static void awaitQuietly(CountDownLatch latch) {
         try {
             latch.await(10, TimeUnit.SECONDS);
@@ -852,6 +876,7 @@ class SigningClientInterceptorStreamingTest {
         volatile int starts;
         volatile boolean ready;
         volatile boolean contextCancelledAtStart;
+        volatile boolean closed;
         Status closeOnStart;
         // Like a real call, the call belongs to the context it is created in.
         private final Context context = Context.current();
@@ -891,8 +916,12 @@ class SigningClientInterceptorStreamingTest {
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
             }
-            if (closeOnStart != null) {
-                responseListener.onClose(closeOnStart, new Metadata());
+            // Like a real call: one started in a cancelled context closes at once, with the context's
+            // status, and every callback runs in the call's own context.
+            Status close = contextCancelledAtStart ? Contexts.statusFromCancelled(context) : closeOnStart;
+            if (close != null) {
+                closed = true;
+                context.run(() -> responseListener.onClose(close, new Metadata()));
             }
         }
 
@@ -904,9 +933,11 @@ class SigningClientInterceptorStreamingTest {
         @Override
         public void cancel(String message, Throwable cause) {
             events.add("cancel");
-            // Like a real call, only a started call reports its cancellation to the listener.
-            if (listener != null) {
-                listener.onClose(Status.CANCELLED.withDescription(message).withCause(cause), new Metadata());
+            // Like a real call, only a started, open call reports its cancellation to the listener.
+            if (listener != null && !closed) {
+                closed = true;
+                context.run(() -> listener.onClose(
+                        Status.CANCELLED.withDescription(message).withCause(cause), new Metadata()));
             }
         }
 

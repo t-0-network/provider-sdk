@@ -420,6 +420,56 @@ class CrossServerTests {
         }
     }
 
+    /** Like an observer that restarts its stream after an error: the new call must not inherit the cancel. */
+    @Test
+    @Timeout(30)
+    void javaClient_goServer_callFromOnErrorAfterCancelBeforeTheFirstMessage() throws Exception {
+        skipOrFailIfNoHelper();
+        GoServer goServer = startGoServer();
+
+        try (var client = streamClient(goServer.port(), PRIVATE_KEY)) {
+            CompletableFuture<Status> followUp = new CompletableFuture<>();
+            StreamObserver<StringValue> restarting = new StreamObserver<>() {
+                @Override
+                public void onNext(StringValue value) {
+                }
+
+                @Override
+                public void onError(Throwable t) {
+                    HealthGrpc.newStub(client.getChannel()).check(
+                            HealthCheckRequest.newBuilder().setService(HealthGrpc.SERVICE_NAME).build(),
+                            new StreamObserver<>() {
+                                @Override
+                                public void onNext(HealthCheckResponse response) {
+                                }
+
+                                @Override
+                                public void onError(Throwable e) {
+                                    followUp.complete(Status.fromThrowable(e));
+                                }
+
+                                @Override
+                                public void onCompleted() {
+                                    followUp.complete(Status.OK);
+                                }
+                            });
+                }
+
+                @Override
+                public void onCompleted() {
+                }
+            };
+            ClientCallStreamObserver<StringValue> requests = (ClientCallStreamObserver<StringValue>)
+                    ClientCalls.asyncClientStreamingCall(
+                            client.getChannel().newCall(CLIENT_STREAM, CallOptions.DEFAULT), restarting);
+            requests.cancel("caller gave up", null);
+
+            assertThat(followUp.get(10, TimeUnit.SECONDS).getCode()).isEqualTo(Status.Code.OK);
+        } finally {
+            stop(goServer);
+        }
+    }
+
     /** Compressed bytes on the wire would not match a signature over the message as serialized. */
     @Test
     @Timeout(30)
