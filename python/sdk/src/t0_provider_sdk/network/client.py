@@ -70,8 +70,8 @@ def new_service_client(
             Ignored when sign_fn is given.
         client_class: Generated ConnectRPC async client class (e.g. NetworkServiceClient).
         base_url: Base URL of the T-0 Network API: http:// or https://, a host (ASCII letters,
-            digits, '-' and '.', or an IP literal), and a port of 1..65535 if one is given. None
-            means the default; an empty string raises ValueError.
+            digits, '-' and '.', or an IP literal) without user info, and a port of 1..65535 if
+            one is given. None means the default; an empty string raises ValueError.
         timeout: Timeout of unary calls in seconds, 15 by default.
         stream_timeout: Timeout of client- and server-streaming calls in seconds, including the
             wait for the first request message, 300 by default.
@@ -159,6 +159,9 @@ def _is_valid_base_url(base_url: str) -> bool:
         return False
     host = parts.hostname
     if not host or (port is not None and not 1 <= port <= 65535):
+        return False
+    # No user info, and no ':' without a port after it.
+    if "@" in parts.netloc or parts.netloc.endswith(":"):
         return False
     if ":" in host:  # only a bracketed IPv6 literal keeps a ':' in its host
         try:

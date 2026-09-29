@@ -95,6 +95,9 @@ class TestBaseURL:
             "http://h:99999",
             "http://h:0",
             "not a url",
+            "http://user@h",
+            "http://h:",
+            "http://bücher.example",
         ],
     )
     @pytest.mark.parametrize("factory", FACTORIES)
