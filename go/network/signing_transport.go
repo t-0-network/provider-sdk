@@ -171,9 +171,8 @@ func readEnvelope(r io.Reader) ([]byte, error) {
 	return envelope.Bytes(), nil
 }
 
-// firstMessageError gives a truncated first envelope CodeInvalidArgument, not wrapping io.EOF:
-// connect-go reports an uncoded RoundTrip error as unavailable (retryable), and replaces one that
-// wraps io.EOF, losing its code.
+// firstMessageError reports a first message cut short as the caller's error (CodeInvalidArgument),
+// not as a failure worth retrying. It must not wrap io.EOF, or the code is lost.
 func firstMessageError(err error) error {
 	if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
 		return connect.NewError(connect.CodeInvalidArgument,

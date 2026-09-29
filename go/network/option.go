@@ -15,7 +15,7 @@ const (
 	defaultBaseURL       = "https://api.t-0.network"
 	defaultTimeout       = 15 * time.Second
 	defaultStreamTimeout = 5 * time.Minute
-	// maxTimeout is the largest timeout every SDK accepts: 2^31-1 ms.
+	// maxTimeout is the largest timeout accepted: 2^31-1 ms.
 	maxTimeout = math.MaxInt32 * time.Millisecond
 )
 

@@ -144,20 +144,23 @@ _, err = networkClient.CreatePayment(ctx, connect.NewRequest(&networkproto.Creat
 
 **Client options:** `WithBaseURL` (default: `https://api.t-0.network`), `WithTimeout` (unary calls, default: 15s), `WithStreamTimeout` (streaming calls, default: 5 min), `WithWireFormat` (`WireFormatBinary` default, `WireFormatJSON`), `WithProtocol` (`ProtocolConnect` default, `ProtocolGRPC`), `WithSignatureFunction`.
 
-#### Streaming calls
+#### Streaming and timeouts
 
-The same client signs client-streaming (upload) and server-streaming (download) calls over their **first request message** only, and sends the request as soon as that message is sent; later messages are streamed, never buffered.
+Client-streaming and server-streaming calls are signed over their first request message. The request goes out as soon as that message is sent, and later messages are not buffered. Bidirectional-streaming calls fail with `CodeUnimplemented` and send nothing.
+
+A unary call gets a 15 second deadline and a stream gets 5 minutes, unless the call's context has a deadline of its own, which then applies instead, shorter or longer.
 
 ```go
-stream := client.Upload(ctx) // a client-streaming method
+// uploadconnect stands for any generated service that has a client-streaming method Upload.
+client, err := network.NewServiceClient(privateKey, uploadconnect.NewUploadServiceClient,
+    network.WithStreamTimeout(30*time.Minute), // every stream of this client may run up to 30 minutes
+)
+
+stream := client.Upload(ctx)
 if err := stream.Send(firstChunk); err != nil { /* ... */ } // signs and sends the request
 if err := stream.Send(nextChunk); err != nil { /* ... */ }
 resp, err := stream.CloseAndReceive()
 ```
-
-- Send the first message (or call `CloseAndReceive`) before waiting for a response.
-- A stream ends after 5 minutes unless `WithStreamTimeout` or its context sets another deadline; a deadline on the context replaces the default.
-- Bidirectional-streaming calls fail with `CodeUnimplemented` and send nothing.
 
 Details: [`docs/STREAMING.md`](../docs/STREAMING.md).
 
