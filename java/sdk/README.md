@@ -11,6 +11,7 @@ This document provides detailed technical documentation for developers who need 
 - [Critical: Raw Payload Bytes](#critical-raw-payload-bytes)
 - [Signature Format and Headers](#signature-format-and-headers)
 - [Accepted Signature Payload Formats](#accepted-signature-payload-formats)
+- [Streaming Calls](#streaming-calls)
 - [Thread Safety](#thread-safety)
 - [Usage Examples](#usage-examples)
 - [Error Handling](#error-handling)
@@ -55,7 +56,8 @@ Handles outbound requests to the t-0 Network with automatic request signing.
 
 **Key Features:**
 - Automatic request signing via `SigningClientInterceptor`
-- Configurable timeouts (default: 30 seconds)
+- Default deadlines per call type: 15 seconds for unary calls, none for streaming calls (configurable per client and per stub)
+- Streaming calls: only the first request message is signed
 - Endpoint parsing (supports `https://host`, `http://host:port`, `host:port`)
 - Graceful shutdown with 5-second timeout
 
@@ -209,6 +211,28 @@ The provider's `SignatureVerificationInterceptor` accepts signatures over either
 - Signature computed over: `Keccak256(frame || protobuf_bytes || timestamp_le_u64)`
 
 The interceptor tries the unframed payload first, then reconstructs the gRPC frame and tries the framed payload. Both paths are load-bearing in production — see [`docs/java/SIGNATURE_VERIFICATION.md`](../../docs/java/SIGNATURE_VERIFICATION.md) for the full rationale.
+
+---
+
+## Streaming Calls
+
+For client-streaming and server-streaming calls, `SigningClientInterceptor` signs **only the first request message**. Later messages are sent as-is, unsigned, and the signature headers go out once, when the call starts. As for unary calls, the interceptor sits above the gRPC framer, so the signed bytes are the first message **without** its 5-byte gRPC prefix; the T-0 Network accepts that through its unframed fallback:
+
+```
+digest = Keccak256(first_message_bytes || timestamp_le_u64)
+```
+
+A client stream closed before its first message signs empty bytes, which the network rejects. Bidirectional streaming is not supported.
+
+The call starts when the first message is sent, since the signature headers must be complete before it starts. Until then `isReady()` reports `true`, so readiness-gated senders (`BlockingClientCall.write`, `while (requestStream.isReady())` loops) send that message; `onReady()` is first delivered after it, so a sender driven only by `onReady` callbacks must send its first message directly. `cancel()` before the first message still delivers `onClose(CANCELLED)`.
+
+Streaming calls get no default deadline, since a stream can run as long as an upload or a download takes. Set one per client, or per stub with `stub(timeout, unit)`:
+
+```java
+// 15 s for unary calls, 10 min for streaming calls
+AsyncNetworkClient.create(endpoint, signer, NetworkServiceGrpc::newStub,
+        Duration.ofSeconds(15), Duration.ofMinutes(10));
+```
 
 ---
 
@@ -436,9 +460,12 @@ Results are reported in operations per millisecond.
 
 **Symptom**: `DEADLINE_EXCEEDED` status
 
-**Solution**: Increase timeout when creating client:
+**Solution**: Increase the default deadline when creating the client (unary calls get 15 seconds by default, streaming calls none):
 ```java
-BlockingNetworkClient.create(endpoint, signer, stubFactory, 60); // 60 seconds
+BlockingNetworkClient.create(endpoint, signer, stubFactory, 60); // 60 seconds for unary calls
+
+// Separate deadlines for unary and streaming calls (null or Duration.ZERO: no stream deadline)
+BlockingNetworkClient.create(endpoint, signer, stubFactory, Duration.ofSeconds(60), Duration.ofMinutes(10));
 ```
 
 Or per-call:

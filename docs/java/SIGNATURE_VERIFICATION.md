@@ -67,6 +67,10 @@ return false;
 
 The network's verification logic on its own ingress mirrors this dual-path with the symmetric convention: it tries the on-wire body first, and for gRPC requests retries with the 5-byte frame stripped. The two systems together accept any caller whose signing wiring is internally consistent (signs and sends the exact same bytes at the same layer), regardless of whether that layer is above or below the framer.
 
+## Streaming calls (client side)
+
+For client- and server-streaming calls the Java SDK's `NetworkClient` signs **only the first request message**, with the same framing as unary calls: the marshalled message without its 5-byte gRPC prefix, `Keccak256(first_message_bytes || ts_le_u64)`. Later messages are sent unsigned, and the headers go out once, when the call starts. The network verifies a streaming request over its first message, accepting the first frame with or without the prefix over gRPC, exactly like the unary dual-path above. The verifier described here is the provider side, which still checks every inbound message; providers do not serve streaming RPCs.
+
 ## CRITICAL: do not remove either path
 
 Removing path 1 silently breaks every caller whose signing wiring is above the framer — including the Java SDK's own `NetworkClient`, and the network when calling Java providers configured for Connect protocol. Removing path 2 silently breaks every caller whose signing wiring is below the framer — including the network when calling Java providers configured for gRPC protocol.

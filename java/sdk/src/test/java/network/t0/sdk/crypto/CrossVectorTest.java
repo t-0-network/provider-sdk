@@ -160,6 +160,63 @@ class CrossVectorTest {
         }
     }
 
+    /**
+     * Streaming requests sign only their first message. Each case's signed bytes are derived
+     * from its body: the first envelope (5-byte prefix and payload) or, for a signer above the
+     * gRPC framer like this SDK, the first payload alone. That this SDK's client emits the
+     * first_payload case is checked in {@code SigningClientInterceptorStreamingTest}.
+     */
+    @Test
+    void streamSigningCases_shouldMatchVectorBytes() {
+        JsonObject keys = vectors.getAsJsonObject("keys");
+        Signer signer = Signer.fromHex(keys.get("private_key").getAsString());
+
+        JsonArray cases = vectors.getAsJsonArray("stream_signing_cases");
+        assertThat(cases).isNotEmpty();
+
+        for (var element : cases) {
+            JsonObject vec = element.getAsJsonObject();
+            String name = vec.get("name").getAsString();
+            byte[] body = HexUtils.hexToBytes(vec.get("body_hex").getAsString());
+            byte[] signed = firstMessage(body, vec.get("covers").getAsString());
+
+            assertThat(HexUtils.bytesToHex(signed))
+                    .as("signed bytes for %s", name)
+                    .isEqualTo(vec.get("signed_hex").getAsString());
+
+            byte[] tsBytes = ByteBuffer.allocate(8)
+                    .order(ByteOrder.LITTLE_ENDIAN)
+                    .putLong(vec.get("timestamp_ms").getAsLong())
+                    .array();
+            byte[] digest = Keccak256.hash(signed, tsBytes);
+            assertThat(HexUtils.bytesToHex(digest))
+                    .as("digest for %s", name)
+                    .isEqualTo(vec.get("expected_hash").getAsString());
+
+            byte[] sig64 = Arrays.copyOf(signer.sign(digest).getSignature(), 64);
+            assertThat(HexUtils.bytesToHex(sig64))
+                    .as("signature for %s", name)
+                    .isEqualTo(vec.get("expected_signature").getAsString());
+        }
+    }
+
+    /**
+     * The first message of an enveloped body (flags byte, big-endian uint32 length, payload):
+     * the whole envelope for {@code first_envelope}, the payload for {@code first_payload}.
+     * An empty body has no first message and signs empty bytes.
+     */
+    private static byte[] firstMessage(byte[] body, String covers) {
+        if (body.length == 0) {
+            return body;
+        }
+        int length = ByteBuffer.wrap(body, 1, 4).getInt();
+        return switch (covers) {
+            case "first_envelope" -> Arrays.copyOfRange(body, 0, 5 + length);
+            case "first_payload" -> Arrays.copyOfRange(body, 5, 5 + length);
+            default -> throw new AssertionError("unknown covers value: " + covers);
+        };
+    }
+
     /** What a provider hashes: the raw body with the little-endian timestamp appended. */
     private static byte[] requestDigest(JsonObject vec) {
         byte[] body = HexUtils.hexToBytes(vec.get("body_hex").getAsString());
