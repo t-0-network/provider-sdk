@@ -43,7 +43,7 @@ func (c *clientOptions) validate() error {
 		return ErrEmptyBaseURL
 	}
 
-	if u, err := url.Parse(c.baseURL); err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+	if u, err := url.Parse(c.baseURL); err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Hostname() == "" {
 		return ErrInvalidBaseURL
 	}
 

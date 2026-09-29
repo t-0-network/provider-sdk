@@ -218,7 +218,7 @@ func TestNewServiceClient_ValidationErrors(t *testing.T) {
 		require.EqualError(t, err, "base URL is not set")
 	})
 
-	for _, bad := range []string{"api.t-0.network", "ftp://api.t-0.network", "https://", "http:///path", "://api.t-0.network"} {
+	for _, bad := range []string{"api.t-0.network", "ftp://api.t-0.network", "https://", "http:///path", "http://:8080", "https://:443/x", "://api.t-0.network"} {
 		t.Run(fmt.Sprintf("base URL %q is refused", bad), func(t *testing.T) {
 			_, err := NewServiceClient("", factory, WithSignatureFunction(testSignFn(t)), WithBaseURL(bad))
 			require.ErrorIs(t, err, ErrInvalidBaseURL)
