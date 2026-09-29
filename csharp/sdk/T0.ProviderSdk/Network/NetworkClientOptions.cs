@@ -18,8 +18,8 @@ public sealed class NetworkClientOptions
     /// Base URL of the T-0 Network API, <c>https://api.t-0.network</c> by default or when set to null.
     /// </summary>
     /// <exception cref="ArgumentException">
-    /// The value is empty, or is not an <c>http://</c> or <c>https://</c> URL with a host and, if it
-    /// has a port, a port from 1 to 65535.
+    /// The value is empty, or is not an <c>http://</c> or <c>https://</c> URL with a host name of ASCII
+    /// letters, digits, '-' and '.' or an IP address, and, if it has a port, a port from 1 to 65535.
     /// </exception>
     [AllowNull]
     public string BaseUrl
@@ -63,10 +63,16 @@ public sealed class NetworkClientOptions
         if (!hasScheme
             || !Uri.TryCreate(value, UriKind.Absolute, out var uri)
             || uri.Host.Length == 0
+            || !IsHostName(uri)
             || uri.Port is < 1 or > 65535)
             throw new ArgumentException("base URL is not valid", nameof(BaseUrl));
         return value;
     }
+
+    // Uri takes names such as my_host, which some gRPC clients cannot connect to.
+    private static bool IsHostName(Uri uri) =>
+        uri.HostNameType == UriHostNameType.IPv6
+        || uri.Host.All(c => char.IsAsciiLetterOrDigit(c) || c is '-' or '.');
 
     // A timeout cannot be turned off, so Timeout.InfiniteTimeSpan is refused like any other negative value.
     private static TimeSpan Validate(TimeSpan value, string name) =>

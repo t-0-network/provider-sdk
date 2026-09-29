@@ -19,7 +19,7 @@ public class NetworkClientOptionsTests
     [InlineData("https://api.t-0.network")]
     [InlineData("http://localhost:8080")]
     [InlineData("http://127.0.0.1:1234")]
-    [InlineData("http://my_host:8080")]
+    [InlineData("http://[::1]:8080")]
     [InlineData("HTTPS://example.com/base/")]
     public void BaseUrl_AcceptsHttpAndHttpsUrls(string url)
     {
@@ -42,9 +42,11 @@ public class NetworkClientOptionsTests
     [InlineData("http:foo")]
     [InlineData("http://h:99999")]
     [InlineData("http://h:0")]
+    [InlineData("http://my_host:8080")]
+    [InlineData("http://bücher.example")]
     [InlineData("not a url")]
     [InlineData("/relative/path")]
-    public void BaseUrlWithoutHttpSchemeHostOrValidPort_IsRefused(string url)
+    public void BaseUrlWithoutHttpSchemeValidHostOrValidPort_IsRefused(string url)
     {
         var ex = Assert.Throws<ArgumentException>(() => new NetworkClientOptions { BaseUrl = url });
         Assert.StartsWith("base URL is not valid", ex.Message);
