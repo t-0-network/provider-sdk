@@ -77,11 +77,7 @@ def _is_enveloped(headers: pyqwest.Headers | None) -> bool:
     """Whether only the first envelope is signed. Not for gRPC-Web: the network verifies its whole body."""
     content_type = headers.get("content-type") if headers is not None else None
     media_type = (content_type or "").partition(";")[0].strip().lower()
-    return (
-        media_type.startswith("application/connect+")
-        or media_type == "application/grpc"
-        or media_type.startswith("application/grpc+")
-    )
+    return media_type == "application/grpc" or media_type.startswith(("application/connect+", "application/grpc+"))
 
 
 def _first_envelope(body: bytes) -> bytes:

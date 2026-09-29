@@ -144,12 +144,6 @@ def _send_sync(fake: _FakeSyncClient, content_type: str, content, timeout: float
         assert resp == "response"
 
 
-# (chunks the source yields, bytes signed)
-CHUNKINGS = {
-    "one envelope per chunk": ([ENV1, ENV2, ENV3], ENV1),
-    "empty stream": ([], b""),
-}
-
 BAD_FIRST_CHUNKS = {
     "first envelope split across chunks": [ENV1[:7], ENV1[7:], ENV2],
     "first envelope merged with the next": [ENV1 + ENV2, ENV3],
@@ -181,14 +175,12 @@ async def _closing_asource(chunks: list[bytes], events: list[str]):
 @pytest.mark.asyncio
 class TestSigningClientStream:
     @pytest.mark.parametrize("content_type", [CONNECT_STREAM, GRPC])
-    @pytest.mark.parametrize("chunking", CHUNKINGS.keys())
-    async def test_signs_first_envelope_and_forwards_all(self, content_type: str, chunking: str) -> None:
-        chunks, signed = CHUNKINGS[chunking]
+    async def test_empty_enveloped_iterator_is_signed_over_nothing(self, content_type: str) -> None:
         fake = _FakeClient()
-        await _send(fake, content_type, _agen(*chunks))
+        await _send(fake, content_type, _agen())
 
-        _assert_signed_over(fake.headers, signed)
-        assert fake.body == b"".join(chunks)
+        _assert_signed_over(fake.headers, b"")
+        assert fake.body == b""
 
     @pytest.mark.parametrize("chunking", BAD_FIRST_CHUNKS.keys())
     async def test_refuses_a_first_chunk_that_is_not_one_envelope(self, chunking: str) -> None:
@@ -337,14 +329,12 @@ class TestSigningClientStream:
 
 class TestSigningSyncClientStream:
     @pytest.mark.parametrize("content_type", [CONNECT_STREAM, GRPC])
-    @pytest.mark.parametrize("chunking", CHUNKINGS.keys())
-    def test_signs_first_envelope_and_forwards_all(self, content_type: str, chunking: str) -> None:
-        chunks, signed = CHUNKINGS[chunking]
+    def test_empty_enveloped_iterator_is_signed_over_nothing(self, content_type: str) -> None:
         fake = _FakeSyncClient()
-        _send_sync(fake, content_type, iter(chunks))
+        _send_sync(fake, content_type, iter([]))
 
-        _assert_signed_over(fake.headers, signed)
-        assert fake.body == b"".join(chunks)
+        _assert_signed_over(fake.headers, b"")
+        assert fake.body == b""
 
     @pytest.mark.parametrize("chunking", BAD_FIRST_CHUNKS.keys())
     def test_refuses_a_first_chunk_that_is_not_one_envelope(self, chunking: str) -> None:

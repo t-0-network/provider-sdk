@@ -110,7 +110,7 @@ The rejection lives in the factory-built clients. A ConnectRPC client built by h
 
 ### Cross tests (`python/tests/cross_test/test_cross_stream.py`)
 
-Against `go_helper serve` (Connect over HTTP/1.1, gRPC over h2c), which serves `test.v1.StreamTest` (`cross_test/stream_test.proto`) behind a verifier that checks a streaming request's signature as the network does -- over the first envelope, once the headers and that envelope have arrived -- and answers HTTP 401 otherwise. It logs every verdict to stderr: `<path> verified over the first envelope` or `<path> rejected: <reason>`. The tests assert on that log.
+Against `go_helper serve` (Connect over HTTP/1.1, gRPC over h2c), which serves `test.v1.StreamTest` (`cross_test/stream_test.proto`) behind a verifier that checks a streaming request's signature as the network does -- over the first envelope (over gRPC also over its payload alone), once the headers and that envelope have arrived -- and answers HTTP 401 otherwise. It logs every verdict to stderr: `<path> verified over the first envelope|payload` or `<path> rejected: <reason>`. The tests assert on that log, and expect `envelope`: that is what this SDK signs.
 
 - One helper process per module; a daemon thread reads its stderr (another drains stdout so the pipe never blocks the server).
 - Each test calls `mark()` before its requests and looks only at lines logged after the mark. `mark()` sends a request of its own (to a `MarkN` path, which the verifier rejects) and waits for its line: the server wrote every earlier line before it, so a late line from an earlier test cannot land after the mark.
