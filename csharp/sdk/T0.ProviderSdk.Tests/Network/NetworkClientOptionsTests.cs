@@ -44,6 +44,8 @@ public class NetworkClientOptionsTests
     [InlineData("http://h:0")]
     [InlineData("http://my_host:8080")]
     [InlineData("http://bücher.example")]
+    [InlineData("http://user@h")]
+    [InlineData("http://h:")]
     [InlineData("not a url")]
     [InlineData("/relative/path")]
     public void BaseUrlWithoutHttpSchemeValidHostOrValidPort_IsRefused(string url)

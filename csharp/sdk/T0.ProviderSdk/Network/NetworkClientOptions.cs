@@ -19,7 +19,8 @@ public sealed class NetworkClientOptions
     /// </summary>
     /// <exception cref="ArgumentException">
     /// The value is empty, or is not an <c>http://</c> or <c>https://</c> URL with a host name of ASCII
-    /// letters, digits, '-' and '.' or an IP address, and, if it has a port, a port from 1 to 65535.
+    /// letters, digits, '-' and '.' or an IP address, no user info, and, if it has a ':' after the
+    /// host, a port from 1 to 65535.
     /// </exception>
     [AllowNull]
     public string BaseUrl
@@ -57,16 +58,28 @@ public sealed class NetworkClientOptions
     {
         if (value.Length == 0)
             throw new ArgumentException("base URL is not set", nameof(BaseUrl));
-        // Uri alone would read "http:host" as http://host and accept port 0.
+        // Uri alone would read "http:host" as http://host, take "http://h:" as port 80, and accept
+        // port 0 and user info.
         var hasScheme = value.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
             || value.StartsWith("https://", StringComparison.OrdinalIgnoreCase);
         if (!hasScheme
+            || !IsPlainAuthority(value)
             || !Uri.TryCreate(value, UriKind.Absolute, out var uri)
             || uri.Host.Length == 0
             || !IsHostName(uri)
             || uri.Port is < 1 or > 65535)
             throw new ArgumentException("base URL is not valid", nameof(BaseUrl));
         return value;
+    }
+
+    // No user info, and a ':' after the host is followed by a port.
+    private static bool IsPlainAuthority(string url)
+    {
+        var authority = url.AsSpan(url.IndexOf("://", StringComparison.Ordinal) + 3);
+        var end = authority.IndexOfAny('/', '?', '#');
+        if (end >= 0)
+            authority = authority[..end];
+        return !authority.Contains('@') && !authority.EndsWith(':');
     }
 
     // Uri takes names such as my_host, which some gRPC clients cannot connect to.
