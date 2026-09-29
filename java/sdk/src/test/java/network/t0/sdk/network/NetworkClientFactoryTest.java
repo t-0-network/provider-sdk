@@ -66,7 +66,7 @@ class NetworkClientFactoryTest {
     @ParameterizedTest
     @ValueSource(strings = {"http://my_host:8080", "api.t-0.network", "api.t-0.network:443", "ftp://h", "http://", "http://:8080",
             "http:foo", "http://h:99999", "http://h:0", "not a url", "https://", "http:///path",
-            "https://api t-0.network", " ", "http://h:", "http://user@h"})
+            "https://api t-0.network", " ", "http://h:", "http://user@h", "http://b\u00fccher.example"})
     @DisplayName("A base URL without an http or https scheme or without a host is refused, not repaired")
     void invalidBaseUrlIsRefused(String endpoint) {
         assertThatThrownBy(() -> NetworkClient.parseEndpoint(endpoint))
