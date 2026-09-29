@@ -183,7 +183,7 @@ The input is 64 hex characters, with an optional `0x` or `0X` prefix; output is 
 
 ### Network Client
 
-Use `createClient` to call T-0 Network APIs. The client handles request signing automatically. It speaks the Connect protocol. `endpoint` is the network's base URL (`http://` or `https://`); `undefined` means `https://api.t-0.network`.
+Use `createClient` to call T-0 Network APIs. The client handles request signing automatically. It speaks the Connect protocol. `endpoint` is the network's base URL: `http://` or `https://`, a host and an optional port, no path; `undefined` means `https://api.t-0.network`.
 
 ```ts
 import { createClient, NetworkService } from "@t-0/provider-sdk";

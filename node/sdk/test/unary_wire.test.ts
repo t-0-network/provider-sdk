@@ -244,7 +244,8 @@ function envelope(flags: number, payload: Uint8Array): Buffer {
   return Buffer.concat([prefix, payload]);
 }
 
-// Records each request as it arrived and answers StreamTest calls with "ok"; /redirect answers 307.
+// Records each request as it arrived and answers StreamTest calls with "ok"; a request with an
+// X-Redirect header gets a 307 to its own path.
 async function withWireServer(fn: (url: string, arrived: Arrived[]) => Promise<void>) {
   const arrived: Arrived[] = [];
   const ok = toBinary(StringValueSchema, create(StringValueSchema, { value: 'ok' }));
@@ -254,8 +255,8 @@ async function withWireServer(fn: (url: string, arrived: Arrived[]) => Promise<v
       chunks.push(chunk);
     }
     arrived.push({ headers: req.headers, body: Buffer.concat(chunks) });
-    if (req.url?.startsWith('/redirect/')) {
-      res.writeHead(307, { Location: req.url.slice('/redirect'.length) }).end();
+    if (req.headers['x-redirect'] !== undefined) {
+      res.writeHead(307, { Location: req.url }).end();
     } else if (req.headers['content-type'] === 'application/proto') {
       res.writeHead(200, { 'Content-Type': 'application/proto' }).end(ok);
     } else {
@@ -300,8 +301,8 @@ describe('On the wire (connect-node over HTTP/1.1)', () => {
 
   it('a redirect is not followed', async () => {
     await withWireServer(async (url, arrived) => {
-      const client = createClient(vectors.keys.private_key, `${url}/redirect`, StreamTest);
-      await assert.rejects(client.unary({ value: 'hello' }));
+      const client = createClient(vectors.keys.private_key, url, StreamTest);
+      await assert.rejects(client.unary({ value: 'hello' }, { headers: { 'X-Redirect': '1' } }), ConnectError);
       assert.equal(arrived.length, 1, 'the signed request is not sent again');
     });
   });

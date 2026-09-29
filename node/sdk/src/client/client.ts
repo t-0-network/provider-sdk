@@ -4,7 +4,8 @@ import type { DescService } from "@bufbuild/protobuf";
 export const DEFAULT_ENDPOINT = "https://api.t-0.network"
 
 /**
- * @param endpoint the network's base URL, `http://` or `https://`; undefined for DEFAULT_ENDPOINT.
+ * @param endpoint the network's base URL, `http://` or `https://` with a host and an optional port,
+ *     no path; undefined for DEFAULT_ENDPOINT.
  */
 export function createClient<T extends DescService>(signer: string | Buffer | ((data: Buffer) => Promise<Signature>) | Buffer<ArrayBufferLike>, endpoint: string | undefined, svc: T, opts?: ClientOptions) {
     return createClientCommon(signer, baseUrl(endpoint), svc, opts);
@@ -24,8 +25,9 @@ function baseUrl(endpoint: string | undefined): string {
 }
 
 // Checked as written: the URL parser would read "http:foo" as http://foo/ and accept a host with
-// "_", which some gRPC clients cannot connect to. A host is a DNS name, IPv4 or a bracketed IPv6.
-const BASE_URL = /^https?:\/\/(?:\[[0-9a-f:.]+\]|[a-z0-9.-]+)(?::(\d+))?(?:[/?#]|$)/i;
+// "_", which some gRPC clients cannot connect to. A host is a DNS name, IPv4 or a bracketed IPv6;
+// nothing may follow the host and port but one "/".
+const BASE_URL = /^https?:\/\/(?:\[[0-9a-f:.]+\]|[a-z0-9.-]+)(?::(\d+))?\/?$/i;
 
 function validBaseUrl(endpoint: string): boolean {
     const match = typeof endpoint === "string" ? BASE_URL.exec(endpoint) : null;
