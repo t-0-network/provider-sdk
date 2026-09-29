@@ -11,7 +11,6 @@ import (
 	"time"
 
 	"golang.org/x/net/http2"
-	"golang.org/x/net/http2/h2c"
 )
 
 // Default timeout values
@@ -103,7 +102,9 @@ func WithShutdownTimeout(timeout time.Duration) ServerOption {
 	}
 }
 
-// WithHTTP2Config sets custom HTTP/2 server configuration
+// WithHTTP2Config sets custom HTTP/2 server configuration. It is applied as the server's
+// net/http HTTP2 config, to HTTP/2 over TLS and cleartext alike; IdleTimeout, MaxHandlers and
+// NewWriteScheduler have no equivalent there and are ignored.
 func WithHTTP2Config(config *http2.Server) ServerOption {
 	return func(opts *serverOptions) {
 		if config != nil {
@@ -306,12 +307,37 @@ func createServer(handler http.Handler, options []ServerOption) (*http.Server, *
 		opt(&opts)
 	}
 
+	// HTTP/1.1, and HTTP/2 over TLS or, for gRPC without TLS, over cleartext with prior knowledge.
+	protocols := new(http.Protocols)
+	protocols.SetHTTP1(true)
+	protocols.SetHTTP2(true)
+	protocols.SetUnencryptedHTTP2(true)
+
 	return &http.Server{
 		Addr:              opts.addr,
 		ReadTimeout:       opts.readTimeout,
 		ReadHeaderTimeout: opts.readHeaderTimeout,
 		WriteTimeout:      opts.writeTimeout,
 		TLSConfig:         opts.tlsConfig,
-		Handler:           h2c.NewHandler(handler, opts.http2Config),
+		Handler:           handler,
+		Protocols:         protocols,
+		HTTP2:             http2Config(opts.http2Config),
 	}, &opts
+}
+
+// http2Config carries over the WithHTTP2Config settings that net/http has.
+func http2Config(s *http2.Server) *http.HTTP2Config {
+	return &http.HTTP2Config{
+		MaxConcurrentStreams:          int(s.MaxConcurrentStreams),
+		MaxDecoderHeaderTableSize:     int(s.MaxDecoderHeaderTableSize),
+		MaxEncoderHeaderTableSize:     int(s.MaxEncoderHeaderTableSize),
+		MaxReadFrameSize:              int(s.MaxReadFrameSize),
+		MaxReceiveBufferPerConnection: int(s.MaxUploadBufferPerConnection),
+		MaxReceiveBufferPerStream:     int(s.MaxUploadBufferPerStream),
+		SendPingTimeout:               s.ReadIdleTimeout,
+		PingTimeout:                   s.PingTimeout,
+		WriteByteTimeout:              s.WriteByteTimeout,
+		PermitProhibitedCipherSuites:  s.PermitProhibitedCipherSuites,
+		CountError:                    s.CountError,
+	}
 }

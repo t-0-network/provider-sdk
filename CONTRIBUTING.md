@@ -135,7 +135,7 @@ Run tests per language:
 ### Go
 
 **SDK Architecture:**
-- HTTP/2 cleartext (h2c) is enabled automatically via `h2c.NewHandler()` -- no TLS required for HTTP/2 in development
+- HTTP/2 cleartext (h2c, prior knowledge) is enabled automatically via `http.Server.Protocols` -- no TLS required for HTTP/2 in development
 - Server uses functional options pattern: `WithAddr`, `WithReadTimeout`, `WithTLSConfig`, etc.
 - `StartServer()` returns immediately after confirming the server is listening (or 5s timeout). It returns a `ServerShutdownFn` for graceful shutdown (idempotent, safe for concurrent calls)
 - Default max request body size: 1 MB (configurable via `WithMaxBodySize`)

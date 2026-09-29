@@ -53,7 +53,7 @@ The SDK module requires a separate tag for releases:
 
 ## Architecture Notes
 
-- HTTP/2 cleartext (h2c) enabled automatically via `h2c.NewHandler()`
+- HTTP/1.1 and HTTP/2 cleartext (h2c, prior knowledge) enabled automatically via `http.Server.Protocols`; `WithHTTP2Config` becomes the server's `HTTP2` config (no deprecated `h2c` package)
 - Server uses functional options pattern for configuration
 - `StartServer()` is async — returns after confirming server is listening (5s timeout)
 - Shutdown function is idempotent and safe for concurrent calls
