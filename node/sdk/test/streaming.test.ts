@@ -422,6 +422,35 @@ describe('createClient routes unary and streaming calls to their own transport',
     });
   });
 
+  it('leaving a server stream early cancels the call', async () => {
+    let closed: () => void = () => {};
+    const serverSawClose = new Promise<void>((resolve) => { closed = resolve; });
+    const server = http.createServer(async (req, res) => {
+      for await (const _ of req) { /* the request */ }
+      res.on('close', () => closed());
+      res.writeHead(200, { 'Content-Type': 'application/connect+proto' });
+      res.write(Buffer.from(envelopeOf('ok'), 'hex')); // and never ends
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    try {
+      const client = createClient(newKeypair().privateKeyHex, `http://127.0.0.1:${(server.address() as AddressInfo).port}`, StreamTest);
+      const timers = () => process.getActiveResourcesInfo().filter((r) => r === 'Timeout').length;
+      const before = timers();
+      for await (const resp of client.serverStream({ value: 's' })) {
+        assert.equal(resp.value, 'ok');
+        break;
+      }
+      assert.equal(timers(), before, 'the call\'s deadline timer is cleared');
+      const giveUp = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('the call stayed open after the loop was left')), 5_000).unref();
+      });
+      await Promise.race([serverSawClose, giveUp]);
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
   it('a bidirectional stream fails with unimplemented and sends nothing', async () => {
     await withServer(async (srv, key) => {
       const client = createClient(key.privateKeyHex, srv.url, StreamTest);

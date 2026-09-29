@@ -1,4 +1,4 @@
-import {Code, ConnectError, createClient as createConnectClient} from "@connectrpc/connect";
+import {Code, ConnectError, createClient as createConnectClient, type CallOptions, type Client} from "@connectrpc/connect";
 import {validateReadWriteMaxBytes, type CommonTransportOptions} from "@connectrpc/connect/protocol";
 import {createTransport} from "@connectrpc/connect/protocol-connect";
 import CreateSigner from "./signer.js";
@@ -24,7 +24,7 @@ export function createClient<T extends DescService>(signer: string | Buffer | ((
     const streamTransport = createTransport(transportOptions(sign, endpoint, streamTimeoutMs, wireFormat));
 
     // async: a refused call fails where the call's result is awaited, and nothing is sent.
-    return createConnectClient(svc, {
+    const client = createConnectClient(svc, {
         unary: async (method, signal, timeoutMs, header, input, contextValues) =>
             unaryTransport.unary(method, signal, timeout("timeoutMs", timeoutMs), header, input, contextValues),
         stream: async (method, signal, timeoutMs, header, input, contextValues) => {
@@ -35,6 +35,40 @@ export function createClient<T extends DescService>(signer: string | Buffer | ((
             return streamTransport.stream(method, signal, timeout("timeoutMs", timeoutMs), header, input, contextValues);
         },
     });
+    const calls = client as Record<string, unknown>;
+    for (const method of svc.methods) {
+        if (method.methodKind === "server_streaming") {
+            calls[method.localName] = cancelOnReturn(calls[method.localName] as ServerStreamingCall);
+        }
+    }
+    return client as Client<T>;
+}
+
+type ServerStreamingCall = (input: unknown, options?: CallOptions) => AsyncIterable<unknown>;
+
+// connect-es's server stream has no return(), so leaving a for-await loop early would keep the
+// call, its socket and its deadline timer until the deadline. Here return() cancels the call, then
+// reads the stream to its end: only a call that has ended clears its timer.
+function cancelOnReturn(call: ServerStreamingCall): ServerStreamingCall {
+    return (input, options) => {
+        const cancel = new AbortController();
+        const signal = options?.signal === undefined ? cancel.signal : AbortSignal.any([options.signal, cancel.signal]);
+        const it = call(input, {...options, signal})[Symbol.asyncIterator]();
+        return {
+            [Symbol.asyncIterator]: () => ({
+                next: () => it.next(),
+                return: async (value?: unknown) => {
+                    cancel.abort(new ConnectError("the stream was closed before its end", Code.Canceled));
+                    try {
+                        while (!(await it.next()).done) { /* discard */ }
+                    } catch {
+                        // the cancellation
+                    }
+                    return {done: true, value};
+                },
+            }),
+        };
+    };
 }
 
 /**
