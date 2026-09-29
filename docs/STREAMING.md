@@ -89,8 +89,10 @@ Go, Node and Python speak ConnectRPC. Java and C# speak gRPC.
 - The base URL defaults to `https://api.t-0.network`. An empty value is refused with "base URL is
   not set". Any other value is refused with "base URL is not valid" unless all of these hold:
   - it starts with `http://` or `https://` and has no user info;
-  - the host is an IP address (IPv6 in brackets) or a name made of ASCII letters, digits, `-` and
-    `.`, so a name with `_` is refused;
+  - the host is an IPv4 address (four numbers from 0 to 255, without leading zeros), an IPv6
+    address in brackets, or a name of labels separated by `.`, each made of ASCII letters, digits
+    and inner `-`, with a last label that starts with a letter (so `my_host`, `a..b`, `-foo` and
+    `1.2.3` are refused, as grpc-java cannot connect to them);
   - a port, if given, is from 1 to 65535;
   - there is no path, query or fragment, though a single `/` may end the value (`https://host/` is
     accepted, `https://host/v1`, `https://host?x` and `https://host#x` are refused).
