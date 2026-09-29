@@ -91,7 +91,7 @@ cd ../cross_test/go_helper && go build -o go_helper . && cd ../../python
 uv run pytest tests/cross_test/ -v
 ```
 
-Uses the shared Go helper at `cross_test/go_helper/` (repo root). Validates: Keccak256 hash, public key derivation, bidirectional signature verification, end-to-end server-to-server communication (both ASGI and WSGI, plus health checks), and signed client/server streaming against the helper's first-envelope verifier (`test_cross_stream.py`, asserting on the helper's stderr log). In CI, tests fail (not skip) if the helper is missing.
+Uses the shared Go helper at `cross_test/go_helper/` (repo root). Validates: Keccak256 hash, public key derivation, bidirectional signature verification, end-to-end server-to-server communication (both ASGI and WSGI, plus health checks), and signed client and server streams, checked against the helper's verifier log. In CI, tests fail (not skip) if the helper is missing.
 
 ## Versioning
 
@@ -118,7 +118,7 @@ Runtime version: `_version.py` (`__version__`). Full details: [`docs/VERSIONING.
 - **Two-phase verification:** ASGI/WSGI middleware (raw bytes) → `contextvars.ContextVar` → ConnectRPC interceptor (error codes). Do not collapse into a single layer.
 - **Wrapper pattern:** `SigningClient` wraps `pyqwest.Client` via delegation (not subclass). pyqwest is Rust-backed FFI — subclassing is undefined.
 - **Content type decides what is signed, never the body's form:** `application/connect+*`, `application/grpc`, `application/grpc+*` are signed over their first envelope as sent; anything else, gRPC-Web included, over its whole body.
-- **Streaming signs the first message and sends at once, never buffered.** The first chunk is checked to be exactly one envelope; anything else fails the call with `INTERNAL` rather than being mis-signed. Details: [`docs/python/STREAMING.md`](../docs/python/STREAMING.md).
+- **Streaming signs the first message and sends at once, never buffered.** The first chunk is checked to be exactly one envelope; anything else fails the call with `INTERNAL` rather than being mis-signed. Details: [`docs/STREAMING.md`](../docs/STREAMING.md).
 - **Proto-agnostic:** `handler()`/`handler_sync()` and `new_service_client()`/`new_service_client_sync()` accept any generated ConnectRPC class. Do not add service-specific logic to these functions.
 
 ## Signature Protocol Quick Reference
@@ -199,7 +199,7 @@ TimestampOutOfRangeError, UnknownPublicKeyError, SignatureFailedError
 Docs live in the top-level [`docs/python/`](../docs/python/) directory:
 - [`ARCHITECTURE.md`](../docs/python/ARCHITECTURE.md) — comprehensive architecture guide
 - [`PITFALLS.md`](../docs/python/PITFALLS.md) — critical gotchas and lessons learned
-- [`STREAMING.md`](../docs/python/STREAMING.md) — streaming RPCs: what is signed, sending, timeouts, bidi, tests
+- [`docs/STREAMING.md`](../docs/STREAMING.md) — the streaming and timeout rules shared by all SDKs
 
 ## Git Workflow
 

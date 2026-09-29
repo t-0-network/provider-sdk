@@ -42,7 +42,7 @@ def new_service_client(
 
     Streaming calls are signed over their first request message and sent as soon as it is
     available: send one (or close the stream) before waiting for a response. Bidirectional calls
-    raise ConnectError UNIMPLEMENTED. See docs/python/STREAMING.md.
+    raise ConnectError UNIMPLEMENTED. See docs/STREAMING.md.
 
     Args:
         private_key: Hex-encoded secp256k1 private key (with or without 0x prefix).

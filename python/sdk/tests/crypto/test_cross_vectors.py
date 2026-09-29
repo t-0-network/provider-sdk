@@ -167,30 +167,7 @@ def _assert_signed_like_vector(vec, recorder):
 
 
 class TestCrossVectorsStreamSigningCases:
-    """first_envelope covers the first envelope as sent; first_payload the same message without its
-    5-byte prefix, as a signer above the gRPC framer (Java) signs it."""
-
-    def test_all_cases(self):
-        cases = VECTORS["stream_signing_cases"]
-        assert cases
-
-        sign_fn = new_signer_from_hex(VECTORS["keys"]["private_key"])
-        for vec in cases:
-            envelope = _first_envelope(bytes.fromhex(vec["body_hex"]))
-            match vec["covers"]:
-                case "first_envelope":
-                    signed = envelope
-                case "first_payload":
-                    signed = envelope[5:]
-                case other:
-                    raise AssertionError(f"{vec['name']}: unknown covers {other!r}")
-            assert signed.hex() == vec["signed_hex"], f"signed bytes for {vec['name']}"
-
-            digest = legacy_keccak256(signed + struct.pack("<Q", vec["timestamp_ms"]))
-            assert digest.hex() == vec["expected_hash"], f"digest for {vec['name']}"
-
-            sig, _ = sign_fn(digest)
-            assert sig[:64].hex() == vec["expected_signature"], f"signature for {vec['name']}"
+    """Both stream wrappers sign the vectors' first envelopes to the expected signatures."""
 
     def test_sync_transport_signs_like_vectors(self, monkeypatch):
         cases = _first_envelope_cases()

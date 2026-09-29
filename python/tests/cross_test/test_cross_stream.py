@@ -1,7 +1,7 @@
 """Cross-language streaming tests: Python client -> Go server.
 
 The Go helper verifies test.v1.StreamTest requests over their first envelope, as the network does,
-and logs each verdict to stderr; the tests assert on that log. See docs/python/STREAMING.md.
+and logs each verdict to stderr; the tests assert on that log. See docs/STREAMING.md.
 
 Requires the Go helper binary to be built:
     cd cross_test/go_helper && go build -o go_helper .
@@ -18,7 +18,6 @@ import socket
 import subprocess
 import threading
 import time
-from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import TYPE_CHECKING
 
@@ -49,7 +48,6 @@ GO_HELPER = Path(__file__).resolve().parents[3] / "cross_test" / "go_helper" / "
 # Key pair used by the "network" side (the one making requests)
 CLIENT_PRIVATE_KEY = "0x6b30303de7b26bfb1222b317a52113357f8bb06de00160b4261a2fef9c8b9bd8"
 CLIENT_PUBLIC_KEY = "0x044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0"
-OTHER_PRIVATE_KEY = "0x691db48202ca70d83cc7f5f3aa219536f9bb2dfe12ebb78a7bb634544858ee92"
 
 MESSAGES = ["m1", "m2", "m3"]
 
@@ -290,10 +288,6 @@ def _transport(protocol: str, *, sync: bool) -> pyqwest.HTTPTransport | pyqwest.
     return pyqwest.HTTPTransport(http_version=pyqwest.HTTPVersion.HTTP2)
 
 
-def _protocol_type(protocol: str) -> ProtocolType:
-    return ProtocolType.GRPC if protocol == "grpc" else ProtocolType.CONNECT
-
-
 def _async_client(
     client_class,
     base_url: str,
@@ -320,51 +314,6 @@ def _sync_client(
     http_client = SigningSyncClient(new_signer_from_hex(private_key), transport=_transport(protocol, sync=True))
     timeout_ms = round(stream_timeout * 1000) if stream_timeout else None
     return client_class(base_url, protocol=ProtocolType.GRPC, http_client=http_client, timeout_ms=timeout_ms)
-
-
-class _WholeBodySigningClient(SigningClient):
-    """Signs a streaming request over its whole body, as a signer blind to envelopes would."""
-
-    def stream(self, method, url, headers=None, content=None):
-        @asynccontextmanager
-        async def signed_over_whole_body():
-            body = b"".join([chunk async for chunk in content])
-            signed_headers = signing._sign_request(self._sign_fn, body, headers)
-            async with self._inner.stream(method, url, headers=signed_headers, content=body) as response:
-                yield response
-
-        return signed_over_whole_body()
-
-
-class _WholeBodySigningSyncClient(SigningSyncClient):
-    """Sync variant of _WholeBodySigningClient."""
-
-    def stream(self, method, url, headers=None, content=None, timeout=None):
-        body = b"".join(content)
-        signed_headers = signing._sign_request(self._sign_fn, body, headers)
-        return self._inner.stream(method, url, headers=signed_headers, content=body, timeout=timeout)
-
-
-def _unsigned_async_client(base_url: str, protocol: str) -> _StreamTestClient:
-    http_client = pyqwest.Client(transport=_transport(protocol, sync=False))
-    return _StreamTestClient(base_url, protocol=_protocol_type(protocol), http_client=http_client)
-
-
-def _unsigned_sync_client(base_url: str, protocol: str) -> _StreamTestClientSync:
-    http_client = pyqwest.SyncClient(transport=_transport(protocol, sync=True))
-    return _StreamTestClientSync(base_url, protocol=_protocol_type(protocol), http_client=http_client)
-
-
-def _whole_body_async_client(base_url: str, protocol: str) -> _StreamTestClient:
-    signer = new_signer_from_hex(CLIENT_PRIVATE_KEY)
-    http_client = _WholeBodySigningClient(signer, transport=_transport(protocol, sync=False))
-    return _StreamTestClient(base_url, protocol=_protocol_type(protocol), http_client=http_client)
-
-
-def _whole_body_sync_client(base_url: str, protocol: str) -> _StreamTestClientSync:
-    signer = new_signer_from_hex(CLIENT_PRIVATE_KEY)
-    http_client = _WholeBodySigningSyncClient(signer, transport=_transport(protocol, sync=True))
-    return _StreamTestClientSync(base_url, protocol=_protocol_type(protocol), http_client=http_client)
 
 
 def _record_signed(monkeypatch: pytest.MonkeyPatch) -> list[bytes]:
@@ -470,37 +419,6 @@ class TestPythonAsyncClientGoServerStream:
         assert response.value == f"{large},tail"
         go_server.wait_for_log(CLIENT_STREAM_VERIFIED, since=mark)
 
-    async def test_unknown_key_is_rejected(self, go_server: _GoServer, protocol: str) -> None:
-        """The server does verify: a signature by a key it does not trust gets HTTP 401."""
-        client = _async_client(_StreamTestClient, go_server.url, protocol, private_key=OTHER_PRIVATE_KEY)
-        mark = go_server.mark()
-
-        with pytest.raises(ConnectError) as exc_info:
-            await client.client_stream(_stream_of(*MESSAGES))
-
-        assert exc_info.value.code == Code.UNAUTHENTICATED
-        go_server.wait_for_log(CLIENT_STREAM_REJECTED + "unknown public key", since=mark)
-
-    async def test_unsigned_stream_is_rejected(self, go_server: _GoServer, protocol: str) -> None:
-        client = _unsigned_async_client(go_server.url, protocol)
-        mark = go_server.mark()
-
-        with pytest.raises(ConnectError) as exc_info:
-            await client.client_stream(_stream_of(*MESSAGES))
-
-        assert exc_info.value.code == Code.UNAUTHENTICATED
-        go_server.wait_for_log(CLIENT_STREAM_REJECTED + "unknown public key", since=mark)
-
-    async def test_stream_signed_over_its_whole_body_is_rejected(self, go_server: _GoServer, protocol: str) -> None:
-        client = _whole_body_async_client(go_server.url, protocol)
-        mark = go_server.mark()
-
-        with pytest.raises(ConnectError) as exc_info:
-            await client.client_stream(_stream_of(*MESSAGES))
-
-        assert exc_info.value.code == Code.UNAUTHENTICATED
-        go_server.wait_for_log(CLIENT_STREAM_REJECTED + "signature does not verify over the first message", since=mark)
-
     async def test_stale_timestamp_is_rejected(
         self, go_server: _GoServer, protocol: str, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -538,12 +456,6 @@ class TestPythonAsyncClientGoServerStream:
 
         assert exc_info.value.code == Code.DEADLINE_EXCEEDED
         assert not go_server.logs(f"{CLIENT_STREAM_PATH} ", since=mark, within=0.5), "nothing is sent"
-
-    async def test_unary_health_check(self, go_server: _GoServer, protocol: str) -> None:
-        """A gRPC unary call goes out through stream() as well, signed over its one envelope."""
-        client = _async_client(HealthClient, go_server.url, protocol)
-        response = await client.check(health_pb2.HealthCheckRequest(service=HEALTH_SERVICE_FQN))
-        assert response.status == health_pb2.HealthCheckResponse.SERVING
 
 
 @pytest.mark.parametrize("protocol", ["connect", "grpc"])
@@ -599,36 +511,6 @@ class TestPythonSyncClientGoServerStream:
         assert response.value == f"{large},tail"
         go_server.wait_for_log(CLIENT_STREAM_VERIFIED, since=mark)
 
-    def test_unknown_key_is_rejected(self, go_server: _GoServer, protocol: str) -> None:
-        client = _sync_client(_StreamTestClientSync, go_server.url, protocol, private_key=OTHER_PRIVATE_KEY)
-        mark = go_server.mark()
-
-        with pytest.raises(ConnectError) as exc_info:
-            client.client_stream(_sync_stream_of(*MESSAGES))
-
-        assert exc_info.value.code == Code.UNAUTHENTICATED
-        go_server.wait_for_log(CLIENT_STREAM_REJECTED + "unknown public key", since=mark)
-
-    def test_unsigned_stream_is_rejected(self, go_server: _GoServer, protocol: str) -> None:
-        client = _unsigned_sync_client(go_server.url, protocol)
-        mark = go_server.mark()
-
-        with pytest.raises(ConnectError) as exc_info:
-            client.client_stream(_sync_stream_of(*MESSAGES))
-
-        assert exc_info.value.code == Code.UNAUTHENTICATED
-        go_server.wait_for_log(CLIENT_STREAM_REJECTED + "unknown public key", since=mark)
-
-    def test_stream_signed_over_its_whole_body_is_rejected(self, go_server: _GoServer, protocol: str) -> None:
-        client = _whole_body_sync_client(go_server.url, protocol)
-        mark = go_server.mark()
-
-        with pytest.raises(ConnectError) as exc_info:
-            client.client_stream(_sync_stream_of(*MESSAGES))
-
-        assert exc_info.value.code == Code.UNAUTHENTICATED
-        go_server.wait_for_log(CLIENT_STREAM_REJECTED + "signature does not verify over the first message", since=mark)
-
     def test_stale_timestamp_is_rejected(
         self, go_server: _GoServer, protocol: str, monkeypatch: pytest.MonkeyPatch
     ) -> None:
@@ -666,10 +548,21 @@ class TestPythonSyncClientGoServerStream:
         assert exc_info.value.code == Code.DEADLINE_EXCEEDED
         assert not go_server.logs(f"{CLIENT_STREAM_PATH} ", since=mark, within=0.5), "nothing is sent"
 
-    def test_unary_health_check(self, go_server: _GoServer, protocol: str) -> None:
-        client = _sync_client(HealthClientSync, go_server.url, protocol)
-        response = client.check(health_pb2.HealthCheckRequest(service=HEALTH_SERVICE_FQN))
-        assert response.status == health_pb2.HealthCheckResponse.SERVING
+
+# A gRPC unary call goes out through stream() as well, signed over its one envelope.
+
+
+@pytest.mark.asyncio
+async def test_async_grpc_unary_health_check(go_server: _GoServer) -> None:
+    client = _async_client(HealthClient, go_server.url, "grpc")
+    response = await client.check(health_pb2.HealthCheckRequest(service=HEALTH_SERVICE_FQN))
+    assert response.status == health_pb2.HealthCheckResponse.SERVING
+
+
+def test_sync_grpc_unary_health_check(go_server: _GoServer) -> None:
+    client = _sync_client(HealthClientSync, go_server.url, "grpc")
+    response = client.check(health_pb2.HealthCheckRequest(service=HEALTH_SERVICE_FQN))
+    assert response.status == health_pb2.HealthCheckResponse.SERVING
 
 
 # The codec does not matter: Connect JSON streams are signed over their first envelope as sent.

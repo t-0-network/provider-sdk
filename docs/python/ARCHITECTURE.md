@@ -167,7 +167,7 @@ Message byte layout:
 
 > **CRITICAL INVARIANT:** The body bytes used for signing and verification MUST be the exact bytes from the HTTP request. Re-encoding a deserialized Protobuf message produces different bytes and will cause signature verification to fail.
 
-**Streaming RPCs:** for an enveloped request (`application/connect+*`, `application/grpc`, `application/grpc+*`) `body` is only the **first envelope**, exactly as sent (flags ‖ uint32be length ‖ payload); any other request is signed over its whole body. See [STREAMING.md](STREAMING.md#1-what-is-signed).
+**Streaming RPCs:** for an enveloped request (`application/connect+*`, `application/grpc`, `application/grpc+*`) `body` is only the **first envelope**, exactly as sent (flags ‖ uint32be length ‖ payload); any other request is signed over its whole body. See [docs/STREAMING.md](../STREAMING.md#what-is-signed).
 
 #### 2.1.2 Digest Computation
 
@@ -422,7 +422,7 @@ sequenceDiagram
     CC-->>App: Deserialized response
 ```
 
-**Streaming requests:** ConnectRPC hands `stream()` an iterator of envelopes. For an enveloped request the wrapper signs the first envelope as soon as it is available, sends at once and forwards the rest unbuffered; see [STREAMING.md](STREAMING.md#3-sending-at-once-never-buffered).
+**Streaming requests:** ConnectRPC hands `stream()` an iterator of envelopes. For an enveloped request the wrapper signs the first envelope as soon as it is available, sends at once and forwards the rest unbuffered; see [docs/STREAMING.md](../STREAMING.md#when-the-request-is-sent).
 
 **Wrapper pattern (not subclass):** `pyqwest.Client` is backed by a Rust FFI implementation. Subclassing Rust-backed Python objects is fragile and may produce undefined behavior. The wrapper pattern -- creating a class that holds a reference to the real client and delegates method calls -- is the safe and proven approach. This mirrors Go SDK's `SigningTransport` wrapping `http.RoundTripper`.
 
@@ -668,7 +668,7 @@ Both classes share the signing logic via the `_sign_request()` helper, which tak
 4. `signature, pub_key = sign_fn(digest)`
 5. Set headers: `X-Public-Key = "0x" + pub_key.hex()`, `X-Signature = "0x" + signature.hex()`, `X-Signature-Timestamp = str(timestamp_ms)`
 
-What `body` is (the whole body, or the first envelope of an enveloped request) and how `stream()` reads, checks, sends and closes an iterator body: [STREAMING.md §1-3](STREAMING.md#1-what-is-signed).
+What `body` is (the whole body, or the first envelope of an enveloped request) and how `stream()` reads, checks, sends and closes an iterator body: [docs/STREAMING.md](../STREAMING.md#what-is-signed).
 
 #### 4.3.2 `client.py` -- Generic Client Factory
 
@@ -696,7 +696,7 @@ def new_service_client_sync(
 
 The functions create a `SignFn` from the private key, wrap it in `SigningClient`/`SigningSyncClient`, and pass it as the `http_client` parameter to the generated ConnectRPC client constructor.
 
-`timeout` is the default of unary calls and `stream_timeout` that of client- and server-streaming calls (none by default); a per-call `timeout_ms` wins. Bidirectional calls raise `ConnectError(Code.UNIMPLEMENTED)` before anything is sent. See [STREAMING.md §4-5](STREAMING.md#4-timeouts).
+`timeout` is the default of unary calls and `stream_timeout` that of client- and server-streaming calls (none by default); a per-call `timeout_ms` wins. Bidirectional calls raise `ConnectError(Code.UNIMPLEMENTED)` before anything is sent. See [docs/STREAMING.md](../STREAMING.md#timeouts).
 
 #### 4.3.3 `options.py`
 
@@ -878,57 +878,9 @@ The starter template in `starter/template/` is a complete, runnable application.
 
 ### 4.7 Testing Architecture
 
-#### 4.7.1 Unit Tests
-
-Tests are organized to mirror the SDK module structure under `sdk/tests/`:
-
-| Module | Test File | Key Scenarios |
-|--------|-----------|---------------|
-| `crypto/hash` | `test_hash.py` | Known vectors, Keccak vs SHA-3 distinction, determinism, output length |
-| `crypto/keys` | `test_keys.py` | Go test vectors, `0x` prefix handling, round-trip conversions, compressed format |
-| `crypto/signer` | `test_signer.py` | 65-byte format, recovery byte range (0-1), sign-verify round-trip, cross-key |
-| `crypto/verifier` | `test_verifier.py` | 64/65-byte signatures, wrong key/digest, tampered signatures |
-| `network/signing` | `test_signing.py` | Header presence/format, signature verifiability, existing header preservation |
-| `network/signing` | `test_stream_signing.py` | Streaming paths of both wrappers: what is signed by content type, sent before message 2, malformed first chunks refused, closing, sync timeout ([STREAMING.md §6](STREAMING.md#6-tests)) |
-| `network/client` | `test_client_timeouts.py` | Unary default (gRPC unary too), stream default or none, per-call `timeout_ms`, validation |
-| `network/client` | `test_client_bidi.py` | Bidirectional calls raise `UNIMPLEMENTED` before anything is read or sent (async and sync, Connect and gRPC) |
-| `crypto` (vectors) | `test_cross_vectors.py` | Shared `cross_test/test_vectors.json` cases, incl. `stream_signing_cases` driven through both stream wrappers |
-| `provider/middleware` | `test_middleware.py` | All ASGI verification paths: valid, missing headers, invalid encoding, timestamp range, wrong key, bad signature, body size |
-| `provider/middleware_wsgi` | `test_middleware_wsgi.py` | All WSGI verification paths (mirrors ASGI tests) |
-| `integration` | `test_signature_verification.py` | End-to-end ASGI: sign via transport → verify via middleware, wrong key rejection, large body |
-| `integration` | `test_signature_verification_wsgi.py` | End-to-end WSGI: sign via transport → verify via WSGI middleware |
-
-Tests use shared test vectors from the Go SDK to ensure cross-language compatibility:
-- **Key pair 1:** Private `0x6b30303de7b26b...`, Public `0x044fa1465c087a...`
-- **Key pair 2:** Private `0x691db48202ca70...`, Public `0x049bb924680bfb...`
-
-#### 4.7.2 Cross-Language Tests
-
-Located in `tests/cross_test/`, these tests validate interoperability between the Python and Go SDKs using a small Go helper binary.
-
-**Go helper binary** (`cross_test/go_helper/`):
-- `hash <hex_data>` -- Compute Keccak-256
-- `sign <hex_private_key> <hex_digest>` -- Sign a digest
-- `verify <hex_public_key> <hex_digest> <hex_signature>` -- Verify a signature
-- `pubkey <hex_private_key>` -- Derive public key
-- `serve <port> <hex_network_public_key>` -- Start a Go ProviderService server (also serves health and `test.v1.StreamTest`; Connect over HTTP/1.1, gRPC over h2c)
-- `call-pay-out <base_url> <hex_private_key>` -- Call PayOut on a server
-
-**Signature cross-tests** (`test_cross_signature.py`):
-- Keccak-256 hash consistency between Python and Go
-- Public key derivation consistency
-- Python signs → Go verifies (via subprocess)
-- Go signs → Python verifies (65-byte and 64-byte signatures)
-
-**Server cross-tests** (`test_cross_server.py`, `test_cross_server_sync.py`):
-- Python async client → Go ProviderService server (ASGI)
-- Go client → Python ASGI ProviderService server
-- Python sync client → Go ProviderService server (WSGI)
-- Go client → Python WSGI ProviderService server
-
-**Streaming cross-tests** (`test_cross_stream.py`): Python async and sync clients, Connect and gRPC → Go `test.v1.StreamTest`, asserting on the helper's verifier log; see [STREAMING.md §6](STREAMING.md#6-tests).
-
-#### 4.7.3 Running Tests
+- **Unit tests** (`sdk/tests/`) follow the SDK's module layout and need no Go helper. The shared vectors in `cross_test/test_vectors.json` drive the crypto code and both signing wrappers.
+- **Integration tests** (`sdk/tests/integration/`) sign through the client transport and verify through the ASGI and WSGI middleware in one process.
+- **Cross-language tests** (`tests/cross_test/`) run against the shared Go helper (`cross_test/go_helper/`): signing and verifying in both directions, server-to-server calls in both directions, and streaming calls to the helper's `test.v1.StreamTest`, checked against the helper's verifier log. In CI they fail, not skip, when the helper binary is missing.
 
 ```bash
 # Install all dependencies

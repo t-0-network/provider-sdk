@@ -5,7 +5,7 @@ before delegating to the underlying pyqwest client. ConnectRPC uses exactly
 three methods on the client: get(), post(), and stream().
 
 The content type decides what is signed: enveloped requests (Connect streaming, gRPC) over their
-first envelope as sent, everything else over the whole body. See docs/python/STREAMING.md.
+first envelope as sent, everything else over the whole body. See docs/STREAMING.md.
 
 Go equivalent: network/signing_transport.go → SigningTransport.RoundTrip(req)
 """
@@ -173,7 +173,7 @@ class SigningClient:
 
     A streaming request is sent once its first message is available: send one (or close the
     stream) before waiting for a response. Bidirectional streams are not supported; only the
-    factory-built clients reject them. See docs/python/STREAMING.md.
+    factory-built clients reject them. See docs/STREAMING.md.
     """
 
     def __init__(self, sign_fn: SignFn, *, transport: Any | None = None) -> None:
@@ -250,7 +250,7 @@ class SigningSyncClient:
     A blocked source is not interrupted: the time it takes to yield the first message (for a
     whole-body iterator, the whole body) is deducted from the call's timeout, and if none is left,
     nothing is sent, the source is closed and the call fails with TimeoutError (DEADLINE_EXCEEDED
-    in connectrpc). Bounding the time of each read is up to the source. See docs/python/STREAMING.md.
+    in connectrpc). Bounding the time of each read is up to the source. See docs/STREAMING.md.
     """
 
     def __init__(self, sign_fn: SignFn, *, transport: Any | None = None) -> None:
