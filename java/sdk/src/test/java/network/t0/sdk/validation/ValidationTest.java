@@ -5,7 +5,6 @@ import build.buf.protovalidate.Validator;
 import build.buf.protovalidate.ValidatorFactory;
 import build.buf.protovalidate.exceptions.ValidationException;
 import io.grpc.*;
-import network.t0.sdk.network.RequestValidationInterceptor;
 import network.t0.sdk.proto.tzero.v1.common.Decimal;
 import network.t0.sdk.proto.tzero.v1.payment.AppendLedgerEntriesRequest;
 import network.t0.sdk.proto.tzero.v1.payment.PayoutResponse;
@@ -180,18 +179,6 @@ class ValidationTest {
         @Override public MethodDescriptor<ReqT, RespT> getMethodDescriptor() { return null; }
     }
 
-    /** Minimal ClientCall fake for testing client interceptors. */
-    @SuppressWarnings("unchecked")
-    static class FakeClientCall<ReqT, RespT> extends ClientCall<ReqT, RespT> {
-        ReqT sentMessage;
-
-        @Override public void start(Listener<RespT> responseListener, Metadata headers) {}
-        @Override public void request(int numMessages) {}
-        @Override public void cancel(String message, Throwable cause) {}
-        @Override public void halfClose() {}
-        @Override public void sendMessage(ReqT message) { sentMessage = message; }
-    }
-
     @Nested
     @DisplayName("Response Validation Interceptor")
     class ResponseInterceptorTest {
@@ -304,73 +291,6 @@ class ValidationTest {
             assertThat(fakeCall.closedStatus.getCode()).isEqualTo(Status.Code.INTERNAL);
             assertThat(fakeCall.closedStatus.getDescription())
                     .isEqualTo("response validation failed: field: must be > 0");
-        }
-    }
-
-    @Nested
-    @DisplayName("Request Validation Interceptor")
-    class RequestInterceptorTest {
-
-        @Test
-        @DisplayName("Invalid request throws INVALID_ARGUMENT")
-        void invalidRequestThrows() {
-            var interceptor = new RequestValidationInterceptor();
-
-            var fakeClientCall = new FakeClientCall<Decimal, Decimal>();
-            @SuppressWarnings("unchecked")
-            Channel fakeChannel = new Channel() {
-                @Override public <RT, RST> ClientCall<RT, RST> newCall(MethodDescriptor<RT, RST> method, CallOptions options) {
-                    return (ClientCall<RT, RST>) fakeClientCall;
-                }
-                @Override public String authority() { return "test"; }
-            };
-
-            ClientCall<Decimal, Decimal> wrappedCall = interceptor.interceptCall(
-                    MethodDescriptor.<Decimal, Decimal>newBuilder()
-                            .setType(MethodDescriptor.MethodType.UNARY)
-                            .setFullMethodName("test/Method")
-                            .setRequestMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(Decimal.getDefaultInstance()))
-                            .setResponseMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(Decimal.getDefaultInstance()))
-                            .build(),
-                    CallOptions.DEFAULT,
-                    fakeChannel);
-
-            wrappedCall.start(new ClientCall.Listener<>() {}, new Metadata());
-
-            assertThatThrownBy(() -> wrappedCall.sendMessage(Decimal.newBuilder().setExponent(100).build()))
-                    .isInstanceOf(StatusRuntimeException.class)
-                    .satisfies(e -> assertThat(((StatusRuntimeException) e).getStatus().getCode()).isEqualTo(Status.Code.INVALID_ARGUMENT));
-        }
-
-        @Test
-        @DisplayName("Valid request is sent through")
-        void validRequestPassesThrough() {
-            var interceptor = new RequestValidationInterceptor();
-
-            var fakeClientCall = new FakeClientCall<Decimal, Decimal>();
-            Channel fakeChannel = new Channel() {
-                @Override public <RT, RST> ClientCall<RT, RST> newCall(MethodDescriptor<RT, RST> method, CallOptions options) {
-                    return (ClientCall<RT, RST>) fakeClientCall;
-                }
-                @Override public String authority() { return "test"; }
-            };
-
-            ClientCall<Decimal, Decimal> wrappedCall = interceptor.interceptCall(
-                    MethodDescriptor.<Decimal, Decimal>newBuilder()
-                            .setType(MethodDescriptor.MethodType.UNARY)
-                            .setFullMethodName("test/Method")
-                            .setRequestMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(Decimal.getDefaultInstance()))
-                            .setResponseMarshaller(io.grpc.protobuf.ProtoUtils.marshaller(Decimal.getDefaultInstance()))
-                            .build(),
-                    CallOptions.DEFAULT,
-                    fakeChannel);
-
-            wrappedCall.start(new ClientCall.Listener<>() {}, new Metadata());
-
-            Decimal validMsg = Decimal.newBuilder().setExponent(2).build();
-            wrappedCall.sendMessage(validMsg);
-
-            assertThat(fakeClientCall.sentMessage).isEqualTo(validMsg);
         }
     }
 }

@@ -1,6 +1,8 @@
 package network.t0.sdk.crypto;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.math.BigInteger;
 
@@ -141,37 +143,35 @@ class SignerTest {
                 .hasMessage("private key must not be null or empty");
     }
 
-    @Test
-    void fromHex_wrongLength_shouldThrow() {
-        assertThatThrownBy(() -> Signer.fromHex("abcd"))
+    @ParameterizedTest
+    @ValueSource(strings = {"0x", "0X", ""})
+    void fromHex_optionalPrefix_shouldWork(String prefix) {
+        assertThat(Signer.fromHex(prefix + PRIVATE_KEY_HEX).getPublicKeyHex())
+                .isEqualTo(Signer.fromHex(PRIVATE_KEY_HEX).getPublicKeyHex());
+    }
+
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "6b30303de7b26bfb1222b317a52113357f8bb06de00160b4261a2fef9c8b9b",     // 62 hex
+            "6b30303de7b26bfb1222b317a52113357f8bb06de00160b4261a2fef9c8b9bd8aa", // 66 hex
+            "6b30303de7b26bfb1222b317a52113357f8bb06de00160b4261a2fef9c8b9b  ",   // 62 hex + 2 spaces
+            "zz30303de7b26bfb1222b317a52113357f8bb06de00160b4261a2fef9c8b9bd8",   // "zz" + 62 hex
+            "0x",
+            "abcd"})
+    void fromHex_notSixtyFourHexCharacters_shouldThrow(String key) {
+        assertThatThrownBy(() -> Signer.fromHex(key))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessage("private key must be 32 bytes (64 hex characters)");
     }
 
-    @Test
-    void fromHex_invalidHex_shouldThrow() {
-        assertThatThrownBy(() -> Signer.fromHex("ZZZZ" + PRIVATE_KEY_HEX.substring(4)))
+    @ParameterizedTest
+    @ValueSource(strings = {
+            "0000000000000000000000000000000000000000000000000000000000000000",   // 0
+            "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141"})  // the order n
+    void fromHex_outOfRange_shouldThrow(String key) {
+        assertThatThrownBy(() -> Signer.fromHex(key))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("invalid hex encoding");
-    }
-
-    @Test
-    void fromHex_zeroKey_shouldThrow() {
-        // Private key of 0 is invalid for secp256k1
-        String zeroKey = "0000000000000000000000000000000000000000000000000000000000000000";
-        assertThatThrownBy(() -> Signer.fromHex(zeroKey))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("private key must be in range [1, n-1]");
-    }
-
-    @Test
-    void fromHex_keyEqualToCurveOrder_shouldThrow() {
-        // secp256k1 curve order n = FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
-        // Key >= n is invalid
-        String keyAtCurveOrder = "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141";
-        assertThatThrownBy(() -> Signer.fromHex(keyAtCurveOrder))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("private key must be in range [1, n-1]");
+                .hasMessage("private key must be in range [1, n-1]");
     }
 
     @Test

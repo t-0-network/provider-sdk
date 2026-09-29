@@ -13,6 +13,7 @@ import org.bouncycastle.math.ec.FixedPointCombMultiplier;
 
 import java.math.BigInteger;
 import java.util.Arrays;
+import java.util.regex.Pattern;
 
 /**
  * ECDSA signer using secp256k1 curve, producing Ethereum-style signatures.
@@ -41,7 +42,8 @@ public final class Signer implements DigestSigner {
     );
 
     private static final int PRIVATE_KEY_LENGTH = 32;
-    private static final int PRIVATE_KEY_HEX_LENGTH = 64;
+    // Exactly 32 bytes of hex after an optional 0x or 0X prefix; anything else is refused, not repaired.
+    private static final Pattern PRIVATE_KEY_HEX = Pattern.compile("[0-9a-fA-F]{64}");
 
     private final BigInteger privateKey;
     private final byte[] publicKey;
@@ -56,30 +58,25 @@ public final class Signer implements DigestSigner {
     /**
      * Creates a new Signer from a hex-encoded private key.
      *
-     * @param hexPrivateKey the private key in hex format (with or without 0x prefix)
+     * @param hexPrivateKey the private key as 64 hex characters, with an optional {@code 0x} or {@code 0X} prefix
      * @return a new Signer instance
-     * @throws IllegalArgumentException if the key is invalid
+     * @throws IllegalArgumentException if the key is null or empty, is not 64 hex characters, or is not in
+     *                                  the range [1, n-1] of the secp256k1 order n
      */
     public static Signer fromHex(String hexPrivateKey) {
         if (hexPrivateKey == null || hexPrivateKey.isEmpty()) {
             throw new IllegalArgumentException("private key must not be null or empty");
         }
 
-        String cleanHex = HexUtils.stripHexPrefix(hexPrivateKey.toLowerCase());
-
-        if (cleanHex.length() != PRIVATE_KEY_HEX_LENGTH) {
+        String cleanHex = HexUtils.stripHexPrefix(hexPrivateKey);
+        if (!PRIVATE_KEY_HEX.matcher(cleanHex).matches()) {
             throw new IllegalArgumentException("private key must be 32 bytes (64 hex characters)");
         }
 
-        try {
-            byte[] privateKeyBytes = HexUtils.hexToBytes(cleanHex);
-            BigInteger privateKeyInt = new BigInteger(1, privateKeyBytes);
-            validatePrivateKeyRange(privateKeyInt);
-            byte[] publicKey = derivePublicKey(privateKeyInt);
-            return new Signer(privateKeyInt, publicKey);
-        } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("invalid hex encoding: " + e.getMessage(), e);
-        }
+        BigInteger privateKeyInt = new BigInteger(cleanHex, 16);
+        validatePrivateKeyRange(privateKeyInt);
+        byte[] publicKey = derivePublicKey(privateKeyInt);
+        return new Signer(privateKeyInt, publicKey);
     }
 
     /**

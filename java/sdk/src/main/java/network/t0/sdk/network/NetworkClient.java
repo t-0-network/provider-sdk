@@ -24,8 +24,6 @@ import org.slf4j.LoggerFactory;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
-import java.net.URI;
-import java.net.URISyntaxException;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.concurrent.Executor;
@@ -35,6 +33,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 
 /**
  * Abstract base class for gRPC clients with automatic request signing.
@@ -270,11 +269,16 @@ public abstract class NetworkClient implements Closeable {
      */
     protected record EndpointInfo(String host, int port, boolean usePlaintext) {}
 
+    // A host name, or an IPv4 address; IPv6 addresses come in brackets.
+    private static final Pattern HOST_NAME = Pattern.compile("[A-Za-z0-9.-]+");
+    private static final Pattern IPV6_LITERAL = Pattern.compile("\\[[0-9A-Fa-f:.]+]");
+    private static final Pattern PORT = Pattern.compile("[0-9]{1,5}");
+
     /**
      * Parses a base URL into its components.
      *
-     * @param endpoint the base URL with an {@code http} or {@code https} scheme and a host;
-     *                 {@code null} for {@value #DEFAULT_ENDPOINT}
+     * @param endpoint {@code http://} or {@code https://} (any case), a host, an optional port from 1 to
+     *                 65535 and an optional path; {@code null} for {@value #DEFAULT_ENDPOINT}
      * @return the parsed endpoint information
      * @throws IllegalArgumentException if the base URL is empty or not valid
      */
@@ -285,19 +289,46 @@ public abstract class NetworkClient implements Closeable {
         if (endpoint.isEmpty()) {
             throw new IllegalArgumentException("base URL is not set");
         }
-        URI uri;
-        try {
-            uri = new URI(endpoint);
-        } catch (URISyntaxException e) {
-            throw new IllegalArgumentException("base URL is not valid", e);
-        }
-        String scheme = uri.getScheme();
+        int schemeEnd = endpoint.indexOf("://");
+        String scheme = schemeEnd < 0 ? "" : endpoint.substring(0, schemeEnd);
         boolean usePlaintext = "http".equalsIgnoreCase(scheme);
-        if ((!usePlaintext && !"https".equalsIgnoreCase(scheme)) || uri.getHost() == null || uri.getHost().isEmpty()) {
-            throw new IllegalArgumentException("base URL is not valid");
+        if (!usePlaintext && !"https".equalsIgnoreCase(scheme)) {
+            throw invalidBaseUrl();
         }
-        int port = uri.getPort() != -1 ? uri.getPort() : usePlaintext ? 80 : 443;
-        return new EndpointInfo(uri.getHost(), port, usePlaintext);
+        String rest = endpoint.substring(schemeEnd + 3);
+        int authorityEnd = rest.length();
+        for (char end : new char[] {'/', '?', '#'}) {
+            int i = rest.indexOf(end);
+            if (i >= 0 && i < authorityEnd) {
+                authorityEnd = i;
+            }
+        }
+        String authority = rest.substring(0, authorityEnd);
+        // The port follows the last ':' outside an IPv6 literal's brackets.
+        int colon = authority.lastIndexOf(':');
+        if (colon < authority.lastIndexOf(']')) {
+            colon = -1;
+        }
+        String host = colon < 0 ? authority : authority.substring(0, colon);
+        if (!HOST_NAME.matcher(host).matches() && !IPV6_LITERAL.matcher(host).matches()) {
+            throw invalidBaseUrl();
+        }
+        int port = usePlaintext ? 80 : 443;
+        if (colon >= 0) {
+            String digits = authority.substring(colon + 1);
+            if (!PORT.matcher(digits).matches()) {
+                throw invalidBaseUrl();
+            }
+            port = Integer.parseInt(digits);
+            if (port < 1 || port > 65535) {
+                throw invalidBaseUrl();
+            }
+        }
+        return new EndpointInfo(host, port, usePlaintext);
+    }
+
+    private static IllegalArgumentException invalidBaseUrl() {
+        return new IllegalArgumentException("base URL is not valid");
     }
 
     // --- Signing interceptor ---

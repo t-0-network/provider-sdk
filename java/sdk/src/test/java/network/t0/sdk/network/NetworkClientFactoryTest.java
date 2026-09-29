@@ -10,6 +10,7 @@ import network.t0.sdk.crypto.Signer;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.IOException;
@@ -35,15 +36,20 @@ class NetworkClientFactoryTest {
         }
     }
 
-    @Test
+    @ParameterizedTest
+    @CsvSource({
+            "https://api.t-0.network,        api.t-0.network, 443,  false",
+            "http://localhost:8080,          localhost,       8080, true",
+            "http://127.0.0.1:1234,          127.0.0.1,       1234, true",
+            "HTTPS://api.t-0.network:8443/v1, api.t-0.network, 8443, false",
+            "http://[::1]:8080,              [::1],           8080, true",
+            "http://localhost,               localhost,       80,   true"})
     @DisplayName("An http or https base URL gives its host, its port or the scheme's, and TLS for https")
-    void validBaseUrls() {
-        assertThat(NetworkClient.parseEndpoint("http://localhost:8080"))
-                .isEqualTo(new NetworkClient.EndpointInfo("localhost", 8080, true));
-        assertThat(NetworkClient.parseEndpoint("http://localhost"))
-                .isEqualTo(new NetworkClient.EndpointInfo("localhost", 80, true));
-        assertThat(NetworkClient.parseEndpoint("HTTPS://api.t-0.network:8443/"))
-                .isEqualTo(new NetworkClient.EndpointInfo("api.t-0.network", 8443, false));
+    void validBaseUrls(String endpoint, String host, int port, boolean plaintext) {
+        assertThat(NetworkClient.parseEndpoint(endpoint)).isEqualTo(new NetworkClient.EndpointInfo(host, port, plaintext));
+        try (var client = BlockingNetworkClient.create(endpoint, SIGNER, HealthGrpc::newBlockingStub)) {
+            assertThat(client.getChannel().authority()).endsWith(":" + port);
+        }
     }
 
     @Test
@@ -58,8 +64,9 @@ class NetworkClientFactoryTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"api.t-0.network", "api.t-0.network:443", "ftp://api.t-0.network", "https://",
-            "http:///path", "https://api t-0.network", " "})
+    @ValueSource(strings = {"api.t-0.network", "api.t-0.network:443", "ftp://h", "http://", "http://:8080",
+            "http:foo", "http://h:99999", "http://h:0", "not a url", "https://", "http:///path",
+            "https://api t-0.network", " ", "http://h:", "http://user@h"})
     @DisplayName("A base URL without an http or https scheme or without a host is refused, not repaired")
     void invalidBaseUrlIsRefused(String endpoint) {
         assertThatThrownBy(() -> NetworkClient.parseEndpoint(endpoint))
