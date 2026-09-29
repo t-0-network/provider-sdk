@@ -24,14 +24,16 @@ function baseUrl(endpoint: string | undefined): string {
     return endpoint;
 }
 
-// Checked as written: the URL parser would read "http:foo" as http://foo/ and accept a host with
-// "_", which some gRPC clients cannot connect to. A host is a DNS name, IPv4 or a bracketed IPv6;
-// nothing may follow the host and port but one "/".
-const BASE_URL = /^https?:\/\/(?:\[[0-9a-f:.]+\]|[a-z0-9.-]+)(?::(\d+))?\/?$/i;
+// Checked as written: the URL parser would read "http:foo" as http://foo/ and accept host names
+// that some gRPC clients cannot connect to ("my_host", "a..b"). Nothing may follow the host and
+// port but one "/".
+const BASE_URL = /^https?:\/\/(\[[0-9a-f:.]+\]|[a-z0-9.-]+)(?::(\d+))?\/?$/i;
+const IPV4 = /^(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$/;
+const LABEL = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/i;
 
 function validBaseUrl(endpoint: string): boolean {
     const match = typeof endpoint === "string" ? BASE_URL.exec(endpoint) : null;
-    if (match === null) {
+    if (match === null || !validHost(match[1])) {
         return false;
     }
     try {
@@ -39,8 +41,17 @@ function validBaseUrl(endpoint: string): boolean {
     } catch {
         return false;
     }
-    const port = match[1] === undefined ? undefined : Number(match[1]);
+    const port = match[2] === undefined ? undefined : Number(match[2]);
     return port === undefined || (port >= 1 && port <= 65535);
+}
+
+// A bracketed IPv6 (the URL parser checks it), an IPv4, or a DNS name whose last label starts with a letter.
+function validHost(host: string): boolean {
+    if (host.startsWith("[") || IPV4.test(host)) {
+        return true;
+    }
+    const labels = host.split(".");
+    return labels.every((label) => LABEL.test(label)) && /^[a-z]/i.test(labels[labels.length - 1]);
 }
 
 export type { ClientOptions, Signature, SignerFunction } from "../common/client/client.js";

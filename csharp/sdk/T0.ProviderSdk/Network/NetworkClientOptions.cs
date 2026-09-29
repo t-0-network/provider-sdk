@@ -1,4 +1,7 @@
 using System.Diagnostics.CodeAnalysis;
+using System.Net;
+using System.Net.Sockets;
+using System.Text.RegularExpressions;
 
 namespace T0.ProviderSdk.Network;
 
@@ -18,9 +21,10 @@ public sealed class NetworkClientOptions
     /// Base URL of the T-0 Network API, <c>https://api.t-0.network</c> by default or when set to null.
     /// </summary>
     /// <exception cref="ArgumentException">
-    /// The value is empty, or is not <c>http://</c> or <c>https://</c> followed by a host (a name of
-    /// ASCII letters, digits, '-' and '.', or an IP address), an optional port from 1 to 65535 and an
-    /// optional trailing '/'. User info, a path, a query and a fragment are refused.
+    /// The value is empty, or is not <c>http://</c> or <c>https://</c> followed by a host, an optional
+    /// port from 1 to 65535 and an optional trailing '/'. The host is an IPv4 address, an IPv6 address
+    /// in brackets, or a name of labels of ASCII letters, digits and inner '-' separated by '.', whose
+    /// last label starts with a letter. User info, a path, a query and a fragment are refused.
     /// </exception>
     [AllowNull]
     public string BaseUrl
@@ -58,35 +62,78 @@ public sealed class NetworkClientOptions
     {
         if (value.Length == 0)
             throw new ArgumentException("base URL is not set", nameof(BaseUrl));
-        // Uri alone would read "http:host" as http://host, take "http://h:" as port 80, and accept
-        // port 0, user info and a path that the channel would drop.
-        var hasScheme = value.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
-            || value.StartsWith("https://", StringComparison.OrdinalIgnoreCase);
-        if (!hasScheme
-            || !IsAuthorityOnly(value)
-            || !Uri.TryCreate(value, UriKind.Absolute, out var uri)
-            || uri.Host.Length == 0
-            || !IsHostName(uri)
-            || uri.Port is < 1 or > 65535)
+        if (!IsValidBaseUrl(value) || !Uri.TryCreate(value, UriKind.Absolute, out _))
             throw new ArgumentException("base URL is not valid", nameof(BaseUrl));
         return value;
     }
 
-    // The authority as written, then at most a '/': no user info, a ':' after the host is followed
-    // by a port, and no path, query or fragment.
-    private static bool IsAuthorityOnly(string url)
+    // Checked as written: Uri alone would read "http:host" as http://host, "http://h:" as port 80 and
+    // "1.2.3" as the address 1.2.0.3, and would accept port 0, user info, names such as my_host that
+    // some gRPC clients cannot connect to, and a path that the channel drops.
+    private static bool IsValidBaseUrl(string url)
     {
-        var rest = url.AsSpan(url.IndexOf("://", StringComparison.Ordinal) + 3);
+        var schemeLength = url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ? "http://".Length
+            : url.StartsWith("https://", StringComparison.OrdinalIgnoreCase) ? "https://".Length
+            : 0;
+        if (schemeLength == 0)
+            return false;
+
+        var rest = url.AsSpan(schemeLength);
         var end = rest.IndexOfAny('/', '?', '#');
         var authority = end >= 0 ? rest[..end] : rest;
         var tail = end >= 0 ? rest[end..] : [];
-        return !authority.Contains('@') && !authority.EndsWith(':') && (tail.IsEmpty || tail.SequenceEqual("/"));
+        if (!tail.IsEmpty && !tail.SequenceEqual("/"))
+            return false; // a path, query or fragment
+
+        ReadOnlySpan<char> host, port;
+        if (authority.StartsWith('['))
+        {
+            var close = authority.IndexOf(']');
+            if (close < 0)
+                return false;
+            host = authority[..(close + 1)];
+            port = authority[(close + 1)..];
+        }
+        else
+        {
+            var colon = authority.IndexOf(':');
+            host = colon >= 0 ? authority[..colon] : authority;
+            port = colon >= 0 ? authority[colon..] : [];
+        }
+
+        return IsHost(host) && IsPort(port);
     }
 
-    // Uri takes names such as my_host, which some gRPC clients cannot connect to.
-    private static bool IsHostName(Uri uri) =>
-        uri.HostNameType == UriHostNameType.IPv6
-        || uri.Host.All(c => char.IsAsciiLetterOrDigit(c) || c is '-' or '.');
+    // IPv4, bracketed IPv6, or a DNS name whose last label starts with a letter.
+    private static bool IsHost(ReadOnlySpan<char> host)
+    {
+        if (host.Length > 2 && host[0] == '[' && host[^1] == ']')
+            return IPAddress.TryParse(host[1..^1], out var address)
+                && address.AddressFamily == AddressFamily.InterNetworkV6;
+        return IsIPv4(host) || HostName.IsMatch(host);
+    }
+
+    private static bool IsIPv4(ReadOnlySpan<char> host)
+    {
+        var octets = 0;
+        foreach (var range in host.Split('.'))
+        {
+            var octet = host[range];
+            if (++octets > 4 || octet.Length is 0 or > 3 || octet.ContainsAnyExceptInRange('0', '9') || int.Parse(octet) > 255)
+                return false;
+        }
+        return octets == 4;
+    }
+
+    // Nothing, or ':' and a port from 1 to 65535.
+    private static bool IsPort(ReadOnlySpan<char> port) =>
+        port.IsEmpty
+        || (port[0] == ':' && port.Length is > 1 and <= 6 && !port[1..].ContainsAnyExceptInRange('0', '9')
+            && int.Parse(port[1..]) is >= 1 and <= 65535);
+
+    private static readonly Regex HostName = new(
+        @"^(?:[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?\.)*[A-Za-z](?:[A-Za-z0-9-]*[A-Za-z0-9])?\z",
+        RegexOptions.CultureInvariant);
 
     // A timeout cannot be turned off, so Timeout.InfiniteTimeSpan is refused like any other negative value.
     private static TimeSpan Validate(TimeSpan value, string name) =>

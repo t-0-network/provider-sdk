@@ -26,6 +26,9 @@ public class NetworkClientOptionsTests
     [InlineData("http://localhost:8080")]
     [InlineData("http://127.0.0.1:1234")]
     [InlineData("http://[::1]:8080")]
+    [InlineData("http://my-host:8080")]
+    [InlineData("http://a1.b2.example")]
+    [InlineData("http://h")]
     [InlineData("https://api.t-0.network/")]
     [InlineData("http://h:8080/")]
     [InlineData("HTTPS://example.com")]
@@ -55,6 +58,14 @@ public class NetworkClientOptionsTests
     [InlineData("http://user@h")]
     [InlineData("http://h:")]
     [InlineData("http://[:::]:8080")] // not an IPv6 address
+    [InlineData("http://a..b")]
+    [InlineData("http://-foo")]
+    [InlineData("http://foo-")]
+    [InlineData("http://1.2.3")] // not IPv4, and a name's last label starts with a letter
+    [InlineData("http://127.1")]
+    [InlineData("http://localhost.")] // trailing dot: an empty last label
+    [InlineData("http://256.1.1.1")]
+    [InlineData("http://a.1b")]
     [InlineData("https://api.t-0.network/v1")]
     [InlineData("https://api.t-0.network/v1/")]
     [InlineData("https://api.t-0.network?x")]
