@@ -140,30 +140,11 @@ func cmdServe() {
 		os.Exit(1)
 	}
 	port := os.Args[2]
-	networkPubKey := provider.NetworkPublicKeyHexed(os.Args[3])
 
-	service := &testProviderService{}
-
-	httpHandler, err := provider.NewHttpHandler(
-		networkPubKey,
-		provider.Handler(paymentconnect.NewProviderServiceHandler, paymentconnect.ProviderServiceHandler(service)),
-	)
+	h2cHandler, err := newServeHandler(os.Args[3])
 	if err != nil {
 		log.Fatalf("Failed to create handler: %v", err)
 	}
-
-	// test.v1.StreamTest, for the streaming cross-language tests, verifies the first request
-	// message only; everything else goes through the provider handler.
-	streamHandler, err := newStreamTestHandler(os.Args[3])
-	if err != nil {
-		log.Fatalf("Failed to create stream test handler: %v", err)
-	}
-	mux := http.NewServeMux()
-	mux.Handle(streamTestPrefix, streamHandler)
-	mux.Handle("/", httpHandler)
-
-	// Wrap with h2c so both Connect (HTTP/1.1) and gRPC (HTTP/2) work on the same port.
-	h2cHandler := h2c.NewHandler(mux, &http2.Server{})
 
 	ln, err := net.Listen("tcp", ":"+port)
 	if err != nil {
@@ -178,6 +159,27 @@ func cmdServe() {
 	if err := srv.Serve(ln); err != nil && err != http.ErrServerClosed {
 		log.Fatalf("Server error: %v", err)
 	}
+}
+
+// newServeHandler is the handler of `serve`: the provider service and grpc.health.v1.Health
+// behind the SDK's signature verification, and test.v1.StreamTest behind the first-envelope
+// verifier. It speaks Connect over HTTP/1.1 and gRPC over h2c on the same port.
+func newServeHandler(networkPublicKeyHex string) (http.Handler, error) {
+	httpHandler, err := provider.NewHttpHandler(
+		provider.NetworkPublicKeyHexed(networkPublicKeyHex),
+		provider.Handler(paymentconnect.NewProviderServiceHandler, paymentconnect.ProviderServiceHandler(&testProviderService{})),
+	)
+	if err != nil {
+		return nil, err
+	}
+	streamHandler, err := newStreamTestHandler(networkPublicKeyHex)
+	if err != nil {
+		return nil, fmt.Errorf("stream test handler: %w", err)
+	}
+	mux := http.NewServeMux()
+	mux.Handle(streamTestPrefix, streamHandler)
+	mux.Handle("/", httpHandler)
+	return h2c.NewHandler(mux, &http2.Server{}), nil
 }
 
 func hasFlag(flag string) bool {
