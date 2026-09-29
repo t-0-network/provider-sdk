@@ -63,6 +63,9 @@ import java.util.concurrent.TimeUnit;
  * }
  * }</pre>
  *
+ * <p>The signer may be any {@link network.t0.sdk.crypto.DigestSigner}; {@code Signer} holds the key in
+ * memory, and an implementation of your own can keep it elsewhere.
+ *
  * <p>Unary calls get a default deadline of 15 seconds, client- and server-streaming calls one of
  * 5 minutes, which includes the wait for the first message. A deadline the caller sets on a call or on
  * its {@link Context} replaces the default, shorter or longer. Streaming calls are signed over their
