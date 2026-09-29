@@ -1,0 +1,107 @@
+# Signing, streaming calls and timeouts
+
+These rules hold for the network client of every SDK in this repo. The signature scheme itself is in
+the root [`CLAUDE.md`](../CLAUDE.md#signature-protocol), and the shared test vectors are in
+[`cross_test/README.md`](../cross_test/README.md).
+
+## What is signed
+
+The client picks the signed bytes from the request's content type.
+
+| Content type | Calls | Signed bytes |
+|---|---|---|
+| `application/connect+*` | Connect client and server streams | The first envelope |
+| `application/grpc`, `application/grpc+*` | Every gRPC call, unary included | The first envelope |
+| anything else | Connect unary calls (`application/proto`, `application/json`) | The whole body |
+
+- The first envelope is taken exactly as sent: `flags (1) || uint32be(length) || payload`. Later
+  messages are sent unsigned.
+- A gRPC unary body is a single envelope, so for it the first envelope is the whole body.
+- The wire format does not change the rule. `application/connect+json` is signed like
+  `application/connect+proto`.
+- A client that signs above the gRPC framer covers the first payload without its 5-byte prefix. The
+  network accepts both forms over gRPC.
+- gRPC-Web is not supported.
+
+## When the request is sent
+
+The network checks the timestamp when the headers arrive, before it reads the body. So the client
+signs as soon as it has the first message and sends the request at once. The rest of the stream is
+sent as the caller produces it and is never buffered.
+
+- A client stream is sent with its first message. Send a message, or close the stream, before
+  waiting for anything from the server.
+- A client stream closed before its first message is signed over empty bytes and sent. The network
+  rejects it.
+- A call that is cancelled or times out before its first message sends nothing.
+- A signature header that the caller set is replaced, never added to.
+- A first message whose length prefix promises more bytes than arrive fails with `invalid argument`
+  and the message "streaming request ends inside its first message". Other read errors keep their
+  own code.
+- A length prefix alone never makes the client allocate more than 64 KiB. Beyond that the buffer
+  grows with the bytes that actually arrive.
+
+## Calls that are refused
+
+- Bidirectional streams fail with `unimplemented` and the message "bidirectional streams are not
+  supported", before anything is sent. The network does not accept them.
+- GET requests fail with `unimplemented` and the message "GET requests are not supported", because
+  a GET has no body to sign.
+- A client that signs above the gRPC framer cannot sign a compressed message as sent. It refuses a
+  call with a compressor set through call options with `unimplemented` and the message "compressed
+  requests are not supported", before anything is sent.
+
+## Timeouts
+
+Every client factory takes two timeouts.
+
+| | Applies to | Default |
+|---|---|---|
+| `timeout` | Unary calls | 15 seconds |
+| `streamTimeout` | Client and server streaming calls, for the whole call | 5 minutes |
+
+- A call is unary or streaming by its RPC kind. A gRPC unary call is a unary call.
+- The timeout is the call's deadline. It is sent to the server, and a call that runs out of time
+  fails with `deadline exceeded`.
+- The stream timeout covers the whole call, including the wait for the first message. A stream that
+  runs longer than 5 minutes ends with `deadline exceeded` unless the caller passes a longer
+  `streamTimeout`.
+- A deadline that the caller sets on a call replaces the default, whether it is shorter or longer.
+- A timeout must be a positive duration of at most 2147483647 ms. Zero, a negative value, a larger
+  value, no value (`null`, `None`, `Infinity`, `InfiniteTimeSpan`) and a value that is not a number
+  are refused with the language's invalid argument error and the message
+  "`<option>` must be a positive duration of at most 2147483647 ms". A timeout cannot be turned off.
+  For a longer limit, pass a larger value.
+
+## Wire format and protocol
+
+Go, Node and Python speak ConnectRPC. Java and C# speak gRPC.
+
+- `wireFormat` (Go, Node, Python): `Binary` (the default) or `Json`.
+- `protocol` (Go, Python): `Connect` (the default) or `Grpc`. `Grpc` on an `http://` base URL uses
+  HTTP/2 without TLS.
+- No client compresses a request by default, and there is no option for it. A first message that
+  the caller compresses through call options is signed as sent.
+
+## Other options
+
+- The base URL defaults to `https://api.t-0.network`. An empty value is refused with "base URL is
+  not set", and a value without an `http` or `https` scheme or without a host is refused with "base
+  URL is not valid". A missing scheme is not added.
+- The signer is a hex private key or a signing function (in Java and C#, an interface that the
+  `Signer` class implements). A `0x` prefix is allowed. An empty key is refused with "private key
+  must not be null or empty", and a key of another length with "private key must be 32 bytes (64 hex
+  characters)".
+- The gRPC clients (Java and C#) send an HTTP/2 keepalive ping every 30 seconds with a 10 second
+  timeout.
+
+## Option names
+
+| | Go | Node | Python | Java | C# |
+|---|---|---|---|---|---|
+| Unary timeout | `WithTimeout` | `timeoutMs` | `timeout` (seconds) | `timeout` | `Timeout` |
+| Stream timeout | `WithStreamTimeout` | `streamTimeoutMs` | `stream_timeout` (seconds) | `streamTimeout` | `StreamTimeout` |
+| Per call timeout | context deadline | `timeoutMs` in call options | `timeout_ms` | `stub(timeout, unit)` or a `Context` deadline | `deadline` in call options |
+| Wire format | `WithWireFormat` | `wireFormat` | `wire_format` | | |
+| Protocol | `WithProtocol` | | `protocol` | | |
+| Signing function | `WithSignatureFunction` | a function in place of the key | `sign_fn` | `DigestSigner` | `ISigner` |
