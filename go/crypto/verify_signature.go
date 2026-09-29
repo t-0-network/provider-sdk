@@ -1,13 +1,9 @@
 package crypto
 
 import (
-	"crypto/ecdsa"
-
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	dcrececdsa "github.com/decred/dcrd/dcrec/secp256k1/v4/ecdsa"
 )
-
-type VerifySignatureFn func(digest []byte, signature []byte, privateKey *ecdsa.PrivateKey) bool
 
 func VerifySignature(pubKey *secp256k1.PublicKey, digest []byte, signature []byte) bool {
 	if len(digest) != 32 {
