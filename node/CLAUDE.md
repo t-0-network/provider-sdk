@@ -33,7 +33,9 @@ node/
 
 ## Dependencies on the signing path
 
-`@connectrpc/connect` and `@connectrpc/connect-node` are pinned to one exact version (no `^`). The client transport (`sdk/src/common/client/`) is connect-es's `createTransport` (Connect protocol, binary) over a signing fetch client for every call: it signs the unary bodies and stream envelopes connect-es builds and relies on its `@private` `CommonTransportOptions`, so consumers must only ever get a version our CI has tested. Bump the two together, as a Tier 3 update ([`.claude/skills/dependency-update/SKILL.md`](../.claude/skills/dependency-update/SKILL.md)); `test/streaming.test.ts` holds the guard test and `test/unary_wire.test.ts` the unary request as connect-web sent it before it was dropped.
+`@connectrpc/connect` and `@connectrpc/connect-node` are pinned to one exact version (no `^`) and bumped together as a Tier 3 update ([`.claude/skills/dependency-update/SKILL.md`](../.claude/skills/dependency-update/SKILL.md)): the client signs the bytes connect-es builds and relies on its `@private` `CommonTransportOptions`.
+
+The client transport, what it signs, and what the streaming tests cover: [`docs/node/STREAMING.md`](../docs/node/STREAMING.md).
 
 ## Versioning
 

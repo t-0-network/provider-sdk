@@ -17,13 +17,11 @@ import { transportOptions } from '../src/common/client/client.js';
 import { computeDigest, NetworkHeaders, parsePublicKey, publicKeysEqual, verifySignature } from '../src/crypto/index.js';
 import { StreamTest, bufferingFetchClient, newKeypair, stringValues } from './stream_helpers.js';
 
-// One request as the test server saw it.
 interface Check {
   procedure: string;
   contentType: string;
   timeoutMs: string | null;
-  // What the signature was checked against: the first envelope of a streaming request (empty if
-  // it has no messages), the whole body of a unary one.
+  // The first envelope of a stream (empty without one), the whole body of a unary call.
   signed: Buffer;
   valid: boolean;
 }
@@ -31,26 +29,20 @@ interface Check {
 interface StreamServer {
   url: string;
   checks: Check[];
-  // Resolves once the ClientStream handler has read n messages, or rejects after ms.
   received(n: number, ms: number): Promise<void>;
   close(): Promise<void>;
 }
 
 const ENVELOPED = /^application\/connect\+/;
 
-/**
- * Serves test.v1.StreamTest behind a verifier that works the way the network does: it reads a
- * streaming request's first envelope from the raw body, checks the signature over it and answers
- * 401 if that fails, and only then hands the handler the body, first envelope included. A unary
- * request is checked over its whole body. A stream without a first message is refused.
- */
+// Like the network, verifies a stream over its first envelope before the handler reads the body.
 async function bootStreamServer(clientPublicKeyHex: string): Promise<StreamServer> {
   const trustedKey = parsePublicKey(clientPublicKeyHex);
   const checks: Check[] = [];
   const received: string[] = [];
   const waiters = new Set<() => void>();
 
-  // Bidi is not implemented. A bidi request that got through would still be recorded as a check.
+  // No bidi handler, but a bidi request that got through would still be recorded in checks.
   const impl: Omit<ServiceImpl<typeof StreamTest>, 'bidi'> = {
     async clientStream(reqs) {
       const got: string[] = [];
@@ -102,7 +94,7 @@ async function bootStreamServer(clientPublicKeyHex: string): Promise<StreamServe
     const contentType = String(req.headers['content-type'] ?? '');
     const enveloped = ENVELOPED.test(contentType);
 
-    // Read the raw body up to the end of the first envelope (all of it for unary).
+    // Up to the end of the first envelope; all of a unary body.
     let read = Buffer.alloc(0);
     let ended = false;
     const firstEnd = () => (read.length >= 5 ? 5 + read.readUInt32BE(1) : Infinity);
@@ -174,8 +166,7 @@ async function bootStreamServer(clientPublicKeyHex: string): Promise<StreamServe
   };
 }
 
-// The first envelope of a StringValue message as connect sends it: flags 0, uint32be length,
-// then field 1 (tag 0x0a) with the string's length and bytes.
+// flags 0, uint32be length, StringValue field 1 (tag 0x0a); one length byte, so value < 128 bytes.
 function envelopeOf(value: string): string {
   const payload = Buffer.concat([Buffer.from([0x0a, value.length]), Buffer.from(value)]);
   const prefix = Buffer.alloc(5);
@@ -183,7 +174,7 @@ function envelopeOf(value: string): string {
   return Buffer.concat([prefix, payload]).toString('hex');
 }
 
-// The same, for Connect JSON: the payload is the message's JSON, a string for StringValue.
+// StringValue's JSON is a bare string.
 function jsonEnvelopeOf(value: string): string {
   const payload = Buffer.from(JSON.stringify(value));
   const prefix = Buffer.alloc(5);
@@ -243,9 +234,7 @@ describe('Streaming calls are signed over the first request envelope', { timeout
     });
   });
 
-  // The request must reach the server as soon as the first message is signed. The caller's stream
-  // produces m2 only once the server has read m1, and m3 once it has read m2: a transport that
-  // buffers the body sends nothing until the stream ends, and the wait fails.
+  // m2 is produced only once the server has read m1: a transport that buffers the body stalls here.
   it('client stream is not buffered: the server reads each message before the next is produced', async () => {
     await withServer(async (srv, key) => {
       const client = createClient(key.privateKeyHex, srv.url, StreamTest);
@@ -276,7 +265,6 @@ describe('Streaming calls are signed over the first request envelope', { timeout
     });
   });
 
-  // The network rejects a stream without a first message; the SDK still signs it, over nothing.
   it('an empty client stream is signed over empty bytes and sent', async () => {
     await withServer(async (srv, key) => {
       const client = createClient(key.privateKeyHex, srv.url, StreamTest);
@@ -330,7 +318,6 @@ describe('createClient routes unary and streaming calls to their own transport',
     });
   });
 
-  // The format does not matter to the signature: Connect JSON is signed over the same parts.
   it('with useBinaryFormat: false, calls use Connect JSON, signed the same way', async () => {
     await withServer(async (srv, key) => {
       const client = createClient(key.privateKeyHex, srv.url, StreamTest, { useBinaryFormat: false });
@@ -378,8 +365,6 @@ describe('createClient routes unary and streaming calls to their own transport',
     });
   });
 
-  // The request goes out only once the first message is there. The stream timeout still ends the
-  // wait when the caller never produces one.
   it('the stream timeout covers the wait for the first message', async () => {
     await withServer(async (srv, key) => {
       const client = createClient(key.privateKeyHex, srv.url, StreamTest, { streamTimeoutMs: 200 });
@@ -387,7 +372,7 @@ describe('createClient routes unary and streaming calls to their own transport',
         await new Promise(() => {});
         yield { value: 'never' };
       }
-      // Bounded, so that a transport that ignores the deadline fails here instead of hanging.
+      // So that a transport ignoring the deadline fails instead of hanging.
       const giveUp = new Promise<never>((_, reject) => {
         setTimeout(() => reject(new Error('the stream timeout did not end the wait for the first message')), 5_000).unref();
       });
@@ -408,9 +393,7 @@ describe('createClient routes unary and streaming calls to their own transport',
   });
 });
 
-// transportOptions fills connect-es's CommonTransportOptions, which is internal API that does
-// not follow semantic versioning. The build type-checks the object against it; this checks that a
-// transport made from it still works end to end.
+// tsc checks transportOptions against @private CommonTransportOptions; this checks it at runtime.
 describe('transportOptions guard', { timeout: 20_000 }, () => {
   it('builds a working Connect transport', async () => {
     await withServer(async (srv, key) => {

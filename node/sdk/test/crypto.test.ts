@@ -918,8 +918,7 @@ describe('crypto/parsePublicKey hex validation', () => {
 
 // ---- Streaming requests ----
 
-// The bytes a streaming request's signature covers, cut from the body as sent: the first envelope,
-// its 5-byte prefix included, or — for a signer above the gRPC framer (Java) — its payload alone.
+// first_envelope includes the 5-byte prefix; first_payload (a signer above the gRPC framer) does not.
 function streamSignedBytes(body: Buffer, covers: string): Buffer {
   if (body.length === 0) {
     return body;
@@ -935,7 +934,7 @@ function streamSignedBytes(body: Buffer, covers: string): Buffer {
   }
 }
 
-// The envelopes of a body, one per chunk, the way connect hands them to the HTTP client.
+// One envelope per chunk, as connect-es hands them to the HTTP client.
 function splitEnvelopes(body: Buffer): Buffer[] {
   const envelopes: Buffer[] = [];
   for (let at = 0; at < body.length;) {
@@ -952,8 +951,6 @@ interface SentRequest {
   duplex: unknown;
 }
 
-// Runs the streaming transport's HTTP client over the given body chunks at the vector's timestamp,
-// with a fake fetch, and returns the request it sent (undefined if it sent none).
 async function sendThroughSigningClient(t: TestContext, vec: any, chunks: Uint8Array[]): Promise<SentRequest | undefined> {
   t.mock.method(Date, 'now', () => vec.timestamp_ms);
   let sent: SentRequest | undefined;
@@ -986,8 +983,7 @@ describe('Stream signing cases', () => {
     });
   }
 
-  // Node signs below the framer, so it produces first_envelope signatures only; first_payload is
-  // the Java variant.
+  // Node signs below the framer: first_envelope only.
   const firstEnvelopeCases = vectors.stream_signing_cases.filter((v: any) => v.covers === 'first_envelope');
 
   for (const vec of firstEnvelopeCases) {
@@ -1004,9 +1000,6 @@ describe('Stream signing cases', () => {
     });
   }
 
-  // Connect hands the HTTP client one envelope per chunk, so the first chunk is signed as the first
-  // envelope. Any other first chunk fails the call, and nothing is sent, rather than signing bytes
-  // that are not the first envelope.
   const multi = vectors.stream_signing_cases.find((v: any) => v.name === 'connect-client-stream');
   const multiBody = Buffer.from(multi.body_hex, 'hex');
   const multiFirst = Buffer.from(multi.signed_hex, 'hex');

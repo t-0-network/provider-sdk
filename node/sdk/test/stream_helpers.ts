@@ -1,4 +1,3 @@
-// Shared by streaming.test.ts and cross_stream.test.ts.
 import { randomBytes } from 'node:crypto';
 import { create, createFileRegistry } from '@bufbuild/protobuf';
 import type { GenService } from '@bufbuild/protobuf/codegenv2';
@@ -12,10 +11,8 @@ import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { signatureHeaders } from '../src/common/client/sign.js';
 import type { SignerFunction } from '../src/common/client/client.js';
 
-// test.v1.StreamTest (cross_test/stream_test.proto), built by hand on google.protobuf.StringValue
-// so that no code has to be generated for it. Unary is not served by the Go helper, only by the
-// local test servers in streaming.test.ts and unary_wire.test.ts, which check unary calls. Bidi is
-// served by neither: streaming.test.ts checks that the SDK refuses it before sending anything.
+// test.v1.StreamTest (cross_test/stream_test.proto), described by hand so nothing is generated.
+// Unary and Bidi are Node-only additions; go_helper serves neither.
 const streamTestFile = createFileRegistry(
   create(FileDescriptorProtoSchema, {
     name: 'test/v1/stream_test.proto',
@@ -57,11 +54,7 @@ export async function* stringValues(...values: string[]) {
   }
 }
 
-/**
- * An HTTP client for connect's streaming transport that reads the whole request body before it
- * sends it. With a signer it signs that whole body, which is what the network must reject for a
- * stream of two or more messages; without one it sends the request unsigned.
- */
+/** Buffers the whole request body; signs it whole with a signer, else sends it unsigned. */
 export function bufferingFetchClient(signer?: SignerFunction): UniversalClientFn {
   return async (req) => {
     const chunks: Uint8Array[] = [];

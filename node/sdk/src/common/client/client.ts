@@ -6,21 +6,13 @@ import {createSigningFetchClient} from "./signing-http-client.js";
 import {DescService} from "@bufbuild/protobuf";
 
 /**
- * Creates a client for a T-0 Network service that signs every request. It speaks the Connect
- * protocol, in binary by default: unary calls as `application/proto`, streaming calls as
- * `application/connect+proto`. With `useBinaryFormat: false` it speaks Connect JSON
- * (`application/json`, `application/connect+json`), signed the same way.
- *
- * Unary calls are signed over the whole request body. Client-streaming and server-streaming calls
- * are signed over their first request message only, and the request goes out as soon as that
- * message is available. A bidirectional-streaming call is not supported: it fails with
- * `unimplemented` and sends nothing.
+ * Creates a Connect client for a T-0 Network service that signs every request: a unary call over
+ * its whole body, a client- or server-streaming call over its first request envelope. Bidirectional
+ * streams fail with `unimplemented`. See docs/node/STREAMING.md.
  */
 export function createClient<T extends DescService>(signer: string | Buffer | ((data: Buffer) => Promise<Signature>) | Buffer<ArrayBufferLike>, endpoint: string, svc: T, opts?: ClientOptions) {
     const sign: SignerFunction = typeof signer === "string" || Buffer.isBuffer(signer) ? CreateSigner(signer) : signer;
 
-    // One transport configuration for every call. Unary and streaming calls take separate
-    // instances only for their own default timeout.
     const useBinaryFormat = opts?.useBinaryFormat ?? true;
     const unaryTransport = createTransport(transportOptions(sign, endpoint, opts?.unaryTimeoutMs, useBinaryFormat));
     const streamTransport = createTransport(transportOptions(sign, endpoint, opts?.streamTimeoutMs, useBinaryFormat));
@@ -28,8 +20,7 @@ export function createClient<T extends DescService>(signer: string | Buffer | ((
     return createConnectClient(svc, {
         unary: unaryTransport.unary.bind(unaryTransport),
         stream: (method, signal, timeoutMs, header, input, contextValues) => {
-            // The signing fetch client sends a stream's request whole before it reads the response,
-            // so a bidi call could not interleave the two. It fails before anything is sent.
+            // fetch streams the request half-duplex, so a bidi call could not interleave the two.
             if (method.methodKind === "bidi_streaming") {
                 return Promise.reject(new ConnectError("bidirectional streams are not supported", Code.Unimplemented));
             }
@@ -39,10 +30,8 @@ export function createClient<T extends DescService>(signer: string | Buffer | ((
 }
 
 /**
- * The options of the client's transport: the Connect protocol, binary format unless told
- * otherwise, over the signing fetch client. CommonTransportOptions is connect-es internal API that
- * does not follow semantic versioning, so every field is spelled out here and a change to it
- * upstream fails the build.
+ * CommonTransportOptions is `@private` connect-es API: every field is spelled out so that an
+ * upstream change fails the build.
  *
  * @internal
  */
@@ -60,41 +49,30 @@ export function transportOptions(signer: SignerFunction, endpoint: string, timeo
 }
 
 /**
- * Options for createClient.
+ * Options for createClient. See docs/node/STREAMING.md.
  */
 export interface ClientOptions {
-    /**
-     * Timeout of each unary call in milliseconds, from sending the request to reading the
-     * response. A call's own `timeoutMs` overrides it. Default: none.
-     */
+    /** Deadline of each unary call in ms; a call's own `timeoutMs` overrides it. Default: none. */
     unaryTimeoutMs?: number;
     /**
-     * Timeout of each client-streaming or server-streaming call in milliseconds, from waiting for
-     * the first request message to reading the end of the response. A call's own `timeoutMs`
-     * overrides it. Default: none.
+     * Deadline of each client- or server-streaming call in ms, including the wait for the first
+     * request message; a call's own `timeoutMs` overrides it. Default: none.
      */
     streamTimeoutMs?: number;
-    /**
-     * Whether messages are sent as binary Protobuf (`application/proto`,
-     * `application/connect+proto`) or as Connect JSON (`application/json`,
-     * `application/connect+json`). The signature covers the bytes as sent either way: the whole
-     * body of a unary call, the first envelope of a streaming call. Default: true.
-     */
+    /** Binary Protobuf (default) or, when false, Connect JSON. Either is signed over the bytes as sent. */
     useBinaryFormat?: boolean;
 }
 
 /**
- * Signature with metadata for particular request
+ * A signature over a request digest and the signer's public key, as raw bytes; the client sends
+ * them hex-encoded in the signature headers.
  */
 export interface Signature {
-    //hex encoded signature
     signature: Buffer;
-    // hex encoded public key
     publicKey: Buffer;
 }
 
 /**
- * Signature function for signing requests to T-0 API. Accepts any data in string format and return signature
- * with metadata
+ * Signs a 32-byte request digest: Keccak256(signed bytes || uint64le(timestamp_ms)).
  */
 export type SignerFunction = (data: Buffer) => Promise<Signature>;

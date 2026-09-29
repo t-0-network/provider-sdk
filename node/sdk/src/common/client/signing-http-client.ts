@@ -4,19 +4,8 @@ import {signatureHeaders} from "./sign.js";
 import type {SignerFunction} from "./client.js";
 
 /**
- * Creates the HTTP client of the client's transport. It signs every request and picks the signed
- * bytes from the request's content type:
- *
- * - An enveloped body (Connect streaming `application/connect+*`, gRPC `application/grpc` and
- *   `application/grpc+*`) is signed over its first envelope, exactly as sent: flags, uint32be
- *   length and payload (the compressed payload when the flags say so). The client waits for the
- *   first message, signs it and sends the request at once; later messages are streamed as they
- *   come and are not covered by the signature. A client stream closed before its first message is
- *   signed over empty bytes and sent. The network rejects it.
- * - Any other body (Connect unary: `application/proto`) is signed whole and sent as one buffer.
- *
- * An enveloped body goes out as a stream (`duplex: "half"`), so the whole request is sent before
- * the response is read: bidirectional streams are not supported.
+ * The transport's HTTP client: signs an enveloped body (Connect streaming, gRPC) over its first
+ * envelope as sent and sends it at once, any other body whole. See docs/node/STREAMING.md.
  *
  * @param fetchFn defaults to the global fetch at the time of each call.
  */
@@ -30,8 +19,7 @@ export function createSigningFetchClient(signer: SignerFunction, fetchFn?: typeo
         let headers: [string, string][];
         try {
             if (enveloped) {
-                // For a client stream this waits for the caller's first message, which the call's
-                // deadline or signal must be able to end.
+                // A client stream waits here for its first message; the call's deadline or signal ends that.
                 const r = await untilAborted(it.next(), req.signal);
                 if (r.done !== true) {
                     first = r.value;
@@ -67,10 +55,8 @@ export function createSigningFetchClient(signer: SignerFunction, fetchFn?: typeo
     };
 }
 
-// fetch asks for a compressed response itself (Accept-Encoding) and returns the body decoded, but
-// with the headers of the encoded one. Connect would take that Content-Encoding for a unary
-// compression it never asked for and fail the call, and Content-Length counts the encoded bytes.
-// Both are dropped, so that connect reads the response as fetch decoded it.
+// fetch decodes a compressed response but keeps its Content-Encoding and Content-Length. connect
+// would take the former for a compression it never negotiated and fail the call.
 function decodedResponse(res: Response): UniversalClientResponse {
     const uRes = universalClientResponseFromFetch(res);
     if (!res.headers.has("Content-Encoding")) {
@@ -82,8 +68,7 @@ function decodedResponse(res: Response): UniversalClientResponse {
     return {...uRes, header};
 }
 
-// isEnveloped reports whether a body of this content type is a sequence of envelopes: Connect
-// streaming, or gRPC (not gRPC-Web). The same rule as the other SDKs.
+// gRPC-Web does not match: it is signed whole.
 function isEnveloped(contentType: string | null): boolean {
     const mediaType = (contentType ?? "").split(";")[0].trim().toLowerCase();
     return mediaType.startsWith("application/connect+")
@@ -91,9 +76,8 @@ function isEnveloped(contentType: string | null): boolean {
         || mediaType.startsWith("application/grpc+");
 }
 
-// connect-es hands the HTTP client one complete envelope per chunk (transformJoinEnvelopes), so the
-// first chunk is the first envelope. It is checked rather than trusted: a change in that framing
-// must fail the call, never sign bytes that are not the first envelope.
+// connect-es yields one complete envelope per chunk (transformJoinEnvelopes). Checked, not trusted:
+// if that ever changes, the call fails instead of signing bytes that are not the first envelope.
 function requireOneEnvelope(chunk: Uint8Array): void {
     const size = chunk.byteLength >= 5
         ? 5 + new DataView(chunk.buffer, chunk.byteOffset, chunk.byteLength).getUint32(1)
@@ -103,8 +87,7 @@ function requireOneEnvelope(chunk: Uint8Array): void {
     }
 }
 
-// readAll joins a unary body. connect-es hands it over as one chunk, but it is not relied on: the
-// signature covers every byte that is sent.
+// connect-es sends a unary body as one chunk, but that is not relied on.
 async function readAll(it: AsyncIterator<Uint8Array>): Promise<Uint8Array<ArrayBuffer>> {
     const chunks: Uint8Array[] = [];
     let size = 0;
@@ -121,8 +104,6 @@ async function readAll(it: AsyncIterator<Uint8Array>): Promise<Uint8Array<ArrayB
     return body;
 }
 
-// bodyStream sends the first envelope, then pulls the rest of the body one chunk at a time, as
-// the connection takes it.
 function bodyStream(first: Uint8Array | undefined, it: AsyncIterator<Uint8Array>): ReadableStream<Uint8Array> {
     let pending = first;
     let done = first === undefined;
@@ -152,7 +133,7 @@ function untilAborted<T>(promise: Promise<T>, signal: AbortSignal | undefined): 
         return promise;
     }
     return new Promise<T>((resolve, reject) => {
-        // connect aborts a call's signal with a ConnectError: deadline_exceeded on its timeout.
+        // connect aborts the signal with a ConnectError (deadline_exceeded on timeout).
         const onAbort = () => reject(signal.reason);
         if (signal.aborted) {
             onAbort();

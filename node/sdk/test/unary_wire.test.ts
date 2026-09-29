@@ -25,15 +25,12 @@ import { StreamTest } from './stream_helpers.js';
 const vectors = JSON.parse(readFileSync(resolve(import.meta.dirname, '../../../cross_test/test_vectors.json'), 'utf-8'));
 const signer = CreateSigner(vectors.keys.private_key);
 const TIMESTAMP_MS = 1_706_000_000_000;
-const BASE_URL = 'http://127.0.0.1:9'; // never dialed: every test here sends through a fake fetch
+const BASE_URL = 'http://127.0.0.1:9'; // never dialed: only used with a fake fetch
 
-// The golden call: a health check with a non-empty body, a call header and a timeout.
 const REQUEST = { service: 'grpc.health.v1.Health' };
 const CALL_OPTIONS = { headers: { 'X-Call': 'golden' }, timeoutMs: 5_000 };
 
-// What the connect-web transport (unary, Connect JSON) sent for this call, recorded from it before
-// it was removed: it was also signed over the body as sent, and had no User-Agent. Headers are
-// listed without the three signature headers, whose values depend on the key and the time.
+// What connect-web sent for this call, recorded before it was removed (without signature headers).
 const LEGACY = {
   body: '{"service":"grpc.health.v1.Health"}',
   headers: {
@@ -44,7 +41,6 @@ const LEGACY = {
   },
 };
 
-// What the SDK sends for it now: the same Connect request in binary.
 const CURRENT = {
   body: '0a15' + Buffer.from('grpc.health.v1.Health').toString('hex'),
   headers: { ...LEGACY.headers, 'content-type': 'application/proto' },
@@ -56,7 +52,6 @@ interface Sent {
   body: Buffer;
 }
 
-// A fetch that records each request and answers a serving health check in the request's format.
 function recordingFetch(sent: Sent[]): typeof globalThis.fetch {
   return async (url, init) => {
     const body = init?.body == null ? Buffer.alloc(0) : Buffer.from(await new Response(init.body).arrayBuffer());
@@ -69,7 +64,6 @@ function recordingFetch(sent: Sent[]): typeof globalThis.fetch {
   };
 }
 
-// Makes the health check through the client's transport over a recording fetch.
 async function check(t: TestContext, useBinaryFormat = true): Promise<Sent> {
   t.mock.method(Date, 'now', () => TIMESTAMP_MS);
   const sent: Sent[] = [];
@@ -84,8 +78,7 @@ async function check(t: TestContext, useBinaryFormat = true): Promise<Sent> {
   return sent[0];
 }
 
-// The headers of a request without the signature headers, and without the User-Agent, which
-// connect-web did not send.
+// Without the signature headers and without User-Agent, which connect-web did not send.
 function plainHeaders(init: RequestInit): Record<string, string> {
   const headers = new Headers(init.headers);
   for (const name of [NetworkHeaders.Signature, NetworkHeaders.PublicKey, NetworkHeaders.SignatureTimestamp, 'User-Agent']) {
@@ -94,7 +87,6 @@ function plainHeaders(init: RequestInit): Record<string, string> {
   return Object.fromEntries(headers);
 }
 
-// Checks that the signature headers are the vector key's signature over exactly the bytes sent.
 function assertSignedOverBody(s: Sent): void {
   const headers = new Headers(s.init.headers);
   assert.equal(headers.get(NetworkHeaders.PublicKey), '0x' + vectors.keys.public_key);
@@ -115,12 +107,11 @@ describe('Unary request on the wire (golden)', () => {
     assert.match(new Headers(s.init.headers).get('User-Agent') ?? '', /^connect-es\//);
     assertSignedOverBody(s);
 
-    // One buffer, not a stream: fetch sends it with a Content-Length, as connect-web did.
+    // One buffer, not a stream, so fetch sets Content-Length as it did for connect-web.
     assert.ok(s.init.body instanceof Uint8Array);
     assert.equal(s.init.duplex, undefined);
   });
 
-  // The JSON format sends exactly what connect-web sent, so it is there for a network that needs it.
   it('with useBinaryFormat: false the SDK sends the request connect-web sent', async (t) => {
     const s = await check(t, false);
     assert.equal(s.url, `${BASE_URL}/grpc.health.v1.Health/Check`);
@@ -138,7 +129,6 @@ describe('Unary request on the wire (golden)', () => {
   });
 });
 
-// Sends one request through the signing HTTP client with a fake fetch.
 async function sendThroughSigningClient(t: TestContext, contentType: string, method: string, chunks?: Uint8Array[]): Promise<Sent> {
   t.mock.method(Date, 'now', () => TIMESTAMP_MS);
   const sent: Sent[] = [];
@@ -168,8 +158,7 @@ describe('The signing HTTP client signs a body that is not enveloped whole', () 
     assertSignedOverBody(s);
   });
 
-  // Two envelopes in one chunk: an enveloped content type would fail the call (one envelope per
-  // chunk), any other is signed whole.
+  // Two envelopes in one chunk: signed whole, unless the content type is enveloped and the call fails.
   const twoEnvelopes = Buffer.from('00000000010a' + '00000000010b', 'hex');
   for (const contentType of ['application/proto', 'application/json', 'application/grpc-web+proto']) {
     it(`signs ${contentType} whole`, async (t) => {
@@ -185,9 +174,7 @@ describe('The signing HTTP client signs a body that is not enveloped whole', () 
   }
 });
 
-// Answers every request with one gzip-encoded response, the way connect-go answers a unary call
-// from fetch: fetch asks for gzip itself (Accept-Encoding), and connect-go compresses every unary
-// response it may.
+// As connect-go answers fetch: fetch sends Accept-Encoding: gzip, connect-go gzips unary responses.
 async function withGzipServer(status: number, contentType: string, body: Uint8Array, fn: (url: string) => Promise<void>) {
   const encoded = gzipSync(body);
   const server = http.createServer((req, res) => {

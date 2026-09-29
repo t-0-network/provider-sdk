@@ -66,18 +66,14 @@ if (!goAvailable() && process.env.CI) {
   throw new Error(`Go helper binary required in CI but not found at ${GO_HELPER}`);
 }
 
-// The Go helper serves test.v1.StreamTest behind a verifier that works the way the T-0 Network
-// does: it answers 401 unless the signature verifies over the first request envelope. It logs its
-// verdict on each request to stderr before the handler reads the rest of the body.
 describe('Cross-language streaming: Node client → Go server', { skip: !goAvailable() ? `Go helper not found at ${GO_HELPER}` : undefined, timeout: 30_000 }, () => {
   let goServer: ChildProcess;
   let url: string;
   let log = '';
   const onLog = new Set<() => void>();
 
-  // Resolves once the helper's log contains text at or after offset from. The helper serves every
-  // test here, so a test passes log.length from before its call: a line an earlier test caused
-  // never satisfies it. The log and the HTTP response arrive on separate pipes, in either order.
+  // `from` is log.length before the call, so a line from an earlier test never matches. The log
+  // and the HTTP response come on separate pipes, in either order.
   function waitForLog(text: string, from: number, ms = 10_000): Promise<void> {
     return new Promise((resolve, reject) => {
       const check = () => {
@@ -133,8 +129,6 @@ describe('Cross-language streaming: Node client → Go server', { skip: !goAvail
     await waitForLog('/test.v1.StreamTest/ServerStream verified over the first envelope', mark);
   });
 
-  // The signature covers the bytes as sent, whatever the format: Connect JSON streams are
-  // verified over their first envelope too.
   it('Connect JSON: client and server streams are verified over the first envelope', async () => {
     const mark = log.length;
     const client = createClient(CLIENT_PRIVATE_KEY, url, StreamTest, { useBinaryFormat: false });
@@ -150,9 +144,7 @@ describe('Cross-language streaming: Node client → Go server', { skip: !goAvail
     await waitForLog('/test.v1.StreamTest/ServerStream verified over the first envelope', mark);
   });
 
-  // The helper verifies the signature as soon as it has read the first envelope. The caller's
-  // stream produces m2 only once the helper has logged that: a transport that buffers the body
-  // sends nothing until the stream ends, and the wait fails.
+  // m2 is produced only once the helper has logged m1 as verified: a buffering transport stalls.
   it('ClientStream is not buffered: the helper verifies m1 before m2 is produced', async () => {
     const mark = log.length;
     const client = createClient(CLIENT_PRIVATE_KEY, url, StreamTest);
@@ -166,8 +158,6 @@ describe('Cross-language streaming: Node client → Go server', { skip: !goAvail
     assert.equal(resp.value, 'm1,m2,m3');
   });
 
-  // A first message far larger than one read: the helper reads it in many chunks, and the
-  // signature covers all of them.
   it('ClientStream: a large first message is signed whole', async () => {
     const mark = log.length;
     const client = createClient(CLIENT_PRIVATE_KEY, url, StreamTest);
@@ -194,18 +184,15 @@ describe('Cross-language streaming: Node client → Go server', { skip: !goAvail
     await waitForLog('/test.v1.StreamTest/ClientStream rejected: signature does not verify over the first message', mark);
   });
 
-  // The signature timestamp is Date.now() when the first message is signed. Two minutes back is
-  // outside the helper's ±60 s window; the mock is restored when the test ends.
   it('a client stream signed with a stale timestamp is rejected', async (t) => {
     const mark = log.length;
-    const real = Date.now();
+    const real = Date.now(); // read before mocking: a mock calling Date.now would call itself
     t.mock.method(Date, 'now', () => real - 120_000);
     const client = createClient(CLIENT_PRIVATE_KEY, url, StreamTest);
     await assert.rejects(client.clientStream(stringValues('m1', 'm2')), isCode(Code.Unauthenticated));
     await waitForLog('/test.v1.StreamTest/ClientStream rejected: timestamp is outside the allowed time window', mark);
   });
 
-  // The SDK signs an empty client stream over empty bytes and sends it; the network refuses it.
   it('an empty client stream is rejected', async () => {
     const mark = log.length;
     const client = createClient(CLIENT_PRIVATE_KEY, url, StreamTest);
