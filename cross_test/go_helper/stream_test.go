@@ -173,9 +173,7 @@ func serveHelper(t *testing.T) (string, *syncBuffer) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewUnstartedServer(handler)
-	srv.Config.Protocols = serveProtocols()
-	srv.Start()
+	srv := httptest.NewServer(handler)
 	t.Cleanup(srv.Close)
 	return srv.URL, logs
 }

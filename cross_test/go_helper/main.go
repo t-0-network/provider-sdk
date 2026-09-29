@@ -31,6 +31,8 @@ import (
 	"github.com/t-0-network/provider-sdk/go/crypto"
 	"github.com/t-0-network/provider-sdk/go/network"
 	"github.com/t-0-network/provider-sdk/go/provider"
+	"golang.org/x/net/http2"
+	"golang.org/x/net/http2/h2c"
 )
 
 func main() {
@@ -142,7 +144,7 @@ func cmdServe() {
 		log.Fatalf("Failed to listen: %v", err)
 	}
 
-	srv := &http.Server{Handler: handler, Protocols: serveProtocols()}
+	srv := &http.Server{Handler: handler}
 
 	fmt.Printf("READY on :%s\n", port)
 	os.Stdout.Sync()
@@ -152,16 +154,8 @@ func cmdServe() {
 	}
 }
 
-// serveProtocols lets Connect (HTTP/1.1) and gRPC (cleartext HTTP/2, prior knowledge) share the port.
-func serveProtocols() *http.Protocols {
-	protocols := new(http.Protocols)
-	protocols.SetHTTP1(true)
-	protocols.SetUnencryptedHTTP2(true)
-	return protocols
-}
-
 // newServeHandler serves the provider service behind the SDK's verification and test.v1.StreamTest
-// behind the first-envelope verifier.
+// behind the first-envelope verifier; h2c lets Connect (HTTP/1.1) and gRPC share the port.
 func newServeHandler(networkPublicKeyHex string) (http.Handler, error) {
 	httpHandler, err := provider.NewHttpHandler(
 		provider.NetworkPublicKeyHexed(networkPublicKeyHex),
@@ -177,7 +171,7 @@ func newServeHandler(networkPublicKeyHex string) (http.Handler, error) {
 	mux := http.NewServeMux()
 	mux.Handle(streamTestPrefix, streamHandler)
 	mux.Handle("/", httpHandler)
-	return mux, nil
+	return h2c.NewHandler(mux, &http2.Server{}), nil
 }
 
 func hasFlag(flag string) bool {

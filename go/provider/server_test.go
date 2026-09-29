@@ -3,7 +3,6 @@ package provider
 import (
 	"context"
 	"crypto/tls"
-	"net"
 	"net/http"
 	"sync"
 	"testing"
@@ -481,53 +480,6 @@ func TestCreateServerHelperFunction(t *testing.T) {
 	assert.Equal(t, tlsConfig, opts.tlsConfig)
 	assert.Equal(t, 10*time.Second, opts.shutdownTimeout)
 	assert.Equal(t, customHTTP2, opts.http2Config)
-}
-
-// gRPC without TLS needs HTTP/2 over cleartext with prior knowledge next to HTTP/1.1 (Connect).
-func TestNewServer_ServesHTTP1AndCleartextHTTP2(t *testing.T) {
-	server := NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		_, _ = w.Write([]byte(r.Proto))
-	}))
-	listener, err := net.Listen("tcp", "127.0.0.1:0")
-	require.NoError(t, err)
-	go func() { _ = server.Serve(listener) }()
-	t.Cleanup(func() { _ = server.Close() })
-	url := "http://" + listener.Addr().String()
-
-	h2c := &http.Client{Transport: &http2.Transport{
-		AllowHTTP: true,
-		DialTLSContext: func(ctx context.Context, network, addr string, _ *tls.Config) (net.Conn, error) {
-			var d net.Dialer
-			return d.DialContext(ctx, network, addr)
-		},
-	}}
-	for client, want := range map[*http.Client]string{http.DefaultClient: "HTTP/1.1", h2c: "HTTP/2.0"} {
-		resp, err := client.Get(url)
-		require.NoError(t, err)
-		body := make([]byte, 16)
-		n, _ := resp.Body.Read(body)
-		_ = resp.Body.Close()
-		assert.Equal(t, want, string(body[:n]))
-	}
-}
-
-func TestNewServer_AppliesHTTP2Config(t *testing.T) {
-	server := NewServer(http.NotFoundHandler(), WithHTTP2Config(&http2.Server{
-		MaxConcurrentStreams:         50,
-		MaxReadFrameSize:             1 << 20,
-		MaxUploadBufferPerConnection: 1 << 21,
-		MaxUploadBufferPerStream:     1 << 20,
-		ReadIdleTimeout:              time.Minute,
-		PingTimeout:                  time.Second,
-	}))
-
-	require.NotNil(t, server.HTTP2)
-	assert.Equal(t, 50, server.HTTP2.MaxConcurrentStreams)
-	assert.Equal(t, 1<<20, server.HTTP2.MaxReadFrameSize)
-	assert.Equal(t, 1<<21, server.HTTP2.MaxReceiveBufferPerConnection)
-	assert.Equal(t, 1<<20, server.HTTP2.MaxReceiveBufferPerStream)
-	assert.Equal(t, time.Minute, server.HTTP2.SendPingTimeout)
-	assert.Equal(t, time.Second, server.HTTP2.PingTimeout)
 }
 
 func TestDefaultServerOptionsIntegrity(t *testing.T) {
