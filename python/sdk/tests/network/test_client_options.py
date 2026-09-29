@@ -82,6 +82,12 @@ class TestBaseURL:
         client = factory(PRIVATE_KEY, _Client, base_url=base_url)
         assert client._address == base_url
 
+    @pytest.mark.parametrize("factory", FACTORIES)
+    def test_trailing_slash_is_accepted_and_dropped(self, factory) -> None:
+        """connectrpc appends "/<service>/<method>" to the address."""
+        client = factory(PRIVATE_KEY, _Client, base_url="https://api.t-0.network/")
+        assert client._address == "https://api.t-0.network"
+
     @pytest.mark.parametrize(
         "base_url",
         [
@@ -98,6 +104,9 @@ class TestBaseURL:
             "http://user@h",
             "http://h:",
             "http://bücher.example",
+            "https://api.t-0.network/v1",
+            "https://api.t-0.network?x",
+            "https://api.t-0.network#x",
         ],
     )
     @pytest.mark.parametrize("factory", FACTORIES)

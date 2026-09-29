@@ -69,8 +69,9 @@ def new_service_client(
             Ignored when sign_fn is given.
         client_class: Generated ConnectRPC async client class (e.g. NetworkServiceClient).
         base_url: Base URL of the T-0 Network API: http:// or https://, a host (ASCII letters,
-            digits, '-' and '.', or an IP literal) without user info, and a port of 1..65535 if
-            one is given. None means the default; an empty string raises ValueError.
+            digits, '-' and '.', or an IP literal) without user info, a port of 1..65535 if one
+            is given, and no path, query or fragment (a single trailing "/" is allowed). None
+            means the default; an empty string raises ValueError.
         timeout: Timeout of unary calls in seconds, 15 by default.
         stream_timeout: Timeout of client- and server-streaming calls in seconds, including the
             wait for the first request message, 300 by default.
@@ -143,11 +144,13 @@ def _checked_base_url(base_url: str | None) -> str:
         raise ValueError("base URL is not set")
     if not _is_valid_base_url(base_url):
         raise ValueError("base URL is not valid")
-    return base_url
+    # connectrpc appends "/<service>/<method>", so a trailing "/" would double the slash.
+    return base_url.removesuffix("/")
 
 
 def _is_valid_base_url(base_url: str) -> bool:
-    """http:// or https:// (any case), a host name or IP literal, and a port of 1..65535 if given."""
+    """http:// or https:// (any case), a host name or IP literal, a port of 1..65535 if given, and
+    nothing after that but an optional "/"."""
     scheme, separator, _ = base_url.partition("://")
     if not separator or scheme.lower() not in ("http", "https"):
         return False
@@ -161,6 +164,9 @@ def _is_valid_base_url(base_url: str) -> bool:
         return False
     # No user info, and no ':' without a port after it.
     if "@" in parts.netloc or parts.netloc.endswith(":"):
+        return False
+    # No path, query or fragment. urlsplit drops an empty "?" or "#", so look for the characters.
+    if parts.path not in ("", "/") or "?" in base_url or "#" in base_url:
         return False
     if ":" in host:  # only a bracketed IPv6 literal keeps a ':' in its host
         try:
