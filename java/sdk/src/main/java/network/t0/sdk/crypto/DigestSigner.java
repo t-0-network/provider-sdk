@@ -5,11 +5,9 @@ import network.t0.sdk.common.HexUtils;
 /**
  * Signs the 32-byte Keccak-256 digest of a request with a secp256k1 key.
  *
- * <p>{@link Signer} implements it with a private key held in memory. Implement it to keep the key
- * elsewhere, for example in a hardware security module or a remote signing service.
- *
- * <p>{@link #sign(byte[])} runs on the thread that sends a call's first message and holds up only that
- * call. It must be thread-safe: calls on one client may sign at the same time.
+ * <p>{@link Signer} implements it with a private key held in memory. {@link #sign(byte[])} runs while
+ * the call's lock is held, so an implementation of your own must return quickly and must not block on
+ * network I/O. It must be thread-safe: calls on one client may sign at the same time.
  */
 public interface DigestSigner {
 

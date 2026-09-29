@@ -63,8 +63,9 @@ import java.util.concurrent.TimeUnit;
  * }
  * }</pre>
  *
- * <p>The signer may be any {@link network.t0.sdk.crypto.DigestSigner}; {@code Signer} holds the key in
- * memory, and an implementation of your own can keep it elsewhere.
+ * <p>The signer may be any {@link network.t0.sdk.crypto.DigestSigner} whose {@code sign()} returns
+ * quickly and does not block on network I/O (it runs while the call's lock is held); {@code Signer}
+ * holds the key in memory.
  *
  * <p>Unary calls get a default deadline of 15 seconds, client- and server-streaming calls one of
  * 5 minutes, which includes the wait for the first message. A deadline the caller sets on a call or on
@@ -464,8 +465,7 @@ public abstract class NetworkClient implements Closeable {
                     }
 
                     // Only the first message is signed; later stream messages go out as-is.
-                    if (claimStart()) {
-                        signOrRelease(messageBytes);
+                    if (claimStart(messageBytes)) {
                         startRawCall();
                     }
 
@@ -477,8 +477,7 @@ public abstract class NetworkClient implements Closeable {
                 @Override
                 public void halfClose() {
                     // If no message was sent, start with empty body signature
-                    if (claimStart()) {
-                        signOrRelease(new byte[0]);
+                    if (claimStart(new byte[0])) {
                         startRawCall();
                     }
                     rawCall.halfClose();
@@ -507,7 +506,7 @@ public abstract class NetworkClient implements Closeable {
                     synchronized (lock) {
                         startCalled = responseListener != null;
                     }
-                    if (startCalled && claimStart()) {
+                    if (startCalled && claimStart(null)) {
                         callContext.cancel(Status.CANCELLED
                                 .withDescription(message)
                                 .withCause(cause)
@@ -535,21 +534,28 @@ public abstract class NetworkClient implements Closeable {
                 }
 
                 /**
-                 * Returns true if the caller is to start rawCall (after signing it, if it has a message).
-                 * Otherwise rawCall has started, if need be after waiting for the thread that claimed it.
+                 * Returns true if the caller is to start rawCall, with the headers signed over
+                 * {@code signed} (unsigned if null). Otherwise rawCall has started, if need be after
+                 * waiting for the thread that claimed it.
                  */
-                private boolean claimStart() {
+                private boolean claimStart(byte[] signed) {
                     synchronized (lock) {
+                        if (started) {
+                            return false;
+                        }
+                        if (!starting) {
+                            if (signed != null) {
+                                addSignatureHeaders(signed, clock.millis());
+                            }
+                            starting = true;
+                            starter = Thread.currentThread();
+                            return true;
+                        }
+                        // grpc may run a listener inline in rawCall.start(): that thread must not wait for itself.
+                        if (starter == Thread.currentThread()) {
+                            return false;
+                        }
                         while (!started) {
-                            if (!starting) {
-                                starting = true;
-                                starter = Thread.currentThread();
-                                return true;
-                            }
-                            // grpc may run a listener inline in rawCall.start(): that thread must not wait for itself.
-                            if (starter == Thread.currentThread()) {
-                                return false;
-                            }
                             try {
                                 lock.wait();
                             } catch (InterruptedException e) {
@@ -561,26 +567,6 @@ public abstract class NetworkClient implements Closeable {
                             }
                         }
                         return false;
-                    }
-                }
-
-                // Signs outside the lock, so that a slow signer holds up only this thread: the claim keeps
-                // every other start out. If signing fails, the claim is given back, so that cancel() can
-                // still close the call, and a deadline or context that ended meanwhile starts it unsigned.
-                private void signOrRelease(byte[] signed) {
-                    try {
-                        addSignatureHeaders(signed, clock.millis());
-                    } catch (RuntimeException | Error e) {
-                        synchronized (lock) {
-                            starting = false;
-                            starter = null;
-                            lock.notifyAll();
-                        }
-                        Deadline deadline = callOptions.getDeadline();
-                        if (context.isCancelled() || (deadline != null && deadline.isExpired())) {
-                            startUnsigned();
-                        }
-                        throw e;
                     }
                 }
 
@@ -657,7 +643,7 @@ public abstract class NetworkClient implements Closeable {
                     }
                 }
 
-                // By the thread that claimed the start, before it: once started, the headers belong to the transport.
+                // Under the lock, before start: once started, the headers belong to the transport.
                 private void addSignatureHeaders(byte[] messageBytes, long timestampMs) {
                     byte[] timestampBytes = Headers.encodeTimestamp(timestampMs);
                     byte[] digest = Keccak256.hash(messageBytes, timestampBytes);

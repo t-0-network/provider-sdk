@@ -203,50 +203,6 @@ class SigningClientInterceptorStreamingTest {
     }
 
     @Test
-    @DisplayName("A slow signer holds up only the thread that sends the first message")
-    void slowSignerHoldsUpOnlyTheSender() throws Exception {
-        CountDownLatch signing = new CountDownLatch(1);
-        CountDownLatch release = new CountDownLatch(1);
-        DigestSigner slow = new DigestSigner() {
-            @Override
-            public SignResult sign(byte[] digest) {
-                signing.countDown();
-                awaitQuietly(release);
-                return signer.sign(digest);
-            }
-
-            @Override
-            public byte[] getPublicKey() {
-                return signer.getPublicKey();
-            }
-        };
-        Clock clock = Clock.fixed(Instant.ofEpochMilli(FIXED_TIMESTAMP_MS), ZoneOffset.UTC);
-        ClientCall<StringValue, StringValue> call = ClientInterceptors
-                .intercept(channel, new NetworkClient.SigningClientInterceptor(slow, clock))
-                .newCall(CLIENT_STREAM, callOptions());
-        call.start(new RecordingListener<>(), new Metadata());
-
-        Thread sender = new Thread(() -> call.sendMessage(value("m1")));
-        sender.setDaemon(true); // a hang must not keep the test JVM alive
-        Thread requester = new Thread(() -> call.request(1));
-        requester.setDaemon(true);
-        try {
-            sender.start();
-            assertThat(signing.await(5, TimeUnit.SECONDS)).as("signer entered").isTrue();
-            requester.start();
-            requester.join(2_000);
-            assertThat(requester.isAlive()).as("request() returned while the signer runs").isFalse();
-        } finally {
-            release.countDown();
-        }
-        sender.join(5_000);
-
-        RecordingCall raw = channel.lastCall();
-        awaitEvents(raw, "start", "request:1", "send");
-        assertThat(verifies(raw.headers, bytes("m1"))).isTrue();
-    }
-
-    @Test
     @DisplayName("A signer that throws: sendMessage throws it, nothing starts, and cancel() still closes the listener")
     void throwingSignerLeavesTheCallCancellable() {
         IllegalStateException failure = new IllegalStateException("signer unavailable");
@@ -277,6 +233,48 @@ class SigningClientInterceptorStreamingTest {
         assertThat(raw.events).containsExactly("start", "cancel");
         assertThat(raw.headers.get(SIGNATURE)).isNull();
         assertThat(listener.closeStatus.getCode()).isEqualTo(Status.Code.CANCELLED);
+    }
+
+    @Test
+    @DisplayName("A signer that throws an undeclared checked exception leaves the call to cancel() and the deadline")
+    void sneakyThrowingSignerLeavesTheCallToCancelAndTheDeadline() throws Exception {
+        IOException failure = new IOException("signer unreachable");
+        DigestSigner failing = new DigestSigner() {
+            @Override
+            public SignResult sign(byte[] digest) {
+                return SigningClientInterceptorStreamingTest.<RuntimeException>sneakyThrow(failure);
+            }
+
+            @Override
+            public byte[] getPublicKey() {
+                return signer.getPublicKey();
+            }
+        };
+        Clock clock = Clock.fixed(Instant.ofEpochMilli(FIXED_TIMESTAMP_MS), ZoneOffset.UTC);
+        Channel withFailing = ClientInterceptors.intercept(channel, new NetworkClient.SigningClientInterceptor(failing, clock));
+
+        // cancel() from another thread still starts the call unsigned and closes the listener.
+        RecordingListener<StringValue> listener = new RecordingListener<>();
+        ClientCall<StringValue, StringValue> call = withFailing.newCall(CLIENT_STREAM, callOptions());
+        call.start(listener, new Metadata());
+        assertThatThrownBy(() -> call.sendMessage(value("m1"))).isSameAs(failure);
+        Thread canceller = new Thread(() -> call.cancel("signing failed", failure));
+        canceller.setDaemon(true); // a hang must not keep the test JVM alive
+        canceller.start();
+        canceller.join(5_000);
+        assertThat(canceller.isAlive()).as("cancel() returned").isFalse();
+        assertThat(channel.lastCall().events()).containsExactly("start", "cancel");
+        assertThat(channel.lastCall().headers.get(SIGNATURE)).isNull();
+        assertThat(listener.closeStatus.getCode()).isEqualTo(Status.Code.CANCELLED);
+
+        // Without a cancel, the deadline still starts the call unsigned, and grpc fails it.
+        ClientCall<StringValue, StringValue> timed = withFailing.newCall(
+                CLIENT_STREAM, callOptions().withDeadlineAfter(50, TimeUnit.MILLISECONDS));
+        timed.start(new RecordingListener<>(), new Metadata());
+        assertThatThrownBy(() -> timed.sendMessage(value("m1"))).isSameAs(failure);
+        RecordingCall raw = channel.lastCall();
+        awaitEvents(raw, "start");
+        assertThat(raw.headers.get(SIGNATURE)).isNull();
     }
 
     // ==================== Server streaming ====================
@@ -850,6 +848,11 @@ class SigningClientInterceptorStreamingTest {
             TimeUnit.MILLISECONDS.sleep(5);
         }
         assertThat(raw.events()).containsExactly(expected);
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <E extends Throwable> SignResult sneakyThrow(Throwable t) throws E {
+        throw (E) t;
     }
 
     private static List<Throwable> causeChain(Throwable t) {

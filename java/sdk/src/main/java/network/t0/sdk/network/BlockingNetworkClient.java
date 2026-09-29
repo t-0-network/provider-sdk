@@ -102,7 +102,7 @@ public final class BlockingNetworkClient<S extends AbstractBlockingStub<S>> exte
         S stub;
         try {
             stub = stubFactory.apply(pair.interceptedChannel());
-        } catch (RuntimeException | Error e) {
+        } catch (Throwable e) { // also an undeclared checked exception
             pair.channel().shutdownNow(); // nobody else holds the channel to close it
             throw e;
         }

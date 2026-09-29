@@ -12,6 +12,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
+import java.io.IOException;
 import java.time.Duration;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -99,6 +100,18 @@ class NetworkClientFactoryTest {
         assertThatThrownBy(() -> FutureNetworkClient.<HealthGrpc.HealthFutureStub>create(endpoint, SIGNER,
                 channel -> { built.set(channel); throw failure; })).isSameAs(failure);
         assertShutDown(built.get());
+
+        // Also for a checked exception the factory throws without declaring it.
+        IOException checked = new IOException("no stub");
+        assertThatThrownBy(() -> BlockingNetworkClient.<HealthGrpc.HealthBlockingStub>create(endpoint, SIGNER,
+                channel -> { built.set(channel); return NetworkClientFactoryTest.<RuntimeException, HealthGrpc.HealthBlockingStub>sneakyThrow(checked); }))
+                .isSameAs(checked);
+        assertShutDown(built.get());
+    }
+
+    @SuppressWarnings("unchecked")
+    private static <E extends Throwable, S> S sneakyThrow(Throwable t) throws E {
+        throw (E) t;
     }
 
     /** A call on a shut-down channel fails at once, naming the shutdown, without trying to connect. */

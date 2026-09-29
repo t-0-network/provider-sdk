@@ -268,7 +268,7 @@ try (var client = BlockingNetworkClient.create(
 }
 ```
 
-The base URL needs an `http` or `https` scheme; `null` selects `https://api.t-0.network`. The signer is any `DigestSigner`: `Signer` holds the key in memory, and an implementation of your own can keep it elsewhere (an HSM or a signing service).
+The base URL needs an `http` or `https` scheme; `null` selects `https://api.t-0.network`. The signer is any `DigestSigner`; `Signer` holds the key in memory. `sign()` runs while the call's lock is held, so an implementation of your own must return quickly and must not block on network I/O.
 
 ### Creating an Async Client
 
