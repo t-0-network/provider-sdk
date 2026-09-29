@@ -63,9 +63,11 @@ import java.util.concurrent.TimeUnit;
  * }
  * }</pre>
  *
- * <p>Unary calls get a default deadline of {@value #DEFAULT_TIMEOUT_SECONDS} seconds, streaming calls
- * none. Client- and server-streaming calls are signed over their first request message only;
- * bidirectional streams fail with {@code UNIMPLEMENTED}. See {@code docs/STREAMING.md}.
+ * <p>Unary calls get a default deadline of 15 seconds, client- and server-streaming calls one of
+ * 5 minutes, which includes the wait for the first message. A deadline the caller sets on a call or on
+ * its {@link Context} replaces the default, shorter or longer. Streaming calls are signed over their
+ * first request message only; bidirectional streams fail with {@code UNIMPLEMENTED}.
+ * See {@code docs/STREAMING.md}.
  *
  * <p><b>Thread Safety:</b> Client instances are thread-safe. The underlying gRPC channel
  * and stubs support concurrent use from multiple threads. The signing interceptor creates
@@ -80,9 +82,17 @@ public abstract class NetworkClient implements Closeable {
     private static final Logger log = LoggerFactory.getLogger(NetworkClient.class);
 
     /**
-     * Default deadline in seconds for unary calls. Streaming calls get no deadline by default.
+     * Default deadline for unary calls.
      */
-    protected static final int DEFAULT_TIMEOUT_SECONDS = 15;
+    protected static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(15);
+
+    /**
+     * Default deadline for client- and server-streaming calls, including the wait for the first message.
+     */
+    protected static final Duration DEFAULT_STREAM_TIMEOUT = Duration.ofMinutes(5);
+
+    /** The longest timeout accepted, 2^31 - 1 ms (about 24.8 days). */
+    static final Duration MAX_TIMEOUT = Duration.ofMillis(Integer.MAX_VALUE);
 
     /**
      * The underlying gRPC managed channel.
@@ -116,29 +126,16 @@ public abstract class NetworkClient implements Closeable {
     /**
      * Creates a channel pair for the given endpoint with the signing and default-deadline interceptors.
      *
-     * @param endpoint       the T-0 Network endpoint (e.g., "https://api.t-0.network" or "api.t-0.network:443")
-     * @param signer         the signer to use for signing requests
-     * @param timeoutSeconds the default deadline in seconds for unary calls; streaming calls get none
-     * @return a ChannelPair containing the managed channel and intercepted channel
-     * @throws IllegalArgumentException if the endpoint or signer is invalid, or timeoutSeconds is not positive
-     */
-    protected static ChannelPair createChannel(String endpoint, Signer signer, int timeoutSeconds) {
-        return createChannel(endpoint, signer, Duration.ofSeconds(timeoutSeconds), null);
-    }
-
-    /**
-     * Creates a channel pair for the given endpoint with the signing and default-deadline interceptors.
-     *
      * @param endpoint      the T-0 Network endpoint (e.g., "https://api.t-0.network" or "api.t-0.network:443")
      * @param signer        the signer to use for signing requests
-     * @param unaryTimeout  the default deadline for unary calls; must be positive
-     * @param streamTimeout the default deadline for streaming calls; {@code null} or zero for none
+     * @param timeout       the default deadline for unary calls
+     * @param streamTimeout the default deadline for client- and server-streaming calls
      * @return a ChannelPair containing the managed channel and intercepted channel
-     * @throws IllegalArgumentException if the endpoint or signer is invalid, {@code unaryTimeout} is not
-     *                                  positive or {@code streamTimeout} is negative
+     * @throws IllegalArgumentException if the endpoint or signer is invalid, or a timeout is not a positive
+     *                                  duration of at most 2147483647 ms
      */
     protected static ChannelPair createChannel(
-            String endpoint, Signer signer, Duration unaryTimeout, Duration streamTimeout) {
+            String endpoint, Signer signer, Duration timeout, Duration streamTimeout) {
         if (endpoint == null || endpoint.isEmpty()) {
             throw new IllegalArgumentException("endpoint must not be null or empty");
         }
@@ -146,7 +143,7 @@ public abstract class NetworkClient implements Closeable {
             throw new IllegalArgumentException("signer must not be null");
         }
         // Validates the timeouts before there is a channel to shut down.
-        DefaultDeadlineInterceptor deadlines = new DefaultDeadlineInterceptor(unaryTimeout, streamTimeout);
+        DefaultDeadlineInterceptor deadlines = new DefaultDeadlineInterceptor(timeout, streamTimeout);
 
         EndpointInfo endpointInfo = parseEndpoint(endpoint);
 
@@ -166,6 +163,32 @@ public abstract class NetworkClient implements Closeable {
                 channel, new SigningClientInterceptor(signer, Clock.systemUTC()), deadlines);
 
         return new ChannelPair(channel, interceptedChannel);
+    }
+
+    /**
+     * Returns {@code value} if it is a positive duration of at most {@link #MAX_TIMEOUT}.
+     *
+     * @throws IllegalArgumentException otherwise, naming {@code option}
+     */
+    static Duration checkTimeout(String option, Duration value) {
+        if (value == null || value.isNegative() || value.isZero() || value.compareTo(MAX_TIMEOUT) > 0) {
+            throw new IllegalArgumentException(
+                    option + " must be a positive duration of at most " + MAX_TIMEOUT.toMillis() + " ms");
+        }
+        return value;
+    }
+
+    /**
+     * Checks a per-call timeout as {@link #checkTimeout(String, Duration)} does.
+     *
+     * @throws IllegalArgumentException if {@code unit} is null or the timeout is out of range
+     */
+    static void checkTimeout(String option, long value, TimeUnit unit) {
+        if (unit == null) {
+            throw new IllegalArgumentException("unit must not be null");
+        }
+        // toNanos saturates, so a huge value stays above the bound instead of overflowing.
+        checkTimeout(option, value <= 0 ? Duration.ZERO : Duration.ofNanos(unit.toNanos(value)));
     }
 
     /**
@@ -351,9 +374,18 @@ public abstract class NetworkClient implements Closeable {
             ).build();
 
             // Create the underlying call with the raw method descriptor
-            ClientCall<byte[], RespT> rawCall = next.newCall(rawMethod, callOptions);
-            // The context rawCall was created in, which it watches from its start.
+            // The caller's context, whose end before the first message starts rawCall unsigned.
             Context context = Context.current();
+            // rawCall is created in a child of it: cancel() before the first message cancels the child,
+            // so that rawCall starts already cancelled, closes its listener and sends nothing.
+            Context.CancellableContext callContext = context.withCancellation();
+            ClientCall<byte[], RespT> rawCall;
+            Context previous = callContext.attach();
+            try {
+                rawCall = next.newCall(rawMethod, callOptions);
+            } finally {
+                callContext.detach(previous);
+            }
 
             // Extend ClientCall directly instead of ForwardingClientCall to avoid
             // the delegate() issue. ForwardingClientCall requires delegate() to return
@@ -455,13 +487,18 @@ public abstract class NetworkClient implements Closeable {
 
                 @Override
                 public void cancel(String message, Throwable cause) {
-                    // An unstarted call never notifies its listener: start it (unsigned) so the
-                    // listener still gets onClose(CANCELLED). Before start() there is no listener.
+                    // An unstarted call never notifies its listener: start it (unsigned, in its
+                    // cancelled context, so nothing is sent) so the listener still gets
+                    // onClose(CANCELLED). Before start() there is no listener.
                     boolean startCalled;
                     synchronized (lock) {
                         startCalled = responseListener != null;
                     }
                     if (startCalled && claimStart(null)) {
+                        callContext.cancel(Status.CANCELLED
+                                .withDescription(message)
+                                .withCause(cause)
+                                .asRuntimeException());
                         startRawCall();
                     }
                     rawCall.cancel(message, cause);
@@ -654,32 +691,26 @@ public abstract class NetworkClient implements Closeable {
     // --- Default deadlines ---
 
     /**
-     * gRPC client interceptor that gives each call without a deadline one when the call is created:
-     * the unary timeout for unary calls, the stream timeout (possibly none) for all others.
+     * gRPC client interceptor that gives each call a deadline when it is created, unless the caller set
+     * one on the call or on its {@link Context}: the timeout for unary calls, the stream timeout for all
+     * others. The caller's own deadline replaces the default, shorter or longer.
      * See {@code docs/STREAMING.md}.
      */
     static final class DefaultDeadlineInterceptor implements ClientInterceptor {
 
-        private final Duration unaryTimeout;
-        private final Duration streamTimeout; // null: streaming calls get no deadline
+        private final Duration timeout;
+        private final Duration streamTimeout;
 
         /**
          * Creates a new default-deadline interceptor.
          *
-         * @param unaryTimeout  the deadline for unary calls; must be positive
-         * @param streamTimeout the deadline for streaming calls; {@code null} or zero for none
-         * @throws IllegalArgumentException if {@code unaryTimeout} is not positive or
-         *                                  {@code streamTimeout} is negative
+         * @param timeout       the deadline for unary calls
+         * @param streamTimeout the deadline for client- and server-streaming calls
+         * @throws IllegalArgumentException if a timeout is not a positive duration of at most 2147483647 ms
          */
-        DefaultDeadlineInterceptor(Duration unaryTimeout, Duration streamTimeout) {
-            if (unaryTimeout == null || unaryTimeout.isNegative() || unaryTimeout.isZero()) {
-                throw new IllegalArgumentException("unaryTimeout must be positive");
-            }
-            if (streamTimeout != null && streamTimeout.isNegative()) {
-                throw new IllegalArgumentException("streamTimeout must not be negative");
-            }
-            this.unaryTimeout = unaryTimeout;
-            this.streamTimeout = streamTimeout == null || streamTimeout.isZero() ? null : streamTimeout;
+        DefaultDeadlineInterceptor(Duration timeout, Duration streamTimeout) {
+            this.timeout = checkTimeout("timeout", timeout);
+            this.streamTimeout = checkTimeout("streamTimeout", streamTimeout);
         }
 
         @Override
@@ -687,23 +718,13 @@ public abstract class NetworkClient implements Closeable {
                 MethodDescriptor<ReqT, RespT> method,
                 CallOptions callOptions,
                 Channel next) {
-            if (callOptions.getDeadline() == null) {
-                Duration timeout = method.getType() == MethodDescriptor.MethodType.UNARY
-                        ? unaryTimeout
-                        : streamTimeout;
-                if (timeout != null) {
-                    callOptions = callOptions.withDeadlineAfter(saturatedNanos(timeout), TimeUnit.NANOSECONDS);
-                }
+            // grpc applies the earlier of the two deadlines, so a default set next to a longer Context
+            // deadline would cut the caller's deadline short.
+            if (callOptions.getDeadline() == null && Context.current().getDeadline() == null) {
+                Duration deadline = method.getType() == MethodDescriptor.MethodType.UNARY ? timeout : streamTimeout;
+                callOptions = callOptions.withDeadlineAfter(deadline.toNanos(), TimeUnit.NANOSECONDS);
             }
             return next.newCall(method, callOptions);
-        }
-
-        private static long saturatedNanos(Duration duration) {
-            try {
-                return duration.toNanos();
-            } catch (ArithmeticException e) {
-                return Long.MAX_VALUE; // Deadline clamps it further
-            }
         }
     }
 }

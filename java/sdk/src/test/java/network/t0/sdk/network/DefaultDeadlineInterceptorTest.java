@@ -22,6 +22,7 @@ import io.grpc.health.v1.HealthCheckResponse;
 import io.grpc.health.v1.HealthGrpc;
 import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder;
 import io.grpc.protobuf.ProtoUtils;
+import io.grpc.stub.MetadataUtils;
 import io.grpc.stub.StreamObserver;
 import network.t0.sdk.crypto.Signer;
 import org.junit.jupiter.api.DisplayName;
@@ -35,6 +36,8 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -42,11 +45,17 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Tests {@link NetworkClient.DefaultDeadlineInterceptor}: which deadline each call type gets,
- * that a deadline already set is kept, and that the clients' {@code create} overloads apply it.
+ * that a deadline the caller set is kept, the bounds of the timeouts, and that the clients apply them.
  */
 class DefaultDeadlineInterceptorTest {
 
     private static final String PRIVATE_KEY_HEX = "6b30303de7b26bfb1222b317a52113357f8bb06de00160b4261a2fef9c8b9bd8";
+    private static final ScheduledExecutorService SCHEDULER = Executors.newSingleThreadScheduledExecutor(task -> {
+        Thread thread = new Thread(task, "context-deadlines");
+        thread.setDaemon(true);
+        return thread;
+    });
+    private static final Metadata.Key<String> CASE = Metadata.Key.of("x-case", Metadata.ASCII_STRING_MARSHALLER);
 
     @Test
     @DisplayName("Unary calls get the unary deadline")
@@ -68,14 +77,6 @@ class DefaultDeadlineInterceptorTest {
     }
 
     @ParameterizedTest
-    @EnumSource(value = MethodType.class, names = {"CLIENT_STREAMING", "SERVER_STREAMING", "BIDI_STREAMING"})
-    @DisplayName("Streaming calls get no deadline when no stream timeout is set")
-    void streamingGetsNoDeadlineByDefault(MethodType type) {
-        assertThat(optionsFor(type, Duration.ofSeconds(15), null, CallOptions.DEFAULT).getDeadline()).isNull();
-        assertThat(optionsFor(type, Duration.ofSeconds(15), Duration.ZERO, CallOptions.DEFAULT).getDeadline()).isNull();
-    }
-
-    @ParameterizedTest
     @EnumSource(value = MethodType.class, names = {"UNARY", "CLIENT_STREAMING", "SERVER_STREAMING"})
     @DisplayName("A deadline the call already has is kept")
     void existingDeadlineIsKept(MethodType type) {
@@ -87,12 +88,27 @@ class DefaultDeadlineInterceptorTest {
         assertThat(options.getDeadline()).isSameAs(own);
     }
 
+    @ParameterizedTest
+    @EnumSource(value = MethodType.class, names = {"UNARY", "CLIENT_STREAMING", "SERVER_STREAMING"})
+    @DisplayName("A deadline on the caller's Context takes the place of the default")
+    void contextDeadlineIsKept(MethodType type) throws Exception {
+        Context.CancellableContext context = Context.current().withDeadlineAfter(2, TimeUnit.HOURS, SCHEDULER);
+        try {
+            CallOptions options = context.call(() -> optionsFor(type, Duration.ofSeconds(15), Duration.ofMinutes(5),
+                    CallOptions.DEFAULT));
+
+            assertThat(options.getDeadline()).isNull();
+        } finally {
+            context.cancel(null);
+        }
+    }
+
     @Test
     @DisplayName("The deadline is computed for each call when it is created")
     void deadlineIsComputedPerCall() throws InterruptedException {
         CapturingChannel channel = new CapturingChannel();
         Channel intercepted = ClientInterceptors.intercept(channel,
-                new NetworkClient.DefaultDeadlineInterceptor(Duration.ofSeconds(15), null));
+                new NetworkClient.DefaultDeadlineInterceptor(Duration.ofSeconds(15), Duration.ofMinutes(5)));
 
         intercepted.newCall(method(MethodType.UNARY), CallOptions.DEFAULT);
         Deadline first = channel.options.getDeadline();
@@ -104,27 +120,64 @@ class DefaultDeadlineInterceptorTest {
     }
 
     @Test
-    @DisplayName("Timeouts are validated: unary must be positive, stream must not be negative")
+    @DisplayName("A timeout must be a positive duration of at most 2147483647 ms")
     void timeoutsAreValidated() {
-        assertThatThrownBy(() -> new NetworkClient.DefaultDeadlineInterceptor(null, null))
-                .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new NetworkClient.DefaultDeadlineInterceptor(Duration.ZERO, null))
-                .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new NetworkClient.DefaultDeadlineInterceptor(Duration.ofSeconds(-1), null))
-                .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> new NetworkClient.DefaultDeadlineInterceptor(Duration.ofSeconds(1), Duration.ofSeconds(-1)))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("streamTimeout");
+        Duration ok = Duration.ofSeconds(1);
+        for (Duration bad : new Duration[] {null, Duration.ZERO, Duration.ofMillis(-1),
+                Duration.ofMillis(2147483648L), Duration.ofMillis(2147483647L).plusNanos(1)}) {
+            assertThatThrownBy(() -> new NetworkClient.DefaultDeadlineInterceptor(bad, ok))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessage("timeout must be a positive duration of at most 2147483647 ms");
+            assertThatThrownBy(() -> new NetworkClient.DefaultDeadlineInterceptor(ok, bad))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessage("streamTimeout must be a positive duration of at most 2147483647 ms");
+        }
+        Duration max = Duration.ofMillis(2147483647L);
+        new NetworkClient.DefaultDeadlineInterceptor(max, max);
+        new NetworkClient.DefaultDeadlineInterceptor(Duration.ofNanos(1), Duration.ofNanos(1));
+    }
 
+    @Test
+    @DisplayName("Every client's create() refuses a bad timeout before it builds a channel")
+    void clientsRefuseBadTimeouts() {
         Signer signer = Signer.fromHex(PRIVATE_KEY_HEX);
-        assertThatThrownBy(() -> BlockingNetworkClient.create("http://localhost:1", signer, HealthGrpc::newBlockingStub, 0))
-                .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> AsyncNetworkClient.create("http://localhost:1", signer, HealthGrpc::newStub,
-                Duration.ofSeconds(1), Duration.ofSeconds(-1)))
-                .isInstanceOf(IllegalArgumentException.class);
-        assertThatThrownBy(() -> FutureNetworkClient.create("http://localhost:1", signer, HealthGrpc::newFutureStub,
-                Duration.ZERO, null))
-                .isInstanceOf(IllegalArgumentException.class);
+        String endpoint = "http://localhost:1";
+        assertThatThrownBy(() -> BlockingNetworkClient.create(endpoint, signer, HealthGrpc::newBlockingStub,
+                Duration.ZERO, Duration.ofMinutes(5)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("timeout must be a positive duration of at most 2147483647 ms");
+        assertThatThrownBy(() -> AsyncNetworkClient.create(endpoint, signer, HealthGrpc::newStub,
+                Duration.ofSeconds(1), null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("streamTimeout must be a positive duration of at most 2147483647 ms");
+        assertThatThrownBy(() -> FutureNetworkClient.create(endpoint, signer, HealthGrpc::newFutureStub,
+                Duration.ofSeconds(1), Duration.ofDays(25)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("streamTimeout must be a positive duration of at most 2147483647 ms");
+    }
+
+    @Test
+    @DisplayName("A per-call timeout from stub(timeout, unit) has the same bounds")
+    void perCallTimeoutsAreValidated() {
+        Signer signer = Signer.fromHex(PRIVATE_KEY_HEX);
+        String endpoint = "http://localhost:1";
+        try (var blocking = BlockingNetworkClient.create(endpoint, signer, HealthGrpc::newBlockingStub);
+             var async = AsyncNetworkClient.create(endpoint, signer, HealthGrpc::newStub);
+             var future = FutureNetworkClient.create(endpoint, signer, HealthGrpc::newFutureStub)) {
+            for (long bad : new long[] {0, -1, 2147483648L, Long.MAX_VALUE}) {
+                String message = "timeout must be a positive duration of at most 2147483647 ms";
+                assertThatThrownBy(() -> blocking.stub(bad, TimeUnit.MILLISECONDS)).hasMessage(message);
+                assertThatThrownBy(() -> async.stub(bad, TimeUnit.MILLISECONDS)).hasMessage(message);
+                assertThatThrownBy(() -> future.stub(bad, TimeUnit.MILLISECONDS)).hasMessage(message);
+            }
+            assertThatThrownBy(() -> blocking.stub(Long.MAX_VALUE, TimeUnit.DAYS))
+                    .isInstanceOf(IllegalArgumentException.class);
+            assertThatThrownBy(() -> blocking.stub(1, null))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessage("unit must not be null");
+            assertThat(blocking.stub(2147483647L, TimeUnit.MILLISECONDS).getCallOptions().getDeadline()).isNotNull();
+            assertThat(async.stub(1, TimeUnit.NANOSECONDS).getCallOptions().getDeadline()).isNotNull();
+        }
     }
 
     @Nested
@@ -132,7 +185,7 @@ class DefaultDeadlineInterceptorTest {
     class ThroughTheClients {
 
         @Test
-        @DisplayName("The default create() sends unary calls a 15 s deadline and server streams none")
+        @DisplayName("The default create() sends unary calls a 15 s deadline and server streams 5 min")
         void defaultCreateDeadlinesReachTheServer() throws Exception {
             // Milliseconds left on each call's deadline when it reaches the server, by method.
             Map<String, Optional<Long>> remainingMs = new ConcurrentHashMap<>();
@@ -173,15 +226,16 @@ class DefaultDeadlineInterceptorTest {
             }
 
             assertThat(remainingMs.get("Check")).hasValueSatisfying(ms -> assertThat(ms).isBetween(14_000L, 15_000L));
-            assertThat(remainingMs.get("Watch")).isEmpty();
+            assertThat(remainingMs.get("Watch")).hasValueSatisfying(ms -> assertThat(ms).isBetween(299_000L, 300_000L));
         }
 
         @Test
-        @DisplayName("create(..., timeoutSeconds) bounds unary calls")
-        void timeoutSecondsBoundsUnaryCalls() throws Exception {
+        @DisplayName("The timeout bounds unary calls")
+        void timeoutBoundsUnaryCalls() throws Exception {
             Server server = silentHealthServer();
             try (var client = BlockingNetworkClient.create("http://localhost:" + server.getPort(),
-                    Signer.fromHex(PRIVATE_KEY_HEX), HealthGrpc::newBlockingStub, 1)) {
+                    Signer.fromHex(PRIVATE_KEY_HEX), HealthGrpc::newBlockingStub, Duration.ofSeconds(1),
+                    Duration.ofMinutes(5))) {
 
                 long start = System.nanoTime();
                 assertThatThrownBy(() -> client.stub().check(HealthCheckRequest.getDefaultInstance()))
@@ -199,16 +253,16 @@ class DefaultDeadlineInterceptorTest {
             Server server = silentHealthServer();
             String endpoint = "http://localhost:" + server.getPort();
             Signer signer = Signer.fromHex(PRIVATE_KEY_HEX);
-            try (var unaryOnly = AsyncNetworkClient.create(endpoint, signer, HealthGrpc::newStub,
-                         Duration.ofMillis(500), null);
-                 var withStreamTimeout = AsyncNetworkClient.create(endpoint, signer, HealthGrpc::newStub,
+            try (var shortUnary = AsyncNetworkClient.create(endpoint, signer, HealthGrpc::newStub,
+                         Duration.ofMillis(500), Duration.ofSeconds(30));
+                 var shortStream = AsyncNetworkClient.create(endpoint, signer, HealthGrpc::newStub,
                          Duration.ofSeconds(30), Duration.ofMillis(500))) {
 
-                CompletableFuture<Status> unbounded = watch(unaryOnly.stub());
-                CompletableFuture<Status> bounded = watch(withStreamTimeout.stub());
+                CompletableFuture<Status> unbounded = watch(shortUnary.stub());
+                CompletableFuture<Status> bounded = watch(shortStream.stub());
 
                 assertThat(bounded.get(10, TimeUnit.SECONDS).getCode()).isEqualTo(Status.Code.DEADLINE_EXCEEDED);
-                // Past the 500 ms unary timeout, the stream without a stream timeout is still open.
+                // Past the 500 ms unary timeout, the stream with a 30 s stream timeout is still open.
                 Thread.sleep(1_000);
                 assertThat(unbounded).isNotDone();
 
@@ -218,6 +272,70 @@ class DefaultDeadlineInterceptorTest {
             } finally {
                 server.shutdownNow();
             }
+        }
+
+        @Test
+        @DisplayName("A Context deadline replaces the default when it reaches the server, longer or shorter")
+        void contextDeadlineReachesTheServer() throws Exception {
+            Map<String, Long> remainingMs = new ConcurrentHashMap<>();
+            ServerInterceptor recorder = new ServerInterceptor() {
+                @Override
+                public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(
+                        ServerCall<ReqT, RespT> call, Metadata headers, ServerCallHandler<ReqT, RespT> next) {
+                    remainingMs.put(headers.get(CASE), Context.current().getDeadline().timeRemaining(TimeUnit.MILLISECONDS));
+                    return next.startCall(call, headers);
+                }
+            };
+            Server server = NettyServerBuilder.forPort(0)
+                    .addService(ServerInterceptors.intercept(new HealthGrpc.HealthImplBase() {
+                        @Override
+                        public void check(HealthCheckRequest request, StreamObserver<HealthCheckResponse> observer) {
+                            observer.onNext(HealthCheckResponse.getDefaultInstance());
+                            observer.onCompleted();
+                        }
+
+                        @Override
+                        public void watch(HealthCheckRequest request, StreamObserver<HealthCheckResponse> observer) {
+                            observer.onNext(HealthCheckResponse.getDefaultInstance());
+                            observer.onCompleted();
+                        }
+                    }, recorder))
+                    .build()
+                    .start();
+            try (var client = BlockingNetworkClient.create("http://localhost:" + server.getPort(),
+                    Signer.fromHex(PRIVATE_KEY_HEX), HealthGrpc::newBlockingStub)) {
+                withContextDeadline(Duration.ofSeconds(60), () -> tagged(client.stub(), "unary-longer")
+                        .check(HealthCheckRequest.getDefaultInstance()));
+                withContextDeadline(Duration.ofSeconds(5), () -> tagged(client.stub(), "unary-shorter")
+                        .check(HealthCheckRequest.getDefaultInstance()));
+                withContextDeadline(Duration.ofMinutes(10), () -> tagged(client.stub(), "stream-longer")
+                        .watch(HealthCheckRequest.getDefaultInstance()).forEachRemaining(response -> { }));
+                withContextDeadline(Duration.ofSeconds(30), () -> tagged(client.stub(), "stream-shorter")
+                        .watch(HealthCheckRequest.getDefaultInstance()).forEachRemaining(response -> { }));
+            } finally {
+                server.shutdownNow();
+            }
+
+            assertThat(remainingMs.get("unary-longer")).isBetween(55_000L, 60_000L);
+            assertThat(remainingMs.get("unary-shorter")).isBetween(1_000L, 5_000L);
+            assertThat(remainingMs.get("stream-longer")).isBetween(595_000L, 600_000L);
+            assertThat(remainingMs.get("stream-shorter")).isBetween(25_000L, 30_000L);
+        }
+
+        private void withContextDeadline(Duration deadline, Runnable call) {
+            Context.CancellableContext context =
+                    Context.current().withDeadlineAfter(deadline.toMillis(), TimeUnit.MILLISECONDS, SCHEDULER);
+            try {
+                context.run(call);
+            } finally {
+                context.cancel(null);
+            }
+        }
+
+        private HealthGrpc.HealthBlockingStub tagged(HealthGrpc.HealthBlockingStub stub, String name) {
+            Metadata headers = new Metadata();
+            headers.put(CASE, name);
+            return stub.withInterceptors(MetadataUtils.newAttachHeadersInterceptor(headers));
         }
 
         private CompletableFuture<Status> watch(HealthGrpc.HealthStub stub) {
@@ -259,10 +377,10 @@ class DefaultDeadlineInterceptorTest {
 
     // ==================== Helpers ====================
 
-    private static CallOptions optionsFor(MethodType type, Duration unaryTimeout, Duration streamTimeout,
+    private static CallOptions optionsFor(MethodType type, Duration timeout, Duration streamTimeout,
                                           CallOptions callOptions) {
         CapturingChannel channel = new CapturingChannel();
-        ClientInterceptors.intercept(channel, new NetworkClient.DefaultDeadlineInterceptor(unaryTimeout, streamTimeout))
+        ClientInterceptors.intercept(channel, new NetworkClient.DefaultDeadlineInterceptor(timeout, streamTimeout))
                 .newCall(method(type), callOptions);
         return channel.options;
     }

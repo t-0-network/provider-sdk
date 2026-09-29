@@ -4,6 +4,7 @@ import com.google.protobuf.StringValue;
 import io.grpc.CallOptions;
 import io.grpc.Channel;
 import io.grpc.ClientInterceptors;
+import io.grpc.Context;
 import io.grpc.ManagedChannel;
 import io.grpc.MethodDescriptor;
 import io.grpc.MethodDescriptor.MethodType;
@@ -44,6 +45,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -352,6 +355,66 @@ class CrossServerTests {
             // Nothing was sent: the helper logs every request it gets for the stream.
             TimeUnit.MILLISECONDS.sleep(200);
             assertThat(goServer.logText()).doesNotContain("/test.v1.StreamTest/ClientStream");
+        } finally {
+            stop(goServer);
+        }
+    }
+
+    /** A Context deadline takes the place of the stream timeout, and it too covers the wait. */
+    @Test
+    @Timeout(30)
+    void javaClient_goServer_contextDeadlineBeforeTheFirstMessage() throws Exception {
+        skipOrFailIfNoHelper();
+        GoServer goServer = startGoServer();
+        ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+        Context.CancellableContext context = Context.current().withDeadlineAfter(50, TimeUnit.MILLISECONDS, scheduler);
+
+        try (var client = streamClient(goServer.port(), PRIVATE_KEY)) {
+            CompletableFuture<String> result = new CompletableFuture<>();
+            // No message and no half-close: only the Context deadline can end the call.
+            context.run(() -> ClientCalls.asyncClientStreamingCall(
+                    client.getChannel().newCall(CLIENT_STREAM, CallOptions.DEFAULT), resultObserver(result)));
+
+            ExecutionException thrown = org.junit.jupiter.api.Assertions.assertThrows(
+                    ExecutionException.class, () -> result.get(10, TimeUnit.SECONDS));
+            assertThat(Status.fromThrowable(thrown.getCause()).getCode()).isEqualTo(Status.Code.DEADLINE_EXCEEDED);
+            TimeUnit.MILLISECONDS.sleep(200);
+            assertThat(goServer.logText()).doesNotContain("/test.v1.StreamTest/ClientStream");
+        } finally {
+            context.cancel(null);
+            scheduler.shutdownNow();
+            stop(goServer);
+        }
+    }
+
+    /** Over a connection already open, where a started call would put its headers on the wire at once. */
+    @Test
+    @Timeout(30)
+    void javaClient_goServer_cancelBeforeTheFirstMessageSendsNothing() throws Exception {
+        skipOrFailIfNoHelper();
+        GoServer goServer = startGoServer();
+
+        try (var client = streamClient(goServer.port(), PRIVATE_KEY)) {
+            assertThat(sendClientStream(client.getChannel(), List.of("m1")).get(10, TimeUnit.SECONDS)).isEqualTo("m1");
+            goServer.waitForLog(CLIENT_STREAM_VERIFIED);
+            int afterFirstCall = goServer.logLength();
+
+            for (int i = 0; i < 3; i++) {
+                CompletableFuture<String> result = new CompletableFuture<>();
+                ClientCallStreamObserver<StringValue> requests = (ClientCallStreamObserver<StringValue>)
+                        ClientCalls.asyncClientStreamingCall(
+                                client.getChannel().newCall(CLIENT_STREAM, CallOptions.DEFAULT), resultObserver(result));
+                requests.cancel("caller gave up", null);
+
+                ExecutionException thrown = org.junit.jupiter.api.Assertions.assertThrows(
+                        ExecutionException.class, () -> result.get(10, TimeUnit.SECONDS));
+                Status status = Status.fromThrowable(thrown.getCause());
+                assertThat(status.getCode()).isEqualTo(Status.Code.CANCELLED);
+                assertThat(status.getDescription()).isEqualTo("caller gave up");
+            }
+            // The helper logs every request it gets for the stream.
+            TimeUnit.MILLISECONDS.sleep(500);
+            assertThat(goServer.logText().substring(afterFirstCall)).doesNotContain("/test.v1.StreamTest/ClientStream");
         } finally {
             stop(goServer);
         }

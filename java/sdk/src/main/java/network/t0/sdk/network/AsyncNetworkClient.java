@@ -56,7 +56,7 @@ public final class AsyncNetworkClient<S extends AbstractAsyncStub<S>> extends Ne
     /**
      * Creates a new AsyncNetworkClient for the given endpoint and stub type.
      *
-     * <p>Default deadlines: {@value #DEFAULT_TIMEOUT_SECONDS} seconds for unary calls, none for streams.
+     * <p>Default deadlines: 15 seconds for unary calls, 5 minutes for client- and server-streaming calls.
      *
      * @param endpoint    the T-0 Network endpoint (e.g., "https://api.t-0.network" or "api.t-0.network:443")
      * @param signer      the signer to use for signing requests
@@ -69,26 +69,7 @@ public final class AsyncNetworkClient<S extends AbstractAsyncStub<S>> extends Ne
             String endpoint,
             Signer signer,
             Function<Channel, S> stubFactory) {
-        return create(endpoint, signer, stubFactory, DEFAULT_TIMEOUT_SECONDS);
-    }
-
-    /**
-     * Creates a new AsyncNetworkClient for the given endpoint and stub type.
-     *
-     * @param endpoint       the T-0 Network endpoint (e.g., "https://api.t-0.network" or "api.t-0.network:443")
-     * @param signer         the signer to use for signing requests
-     * @param stubFactory    the stub factory (e.g., {@code NetworkServiceGrpc::newStub})
-     * @param timeoutSeconds the default deadline in seconds for unary calls (streams get none); must be positive
-     * @param <S>            the async stub type
-     * @return a new AsyncNetworkClient instance
-     * @throws IllegalArgumentException if the endpoint or signer is invalid, or timeoutSeconds is not positive
-     */
-    public static <S extends AbstractAsyncStub<S>> AsyncNetworkClient<S> create(
-            String endpoint,
-            Signer signer,
-            Function<Channel, S> stubFactory,
-            int timeoutSeconds) {
-        return create(endpoint, signer, stubFactory, Duration.ofSeconds(timeoutSeconds), null);
+        return create(endpoint, signer, stubFactory, DEFAULT_TIMEOUT, DEFAULT_STREAM_TIMEOUT);
     }
 
     /**
@@ -99,20 +80,21 @@ public final class AsyncNetworkClient<S extends AbstractAsyncStub<S>> extends Ne
      * @param endpoint      the T-0 Network endpoint (e.g., "https://api.t-0.network" or "api.t-0.network:443")
      * @param signer        the signer to use for signing requests
      * @param stubFactory   the stub factory (e.g., {@code NetworkServiceGrpc::newStub})
-     * @param unaryTimeout  the default deadline for unary calls; must be positive
-     * @param streamTimeout the default deadline for streaming calls; {@code null} or zero for none
+     * @param timeout       the default deadline for unary calls
+     * @param streamTimeout the default deadline for client- and server-streaming calls, including
+     *                      the wait for the first message
      * @param <S>           the async stub type
      * @return a new AsyncNetworkClient instance
-     * @throws IllegalArgumentException if the endpoint or signer is invalid, {@code unaryTimeout} is not
-     *                                  positive or {@code streamTimeout} is negative
+     * @throws IllegalArgumentException if the endpoint or signer is invalid, or a timeout is not a
+     *                                  positive duration of at most 2147483647 ms
      */
     public static <S extends AbstractAsyncStub<S>> AsyncNetworkClient<S> create(
             String endpoint,
             Signer signer,
             Function<Channel, S> stubFactory,
-            Duration unaryTimeout,
+            Duration timeout,
             Duration streamTimeout) {
-        ChannelPair pair = createChannel(endpoint, signer, unaryTimeout, streamTimeout);
+        ChannelPair pair = createChannel(endpoint, signer, timeout, streamTimeout);
         S stub = stubFactory.apply(pair.interceptedChannel());
         return new AsyncNetworkClient<>(pair.channel(), pair.interceptedChannel(), stub);
     }
@@ -136,15 +118,11 @@ public final class AsyncNetworkClient<S extends AbstractAsyncStub<S>> extends Ne
      * @param timeout the timeout value
      * @param unit    the time unit for the timeout
      * @return a new stub instance with the specified deadline
-     * @throws IllegalArgumentException if timeout is not positive or unit is null
+     * @throws IllegalArgumentException if unit is null, or the timeout is not a positive duration of at
+     *                                  most 2147483647 ms
      */
     public S stub(long timeout, TimeUnit unit) {
-        if (timeout <= 0) {
-            throw new IllegalArgumentException("timeout must be positive");
-        }
-        if (unit == null) {
-            throw new IllegalArgumentException("unit must not be null");
-        }
+        checkTimeout("timeout", timeout, unit);
         return stub.withDeadlineAfter(timeout, unit);
     }
 }

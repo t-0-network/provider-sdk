@@ -56,7 +56,7 @@ Handles outbound requests to the t-0 Network with automatic request signing.
 
 **Key Features:**
 - Automatic request signing via `SigningClientInterceptor`
-- Default deadlines per call type: 15 seconds for unary calls, none for streaming calls (configurable per client and per stub)
+- Default deadlines per call type: 15 seconds for unary calls, 5 minutes for streaming calls (configurable per client and per stub)
 - Streaming calls: only the first request message is signed
 - Endpoint parsing (supports `https://host`, `http://host:port`, `host:port`)
 - Graceful shutdown with 5-second timeout
@@ -218,7 +218,7 @@ The interceptor tries the unframed payload first, then reconstructs the gRPC fra
 
 For client- and server-streaming calls, `SigningClientInterceptor` signs **only the first request message** (unframed, as for unary calls); later messages are sent unsigned. The call starts when that first message is sent. Bidirectional streaming is not supported: such a call closes with `UNIMPLEMENTED` and nothing is sent.
 
-Streaming calls get no default deadline. Set one per client, or per stub with `stub(timeout, unit)`:
+Streaming calls get a default deadline of 5 minutes, which includes the wait for the first message. Set other values per client, or per stub with `stub(timeout, unit)`; a deadline set on the stub or on the caller's `Context` replaces the default, shorter or longer:
 
 ```java
 // 15 s for unary calls, 10 min for streaming calls
@@ -447,11 +447,9 @@ Results are reported in operations per millisecond.
 
 **Symptom**: `DEADLINE_EXCEEDED` status
 
-**Solution**: Increase the default deadline when creating the client (unary calls get 15 seconds by default, streaming calls none):
+**Solution**: Increase the default deadline when creating the client (unary calls get 15 seconds by default, streaming calls 5 minutes):
 ```java
-BlockingNetworkClient.create(endpoint, signer, stubFactory, 60); // 60 seconds for unary calls
-
-// Separate deadlines for unary and streaming calls (null or Duration.ZERO: no stream deadline)
+// Deadlines for unary and streaming calls: each a positive duration of at most 2147483647 ms
 BlockingNetworkClient.create(endpoint, signer, stubFactory, Duration.ofSeconds(60), Duration.ofMinutes(10));
 ```
 

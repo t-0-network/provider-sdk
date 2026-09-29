@@ -248,6 +248,8 @@ class SigningClientInterceptorStreamingTest {
         assertThat(listener.closeStatus.getCode()).isEqualTo(Status.Code.CANCELLED);
         assertThat(listener.closeStatus.getDescription()).isEqualTo("caller gave up");
         assertThat(raw.headers.get(SIGNATURE)).isNull();
+        // Started in a cancelled context: grpc opens no stream for it, so nothing is sent.
+        assertThat(raw.contextCancelledAtStart).isTrue();
     }
 
     @Test
@@ -519,6 +521,7 @@ class SigningClientInterceptorStreamingTest {
             assertThat(raw.starts).isEqualTo(1);
             assertThat(raw.events()).containsExactlyInAnyOrder("start", "send", "cancel");
             assertThat(verifies(raw.headers, bytes("m1"))).isTrue();
+            assertThat(raw.contextCancelledAtStart).isFalse();
         } finally {
             threads.shutdownNow();
         }
@@ -548,6 +551,7 @@ class SigningClientInterceptorStreamingTest {
             assertThat(raw.starts).isEqualTo(1);
             assertThat(raw.events()).containsExactlyInAnyOrder("start", "cancel", "send");
             assertThat(raw.headers.get(SIGNATURE)).isNull();
+            assertThat(raw.contextCancelledAtStart).isTrue();
         } finally {
             threads.shutdownNow();
         }
@@ -783,7 +787,10 @@ class SigningClientInterceptorStreamingTest {
         volatile String headersAtStart;
         volatile int starts;
         volatile boolean ready;
+        volatile boolean contextCancelledAtStart;
         Status closeOnStart;
+        // Like ClientCallImpl, the call belongs to the context it is created in.
+        private final Context context = Context.current();
 
         RecordingCall(MethodDescriptor<?, ?> method, boolean blockStart) {
             this.method = method;
@@ -809,6 +816,7 @@ class SigningClientInterceptorStreamingTest {
             if (++starts > 1) {
                 throw new IllegalStateException("Already started");
             }
+            contextCancelledAtStart = context.isCancelled();
             events.add("start");
             this.listener = responseListener;
             this.headers = headers;
