@@ -2,6 +2,7 @@ using System.Buffers;
 using System.Buffers.Binary;
 using System.IO.Pipelines;
 using System.Net;
+using Grpc.Core;
 
 namespace T0.ProviderSdk.Network;
 
@@ -16,6 +17,10 @@ namespace T0.ProviderSdk.Network;
 internal sealed class FirstFrameThenPipeContent : HttpContent
 {
     private const int FramePrefixLength = 5;
+
+    // A length prefix is a claim until its bytes arrive, so the frame buffer starts at most this big
+    // and grows as they do.
+    private const int MaxPreallocation = 64 * 1024;
 
     private const int StateIdle = 0;
     private const int StateForwarding = 1;
@@ -171,6 +176,7 @@ internal sealed class FirstFrameThenPipeContent : HttpContent
         PipeReader reader, CancellationToken cancellationToken)
     {
         byte[]? frame = null;
+        var frameLength = 0;
         var filled = 0;
 
         while (true)
@@ -191,18 +197,21 @@ internal sealed class FirstFrameThenPipeContent : HttpContent
                     reader.AdvanceTo(buffer.End);
                     if (buffer.IsEmpty)
                         return ([], true); // Completed before the first message: sign empty bytes.
-                    throw new InvalidOperationException("gRPC request body ends inside the prefix of its first message.");
+                    throw BrokenFirstMessage();
                 }
 
-                frame = new byte[FramePrefixLength + ReadPayloadLength(buffer.Slice(0, FramePrefixLength))];
+                frameLength = FramePrefixLength + ReadPayloadLength(buffer.Slice(0, FramePrefixLength));
+                frame = new byte[Math.Min(frameLength, MaxPreallocation)];
             }
 
-            var take = (int)Math.Min(buffer.Length, frame.Length - filled);
+            var take = (int)Math.Min(buffer.Length, frameLength - filled);
+            if (filled + take > frame.Length)
+                Array.Resize(ref frame, (int)Math.Min(frameLength, Math.Max(2L * frame.Length, filled + take)));
             buffer.Slice(0, take).CopyTo(frame.AsSpan(filled));
             filled += take;
             var remaining = buffer.Slice(take);
 
-            if (filled == frame.Length)
+            if (filled == frameLength)
             {
                 reader.AdvanceTo(remaining.Start);
                 return (frame, result.IsCompleted && remaining.IsEmpty);
@@ -210,9 +219,12 @@ internal sealed class FirstFrameThenPipeContent : HttpContent
 
             reader.AdvanceTo(remaining.Start);
             if (result.IsCompleted)
-                throw new InvalidOperationException("gRPC request body ends inside its first message.");
+                throw BrokenFirstMessage();
         }
     }
+
+    private static RpcException BrokenFirstMessage() =>
+        new(new Status(StatusCode.InvalidArgument, "streaming request ends inside its first message"));
 
     private static int ReadPayloadLength(ReadOnlySequence<byte> prefix)
     {

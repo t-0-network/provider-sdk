@@ -9,10 +9,11 @@ namespace T0.ProviderSdk.Network;
 /// X-Signature and X-Signature-Timestamp.
 /// </summary>
 /// <remarks>
-/// It sits below the gRPC framer, so for <c>application/grpc</c> and <c>application/grpc+*</c> it
-/// signs the first request frame exactly as sent, prefix included, and sends the request as soon
-/// as that frame exists: a client stream goes out only once its first message is written. Other
-/// content is signed over the whole body. See docs/STREAMING.md.
+/// It sits below the gRPC framer, so for enveloped content (<c>application/grpc</c>,
+/// <c>application/grpc+*</c> and <c>application/connect+*</c>) it signs the first envelope exactly
+/// as sent, prefix included, and sends the request as soon as that envelope exists: a client stream
+/// goes out only once its first message is written. Other content is signed over the whole body.
+/// See docs/STREAMING.md.
 /// </remarks>
 public sealed class SigningDelegatingHandler : DelegatingHandler
 {
@@ -28,7 +29,7 @@ public sealed class SigningDelegatingHandler : DelegatingHandler
     protected override async Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request, CancellationToken cancellationToken)
     {
-        if (request.Content is { } content && IsGrpc(content))
+        if (request.Content is { } content && IsEnveloped(content))
             return await SendSignedOverFirstFrameAsync(request, content, cancellationToken).ConfigureAwait(false);
 
         // Read raw body bytes (CRITICAL: never re-serialize protobuf)
@@ -86,12 +87,12 @@ public sealed class SigningDelegatingHandler : DelegatingHandler
         request.Headers.TryAddWithoutValidation(name, value);
     }
 
-    // Not application/grpc-web: gRPC-Web is signed over the whole body.
-    private static bool IsGrpc(HttpContent content)
+    private static bool IsEnveloped(HttpContent content)
     {
         var mediaType = content.Headers.ContentType?.MediaType;
         return mediaType is not null
             && (string.Equals(mediaType, "application/grpc", StringComparison.OrdinalIgnoreCase)
-                || mediaType.StartsWith("application/grpc+", StringComparison.OrdinalIgnoreCase));
+                || mediaType.StartsWith("application/grpc+", StringComparison.OrdinalIgnoreCase)
+                || mediaType.StartsWith("application/connect+", StringComparison.OrdinalIgnoreCase));
     }
 }

@@ -189,11 +189,7 @@ public class CrossTestVectors
             var body = HexUtils.HexToBytes(vec.GetProperty("body_hex").GetString()!);
             var timestampMs = vec.GetProperty("timestamp_ms").GetInt64();
 
-            // The C# client speaks gRPC only; a Connect envelope has the gRPC frame's layout.
             var contentType = vec.GetProperty("content_type").GetString()!;
-            if (!contentType.StartsWith("application/grpc", StringComparison.Ordinal))
-                contentType = "application/grpc";
-
             var inner = new RecordingHandler();
             var handler = new SigningDelegatingHandler(
                 Signer.FromHex(privateKeyHex),
