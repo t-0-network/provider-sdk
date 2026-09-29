@@ -89,7 +89,7 @@ public abstract class NetworkClient implements Closeable {
      * Creates a new NetworkClient with the given channels.
      *
      * @param channel            the underlying managed channel
-     * @param interceptedChannel the channel with signing interceptor applied
+     * @param interceptedChannel the channel with the signing and default-deadline interceptors applied
      */
     protected NetworkClient(ManagedChannel channel, Channel interceptedChannel) {
         this.channel = channel;
@@ -100,12 +100,12 @@ public abstract class NetworkClient implements Closeable {
      * Result of creating a channel pair.
      *
      * @param channel            the underlying managed channel
-     * @param interceptedChannel the channel with signing interceptor applied
+     * @param interceptedChannel the channel with the signing and default-deadline interceptors applied
      */
     protected record ChannelPair(ManagedChannel channel, Channel interceptedChannel) {}
 
     /**
-     * Creates a channel pair for the given endpoint with signing interceptor.
+     * Creates a channel pair for the given endpoint with the signing and default-deadline interceptors.
      *
      * @param endpoint       the T-0 Network endpoint (e.g., "https://api.t-0.network" or "api.t-0.network:443")
      * @param signer         the signer to use for signing requests

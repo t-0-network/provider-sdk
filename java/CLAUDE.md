@@ -25,7 +25,7 @@ verifySignature(rawBytes, signature);
 
 Removing either path silently breaks one class of caller with `UNAUTHENTICATED` errors.
 
-GitHub issue #89 raised concern that the framed path looked like dead code — investigation confirmed it is alive and required because the network's gRPC-protocol path signs framed bodies. See [`docs/java/SIGNATURE_VERIFICATION.md`](../../docs/java/SIGNATURE_VERIFICATION.md) for the precise signing-payload definitions per transport and conditions under which simplification would be safe.
+GitHub issue #89 raised concern that the framed path looked like dead code — investigation confirmed it is alive and required because the network's gRPC-protocol path signs framed bodies. See [`docs/java/SIGNATURE_VERIFICATION.md`](../docs/java/SIGNATURE_VERIFICATION.md) for the precise signing-payload definitions per transport and conditions under which simplification would be safe.
 
 ## Streaming Calls & Deadlines (client side)
 
@@ -44,7 +44,7 @@ cd java && ./gradlew test --tests "network.t0.sdk.integration.CrossServerTests" 
 
 Tests cover:
 - **Go→Java**: Health check + PayOut (via `--grpc`)
-- **Java→Go**: Health check (Java `BlockingNetworkClient` → Go server with dual-framing)
+- **Java→Go**: Health check + PayOut (Java `BlockingNetworkClient` → Go server with dual-framing)
 - **Java→Go streaming**: client and server streams against `test.v1.StreamTest`, checked through the helper's log (see [`STREAMING.md`](../docs/java/STREAMING.md#how-it-is-tested))
 
 In CI, tests **fail** (not skip) if the Go helper binary is missing.
@@ -108,13 +108,13 @@ Runtime version: `META-INF/sdk-version.properties` (classpath resource, so it su
 
 ## Troubleshooting
 
-See [`docs/java/ISSUES_AND_LESSONS.md`](../../docs/java/ISSUES_AND_LESSONS.md) for historical issues and solutions.
+See [`docs/java/ISSUES_AND_LESSONS.md`](../docs/java/ISSUES_AND_LESSONS.md) for historical issues and solutions.
 
 ## Documentation
 
-Docs live in the top-level [`docs/java/`](../../docs/java/) directory:
-- [`SIGNATURE_VERIFICATION.md`](../../docs/java/SIGNATURE_VERIFICATION.md) — dual-path verification rationale (CRITICAL — read before touching `SignatureVerificationInterceptor`)
+Docs live in the top-level [`docs/java/`](../docs/java/) directory:
+- [`SIGNATURE_VERIFICATION.md`](../docs/java/SIGNATURE_VERIFICATION.md) — dual-path verification rationale (CRITICAL — read before touching `SignatureVerificationInterceptor`)
 - [`STREAMING.md`](../docs/java/STREAMING.md) — streaming signing, deferred start, deadlines, and how they are tested
-- [`GITHUB_SETUP.md`](../../docs/java/GITHUB_SETUP.md) — CI/CD, secrets, publishing setup
-- [`PROTO_SCHEMA_MANAGEMENT.md`](../../docs/java/PROTO_SCHEMA_MANAGEMENT.md) — protobuf code generation
-- [`ISSUES_AND_LESSONS.md`](../../docs/java/ISSUES_AND_LESSONS.md) — historical issues and solutions
+- [`GITHUB_SETUP.md`](../docs/java/GITHUB_SETUP.md) — CI/CD, secrets, publishing setup
+- [`PROTO_SCHEMA_MANAGEMENT.md`](../docs/java/PROTO_SCHEMA_MANAGEMENT.md) — protobuf code generation
+- [`ISSUES_AND_LESSONS.md`](../docs/java/ISSUES_AND_LESSONS.md) — historical issues and solutions

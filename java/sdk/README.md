@@ -49,7 +49,7 @@ Handles outbound requests to the t-0 Network with automatic request signing.
 
 | Class | Description |
 |-------|-------------|
-| `NetworkClient` | Abstract base class managing gRPC channels and signing interceptor |
+| `NetworkClient` | Abstract base class managing the gRPC channel and its signing and default-deadline interceptors |
 | `BlockingNetworkClient<S>` | Synchronous/blocking RPC calls |
 | `AsyncNetworkClient<S>` | Asynchronous calls using `StreamObserver` callbacks |
 | `FutureNetworkClient<S>` | Asynchronous calls returning `ListenableFuture` |
