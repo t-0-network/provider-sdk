@@ -149,8 +149,8 @@ if err := stream.Send(nextChunk); err != nil { /* ... */ }
 resp, err := stream.CloseAndReceive()
 ```
 
-- Send the first message (or call `CloseAndReceive`) before waiting for a response: the request is only sent once the first message exists. A stream closed before its first message fails with `invalid_argument`.
-- Streams have no timeout by default, since an upload or download can take as long as it takes. Bound one with the call's context, or set `WithStreamTimeout`. `WithTimeout` applies to unary calls only.
+- Send the first message (or call `CloseAndReceive`) before waiting for a response: the request is only sent once the first message exists. A stream closed before its first message is signed over empty bytes and sent; the network rejects it.
+- Streams have no timeout by default, since an upload or download can take as long as it takes. Bound one with the call's context, or set `WithStreamTimeout`. `WithTimeout` applies to unary calls only. Either timeout becomes the call's deadline, which is also sent to the server.
 - Bidirectional streams are not supported.
 
 ## Examples

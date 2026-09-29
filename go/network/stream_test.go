@@ -370,9 +370,9 @@ func TestStream_LargeFirstMessage(t *testing.T) {
 	}
 }
 
-// With no first message there is nothing to sign. The client refuses the call with
-// invalid_argument instead of sending it.
-func TestStream_EmptyClientStreamIsInvalidArgument(t *testing.T) {
+// A client stream closed before its first message is signed over empty bytes and sent, as in the
+// other SDKs; the server rejects it for having no first message.
+func TestStream_EmptyClientStreamIsSentAndRejected(t *testing.T) {
 	for _, p := range streamProtocols {
 		t.Run(p.name, func(t *testing.T) {
 			key := newTestKey(t)
@@ -381,12 +381,57 @@ func TestStream_EmptyClientStreamIsInvalidArgument(t *testing.T) {
 
 			stream := client.clientStream.CallClientStream(testContext(t))
 			_, err := stream.CloseAndReceive()
-			require.Error(t, err)
-			require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err), "error: %v", err)
+			require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err), "error: %v", err)
 
 			accepted, rejected := srv.results()
-			require.Empty(t, accepted, "the request must not be sent")
-			require.Empty(t, rejected, "the request must not be sent")
+			require.Empty(t, accepted)
+			require.Len(t, rejected, 1, "the request must reach the server")
+			require.Contains(t, rejected[0], "first envelope prefix")
+		})
+	}
+}
+
+func TestSigningTransport_EmptyStreamSignsEmptyBytes(t *testing.T) {
+	closedPipe, pw := io.Pipe()
+	require.NoError(t, pw.Close())
+
+	for name, body := range map[string]io.Reader{
+		"empty body":  bytes.NewReader(nil),
+		"closed pipe": closedPipe,
+		"http.NoBody": http.NoBody,
+		"nil body":    nil,
+	} {
+		t.Run(name, func(t *testing.T) {
+			key := newTestKey(t)
+			var sent *http.Request
+			var forwarded []byte
+			recorder := roundTripperFunc(func(r *http.Request) (*http.Response, error) {
+				sent = r
+				if r.Body != nil {
+					var err error
+					forwarded, err = io.ReadAll(r.Body)
+					require.NoError(t, err)
+				}
+				return &http.Response{StatusCode: http.StatusOK, Body: http.NoBody}, nil
+			})
+			st := NewSigningTransport(key.sign, time.Now, WithTransport(recorder))
+
+			req := newStreamRequest(t, context.Background(), body)
+			if body == nil {
+				req.Body = nil
+			}
+			resp, err := st.RoundTrip(req)
+			require.NoError(t, err)
+			resp.Body.Close()
+
+			require.Empty(t, forwarded)
+			timestamp, err := strconv.ParseInt(sent.Header.Get(common.SignatureTimestampHeader), 10, 64)
+			require.NoError(t, err)
+			signature, err := hex.DecodeString(strings.TrimPrefix(sent.Header.Get(common.SignatureHeader), "0x"))
+			require.NoError(t, err)
+			pubKey, err := crypto.GetPublicKeyFromBytes(key.publicKey)
+			require.NoError(t, err)
+			require.True(t, crypto.VerifySignature(pubKey, digestOf(nil, timestamp), signature), "signed over empty bytes")
 		})
 	}
 }
@@ -452,23 +497,13 @@ func TestSigningTransport_FirstEnvelopeReadErrorKeepsCode(t *testing.T) {
 
 func TestSigningTransport_TruncatedFirstEnvelope(t *testing.T) {
 	for name, body := range map[string][]byte{
-		"empty":           nil,
 		"partial prefix":  {0, 0, 0},
 		"partial payload": {0, 0, 0, 0, 9, 0x0a, 0x07},
 		"missing payload": {0, 0, 0, 0, 9},
-		"http.NoBody":     nil,
-		"nil body":        nil,
 	} {
 		t.Run(name, func(t *testing.T) {
-			var reader io.Reader = bytes.NewReader(body)
-			if name == "http.NoBody" {
-				reader = http.NoBody
-			}
 			st := NewSigningTransport(newTestKey(t).sign, time.Now, WithTransport(unexpectedRoundTrip(t)))
-			req := newStreamRequest(t, context.Background(), reader)
-			if name == "nil body" {
-				req.Body = nil
-			}
+			req := newStreamRequest(t, context.Background(), bytes.NewReader(body))
 
 			_, err := st.RoundTrip(req)
 			require.Error(t, err)
@@ -600,33 +635,6 @@ func receiveAll(ctx context.Context, client *streamTestClient, value string) ([]
 	return got, stream.Err()
 }
 
-// Requests that reach the transport without the stream type (a SigningTransport used without
-// NewServiceClient) fall back to the content type.
-func TestIsStreamingCall_Fallback(t *testing.T) {
-	for _, tc := range []struct {
-		contentType   string
-		contentLength int64
-		want          bool
-	}{
-		{"application/proto", 10, false},
-		{"application/json", 10, false},
-		{"application/connect+proto", 10, true},
-		{"application/connect+json", -1, true},
-		{"application/grpc", -1, true},
-		{"application/grpc+proto", -1, true},
-		{"application/grpc+proto", 10, false},
-		{"application/grpc-web+proto", -1, false},
-		{"", 0, false},
-	} {
-		t.Run(fmt.Sprintf("%s/%d", tc.contentType, tc.contentLength), func(t *testing.T) {
-			req := newStreamRequest(t, context.Background(), http.NoBody)
-			req.Header.Set("Content-Type", tc.contentType)
-			req.ContentLength = tc.contentLength
-			require.Equal(t, tc.want, isStreamingCall(req))
-		})
-	}
-}
-
 func TestIsEnveloped(t *testing.T) {
 	for contentType, want := range map[string]bool{
 		"application/connect+proto":      true,
@@ -696,10 +704,6 @@ func TestSigningTransport_StreamSigningVectors(t *testing.T) {
 			req := newStreamRequest(t, context.Background(), bytes.NewReader(body))
 			req.Header.Set("Content-Type", tc.ContentType)
 			resp, err := st.RoundTrip(req)
-			if len(body) == 0 {
-				require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err), "Go refuses an empty stream locally")
-				return
-			}
 			require.NoError(t, err)
 			resp.Body.Close()
 

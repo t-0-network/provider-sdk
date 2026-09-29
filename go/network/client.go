@@ -20,7 +20,8 @@ type ClientFactory[T any] func(httpClient connect.HTTPClient, baseURL string, op
 // Unary calls are signed over the whole request body. Client-streaming and server-streaming calls
 // are signed over their first request message only, and the request goes out as soon as that
 // message is sent: see SigningTransport. Unary calls time out after WithTimeout (15 seconds by
-// default); streaming calls have no timeout unless WithStreamTimeout is set.
+// default); streaming calls have no timeout unless WithStreamTimeout is set. The timeout is the
+// call's deadline, which connect-go also sends to the server.
 func NewServiceClient[T any](
 	privateKey PrivateKeyHexed, clientFactory ClientFactory[T], opts ...ClientOption,
 ) (T, error) {
@@ -48,18 +49,16 @@ func NewServiceClient[T any](
 		options.signFn = defaultSignFn
 	}
 
-	// No http.Client.Timeout: it would cover a whole upload or download. The transport applies the
-	// unary and the stream timeout instead.
+	// No http.Client.Timeout: it would cover a whole upload or download. Each call gets the unary
+	// or the stream timeout as a context deadline instead.
 	client := http.Client{
 		Transport: NewSigningTransport(
-			options.signFn, time.Now,
-			WithTransport(options.transport),
-			WithCallTimeouts(options.timeout, options.streamTimeout),
+			options.signFn, time.Now, WithTransport(options.transport),
 		),
 	}
 
-	// The interceptor tells the transport each call's stream type.
-	connectOptions := append(slices.Clone(options.connectOptions), connect.WithInterceptors(streamTypeInterceptor{}))
+	connectOptions := append(slices.Clone(options.connectOptions),
+		connect.WithInterceptors(callTimeouts{unary: options.timeout, stream: options.streamTimeout}))
 
 	return clientFactory(&client, options.baseURL, connectOptions...), nil
 }
