@@ -13,18 +13,24 @@ func GetPrivateKeyBytes(privateKey *secp256k1.PrivateKey) []byte {
 	return privateKey.Serialize()
 }
 
+// GetPrivateKeyFromHex parses a 32-byte private key written as 64 hex characters, with or without
+// a 0x prefix.
 func GetPrivateKeyFromHex(privateKeyHexed string) (*secp256k1.PrivateKey, error) {
-	privateKeyBytes, err := hex.DecodeString(strings.TrimPrefix(strings.ToLower(privateKeyHexed), "0x"))
+	if privateKeyHexed == "" {
+		return nil, errors.New("private key must not be null or empty")
+	}
+
+	cleanHex := strings.TrimPrefix(strings.ToLower(privateKeyHexed), "0x")
+	if len(cleanHex) != 2*secp256k1.PrivKeyBytesLen {
+		return nil, errors.New("private key must be 32 bytes (64 hex characters)")
+	}
+
+	privateKeyBytes, err := hex.DecodeString(cleanHex)
 	if err != nil {
 		return nil, fmt.Errorf("decoding private key hex: %w", err)
 	}
 
-	privateKey := secp256k1.PrivKeyFromBytes(privateKeyBytes)
-	if privateKey == nil {
-		return nil, errors.New("invalid private key bytes")
-	}
-
-	return privateKey, nil
+	return secp256k1.PrivKeyFromBytes(privateKeyBytes), nil
 }
 
 func HexPrivateKey(privateKey *secp256k1.PrivateKey) string {

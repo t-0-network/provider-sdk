@@ -287,7 +287,7 @@ func (p streamProtocol) client(t *testing.T, srv *streamTestServer, key testKey,
 	base := []ClientOption{
 		WithSignatureFunction(key.sign),
 		WithBaseURL(srv.url),
-		WithHTTPTransport(srv.transport),
+		withHTTPTransport(srv.transport),
 	}
 	client, err := NewServiceClient("", factory, slices.Concat(base, p.opts, opts)...)
 	require.NoError(t, err)
@@ -871,7 +871,7 @@ func TestStream_GETIsRefused(t *testing.T) {
 			append(opts, connect.WithHTTPGet(), connect.WithIdempotency(connect.IdempotencyNoSideEffects))...)
 	}
 	client, err := NewServiceClient("", withGET,
-		WithSignatureFunction(key.sign), WithBaseURL(srv.url), WithHTTPTransport(srv.transport))
+		WithSignatureFunction(key.sign), WithBaseURL(srv.url), withHTTPTransport(srv.transport))
 	require.NoError(t, err)
 
 	_, err = client.unary.CallUnary(testContext(t), connect.NewRequest(wrapperspb.String("ping")))

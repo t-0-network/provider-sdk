@@ -22,7 +22,7 @@ const (
 var (
 	ErrEmptyBaseURL    = errors.New("base URL is not set")
 	ErrInvalidBaseURL  = errors.New("base URL is not valid")
-	ErrEmptyPrivateKey = errors.New("provider private key is not set")
+	ErrEmptyPrivateKey = errors.New("private key must not be null or empty")
 	ErrInvalidTimeOut  = errors.New("WithTimeout must be a positive duration of at most 2147483647 ms")
 
 	ErrInvalidStreamTimeout = errors.New("WithStreamTimeout must be a positive duration of at most 2147483647 ms")
@@ -43,8 +43,8 @@ func (c *clientOptions) validate() error {
 		return ErrEmptyBaseURL
 	}
 
-	if _, err := url.Parse(c.baseURL); err != nil {
-		return fmt.Errorf("%w: %s", ErrInvalidBaseURL, err)
+	if u, err := url.Parse(c.baseURL); err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Host == "" {
+		return ErrInvalidBaseURL
 	}
 
 	if c.timeout <= 0 || c.timeout > maxTimeout {
@@ -147,16 +147,9 @@ func WithProtocol(p Protocol) ClientOption {
 	}
 }
 
-// WithHTTPTransport sets the underlying http.RoundTripper that carries requests.
-// The SDK wraps it in a SigningTransport — requests are signed regardless of the
-// transport supplied. Pass a plain transport (instrumentation, proxying, TLS config,
-// in-memory test transport); do not pass one that already signs.
-//
-// Retries below the signing layer replay the same timestamp. Keep retry budgets
-// well under the 60-second signature tolerance, or retry above the SDK client.
-//
-// Default: http.DefaultTransport. A nil value is ignored.
-func WithHTTPTransport(rt http.RoundTripper) ClientOption {
+// withHTTPTransport sets the http.RoundTripper under the signing transport; tests use it to reach
+// their own servers. A nil value is ignored.
+func withHTTPTransport(rt http.RoundTripper) ClientOption {
 	return func(c *clientOptions) {
 		c.transport = rt
 	}

@@ -36,3 +36,26 @@ func Test_PublicKeyHelpers(t *testing.T) {
 
 	require.True(t, pk.IsEqual(pkFromBytes))
 }
+
+func TestGetPrivateKeyFromHex_ChecksTheKey(t *testing.T) {
+	const key = "691db48202ca70d83cc7f5f3aa219536f9bb2dfe12ebb78a7bb634544858ee92"
+	for _, valid := range []string{key, "0x" + key, "0X" + key} {
+		_, err := crypto.GetPrivateKeyFromHex(valid)
+		require.NoError(t, err, valid)
+	}
+
+	for input, want := range map[string]string{
+		"":             "private key must not be null or empty",
+		"0x":           "private key must be 32 bytes (64 hex characters)",
+		key[:62]:       "private key must be 32 bytes (64 hex characters)",
+		key + "00":     "private key must be 32 bytes (64 hex characters)",
+		"0x0x" + key:   "private key must be 32 bytes (64 hex characters)",
+		key[:63] + "g": "decoding private key hex: encoding/hex: invalid byte: U+0067 'g'",
+	} {
+		_, err := crypto.GetPrivateKeyFromHex(input)
+		require.EqualError(t, err, want, "input %q", input)
+
+		_, err = crypto.NewSignerFromHex(input)
+		require.EqualError(t, err, want, "input %q", input)
+	}
+}

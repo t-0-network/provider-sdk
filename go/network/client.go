@@ -2,7 +2,6 @@
 package network
 
 import (
-	"fmt"
 	"net/http"
 	"net/url"
 	"time"
@@ -39,7 +38,7 @@ func NewServiceClient[T any](
 
 		defaultSignFn, err := crypto.NewSignerFromHex(string(privateKey))
 		if err != nil {
-			return t, fmt.Errorf("creating signer from hexed private key: %w", err)
+			return t, err
 		}
 
 		options.signFn = defaultSignFn

@@ -41,7 +41,7 @@ func capturingFactory() (ClientFactory[stubClient], func() connect.HTTPClient) {
 	return factory, func() connect.HTTPClient { return captured }
 }
 
-func TestNewServiceClient_WithHTTPTransport_SignsRequests(t *testing.T) {
+func TestNewServiceClient_SignsRequests(t *testing.T) {
 	var captured *http.Request
 	recorder := roundTripperFunc(func(r *http.Request) (*http.Response, error) {
 		captured = r.Clone(r.Context())
@@ -55,7 +55,7 @@ func TestNewServiceClient_WithHTTPTransport_SignsRequests(t *testing.T) {
 	_, err := NewServiceClient("", factory,
 		WithSignatureFunction(testSignFn(t)),
 		WithBaseURL("http://localhost"),
-		WithHTTPTransport(recorder),
+		withHTTPTransport(recorder),
 	)
 	require.NoError(t, err)
 
@@ -121,7 +121,7 @@ func TestNewServiceClient_NilTransportIgnored(t *testing.T) {
 	_, err := NewServiceClient("", factory,
 		WithSignatureFunction(testSignFn(t)),
 		WithBaseURL(ts.URL),
-		WithHTTPTransport(nil),
+		withHTTPTransport(nil),
 	)
 	require.NoError(t, err)
 
@@ -215,6 +215,27 @@ func TestNewServiceClient_ValidationErrors(t *testing.T) {
 			WithBaseURL(""),
 		)
 		require.ErrorIs(t, err, ErrEmptyBaseURL)
+		require.EqualError(t, err, "base URL is not set")
+	})
+
+	for _, bad := range []string{"api.t-0.network", "ftp://api.t-0.network", "https://", "http:///path", "://api.t-0.network"} {
+		t.Run(fmt.Sprintf("base URL %q is refused", bad), func(t *testing.T) {
+			_, err := NewServiceClient("", factory, WithSignatureFunction(testSignFn(t)), WithBaseURL(bad))
+			require.ErrorIs(t, err, ErrInvalidBaseURL)
+			require.EqualError(t, err, "base URL is not valid")
+		})
+	}
+
+	t.Run("http and https base URLs are accepted", func(t *testing.T) {
+		for _, good := range []string{"http://localhost:8080", "HTTPS://api.t-0.network/"} {
+			_, err := NewServiceClient("", factory, WithSignatureFunction(testSignFn(t)), WithBaseURL(good))
+			require.NoError(t, err, good)
+		}
+	})
+
+	t.Run("a key that is not 64 hex characters is refused", func(t *testing.T) {
+		_, err := NewServiceClient("0x1234", factory)
+		require.EqualError(t, err, "private key must be 32 bytes (64 hex characters)")
 	})
 
 	const maxTimeout = 2147483647 * time.Millisecond
@@ -246,5 +267,6 @@ func TestNewServiceClient_ValidationErrors(t *testing.T) {
 	t.Run("empty key and no signFn", func(t *testing.T) {
 		_, err := NewServiceClient("", factory)
 		require.ErrorIs(t, err, ErrEmptyPrivateKey)
+		require.EqualError(t, err, "private key must not be null or empty")
 	})
 }
