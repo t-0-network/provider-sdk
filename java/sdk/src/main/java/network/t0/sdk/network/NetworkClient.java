@@ -274,7 +274,8 @@ public abstract class NetworkClient implements Closeable {
 
     // A host is an IPv4 address, an IPv6 address in brackets, or a name: labels of letters, digits and
     // inner '-', joined by '.', the last one starting with a letter.
-    private static final Pattern IPV4 = Pattern.compile("[0-9]{1,3}(\\.[0-9]{1,3}){3}");
+    // Octets without leading zeros ("01" could be read as octal).
+    private static final Pattern IPV4 = Pattern.compile("(0|[1-9][0-9]{0,2})(\\.(0|[1-9][0-9]{0,2})){3}");
     private static final Pattern HOST_NAME = Pattern.compile(
             "([A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?\\.)*[A-Za-z]([A-Za-z0-9-]*[A-Za-z0-9])?");
     private static final Pattern IPV6_LITERAL = Pattern.compile("\\[[0-9A-Fa-f:.]+]");

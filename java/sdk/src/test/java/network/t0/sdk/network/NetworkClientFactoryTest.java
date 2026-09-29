@@ -42,6 +42,7 @@ class NetworkClientFactoryTest {
             "http://localhost:8080,          localhost,       8080, true",
             "http://127.0.0.1:1234,          127.0.0.1,       1234, true",
             "HTTPS://api.t-0.network:8443,   api.t-0.network, 8443, false",
+            "HTTPS://api.t-0.network,        api.t-0.network, 443,  false",
             "https://api.t-0.network/,       api.t-0.network, 443,  false",
             "http://localhost:8080/,         localhost,       8080, true",
             "http://[::1]:8080,              [::1],           8080, true",
@@ -76,7 +77,7 @@ class NetworkClientFactoryTest {
             "https://api.t-0.network/v1", "https://api.t-0.network?x", "https://api.t-0.network#x",
             "https://api.t-0.network/v1/", "https://api.t-0.network//", "http://[:::]:8080", "http://[1::2::3]",
             "http://a..b", "http://-foo", "http://foo-", "http://1.2.3", "http://localhost.", "http://256.1.1.1",
-            "http://a.1b", "http://.a"})
+            "http://a.1b", "http://.a", "http://127.1", "http://01.2.3.4"})
     @DisplayName("A base URL without an http or https scheme or without a host is refused, not repaired")
     void invalidBaseUrlIsRefused(String endpoint) {
         assertThatThrownBy(() -> NetworkClient.parseEndpoint(endpoint))
