@@ -324,7 +324,7 @@ class CrossServerTests {
         }
     }
 
-    /** A sender that only sends while isReady() holds: directly for the first message, then on onReady. */
+    /** A sender that sends only on onReady, the first message included (grpc-java's ClientCall example). */
     @Test
     @Timeout(30)
     void javaClient_goServer_clientStream_readinessDrivenSender() throws Exception {
@@ -334,7 +334,6 @@ class CrossServerTests {
         try (var client = streamClient(goServer.port(), PRIVATE_KEY)) {
             ReadinessDrivenSender sender = new ReadinessDrivenSender(List.of("m1", "m2", "m3"));
             ClientCalls.asyncClientStreamingCall(client.getChannel().newCall(CLIENT_STREAM, CallOptions.DEFAULT), sender);
-            sender.drain();
 
             assertThat(sender.result.get(10, TimeUnit.SECONDS)).isEqualTo("m1,m2,m3");
         } finally {
@@ -644,10 +643,7 @@ class CrossServerTests {
         };
     }
 
-    /**
-     * Sends only while the call reports ready. {@link #drain()} runs once from the caller for the
-     * first message, since onReady comes only after it, then on each onReady.
-     */
+    /** Sends on each onReady while the call reports ready. */
     private static final class ReadinessDrivenSender implements ClientResponseObserver<StringValue, StringValue> {
         final CompletableFuture<String> result = new CompletableFuture<>();
         private final Iterator<String> values;

@@ -72,6 +72,8 @@ class SigningClientInterceptorStreamingTest {
     private Signer signer;
     private FakeChannel channel;
     private Channel intercepted;
+    // The calls' executor: its tasks (the listener's first onReady) run only when a test runs them.
+    private final List<Runnable> callbackTasks = Collections.synchronizedList(new ArrayList<>());
 
     @BeforeEach
     void setUp() {
@@ -85,7 +87,7 @@ class SigningClientInterceptorStreamingTest {
     @Test
     @DisplayName("Client stream: one signature, over the first message, and every message sent as-is")
     void clientStreamSignsOnlyTheFirstMessage() {
-        ClientCall<StringValue, StringValue> call = intercepted.newCall(CLIENT_STREAM, CallOptions.DEFAULT);
+        ClientCall<StringValue, StringValue> call = intercepted.newCall(CLIENT_STREAM, callOptions());
         call.start(new RecordingListener<>(), new Metadata());
         call.request(1);
         call.sendMessage(value("m1"));
@@ -105,7 +107,7 @@ class SigningClientInterceptorStreamingTest {
     @Test
     @DisplayName("Client stream: the call starts and the first message goes out before the second exists")
     void clientStreamSendsTheFirstMessageAtOnce() {
-        ClientCall<StringValue, StringValue> call = intercepted.newCall(CLIENT_STREAM, CallOptions.DEFAULT);
+        ClientCall<StringValue, StringValue> call = intercepted.newCall(CLIENT_STREAM, callOptions());
         call.start(new RecordingListener<>(), new Metadata());
         call.request(1);
         call.sendMessage(value("m1"));
@@ -126,7 +128,7 @@ class SigningClientInterceptorStreamingTest {
         Metadata headers = new Metadata();
         headers.put(SIGNATURE, "0xstale"); // replaced, not appended to
 
-        ClientCall<StringValue, StringValue> call = intercepted.newCall(CLIENT_STREAM, CallOptions.DEFAULT);
+        ClientCall<StringValue, StringValue> call = intercepted.newCall(CLIENT_STREAM, callOptions());
         call.start(new RecordingListener<>(), headers);
         call.sendMessage(value("m1"));
         call.sendMessage(value("m2"));
@@ -146,7 +148,7 @@ class SigningClientInterceptorStreamingTest {
     @Test
     @DisplayName("Client stream: the signature covers the first message's bytes, nothing else")
     void clientStreamSignatureCoversFirstMessageBytes() {
-        ClientCall<StringValue, StringValue> call = intercepted.newCall(CLIENT_STREAM, CallOptions.DEFAULT);
+        ClientCall<StringValue, StringValue> call = intercepted.newCall(CLIENT_STREAM, callOptions());
         call.start(new RecordingListener<>(), new Metadata());
         call.sendMessage(value("m1"));
         call.sendMessage(value("m2"));
@@ -163,7 +165,7 @@ class SigningClientInterceptorStreamingTest {
     @Test
     @DisplayName("Empty client stream signs empty bytes and starts the call on halfClose")
     void emptyClientStreamSignsEmptyBytes() throws IOException {
-        ClientCall<StringValue, StringValue> call = intercepted.newCall(CLIENT_STREAM, CallOptions.DEFAULT);
+        ClientCall<StringValue, StringValue> call = intercepted.newCall(CLIENT_STREAM, callOptions());
         call.start(new RecordingListener<>(), new Metadata());
         call.request(1);
         call.halfClose();
@@ -183,7 +185,7 @@ class SigningClientInterceptorStreamingTest {
     @Test
     @DisplayName("Server stream: one signature, over the request's unframed bytes")
     void serverStreamSignsTheRequest() {
-        ClientCall<StringValue, StringValue> call = intercepted.newCall(SERVER_STREAM, CallOptions.DEFAULT);
+        ClientCall<StringValue, StringValue> call = intercepted.newCall(SERVER_STREAM, callOptions());
         call.start(new RecordingListener<>(), new Metadata());
         call.request(1);
         call.sendMessage(value("hello"));
@@ -206,7 +208,7 @@ class SigningClientInterceptorStreamingTest {
     @DisplayName("Bidi stream: closed with UNIMPLEMENTED on start, no underlying call is created")
     void bidiStreamIsRefused() {
         RecordingListener<StringValue> listener = new RecordingListener<>();
-        ClientCall<StringValue, StringValue> call = intercepted.newCall(BIDI_STREAM, CallOptions.DEFAULT);
+        ClientCall<StringValue, StringValue> call = intercepted.newCall(BIDI_STREAM, callOptions());
         call.start(listener, new Metadata());
 
         assertThat(listener.closeStatus).isNotNull();
@@ -227,7 +229,7 @@ class SigningClientInterceptorStreamingTest {
     @Test
     @DisplayName("isReady() is true before the first message, then reflects the started call")
     void isReadyBeforeStartIsTrue() {
-        ClientCall<StringValue, StringValue> call = intercepted.newCall(CLIENT_STREAM, CallOptions.DEFAULT);
+        ClientCall<StringValue, StringValue> call = intercepted.newCall(CLIENT_STREAM, callOptions());
         call.start(new RecordingListener<>(), new Metadata());
 
         // The fake throws on isReady() before start, like ClientCallImpl.
@@ -246,7 +248,7 @@ class SigningClientInterceptorStreamingTest {
     @DisplayName("cancel() before the first message starts the call so the listener gets onClose(CANCELLED)")
     void cancelBeforeStartDeliversOnClose() {
         RecordingListener<StringValue> listener = new RecordingListener<>();
-        ClientCall<StringValue, StringValue> call = intercepted.newCall(CLIENT_STREAM, CallOptions.DEFAULT);
+        ClientCall<StringValue, StringValue> call = intercepted.newCall(CLIENT_STREAM, callOptions());
         call.start(listener, new Metadata());
         call.request(1);
         call.cancel("caller gave up", null);
@@ -262,7 +264,7 @@ class SigningClientInterceptorStreamingTest {
     @Test
     @DisplayName("cancel() before start() does not throw and starts nothing")
     void cancelBeforeStartStartsNothing() {
-        ClientCall<StringValue, StringValue> call = intercepted.newCall(CLIENT_STREAM, CallOptions.DEFAULT);
+        ClientCall<StringValue, StringValue> call = intercepted.newCall(CLIENT_STREAM, callOptions());
         call.cancel("never started", null);
 
         // No listener to notify: the cancel just reaches the unstarted call, as ClientCall allows.
@@ -290,7 +292,7 @@ class SigningClientInterceptorStreamingTest {
                 CLIENT_STREAM.getResponseMarshaller()).build();
 
         RecordingListener<StringValue> listener = new RecordingListener<>();
-        ClientCall<StringValue, StringValue> call = intercepted.newCall(failing, CallOptions.DEFAULT);
+        ClientCall<StringValue, StringValue> call = intercepted.newCall(failing, callOptions());
         call.start(listener, new Metadata());
         call.request(1);
 
@@ -307,13 +309,103 @@ class SigningClientInterceptorStreamingTest {
         assertThat(listener.closeStatus.getCause()).isSameAs(failure);
     }
 
+    // ==================== onReady before the first message ====================
+
+    @Test
+    @DisplayName("The listener gets onReady before the first message, on the call's executor")
+    void onReadyBeforeTheFirstMessage() {
+        RecordingListener<StringValue> listener = new RecordingListener<>();
+        ClientCall<StringValue, StringValue> call = intercepted.newCall(CLIENT_STREAM, callOptions());
+        call.start(listener, new Metadata());
+        assertThat(listener.events).isEmpty();
+
+        runCallbackTasks();
+        assertThat(listener.events).containsExactly("onReady");
+        assertThat(channel.lastCall().events()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("A sender that sends only on onReady gets its first onReady, and its first message starts the call")
+    void onReadyDrivenSenderStartsTheCall() {
+        RecordingListener<StringValue> listener = new RecordingListener<>();
+        ClientCall<StringValue, StringValue> call = intercepted.newCall(CLIENT_STREAM, callOptions());
+        listener.onReadyAction = () -> {
+            while (call.isReady() && listener.sent < 2) {
+                call.sendMessage(value("m" + ++listener.sent));
+                channel.lastCall().ready = listener.sent < 2;
+            }
+        };
+        call.start(listener, new Metadata());
+        call.request(1);
+
+        runCallbackTasks();
+        RecordingCall raw = channel.lastCall();
+        assertThat(raw.events()).containsExactly("start", "request:1", "send", "send");
+        assertThat(verifies(raw.headers, bytes("m1"))).isTrue();
+    }
+
+    @Test
+    @DisplayName("No onReady before the first message once it was sent: the started call's onReady follows")
+    void noEarlyOnReadyAfterTheFirstMessage() {
+        RecordingListener<StringValue> listener = new RecordingListener<>();
+        ClientCall<StringValue, StringValue> call = intercepted.newCall(CLIENT_STREAM, callOptions());
+        call.start(listener, new Metadata());
+        call.sendMessage(value("m1"));
+
+        runCallbackTasks();
+        assertThat(listener.events).isEmpty();
+    }
+
+    @Test
+    @DisplayName("A callback of the started call during the first onReady is delivered after it returns")
+    void callbacksDuringTheFirstOnReadyWaitForIt() {
+        RecordingListener<StringValue> listener = new RecordingListener<>();
+        ClientCall<StringValue, StringValue> call = intercepted.newCall(SERVER_STREAM, callOptions());
+        List<String> seenInOnReady = new ArrayList<>();
+        listener.onReadyAction = () -> {
+            call.sendMessage(value("hello"));
+            // The started call reports its headers from another thread while onReady still runs.
+            Thread transport = new Thread(() -> channel.lastCall().listener.onHeaders(new Metadata()));
+            transport.start();
+            try {
+                transport.join();
+            } catch (InterruptedException e) {
+                throw new AssertionError(e);
+            }
+            seenInOnReady.addAll(listener.events);
+        };
+        call.start(listener, new Metadata());
+
+        runCallbackTasks();
+        assertThat(seenInOnReady).containsExactly("onReady");
+        assertThat(listener.events).containsExactly("onReady", "onHeaders");
+    }
+
+    @Test
+    @DisplayName("A listener callback that throws cancels the call, as in ClientCallImpl")
+    @SuppressWarnings("unchecked") // the fake's listener is raw
+    void throwingCallbackCancelsTheCall() {
+        IllegalStateException failure = new IllegalStateException("listener failed");
+        RecordingListener<StringValue> listener = new RecordingListener<>();
+        listener.onMessageFailure = failure;
+        ClientCall<StringValue, StringValue> call = intercepted.newCall(SERVER_STREAM, callOptions());
+        call.start(listener, new Metadata());
+        call.sendMessage(value("hello"));
+
+        channel.lastCall().listener.onMessage(value("reply"));
+
+        assertThat(channel.lastCall().events()).containsExactly("start", "send", "cancel");
+        assertThat(listener.closeStatus.getCode()).isEqualTo(Status.Code.CANCELLED);
+        assertThat(listener.closeStatus.getCause()).isSameAs(failure);
+    }
+
     // ==================== Deadline and context before the first message ====================
 
     @Test
     @DisplayName("A deadline passing before the first message starts the call unsigned, and grpc fails it")
     void deadlineBeforeTheFirstMessageStartsTheCallUnsigned() throws Exception {
         ClientCall<StringValue, StringValue> call = intercepted.newCall(
-                CLIENT_STREAM, CallOptions.DEFAULT.withDeadlineAfter(50, TimeUnit.MILLISECONDS));
+                CLIENT_STREAM, callOptions().withDeadlineAfter(50, TimeUnit.MILLISECONDS));
         call.start(new RecordingListener<>(), new Metadata());
         call.request(1);
 
@@ -335,7 +427,7 @@ class SigningClientInterceptorStreamingTest {
     void contextCancelledBeforeTheFirstMessageStartsTheCallUnsigned() throws Exception {
         Context.CancellableContext context = Context.current().withCancellation();
         ClientCall<StringValue, StringValue> call =
-                context.call(() -> intercepted.newCall(CLIENT_STREAM, CallOptions.DEFAULT));
+                context.call(() -> intercepted.newCall(CLIENT_STREAM, callOptions()));
         call.start(new RecordingListener<>(), new Metadata());
 
         context.cancel(null);
@@ -350,7 +442,7 @@ class SigningClientInterceptorStreamingTest {
     void deadlineAndContextAfterTheFirstMessageStartNothing() throws Exception {
         Context.CancellableContext context = Context.current().withCancellation();
         ClientCall<StringValue, StringValue> call = context.call(() -> intercepted.newCall(
-                CLIENT_STREAM, CallOptions.DEFAULT.withDeadlineAfter(50, TimeUnit.MILLISECONDS)));
+                CLIENT_STREAM, callOptions().withDeadlineAfter(50, TimeUnit.MILLISECONDS)));
         call.start(new RecordingListener<>(), new Metadata());
         call.sendMessage(value("m1"));
 
@@ -369,7 +461,7 @@ class SigningClientInterceptorStreamingTest {
     @DisplayName("cancel() while the first message starts the call waits for that start: one start, signed")
     void cancelWhileTheFirstMessageStartsTheCall() throws Exception {
         channel.blockStarts();
-        ClientCall<StringValue, StringValue> call = intercepted.newCall(CLIENT_STREAM, CallOptions.DEFAULT);
+        ClientCall<StringValue, StringValue> call = intercepted.newCall(CLIENT_STREAM, callOptions());
         call.start(new RecordingListener<>(), new Metadata());
 
         ExecutorService threads = Executors.newFixedThreadPool(2);
@@ -398,7 +490,7 @@ class SigningClientInterceptorStreamingTest {
     @DisplayName("sendMessage() while cancel() starts the call waits for that start: one start, unsigned, then the send")
     void sendMessageWhileCancelStartsTheCall() throws Exception {
         channel.blockStarts();
-        ClientCall<StringValue, StringValue> call = intercepted.newCall(CLIENT_STREAM, CallOptions.DEFAULT);
+        ClientCall<StringValue, StringValue> call = intercepted.newCall(CLIENT_STREAM, callOptions());
         call.start(new RecordingListener<>(), new Metadata());
 
         ExecutorService threads = Executors.newFixedThreadPool(2);
@@ -428,7 +520,7 @@ class SigningClientInterceptorStreamingTest {
     @Test
     @DisplayName("Unary: unchanged - signed over the request, started on sendMessage, buffered request() flushed")
     void unaryIsUnchanged() {
-        ClientCall<StringValue, StringValue> call = intercepted.newCall(UNARY, CallOptions.DEFAULT);
+        ClientCall<StringValue, StringValue> call = intercepted.newCall(UNARY, callOptions());
         call.start(new RecordingListener<>(), new Metadata());
         call.request(2);
         call.sendMessage(value("request"));
@@ -461,7 +553,7 @@ class SigningClientInterceptorStreamingTest {
                 .setResponseMarshaller(ByteArrayMarshaller.INSTANCE)
                 .build();
         ClientCall<byte[], byte[]> call = interceptedAt(vec.get("timestamp_ms").getAsLong())
-                .newCall(rawBytesMethod, CallOptions.DEFAULT);
+                .newCall(rawBytesMethod, callOptions());
         call.start(new RecordingListener<>(), new Metadata());
         payloads.forEach(call::sendMessage);
         call.halfClose();
@@ -477,6 +569,19 @@ class SigningClientInterceptorStreamingTest {
     }
 
     // ==================== Helpers ====================
+
+    private CallOptions callOptions() {
+        return CallOptions.DEFAULT.withExecutor(callbackTasks::add);
+    }
+
+    private void runCallbackTasks() {
+        List<Runnable> tasks;
+        synchronized (callbackTasks) {
+            tasks = new ArrayList<>(callbackTasks);
+            callbackTasks.clear();
+        }
+        tasks.forEach(Runnable::run);
+    }
 
     private Channel interceptedAt(long timestampMs) {
         Clock clock = Clock.fixed(Instant.ofEpochMilli(timestampMs), ZoneOffset.UTC);
@@ -667,10 +772,34 @@ class SigningClientInterceptorStreamingTest {
     }
 
     static final class RecordingListener<T> extends ClientCall.Listener<T> {
-        Status closeStatus;
+        final List<String> events = Collections.synchronizedList(new ArrayList<>());
+        volatile Status closeStatus;
+        Runnable onReadyAction = () -> { };
+        RuntimeException onMessageFailure;
+        int sent;
+
+        @Override
+        public void onHeaders(Metadata headers) {
+            events.add("onHeaders");
+        }
+
+        @Override
+        public void onMessage(T message) {
+            events.add("onMessage");
+            if (onMessageFailure != null) {
+                throw onMessageFailure;
+            }
+        }
+
+        @Override
+        public void onReady() {
+            events.add("onReady");
+            onReadyAction.run();
+        }
 
         @Override
         public void onClose(Status status, Metadata trailers) {
+            events.add("onClose");
             closeStatus = status;
         }
     }

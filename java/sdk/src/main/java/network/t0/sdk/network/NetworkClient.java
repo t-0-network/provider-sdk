@@ -12,6 +12,7 @@ import io.grpc.ManagedChannel;
 import io.grpc.Metadata;
 import io.grpc.MethodDescriptor;
 import io.grpc.Status;
+import io.grpc.SynchronizationContext;
 import io.grpc.okhttp.OkHttpChannelBuilder;
 import network.t0.sdk.common.Headers;
 import network.t0.sdk.crypto.Keccak256;
@@ -27,6 +28,9 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.Clock;
 import java.time.Duration;
+import java.util.concurrent.Executor;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
@@ -303,6 +307,12 @@ public abstract class NetworkClient implements Closeable {
 
         // Deadlines of calls still waiting for their first message; grpc keeps the ones of started calls.
         private static final ScheduledExecutorService DEADLINE_TIMER = newDeadlineTimer();
+        // Runs the first onReady of calls whose CallOptions have no executor.
+        private static final ExecutorService CALLBACK_EXECUTOR = Executors.newCachedThreadPool(task -> {
+            Thread thread = new Thread(task, "t0-network-client-callback");
+            thread.setDaemon(true);
+            return thread;
+        });
 
         private final Signer signer;
         private final Clock clock;
@@ -359,6 +369,12 @@ public abstract class NetworkClient implements Closeable {
                 private int pendingRequests = 0;
                 private ScheduledFuture<?> deadlineTimer;
                 private final Context.CancellationListener contextListener = cancelled -> startUnsigned();
+                // The listener's callbacks, one at a time: its onReady before the first message (see
+                // start()) and rawCall's. One that throws cancels the call, as in ClientCallImpl.
+                private final SynchronizationContext callbacks = new SynchronizationContext((thread, e) -> {
+                    log.warn("Call listener threw", e);
+                    cancel("Call listener threw", e);
+                });
 
                 @Override
                 public void start(Listener<RespT> responseListener, Metadata headers) {
@@ -374,6 +390,19 @@ public abstract class NetworkClient implements Closeable {
                         }
                     }
                     context.addListener(contextListener, Runnable::run);
+
+                    // The call is ready for its first message, and only that message starts rawCall: a
+                    // sender that sends only on onReady needs this one, or both wait for ever.
+                    Executor executor = callOptions.getExecutor() != null ? callOptions.getExecutor() : CALLBACK_EXECUTOR;
+                    executor.execute(() -> callbacks.execute(() -> {
+                        boolean waiting;
+                        synchronized (lock) {
+                            waiting = !started && !starting;
+                        }
+                        if (waiting) {
+                            responseListener.onReady();
+                        }
+                    }));
                 }
 
                 @Override
@@ -509,7 +538,27 @@ public abstract class NetworkClient implements Closeable {
                     context.removeListener(contextListener);
                     int requests;
                     try {
-                        rawCall.start(listener, startHeaders);
+                        rawCall.start(new Listener<RespT>() {
+                            @Override
+                            public void onHeaders(Metadata responseHeaders) {
+                                callbacks.execute(() -> listener.onHeaders(responseHeaders));
+                            }
+
+                            @Override
+                            public void onMessage(RespT message) {
+                                callbacks.execute(() -> listener.onMessage(message));
+                            }
+
+                            @Override
+                            public void onClose(Status status, Metadata trailers) {
+                                callbacks.execute(() -> listener.onClose(status, trailers));
+                            }
+
+                            @Override
+                            public void onReady() {
+                                callbacks.execute(listener::onReady);
+                            }
+                        }, startHeaders);
                     } finally {
                         synchronized (lock) {
                             started = true;
