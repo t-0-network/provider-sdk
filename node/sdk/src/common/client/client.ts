@@ -7,8 +7,9 @@ import {DescService} from "@bufbuild/protobuf";
 
 /**
  * Creates a client for a T-0 Network service that signs every request. It speaks the Connect
- * protocol in binary: unary calls as `application/proto`, streaming calls as
- * `application/connect+proto`.
+ * protocol, in binary by default: unary calls as `application/proto`, streaming calls as
+ * `application/connect+proto`. With `useBinaryFormat: false` it speaks Connect JSON
+ * (`application/json`, `application/connect+json`), signed the same way.
  *
  * Unary calls are signed over the whole request body. Client-streaming and server-streaming calls
  * are signed over their first request message only, and the request goes out as soon as that
@@ -20,8 +21,9 @@ export function createClient<T extends DescService>(signer: string | Buffer | ((
 
     // One transport configuration for every call. Unary and streaming calls take separate
     // instances only for their own default timeout.
-    const unaryTransport = createTransport(transportOptions(sign, endpoint, opts?.unaryTimeoutMs));
-    const streamTransport = createTransport(transportOptions(sign, endpoint, opts?.streamTimeoutMs));
+    const useBinaryFormat = opts?.useBinaryFormat ?? true;
+    const unaryTransport = createTransport(transportOptions(sign, endpoint, opts?.unaryTimeoutMs, useBinaryFormat));
+    const streamTransport = createTransport(transportOptions(sign, endpoint, opts?.streamTimeoutMs, useBinaryFormat));
 
     return createConnectClient(svc, {
         unary: unaryTransport.unary.bind(unaryTransport),
@@ -37,17 +39,18 @@ export function createClient<T extends DescService>(signer: string | Buffer | ((
 }
 
 /**
- * The options of the client's transport: the Connect protocol, binary format, over the signing
- * fetch client. CommonTransportOptions is connect-es internal API that does not follow semantic
- * versioning, so every field is spelled out here and a change to it upstream fails the build.
+ * The options of the client's transport: the Connect protocol, binary format unless told
+ * otherwise, over the signing fetch client. CommonTransportOptions is connect-es internal API that
+ * does not follow semantic versioning, so every field is spelled out here and a change to it
+ * upstream fails the build.
  *
  * @internal
  */
-export function transportOptions(signer: SignerFunction, endpoint: string, timeoutMs?: number): CommonTransportOptions {
+export function transportOptions(signer: SignerFunction, endpoint: string, timeoutMs?: number, useBinaryFormat = true): CommonTransportOptions {
     return {
         httpClient: createSigningFetchClient(signer),
         baseUrl: endpoint,
-        useBinaryFormat: true,
+        useBinaryFormat,
         interceptors: [],
         acceptCompression: [],
         sendCompression: null,
@@ -71,6 +74,13 @@ export interface ClientOptions {
      * overrides it. Default: none.
      */
     streamTimeoutMs?: number;
+    /**
+     * Whether messages are sent as binary Protobuf (`application/proto`,
+     * `application/connect+proto`) or as Connect JSON (`application/json`,
+     * `application/connect+json`). The signature covers the bytes as sent either way: the whole
+     * body of a unary call, the first envelope of a streaming call. Default: true.
+     */
+    useBinaryFormat?: boolean;
 }
 
 /**

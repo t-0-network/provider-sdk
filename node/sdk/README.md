@@ -183,7 +183,7 @@ The input may be bare hexadecimal or use the lowercase `0x` prefix; output is ca
 
 ### Network Client
 
-Use `createClient` to call T-0 Network APIs. The client handles request signing automatically. It speaks the Connect protocol in binary: unary calls go out as `application/proto` and are signed over the whole request body.
+Use `createClient` to call T-0 Network APIs. The client handles request signing automatically. It speaks the Connect protocol, in binary by default: unary calls go out as `application/proto` and are signed over the whole request body. Pass `useBinaryFormat: false` for Connect JSON (`application/json`, `application/connect+json`); the signature covers the bytes as sent either way.
 
 ```ts
 import { createClient, NetworkService } from "@t-0/provider-sdk";
@@ -218,14 +218,15 @@ const quote = await networkClient.getQuote({
 
 #### Streaming calls
 
-Client-streaming and server-streaming methods work on the same client and go out as `application/connect+proto`. A streaming call is signed over its **first request message only**: the signature headers cover the first envelope exactly as sent, its 5-byte prefix (flags and big-endian length) included. The request goes out as soon as that first message is available, and later messages are streamed unsigned and unbuffered. A client stream closed before its first message is still sent, signed over empty bytes, and the network rejects it. A bidirectional-streaming call fails with `unimplemented` and sends nothing.
+Client-streaming and server-streaming methods work on the same client and go out as `application/connect+proto` (or `application/connect+json`). A streaming call is signed over its **first request message only**: the signature headers cover the first envelope exactly as sent, its 5-byte prefix (flags and big-endian length) included. The request goes out as soon as that first message is available, and later messages are streamed unsigned and unbuffered. A client stream closed before its first message is still sent, signed over empty bytes, and the network rejects it. A bidirectional-streaming call fails with `unimplemented` and sends nothing.
 
-Timeouts are off by default. Pass them as the fourth argument; a call's own `timeoutMs` overrides them:
+Options go in the fourth argument. Timeouts are off by default, and a call's own `timeoutMs` overrides them:
 
 ```ts
 const client = createClient(privateKey, endpoint, NetworkService, {
   unaryTimeoutMs: 15_000,  // each unary call
   streamTimeoutMs: 60_000, // each streaming call, from waiting for the first message to the end of the response
+  useBinaryFormat: true,   // the default; false for Connect JSON
 });
 ```
 

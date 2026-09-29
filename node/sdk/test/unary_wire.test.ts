@@ -56,21 +56,27 @@ interface Sent {
   body: Buffer;
 }
 
-// A fetch that records each request and answers a serving health check.
+// A fetch that records each request and answers a serving health check in the request's format.
 function recordingFetch(sent: Sent[]): typeof globalThis.fetch {
   return async (url, init) => {
     const body = init?.body == null ? Buffer.alloc(0) : Buffer.from(await new Response(init.body).arrayBuffer());
     sent.push({ url: String(url), init: init ?? {}, body });
+    if (new Headers(init?.headers).get('Content-Type') === 'application/json') {
+      return new Response('{"status":"SERVING"}', { headers: { 'Content-Type': 'application/json' } });
+    }
     const serving = create(HealthCheckResponseSchema, { status: HealthCheckResponse_ServingStatus.SERVING });
     return new Response(toBinary(HealthCheckResponseSchema, serving), { headers: { 'Content-Type': 'application/proto' } });
   };
 }
 
 // Makes the health check through the client's transport over a recording fetch.
-async function check(t: TestContext): Promise<Sent> {
+async function check(t: TestContext, useBinaryFormat = true): Promise<Sent> {
   t.mock.method(Date, 'now', () => TIMESTAMP_MS);
   const sent: Sent[] = [];
-  const transport = createTransport({ ...transportOptions(signer, BASE_URL), httpClient: createSigningFetchClient(signer, recordingFetch(sent)) });
+  const transport = createTransport({
+    ...transportOptions(signer, BASE_URL, undefined, useBinaryFormat),
+    httpClient: createSigningFetchClient(signer, recordingFetch(sent)),
+  });
   const client = createConnectClient(Health, transport);
   const resp = await client.check(REQUEST, CALL_OPTIONS);
   assert.equal(resp.status, HealthCheckResponse_ServingStatus.SERVING);
@@ -112,6 +118,16 @@ describe('Unary request on the wire (golden)', () => {
     // One buffer, not a stream: fetch sends it with a Content-Length, as connect-web did.
     assert.ok(s.init.body instanceof Uint8Array);
     assert.equal(s.init.duplex, undefined);
+  });
+
+  // The JSON format sends exactly what connect-web sent, so it is there for a network that needs it.
+  it('with useBinaryFormat: false the SDK sends the request connect-web sent', async (t) => {
+    const s = await check(t, false);
+    assert.equal(s.url, `${BASE_URL}/grpc.health.v1.Health/Check`);
+    assert.equal(s.body.toString(), LEGACY.body);
+    assert.deepEqual(plainHeaders(s.init), LEGACY.headers);
+    assertSignedOverBody(s);
+    assert.ok(s.init.body instanceof Uint8Array);
   });
 
   it('carries the message connect-web sent', () => {

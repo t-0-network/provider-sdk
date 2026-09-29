@@ -133,6 +133,23 @@ describe('Cross-language streaming: Node client → Go server', { skip: !goAvail
     await waitForLog('/test.v1.StreamTest/ServerStream verified over the first envelope', mark);
   });
 
+  // The signature covers the bytes as sent, whatever the format: Connect JSON streams are
+  // verified over their first envelope too.
+  it('Connect JSON: client and server streams are verified over the first envelope', async () => {
+    const mark = log.length;
+    const client = createClient(CLIENT_PRIVATE_KEY, url, StreamTest, { useBinaryFormat: false });
+    const resp = await client.clientStream(stringValues('m1', 'm2', 'm3'));
+    assert.equal(resp.value, 'm1,m2,m3');
+    await waitForLog('/test.v1.StreamTest/ClientStream verified over the first envelope', mark);
+
+    const got: string[] = [];
+    for await (const reply of client.serverStream({ value: 'hello' })) {
+      got.push(reply.value);
+    }
+    assert.deepEqual(got, ['hello', 'hello', 'hello']);
+    await waitForLog('/test.v1.StreamTest/ServerStream verified over the first envelope', mark);
+  });
+
   // The helper verifies the signature as soon as it has read the first envelope. The caller's
   // stream produces m2 only once the helper has logged that: a transport that buffers the body
   // sends nothing until the stream ends, and the wait fails.

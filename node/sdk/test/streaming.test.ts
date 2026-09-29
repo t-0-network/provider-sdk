@@ -183,6 +183,14 @@ function envelopeOf(value: string): string {
   return Buffer.concat([prefix, payload]).toString('hex');
 }
 
+// The same, for Connect JSON: the payload is the message's JSON, a string for StringValue.
+function jsonEnvelopeOf(value: string): string {
+  const payload = Buffer.from(JSON.stringify(value));
+  const prefix = Buffer.alloc(5);
+  prefix.writeUInt32BE(payload.length, 1);
+  return Buffer.concat([prefix, payload]).toString('hex');
+}
+
 async function withServer(fn: (srv: StreamServer, key: ReturnType<typeof newKeypair>) => Promise<void>) {
   const key = newKeypair();
   const srv = await bootStreamServer(key.publicKeyHex);
@@ -319,6 +327,29 @@ describe('createClient routes unary and streaming calls to their own transport',
       assert.equal(unary.valid, true);
       assert.equal(stream.contentType, 'application/connect+proto');
       assert.equal(stream.valid, true);
+    });
+  });
+
+  // The format does not matter to the signature: Connect JSON is signed over the same parts.
+  it('with useBinaryFormat: false, calls use Connect JSON, signed the same way', async () => {
+    await withServer(async (srv, key) => {
+      const client = createClient(key.privateKeyHex, srv.url, StreamTest, { useBinaryFormat: false });
+      assert.equal((await client.unary({ value: 'hello' })).value, 'hello');
+      assert.equal((await client.clientStream(stringValues('m1', 'm2', 'm3'))).value, 'm1,m2,m3');
+      const got: string[] = [];
+      for await (const resp of client.serverStream({ value: 'hi' })) {
+        got.push(resp.value);
+      }
+      assert.deepEqual(got, ['hi', 'hi', 'hi']);
+
+      const [unary, clientStream, serverStream] = srv.checks;
+      assert.equal(unary.contentType, 'application/json');
+      assert.equal(unary.signed.toString(), '"hello"');
+      assert.equal(clientStream.contentType, 'application/connect+json');
+      assert.equal(clientStream.signed.toString('hex'), jsonEnvelopeOf('m1'));
+      assert.equal(serverStream.contentType, 'application/connect+json');
+      assert.equal(serverStream.signed.toString('hex'), jsonEnvelopeOf('hi'));
+      assert.ok(srv.checks.every((c) => c.valid));
     });
   });
 
