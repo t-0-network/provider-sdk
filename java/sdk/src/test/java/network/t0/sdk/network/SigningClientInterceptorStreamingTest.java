@@ -191,6 +191,89 @@ class SigningClientInterceptorStreamingTest {
     }
 
     @Test
+    @DisplayName("An onReady raised inside the first message's start() is not run by a drain under way elsewhere")
+    void onReadyRaisedDuringTheFirstSendWaitsForItDespiteAnotherDrain() throws Exception {
+        channel.readyOnStart();
+        channel.blockFirstSend();
+        RecordingListener<StringValue> listener = new RecordingListener<>();
+        ClientCall<StringValue, StringValue> call = intercepted.newCall(CLIENT_STREAM, callOptions());
+        FirstOnReadyHeld held = new FirstOnReadyHeld();
+        listener.onReadyAction = () -> {
+            if (held.holdFirst()) {
+                call.sendMessage(value("m2")); // the onReady raised inside start()
+            }
+        };
+
+        RecordingCall raw = runFirstSendAgainstAnotherDrain(call, listener, held);
+
+        assertThat(raw.sent).containsExactly(bytes("m1"), bytes("m2"));
+        assertThat(verifies(raw.headers, bytes("m1"))).isTrue();
+    }
+
+    @Test
+    @DisplayName("An onClose raised inside the first message's start() is not run by a drain under way elsewhere")
+    void onCloseRaisedDuringTheFirstSendWaitsForItDespiteAnotherDrain() throws Exception {
+        channel.closeOnStart(Status.UNAVAILABLE);
+        channel.blockFirstSend();
+        RecordingListener<StringValue> listener = new RecordingListener<>();
+        ClientCall<StringValue, StringValue> call = intercepted.newCall(CLIENT_STREAM, callOptions());
+        FirstOnReadyHeld held = new FirstOnReadyHeld();
+        listener.onReadyAction = held::holdFirst;
+        listener.onCloseAction = () -> call.cancel("closed", null);
+
+        RecordingCall raw = runFirstSendAgainstAnotherDrain(call, listener, held);
+
+        // A cancel before the send would make a real call's sendMessage throw.
+        assertThat(raw.events()).containsExactly("start", "send", "cancel");
+    }
+
+    /**
+     * Starts the call; runs its first onReady on another thread and holds it there, mid-drain; sends m1 on a
+     * third thread, whose start() raises a callback; lets the held drain go on while m1 is still going out.
+     */
+    private RecordingCall runFirstSendAgainstAnotherDrain(
+            ClientCall<StringValue, StringValue> call, RecordingListener<StringValue> listener, FirstOnReadyHeld held)
+            throws Exception {
+        call.start(listener, new Metadata());
+        RecordingCall raw = channel.lastCall();
+        Thread drainer = new Thread(this::runCallbackTasks); // the call's first onReady, before any message
+        drainer.setDaemon(true); // a hang must not keep the test JVM alive
+        Thread sender = new Thread(() -> call.sendMessage(value("m1")));
+        sender.setDaemon(true);
+        try {
+            drainer.start();
+            assertThat(held.entered.await(5, TimeUnit.SECONDS)).as("first onReady entered").isTrue();
+            sender.start();
+            raw.awaitFirstSendEntered(); // start() has raised its callback; m1 is going out
+            held.release.countDown();
+            drainer.join(5_000);
+            assertThat(drainer.isAlive()).as("the other drain finished").isFalse();
+        } finally {
+            held.release.countDown();
+            raw.releaseSend();
+        }
+        sender.join(5_000);
+        assertThat(sender.isAlive()).as("sendMessage returned").isFalse();
+        return raw;
+    }
+
+    /** Holds the listener's first onReady until released; true for every later one. */
+    private static final class FirstOnReadyHeld {
+        final CountDownLatch entered = new CountDownLatch(1);
+        final CountDownLatch release = new CountDownLatch(1);
+        private final java.util.concurrent.atomic.AtomicInteger calls = new java.util.concurrent.atomic.AtomicInteger();
+
+        boolean holdFirst() {
+            if (calls.incrementAndGet() == 1) {
+                entered.countDown();
+                awaitQuietly(release);
+                return false;
+            }
+            return calls.get() == 2;
+        }
+    }
+
+    @Test
     @DisplayName("Client stream: headers are set once, before start, with no duplicate X-Signature")
     void clientStreamSetsHeadersOnce() {
         Metadata headers = new Metadata();

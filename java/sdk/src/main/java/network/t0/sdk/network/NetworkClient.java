@@ -28,6 +28,8 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.Clock;
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -463,7 +465,9 @@ public abstract class NetworkClient implements Closeable {
                 private boolean starting = false;
                 private Thread starter; // the thread in rawCall.start(), while starting
                 private int pendingRequests = 0;
-                private volatile Thread firstSender; // sending the signed first message, until it is out
+                private Thread firstSender; // sending the signed first message, until it is out
+                private boolean open = false; // started, and the first message, if it started the call, is out
+                private final List<Runnable> held = new ArrayList<>(); // callbacks raised meanwhile
                 private ScheduledFuture<?> deadlineTimer;
                 private final Context.CancellationListener contextListener = cancelled -> startUnsigned();
                 // The listener's callbacks, one at a time: its onReady before the first message (see
@@ -520,15 +524,16 @@ public abstract class NetworkClient implements Closeable {
                     // Only the first message is signed; later stream messages go out as-is.
                     if (claimStart(messageBytes)) {
                         // rawCall may call the listener back before the signed message is out, inside
-                        // start() on this thread (a direct executor) or on another: every callback waits
-                        // until then (see deliver), so that nothing a listener sends overtakes it.
-                        firstSender = Thread.currentThread();
+                        // start() on this thread (a direct executor) or on another: every such callback is
+                        // held until then (see deliver), so that nothing a listener sends overtakes it.
+                        synchronized (lock) {
+                            firstSender = Thread.currentThread();
+                        }
                         try {
-                            startRawCall();
+                            startRawCall(false);
                             rawCall.sendMessage(messageBytes);
                         } finally {
-                            firstSender = null;
-                            callbacks.drain();
+                            openAndRelease();
                         }
                         return;
                     }
@@ -539,7 +544,7 @@ public abstract class NetworkClient implements Closeable {
                 public void halfClose() {
                     // If no message was sent, start with empty body signature
                     if (claimStart(new byte[0])) {
-                        startRawCall();
+                        startRawCall(true);
                     }
                     rawCall.halfClose();
                 }
@@ -572,7 +577,7 @@ public abstract class NetworkClient implements Closeable {
                                 .withDescription(message)
                                 .withCause(cause)
                                 .asRuntimeException());
-                        startRawCall();
+                        startRawCall(true);
                     }
                     rawCall.cancel(message, cause);
                 }
@@ -601,10 +606,7 @@ public abstract class NetworkClient implements Closeable {
                  */
                 private boolean claimStart(byte[] signed) {
                     synchronized (lock) {
-                        if (started) {
-                            return false;
-                        }
-                        if (!starting) {
+                        if (!started && !starting) {
                             if (signed != null) {
                                 addSignatureHeaders(signed, clock.millis());
                             }
@@ -613,10 +615,11 @@ public abstract class NetworkClient implements Closeable {
                             return true;
                         }
                         // grpc may run a listener inline in rawCall.start(): that thread must not wait for itself.
-                        if (starter == Thread.currentThread()) {
+                        if (starter == Thread.currentThread() || firstSender == Thread.currentThread()) {
                             return false;
                         }
-                        while (!started) {
+                        // Until the first message is out, so that nothing another thread sends overtakes it.
+                        while (!open) {
                             try {
                                 lock.wait();
                             } catch (InterruptedException e) {
@@ -640,11 +643,12 @@ public abstract class NetworkClient implements Closeable {
                         starting = true;
                         starter = Thread.currentThread();
                     }
-                    startRawCall();
+                    startRawCall(true);
                 }
 
-                // Outside the lock: request() from another thread must not block on it meanwhile.
-                private void startRawCall() {
+                // Outside the lock: request() from another thread must not block on it meanwhile. Opens the
+                // call to the threads waiting in claimStart, unless a first message still has to go out.
+                private void startRawCall(boolean openWhenStarted) {
                     Listener<RespT> listener;
                     Metadata startHeaders;
                     ScheduledFuture<?> timer;
@@ -693,6 +697,7 @@ public abstract class NetworkClient implements Closeable {
                             started = true;
                             starting = false;
                             starter = null;
+                            open = openWhenStarted;
                             requests = pendingRequests;
                             pendingRequests = 0;
                             lock.notifyAll();
@@ -704,15 +709,33 @@ public abstract class NetworkClient implements Closeable {
                     }
                 }
 
-                // A listener callback, in the caller's context. While the signed first message is pending
-                // it only queues: the sender runs the queue once the message is out (see sendMessage).
-                // Queued first and the flag read after, so no callback is left behind when the sender
-                // clears the flag and drains between the two.
+                // A listener callback, in the caller's context. While the signed first message is pending it
+                // is held apart from `callbacks`, where a drain already under way on another thread would
+                // run it at once; openAndRelease queues it once the message is out. Queued under the lock,
+                // so held and later callbacks keep their order.
                 private void deliver(Runnable callback) {
-                    callbacks.executeLater(context.wrap(callback));
-                    if (firstSender == null) {
-                        callbacks.drain();
+                    Runnable task = context.wrap(callback);
+                    synchronized (lock) {
+                        if (firstSender != null) {
+                            held.add(task);
+                            return;
+                        }
+                        callbacks.executeLater(task);
                     }
+                    callbacks.drain();
+                }
+
+                // The signed first message is out (or failed): open the call to the threads waiting in
+                // claimStart, and run the callbacks held meanwhile, in order, before any later one.
+                private void openAndRelease() {
+                    synchronized (lock) {
+                        firstSender = null;
+                        open = true;
+                        held.forEach(callbacks::executeLater);
+                        held.clear();
+                        lock.notifyAll();
+                    }
+                    callbacks.drain();
                 }
 
                 // Under the lock, before start: once started, the headers belong to the transport.
