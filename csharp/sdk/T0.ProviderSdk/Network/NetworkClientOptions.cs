@@ -18,9 +18,9 @@ public sealed class NetworkClientOptions
     /// Base URL of the T-0 Network API, <c>https://api.t-0.network</c> by default or when set to null.
     /// </summary>
     /// <exception cref="ArgumentException">
-    /// The value is empty, or is not an <c>http://</c> or <c>https://</c> URL with a host name of ASCII
-    /// letters, digits, '-' and '.' or an IP address, no user info, and, if it has a ':' after the
-    /// host, a port from 1 to 65535.
+    /// The value is empty, or is not <c>http://</c> or <c>https://</c> followed by a host (a name of
+    /// ASCII letters, digits, '-' and '.', or an IP address), an optional port from 1 to 65535 and an
+    /// optional trailing '/'. User info, a path, a query and a fragment are refused.
     /// </exception>
     [AllowNull]
     public string BaseUrl
@@ -59,11 +59,11 @@ public sealed class NetworkClientOptions
         if (value.Length == 0)
             throw new ArgumentException("base URL is not set", nameof(BaseUrl));
         // Uri alone would read "http:host" as http://host, take "http://h:" as port 80, and accept
-        // port 0 and user info.
+        // port 0, user info and a path that the channel would drop.
         var hasScheme = value.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
             || value.StartsWith("https://", StringComparison.OrdinalIgnoreCase);
         if (!hasScheme
-            || !IsPlainAuthority(value)
+            || !IsAuthorityOnly(value)
             || !Uri.TryCreate(value, UriKind.Absolute, out var uri)
             || uri.Host.Length == 0
             || !IsHostName(uri)
@@ -72,14 +72,15 @@ public sealed class NetworkClientOptions
         return value;
     }
 
-    // No user info, and a ':' after the host is followed by a port.
-    private static bool IsPlainAuthority(string url)
+    // The authority as written, then at most a '/': no user info, a ':' after the host is followed
+    // by a port, and no path, query or fragment.
+    private static bool IsAuthorityOnly(string url)
     {
-        var authority = url.AsSpan(url.IndexOf("://", StringComparison.Ordinal) + 3);
-        var end = authority.IndexOfAny('/', '?', '#');
-        if (end >= 0)
-            authority = authority[..end];
-        return !authority.Contains('@') && !authority.EndsWith(':');
+        var rest = url.AsSpan(url.IndexOf("://", StringComparison.Ordinal) + 3);
+        var end = rest.IndexOfAny('/', '?', '#');
+        var authority = end >= 0 ? rest[..end] : rest;
+        var tail = end >= 0 ? rest[end..] : [];
+        return !authority.Contains('@') && !authority.EndsWith(':') && (tail.IsEmpty || tail.SequenceEqual("/"));
     }
 
     // Uri takes names such as my_host, which some gRPC clients cannot connect to.
