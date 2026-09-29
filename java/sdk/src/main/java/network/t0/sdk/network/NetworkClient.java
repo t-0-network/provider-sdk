@@ -17,7 +17,7 @@ import io.grpc.okhttp.OkHttpChannelBuilder;
 import network.t0.sdk.common.Headers;
 import network.t0.sdk.crypto.Keccak256;
 import network.t0.sdk.crypto.SignResult;
-import network.t0.sdk.crypto.Signer;
+import network.t0.sdk.crypto.DigestSigner;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -81,6 +81,9 @@ public abstract class NetworkClient implements Closeable {
 
     private static final Logger log = LoggerFactory.getLogger(NetworkClient.class);
 
+    /** The base URL used when the caller passes {@code null}. */
+    protected static final String DEFAULT_ENDPOINT = "https://api.t-0.network";
+
     /**
      * Default deadline for unary calls.
      */
@@ -126,7 +129,7 @@ public abstract class NetworkClient implements Closeable {
     /**
      * Creates a channel pair for the given endpoint with the signing and default-deadline interceptors.
      *
-     * @param endpoint      the T-0 Network endpoint (e.g., "https://api.t-0.network" or "api.t-0.network:443")
+     * @param endpoint      the T-0 Network base URL with an http or https scheme, or {@code null} for "https://api.t-0.network"
      * @param signer        the signer to use for signing requests
      * @param timeout       the default deadline for unary calls
      * @param streamTimeout the default deadline for client- and server-streaming calls
@@ -135,17 +138,13 @@ public abstract class NetworkClient implements Closeable {
      *                                  duration of at most 2147483647 ms
      */
     protected static ChannelPair createChannel(
-            String endpoint, Signer signer, Duration timeout, Duration streamTimeout) {
-        if (endpoint == null || endpoint.isEmpty()) {
-            throw new IllegalArgumentException("endpoint must not be null or empty");
-        }
+            String endpoint, DigestSigner signer, Duration timeout, Duration streamTimeout) {
+        // Everything is checked before there is a channel to shut down.
+        EndpointInfo endpointInfo = parseEndpoint(endpoint);
         if (signer == null) {
             throw new IllegalArgumentException("signer must not be null");
         }
-        // Validates the timeouts before there is a channel to shut down.
         DefaultDeadlineInterceptor deadlines = new DefaultDeadlineInterceptor(timeout, streamTimeout);
-
-        EndpointInfo endpointInfo = parseEndpoint(endpoint);
 
         OkHttpChannelBuilder builder = OkHttpChannelBuilder
                 .forAddress(endpointInfo.host(), endpointInfo.port())
@@ -268,34 +267,33 @@ public abstract class NetworkClient implements Closeable {
     protected record EndpointInfo(String host, int port, boolean usePlaintext) {}
 
     /**
-     * Parses an endpoint string into its components.
+     * Parses a base URL into its components.
      *
-     * @param endpoint the endpoint string
+     * @param endpoint the base URL with an {@code http} or {@code https} scheme and a host;
+     *                 {@code null} for {@value #DEFAULT_ENDPOINT}
      * @return the parsed endpoint information
+     * @throws IllegalArgumentException if the base URL is empty or not valid
      */
     protected static EndpointInfo parseEndpoint(String endpoint) {
-        String normalizedEndpoint = endpoint;
-
-        // Add scheme if missing for URI parsing
-        if (!normalizedEndpoint.contains("://")) {
-            normalizedEndpoint = "https://" + normalizedEndpoint;
+        if (endpoint == null) {
+            endpoint = DEFAULT_ENDPOINT;
         }
-
+        if (endpoint.isEmpty()) {
+            throw new IllegalArgumentException("base URL is not set");
+        }
+        URI uri;
         try {
-            URI uri = new URI(normalizedEndpoint);
-            String host = uri.getHost();
-            if (host == null || host.isEmpty()) {
-                throw new IllegalArgumentException("endpoint must have a valid host: " + endpoint);
-            }
-
-            boolean usePlaintext = "http".equalsIgnoreCase(uri.getScheme());
-            int defaultPort = usePlaintext ? 80 : 443;
-            int port = uri.getPort() != -1 ? uri.getPort() : defaultPort;
-
-            return new EndpointInfo(host, port, usePlaintext);
+            uri = new URI(endpoint);
         } catch (URISyntaxException e) {
-            throw new IllegalArgumentException("invalid endpoint format: " + endpoint, e);
+            throw new IllegalArgumentException("base URL is not valid", e);
         }
+        String scheme = uri.getScheme();
+        boolean usePlaintext = "http".equalsIgnoreCase(scheme);
+        if ((!usePlaintext && !"https".equalsIgnoreCase(scheme)) || uri.getHost() == null || uri.getHost().isEmpty()) {
+            throw new IllegalArgumentException("base URL is not valid");
+        }
+        int port = uri.getPort() != -1 ? uri.getPort() : usePlaintext ? 80 : 443;
+        return new EndpointInfo(uri.getHost(), port, usePlaintext);
     }
 
     // --- Signing interceptor ---
@@ -340,7 +338,7 @@ public abstract class NetworkClient implements Closeable {
             return thread;
         });
 
-        private final Signer signer;
+        private final DigestSigner signer;
         private final Clock clock;
 
         /**
@@ -349,7 +347,7 @@ public abstract class NetworkClient implements Closeable {
          * @param signer the signer to use for signing requests
          * @param clock  the clock to use for timestamp generation
          */
-        SigningClientInterceptor(Signer signer, Clock clock) {
+        SigningClientInterceptor(DigestSigner signer, Clock clock) {
             this.signer = signer;
             this.clock = clock;
         }

@@ -15,7 +15,9 @@ import io.grpc.Status;
 import io.grpc.protobuf.ProtoUtils;
 import network.t0.sdk.common.Headers;
 import network.t0.sdk.common.HexUtils;
+import network.t0.sdk.crypto.DigestSigner;
 import network.t0.sdk.crypto.Keccak256;
+import network.t0.sdk.crypto.SignResult;
 import network.t0.sdk.crypto.SignatureVerifier;
 import network.t0.sdk.crypto.Signer;
 import org.junit.jupiter.api.BeforeEach;
@@ -169,6 +171,34 @@ class SigningClientInterceptorStreamingTest {
         JsonObject vec = streamSigningCase("empty-client-stream");
         assertThat(vec.get("timestamp_ms").getAsLong()).isEqualTo(FIXED_TIMESTAMP_MS);
         assertThat(signature64Hex(raw.headers)).isEqualTo(vec.get("expected_signature").getAsString());
+    }
+
+    @Test
+    @DisplayName("A DigestSigner other than Signer signs the call: one digest, headers that verify")
+    void anyDigestSignerSignsTheCall() {
+        List<byte[]> digests = Collections.synchronizedList(new ArrayList<>());
+        DigestSigner custom = new DigestSigner() {
+            @Override
+            public SignResult sign(byte[] digest) {
+                digests.add(digest);
+                return signer.sign(digest);
+            }
+
+            @Override
+            public byte[] getPublicKey() {
+                return signer.getPublicKey();
+            }
+        };
+        Clock clock = Clock.fixed(Instant.ofEpochMilli(FIXED_TIMESTAMP_MS), ZoneOffset.UTC);
+        Channel withCustom = ClientInterceptors.intercept(channel, new NetworkClient.SigningClientInterceptor(custom, clock));
+
+        ClientCall<StringValue, StringValue> call = withCustom.newCall(CLIENT_STREAM, callOptions());
+        call.start(new RecordingListener<>(), new Metadata());
+        call.sendMessage(value("m1"));
+        call.sendMessage(value("m2"));
+
+        assertThat(digests).hasSize(1);
+        assertThat(verifies(channel.lastCall().headers, bytes("m1"))).isTrue();
     }
 
     // ==================== Server streaming ====================

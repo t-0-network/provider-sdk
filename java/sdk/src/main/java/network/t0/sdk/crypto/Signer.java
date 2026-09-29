@@ -30,7 +30,7 @@ import java.util.Arrays;
  * <p><b>Thread Safety:</b> Instances of this class are thread-safe. The {@link #sign(byte[])}
  * method can be called concurrently from multiple threads.
  */
-public final class Signer {
+public final class Signer implements DigestSigner {
 
     private static final X9ECParameters CURVE_PARAMS = CustomNamedCurves.getByName("secp256k1");
     private static final ECDomainParameters DOMAIN_PARAMS = new ECDomainParameters(
@@ -110,6 +110,7 @@ public final class Signer {
      * @return SignResult containing signature and public key
      * @throws IllegalArgumentException if digest is not 32 bytes
      */
+    @Override
     public SignResult sign(byte[] digest) {
         if (digest == null || digest.length != PRIVATE_KEY_LENGTH) {
             throw new IllegalArgumentException("digest must be 32 bytes");
@@ -148,6 +149,7 @@ public final class Signer {
      *
      * @return copy of the public key bytes
      */
+    @Override
     public byte[] getPublicKey() {
         return Arrays.copyOf(publicKey, publicKey.length);
     }
@@ -157,6 +159,7 @@ public final class Signer {
      *
      * @return hex-encoded public key
      */
+    @Override
     public String getPublicKeyHex() {
         return HexUtils.bytesToHex(publicKey);
     }
@@ -166,6 +169,7 @@ public final class Signer {
      *
      * @return hex-encoded public key with 0x prefix
      */
+    @Override
     public String getPublicKeyHexPrefixed() {
         return "0x" + HexUtils.bytesToHex(publicKey);
     }

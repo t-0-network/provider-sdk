@@ -3,7 +3,7 @@ package network.t0.sdk.network;
 import io.grpc.Channel;
 import io.grpc.ManagedChannel;
 import io.grpc.stub.AbstractFutureStub;
-import network.t0.sdk.crypto.Signer;
+import network.t0.sdk.crypto.DigestSigner;
 
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
@@ -52,16 +52,16 @@ public final class FutureNetworkClient<S extends AbstractFutureStub<S>> extends 
      *
      * <p>Default deadlines: 15 seconds for unary calls, 5 minutes for client- and server-streaming calls.
      *
-     * @param endpoint    the T-0 Network endpoint (e.g., "https://api.t-0.network" or "api.t-0.network:443")
+     * @param endpoint    the T-0 Network base URL with an http or https scheme, or {@code null} for "https://api.t-0.network"
      * @param signer      the signer to use for signing requests
      * @param stubFactory the stub factory (e.g., {@code NetworkServiceGrpc::newFutureStub})
      * @param <S>         the future stub type
      * @return a new FutureNetworkClient instance
-     * @throws IllegalArgumentException if the endpoint or signer is invalid
+     * @throws IllegalArgumentException if the endpoint, signer or stub factory is invalid
      */
     public static <S extends AbstractFutureStub<S>> FutureNetworkClient<S> create(
             String endpoint,
-            Signer signer,
+            DigestSigner signer,
             Function<Channel, S> stubFactory) {
         return create(endpoint, signer, stubFactory, DEFAULT_TIMEOUT, DEFAULT_STREAM_TIMEOUT);
     }
@@ -71,7 +71,7 @@ public final class FutureNetworkClient<S extends AbstractFutureStub<S>> extends 
      *
      * <p>See {@code docs/STREAMING.md}.
      *
-     * @param endpoint      the T-0 Network endpoint (e.g., "https://api.t-0.network" or "api.t-0.network:443")
+     * @param endpoint      the T-0 Network base URL with an http or https scheme, or {@code null} for "https://api.t-0.network"
      * @param signer        the signer to use for signing requests
      * @param stubFactory   the stub factory (e.g., {@code NetworkServiceGrpc::newFutureStub})
      * @param timeout       the default deadline for unary calls
@@ -79,15 +79,18 @@ public final class FutureNetworkClient<S extends AbstractFutureStub<S>> extends 
      *                      the wait for the first message
      * @param <S>           the future stub type
      * @return a new FutureNetworkClient instance
-     * @throws IllegalArgumentException if the endpoint or signer is invalid, or a timeout is not a
-     *                                  positive duration of at most 2147483647 ms
+     * @throws IllegalArgumentException if the endpoint, signer or stub factory is invalid, or a timeout is
+     *                                  not a positive duration of at most 2147483647 ms
      */
     public static <S extends AbstractFutureStub<S>> FutureNetworkClient<S> create(
             String endpoint,
-            Signer signer,
+            DigestSigner signer,
             Function<Channel, S> stubFactory,
             Duration timeout,
             Duration streamTimeout) {
+        if (stubFactory == null) {
+            throw new IllegalArgumentException("stubFactory must not be null");
+        }
         ChannelPair pair = createChannel(endpoint, signer, timeout, streamTimeout);
         S stub = stubFactory.apply(pair.interceptedChannel());
         return new FutureNetworkClient<>(pair.channel(), pair.interceptedChannel(), stub);
