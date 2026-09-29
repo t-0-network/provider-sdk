@@ -21,7 +21,6 @@ The client picks the signed bytes from the request's content type.
   `application/connect+proto`.
 - A client that signs above the gRPC framer covers the first payload without its 5-byte prefix. The
   network accepts both forms over gRPC.
-- gRPC-Web is not supported.
 
 ## When the request is sent
 
@@ -47,9 +46,9 @@ sent as the caller produces it and is never buffered.
   supported", before anything is sent. The network does not accept them.
 - GET requests fail with `unimplemented` and the message "GET requests are not supported", because
   a GET has no body to sign.
-- A client that signs above the gRPC framer cannot sign a compressed message as sent. It refuses a
-  call with a compressor set through call options with `unimplemented` and the message "compressed
-  requests are not supported", before anything is sent.
+- A compressed first message is signed as sent. A client that signs above the gRPC framer cannot
+  do that, so it refuses a call with a compressor set through call options, with `unimplemented`
+  and the message "compressed requests are not supported", before anything is sent.
 
 ## Timeouts
 
@@ -80,8 +79,7 @@ Go, Node and Python speak ConnectRPC. Java and C# speak gRPC.
 - `wireFormat` (Go, Node, Python): `Binary` (the default) or `Json`.
 - `protocol` (Go, Python): `Connect` (the default) or `Grpc`. `Grpc` on an `http://` base URL uses
   HTTP/2 without TLS.
-- No client compresses a request by default, and there is no option for it. A first message that
-  the caller compresses through call options is signed as sent.
+- No client compresses a request by default, and there is no option for it.
 
 ## Other options
 
