@@ -385,10 +385,10 @@ describe('createClient routes unary and streaming calls to their own transport',
     for (const url of ['', null] as unknown as string[]) {
       assert.throws(() => createClient(key, url, StreamTest), { message: 'base URL is not set' });
     }
-    for (const url of ['api.t-0.network', 'api.t-0.network:443', 'ftp://h', 'http://', 'http://:8080', 'http:foo', 'http://h:99999', 'http://h:0', 'not a url']) {
+    for (const url of ['api.t-0.network', 'api.t-0.network:443', 'ftp://h', 'http://', 'http://:8080', 'http:foo', 'http://h:99999', 'http://h:0', 'not a url', 'http://my_host:8080']) {
       assert.throws(() => createClient(key, url, StreamTest), { message: 'base URL is not valid' }, url);
     }
-    for (const url of [undefined, 'https://api.t-0.network', 'http://localhost:8080', 'http://127.0.0.1:1234', 'http://my_host:8080', 'HTTPS://api.t-0.network/v1']) {
+    for (const url of [undefined, 'https://api.t-0.network', 'http://localhost:8080', 'http://127.0.0.1:1234', 'http://[::1]:8080', 'HTTPS://api.t-0.network/v1']) {
       assert.doesNotThrow(() => createClient(key, url, StreamTest), String(url));
     }
   });
