@@ -515,6 +515,28 @@ class SigningClientInterceptorStreamingTest {
         }
     }
 
+    @Test
+    @DisplayName("A listener that cancels from an onClose grpc runs inside start() does not wait for itself")
+    void cancelFromAnOnCloseRunInsideStart() throws Exception {
+        // As ClientCallImpl on a shut-down channel with a direct executor: start() closes the call inline.
+        channel.closeOnStart(Status.UNAVAILABLE);
+        RecordingListener<StringValue> listener = new RecordingListener<>();
+        ClientCall<StringValue, StringValue> call = intercepted.newCall(CLIENT_STREAM, callOptions());
+        listener.onCloseAction = () -> call.cancel("closed", null);
+        call.start(listener, new Metadata());
+
+        Thread sender = new Thread(() -> call.sendMessage(value("m1")));
+        sender.setDaemon(true); // a hang must not keep the test JVM alive
+        sender.start();
+        sender.join(5_000);
+
+        assertThat(sender.isAlive()).as("sendMessage returned").isFalse();
+        RecordingCall raw = channel.lastCall();
+        assertThat(raw.starts).isEqualTo(1);
+        assertThat(raw.events()).containsExactly("start", "cancel", "send");
+        assertThat(listener.closeStatus.getCode()).isEqualTo(Status.Code.UNAVAILABLE);
+    }
+
     // ==================== Unary ====================
 
     @Test
@@ -659,9 +681,15 @@ class SigningClientInterceptorStreamingTest {
     static final class FakeChannel extends Channel {
         private volatile RecordingCall lastCall;
         private boolean blockStarts;
+        private Status closeOnStart;
 
         RecordingCall lastCall() {
             return lastCall;
+        }
+
+        /** Calls handed out from now on close their listener with {@code status} inside start(). */
+        void closeOnStart(Status status) {
+            closeOnStart = status;
         }
 
         /** Calls handed out from now on block in start() until {@link RecordingCall#releaseStart()}. */
@@ -674,6 +702,7 @@ class SigningClientInterceptorStreamingTest {
         public <ReqT, RespT> ClientCall<ReqT, RespT> newCall(
                 MethodDescriptor<ReqT, RespT> method, CallOptions callOptions) {
             lastCall = new RecordingCall(method, blockStarts);
+            lastCall.closeOnStart = closeOnStart;
             return (ClientCall<ReqT, RespT>) lastCall;
         }
 
@@ -699,6 +728,7 @@ class SigningClientInterceptorStreamingTest {
         volatile String headersAtStart;
         volatile int starts;
         volatile boolean ready;
+        Status closeOnStart;
 
         RecordingCall(MethodDescriptor<?, ?> method, boolean blockStart) {
             this.method = method;
@@ -733,6 +763,9 @@ class SigningClientInterceptorStreamingTest {
                 startReleased.await();
             } catch (InterruptedException e) {
                 Thread.currentThread().interrupt();
+            }
+            if (closeOnStart != null) {
+                responseListener.onClose(closeOnStart, new Metadata());
             }
         }
 
@@ -775,6 +808,7 @@ class SigningClientInterceptorStreamingTest {
         final List<String> events = Collections.synchronizedList(new ArrayList<>());
         volatile Status closeStatus;
         Runnable onReadyAction = () -> { };
+        Runnable onCloseAction = () -> { };
         RuntimeException onMessageFailure;
         int sent;
 
@@ -800,7 +834,10 @@ class SigningClientInterceptorStreamingTest {
         @Override
         public void onClose(Status status, Metadata trailers) {
             events.add("onClose");
-            closeStatus = status;
+            if (closeStatus == null) {
+                closeStatus = status;
+                onCloseAction.run();
+            }
         }
     }
 }

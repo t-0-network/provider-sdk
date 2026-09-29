@@ -366,6 +366,7 @@ public abstract class NetworkClient implements Closeable {
                 private Metadata headers;
                 private volatile boolean started = false;
                 private boolean starting = false;
+                private Thread starter; // the thread in rawCall.start(), while starting
                 private int pendingRequests = 0;
                 private ScheduledFuture<?> deadlineTimer;
                 private final Context.CancellationListener contextListener = cancelled -> startUnsigned();
@@ -494,7 +495,12 @@ public abstract class NetworkClient implements Closeable {
                                 addSignatureHeaders(signed, clock.millis());
                             }
                             starting = true;
+                            starter = Thread.currentThread();
                             return true;
+                        }
+                        // grpc may run a listener inline in rawCall.start(): that thread must not wait for itself.
+                        if (starter == Thread.currentThread()) {
+                            return false;
                         }
                         while (!started) {
                             try {
@@ -518,6 +524,7 @@ public abstract class NetworkClient implements Closeable {
                             return;
                         }
                         starting = true;
+                        starter = Thread.currentThread();
                     }
                     startRawCall();
                 }
@@ -563,6 +570,7 @@ public abstract class NetworkClient implements Closeable {
                         synchronized (lock) {
                             started = true;
                             starting = false;
+                            starter = null;
                             requests = pendingRequests;
                             pendingRequests = 0;
                             lock.notifyAll();
