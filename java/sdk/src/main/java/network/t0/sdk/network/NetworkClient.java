@@ -151,7 +151,8 @@ public abstract class NetworkClient implements Closeable {
 
         OkHttpChannelBuilder builder = OkHttpChannelBuilder
                 .forAddress(endpointInfo.host(), endpointInfo.port())
-                .keepAliveTime(30, TimeUnit.SECONDS)
+                // Not more often than grpc servers allow by default (every 5 min), or they close the connection.
+                .keepAliveTime(5, TimeUnit.MINUTES)
                 .keepAliveTimeout(10, TimeUnit.SECONDS);
 
         if (endpointInfo.usePlaintext()) {
