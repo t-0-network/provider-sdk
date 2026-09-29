@@ -13,8 +13,8 @@ namespace T0.ProviderSdk.Network;
 /// <remarks>
 /// Every client signs its requests and gives a call without a deadline of its own
 /// <see cref="NetworkClientOptions.Timeout"/> (unary) or <see cref="NetworkClientOptions.StreamTimeout"/>
-/// (client and server streams). Bidirectional streams are refused. A client keeps its connection for
-/// as long as it lives, so create one and reuse it. See docs/STREAMING.md.
+/// (client and server streams). Bidirectional streams are refused. All clients share one connection
+/// pool, so a client is cheap to create and needs no disposing. See docs/STREAMING.md.
 /// </remarks>
 public static class NetworkClient
 {
@@ -58,25 +58,28 @@ public static class NetworkClient
         }
     }
 
+    // One connection pool for the process: a client created per request would otherwise leave a
+    // pool of open connections behind it, since nothing disposes a client.
+    internal static readonly SocketsHttpHandler SharedTransport = CreateTransport();
+
     internal static HttpClient CreateHttpClient(ISigner signer)
     {
-        var signingHandler = new SigningDelegatingHandler(signer)
-        {
-            InnerHandler = CreateTransport()
-        };
-
+        // disposeHandler: false, so disposing one client's channel leaves the shared transport open.
         // Deadlines come from the call: HttpClient.Timeout only runs until the response headers,
         // which for a client stream is the whole upload.
-        return new HttpClient(signingHandler)
+        return new HttpClient(CreateSigningHandler(signer), disposeHandler: false)
         {
             Timeout = System.Threading.Timeout.InfiniteTimeSpan
         };
     }
 
+    internal static SigningDelegatingHandler CreateSigningHandler(ISigner signer) =>
+        new(signer) { InnerHandler = SharedTransport };
+
     // Pings find a dead HTTP/2 connection while a call waits on it, such as a stream between messages.
     internal static SocketsHttpHandler CreateTransport() => new()
     {
-        KeepAlivePingDelay = TimeSpan.FromSeconds(30),
+        KeepAlivePingDelay = TimeSpan.FromMinutes(5),
         KeepAlivePingTimeout = TimeSpan.FromSeconds(10),
         KeepAlivePingPolicy = HttpKeepAlivePingPolicy.WithActiveRequests,
     };

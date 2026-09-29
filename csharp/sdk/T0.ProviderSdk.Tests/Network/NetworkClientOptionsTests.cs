@@ -1,9 +1,13 @@
+using T0.ProviderSdk.Crypto;
 using T0.ProviderSdk.Network;
 
 namespace T0.ProviderSdk.Tests.Network;
 
 public class NetworkClientOptionsTests
 {
+    private const string Key = "6b30303de7b26bfb1222b317a52113357f8bb06de00160b4261a2fef9c8b9bd8";
+    private const string OtherKey = "4c0883a69102937d6231471b5dbb6204fe5129617082792ae468d01a3f362318";
+
     [Fact]
     public void BaseUrl_DefaultsToTheNetwork_AlsoWhenSetToNull()
     {
@@ -47,12 +51,35 @@ public class NetworkClientOptionsTests
     }
 
     [Fact]
-    public void Transport_PingsEvery30Seconds_WithA10SecondTimeout()
+    public void Transport_PingsEvery5Minutes_WithA10SecondTimeout()
     {
         using var transport = NetworkClient.CreateTransport();
 
-        Assert.Equal(TimeSpan.FromSeconds(30), transport.KeepAlivePingDelay);
+        Assert.Equal(TimeSpan.FromMinutes(5), transport.KeepAlivePingDelay);
         Assert.Equal(TimeSpan.FromSeconds(10), transport.KeepAlivePingTimeout);
         Assert.Equal(HttpKeepAlivePingPolicy.WithActiveRequests, transport.KeepAlivePingPolicy);
+    }
+
+    [Fact]
+    public void Clients_ShareOneTransport()
+    {
+        var first = NetworkClient.CreateSigningHandler(Signer.FromHex(Key));
+        var second = NetworkClient.CreateSigningHandler(Signer.FromHex(OtherKey));
+
+        Assert.Same(NetworkClient.SharedTransport, first.InnerHandler);
+        Assert.Same(NetworkClient.SharedTransport, second.InnerHandler);
+        Assert.Equal(TimeSpan.FromMinutes(5), NetworkClient.SharedTransport.KeepAlivePingDelay);
+    }
+
+    [Fact]
+    public async Task DisposingAClient_LeavesTheSharedTransportOpen()
+    {
+        NetworkClient.CreateHttpClient(Signer.FromHex(Key)).Dispose();
+
+        // Nothing listens there: a live transport fails to connect, a disposed one refuses to send.
+        using var other = NetworkClient.CreateHttpClient(Signer.FromHex(Key));
+        var ex = await Assert.ThrowsAnyAsync<Exception>(
+            () => other.GetAsync($"http://127.0.0.1:{TestPorts.FindFreePort()}/"));
+        Assert.IsType<HttpRequestException>(ex);
     }
 }
