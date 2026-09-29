@@ -6,7 +6,9 @@ Proto-agnostic: works with ANY generated ConnectRPC client class.
 from __future__ import annotations
 
 import functools
+import ipaddress
 import math
+import re
 from typing import TYPE_CHECKING, Any, NoReturn, TypeVar
 from urllib.parse import urlsplit
 
@@ -30,6 +32,10 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
 T = TypeVar("T")
+
+# A host name of ASCII letters, digits, '-' and '.'. Other names (with '_', say) are refused: not
+# every client this network talks to can connect to them.
+_HOST_NAME = re.compile(r"[A-Za-z0-9.-]+")
 
 # The largest timeout every SDK accepts: 2^31 - 1 ms, about 24.8 days.
 MAX_TIMEOUT_MS = 2**31 - 1
@@ -63,8 +69,9 @@ def new_service_client(
         private_key: Hex-encoded secp256k1 private key: 64 hex digits, optionally after 0x or 0X.
             Ignored when sign_fn is given.
         client_class: Generated ConnectRPC async client class (e.g. NetworkServiceClient).
-        base_url: Base URL of the T-0 Network API: http:// or https://, a host name, and a port of
-            1..65535 if one is given. None means the default; an empty string raises ValueError.
+        base_url: Base URL of the T-0 Network API: http:// or https://, a host (ASCII letters,
+            digits, '-' and '.', or an IP literal), and a port of 1..65535 if one is given. None
+            means the default; an empty string raises ValueError.
         timeout: Timeout of unary calls in seconds, 15 by default.
         stream_timeout: Timeout of client- and server-streaming calls in seconds, including the
             wait for the first request message, 300 by default.
@@ -141,7 +148,7 @@ def _checked_base_url(base_url: str | None) -> str:
 
 
 def _is_valid_base_url(base_url: str) -> bool:
-    """http:// or https:// (any case), a host name, and a port of 1..65535 if one is given."""
+    """http:// or https:// (any case), a host name or IP literal, and a port of 1..65535 if given."""
     scheme, separator, _ = base_url.partition("://")
     if not separator or scheme.lower() not in ("http", "https"):
         return False
@@ -150,7 +157,16 @@ def _is_valid_base_url(base_url: str) -> bool:
         port = parts.port  # ValueError outside 0..65535 or not a number
     except ValueError:
         return False
-    return bool(parts.hostname) and (port is None or 1 <= port <= 65535)
+    host = parts.hostname
+    if not host or (port is not None and not 1 <= port <= 65535):
+        return False
+    if ":" in host:  # only a bracketed IPv6 literal keeps a ':' in its host
+        try:
+            ipaddress.IPv6Address(host)
+        except ValueError:
+            return False
+        return True
+    return _HOST_NAME.fullmatch(host) is not None
 
 
 def _check_enums(wire_format: WireFormat, protocol: Protocol) -> None:

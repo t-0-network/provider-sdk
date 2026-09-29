@@ -75,7 +75,7 @@ class TestBaseURL:
             factory(PRIVATE_KEY, _Client, base_url="")
 
     @pytest.mark.parametrize(
-        "base_url", ["https://api.t-0.network", "http://localhost:8080", "http://127.0.0.1:1234", "http://my_host:8080"]
+        "base_url", ["https://api.t-0.network", "http://localhost:8080", "http://127.0.0.1:1234", "http://[::1]:8080"]
     )
     @pytest.mark.parametrize("factory", FACTORIES)
     def test_valid_url_is_accepted(self, factory, base_url: str) -> None:
@@ -85,6 +85,7 @@ class TestBaseURL:
     @pytest.mark.parametrize(
         "base_url",
         [
+            "http://my_host:8080",
             "api.t-0.network",
             "api.t-0.network:443",
             "ftp://h",

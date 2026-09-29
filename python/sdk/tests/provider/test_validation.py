@@ -4,11 +4,12 @@ from __future__ import annotations
 
 import logging
 
-import protovalidate
-import pytest
-
 # Import SDK first to ensure api/ is on sys.path (needed for buf.validate stubs)
 import t0_provider_sdk  # noqa: F401
+
+# isort: split
+import protovalidate
+import pytest
 from connectrpc.code import Code
 from connectrpc.errors import ConnectError
 from t0_provider_sdk._version import __version__
