@@ -21,12 +21,15 @@ var (
 	ErrInvalidBaseURL  = errors.New("base URL is not valid")
 	ErrEmptyPrivateKey = errors.New("provider private key is not set")
 	ErrInvalidTimeOut  = errors.New("timeout must be greater than zero")
+
+	ErrInvalidStreamTimeout = errors.New("stream timeout must not be negative")
 )
 
 type clientOptions struct {
 	baseURL        string
 	signFn         crypto.SignFn
 	timeout        time.Duration
+	streamTimeout  time.Duration
 	transport      http.RoundTripper
 	connectOptions []connect.ClientOption
 }
@@ -42,6 +45,10 @@ func (c *clientOptions) validate() error {
 
 	if c.timeout <= 0 {
 		return ErrInvalidTimeOut
+	}
+
+	if c.streamTimeout < 0 {
+		return ErrInvalidStreamTimeout
 	}
 
 	return nil
@@ -67,9 +74,24 @@ func WithSignatureFunction(fn crypto.SignFn) ClientOption {
 	}
 }
 
+// WithTimeout bounds each unary call, from sending the request to reading the end of the
+// response. Streaming calls are bounded by WithStreamTimeout instead.
+//
+// Default: 15 seconds.
 func WithTimeout(t time.Duration) ClientOption {
 	return func(c *clientOptions) {
 		c.timeout = t
+	}
+}
+
+// WithStreamTimeout bounds each client-streaming and server-streaming call, from waiting for the
+// first request message to reading the end of the response. A stream can run as long as an upload
+// or a download takes, so the default is none: bound a stream with its call's context, or set this.
+//
+// Default: 0, no timeout.
+func WithStreamTimeout(t time.Duration) ClientOption {
+	return func(c *clientOptions) {
+		c.streamTimeout = t
 	}
 }
 

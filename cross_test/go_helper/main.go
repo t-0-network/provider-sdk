@@ -10,6 +10,8 @@
 //	go_helper serve <port> <hex_network_public_key>
 //	go_helper call-pay-out <base_url> <hex_private_key> [--grpc]
 //	go_helper call-health <base_url> <hex_private_key> [--grpc]
+//	go_helper call-client-stream <base_url> <hex_private_key> [--grpc]
+//	go_helper call-server-stream <base_url> <hex_private_key> [--grpc]
 package main
 
 import (
@@ -57,6 +59,10 @@ func main() {
 		cmdCallPayOut()
 	case "call-health":
 		cmdCallHealth()
+	case "call-client-stream":
+		cmdCallClientStream()
+	case "call-server-stream":
+		cmdCallServerStream()
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command: %s\n", os.Args[1])
 		os.Exit(1)
@@ -146,8 +152,18 @@ func cmdServe() {
 		log.Fatalf("Failed to create handler: %v", err)
 	}
 
+	// test.v1.StreamTest, for the streaming cross-language tests, verifies the first request
+	// message only; everything else goes through the provider handler.
+	streamHandler, err := newStreamTestHandler(os.Args[3])
+	if err != nil {
+		log.Fatalf("Failed to create stream test handler: %v", err)
+	}
+	mux := http.NewServeMux()
+	mux.Handle(streamTestPrefix, streamHandler)
+	mux.Handle("/", httpHandler)
+
 	// Wrap with h2c so both Connect (HTTP/1.1) and gRPC (HTTP/2) work on the same port.
-	h2cHandler := h2c.NewHandler(httpHandler, &http2.Server{})
+	h2cHandler := h2c.NewHandler(mux, &http2.Server{})
 
 	ln, err := net.Listen("tcp", ":"+port)
 	if err != nil {

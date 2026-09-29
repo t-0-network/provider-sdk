@@ -1,0 +1,18 @@
+// Reference only: nothing is generated from this file.
+//
+// test.v1.StreamTest is the streaming service the cross-language tests use. The Go helper serves
+// it (`go_helper serve`) behind a verifier that checks the signature over the first request
+// message only, the way the T-0 Network verifies streaming RPCs. Each SDK's tests build the two
+// methods by hand on google.protobuf.StringValue, so no SDK needs generated code for it.
+syntax = "proto3";
+
+package test.v1;
+
+import "google/protobuf/wrappers.proto";
+
+service StreamTest {
+  // Replies with the received values joined by ",".
+  rpc ClientStream(stream google.protobuf.StringValue) returns (google.protobuf.StringValue);
+  // Replies with the request value three times.
+  rpc ServerStream(google.protobuf.StringValue) returns (stream google.protobuf.StringValue);
+}

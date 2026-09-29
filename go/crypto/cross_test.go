@@ -33,6 +33,15 @@ type testVectors struct {
 		ExpectedHash      string `json:"expected_hash"`
 		ExpectedSignature string `json:"expected_signature"`
 	} `json:"request_signing_cases"`
+	StreamSigningCases []struct {
+		Name              string `json:"name"`
+		BodyHex           string `json:"body_hex"`
+		Covers            string `json:"covers"`
+		SignedHex         string `json:"signed_hex"`
+		TimestampMs       uint64 `json:"timestamp_ms"`
+		ExpectedHash      string `json:"expected_hash"`
+		ExpectedSignature string `json:"expected_signature"`
+	} `json:"stream_signing_cases"`
 	SignatureVerification []struct {
 		Name        string `json:"name"`
 		BodyHex     string `json:"body_hex"`
@@ -170,6 +179,46 @@ func TestCrossVectors_SignatureVerification(t *testing.T) {
 
 			digest := requestDigest(t, tc.BodyHex, tc.TimestampMs)
 			require.Equal(t, tc.Valid, crypto.VerifySignature(pubKey, digest, signature))
+		})
+	}
+}
+
+// Streaming requests are signed over their first message only. signed_hex is derived from body_hex:
+// the first envelope (flags, uint32be length, payload) or, for a signer above the gRPC framer, its
+// payload alone. An empty body is a stream closed before its first message.
+func TestCrossVectors_StreamSigningCases(t *testing.T) {
+	v := loadVectors(t)
+	require.NotEmpty(t, v.StreamSigningCases)
+
+	sign, err := crypto.NewSignerFromHex(v.Keys.PrivateKey)
+	require.NoError(t, err)
+
+	for _, tc := range v.StreamSigningCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			body, err := hex.DecodeString(tc.BodyHex)
+			require.NoError(t, err)
+
+			var signed []byte
+			if len(body) > 0 {
+				require.GreaterOrEqual(t, len(body), 5)
+				envelope := body[:5+binary.BigEndian.Uint32(body[1:5])]
+				switch tc.Covers {
+				case "first_envelope":
+					signed = envelope
+				case "first_payload":
+					signed = envelope[5:]
+				default:
+					t.Fatalf("unknown covers %q", tc.Covers)
+				}
+			}
+			require.Equal(t, tc.SignedHex, hex.EncodeToString(signed))
+
+			digest := requestDigest(t, tc.SignedHex, tc.TimestampMs)
+			require.Equal(t, tc.ExpectedHash, hex.EncodeToString(digest))
+
+			signature, _, err := sign(digest)
+			require.NoError(t, err)
+			require.Equal(t, tc.ExpectedSignature, hex.EncodeToString(signature[:64]))
 		})
 	}
 }

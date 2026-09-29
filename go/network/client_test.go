@@ -229,6 +229,14 @@ func TestNewServiceClient_ValidationErrors(t *testing.T) {
 		require.ErrorIs(t, err, ErrInvalidTimeOut)
 	})
 
+	t.Run("negative stream timeout", func(t *testing.T) {
+		_, err := NewServiceClient("", factory,
+			WithSignatureFunction(testSignFn(t)),
+			WithStreamTimeout(-time.Second),
+		)
+		require.ErrorIs(t, err, ErrInvalidStreamTimeout)
+	})
+
 	t.Run("empty key and no signFn", func(t *testing.T) {
 		_, err := NewServiceClient("", factory)
 		require.ErrorIs(t, err, ErrEmptyPrivateKey)
