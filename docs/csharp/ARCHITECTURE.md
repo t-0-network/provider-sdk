@@ -49,11 +49,11 @@ csharp/
 **CRITICAL**: Protobuf encoding is not canonical. Re-encoding a deserialized message produces different bytes. All signing and verification operates on original wire bytes:
 
 - **Server-side**: `SignatureVerificationMiddleware` reads `Request.Body` as raw bytes BEFORE gRPC deserialization
-- **Client-side**: `SigningDelegatingHandler` signs `request.Content` bytes as sent. For gRPC content it signs only the first frame and pipes the rest through unbuffered (`FirstFrameThenPipeContent`); other content is read whole before sending. See [STREAMING.md](STREAMING.md).
+- **Client-side**: `SigningDelegatingHandler` signs `request.Content` bytes as sent. For gRPC content it signs only the first frame and pipes the rest through unbuffered (`FirstFrameThenPipeContent`); other content is read whole before sending. See [STREAMING.md](../STREAMING.md).
 
 ### Deadlines
 
-Timeouts are gRPC deadlines set by `DefaultDeadlineInterceptor` (unary 15 s, streams none), which also refuses bidirectional streams; `HttpClient.Timeout` is infinite. The `Create*ServiceClient` helpers install the interceptor, raw channels must be wrapped. See [STREAMING.md](STREAMING.md#deadlines).
+Timeouts are gRPC deadlines set by `DefaultDeadlineInterceptor` (unary 15 s, streams none), which also refuses bidirectional streams; `HttpClient.Timeout` is infinite. The `Create*ServiceClient` helpers install the interceptor, raw channels must be wrapped. See [STREAMING.md](../STREAMING.md#timeouts).
 
 ### Two-Phase Server Architecture
 
@@ -96,7 +96,7 @@ headers = {
 }
 ```
 
-- **body_bytes**: for gRPC requests, the first request frame as sent, 5-byte prefix included; otherwise the whole body ([STREAMING.md](STREAMING.md#what-is-signed))
+- **body_bytes**: for gRPC requests, the first request frame as sent, 5-byte prefix included; otherwise the whole body ([STREAMING.md](../STREAMING.md#what-is-signed))
 - **Hash**: Keccak-256 (legacy, NOT NIST SHA-3)
 - **Curve**: secp256k1 (same as Ethereum)
 - **Nonce**: RFC 6979 deterministic (HMAC-SHA256)

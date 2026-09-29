@@ -60,7 +60,7 @@ csharp/
 - **DelegatingHandler pattern**: `SigningDelegatingHandler` wraps HttpClient to auto-sign outgoing requests
 - **First-frame signing for gRPC**: the handler signs only the first request frame as sent and pipes the rest unbuffered (`FirstFrameThenPipeContent`); a client stream goes out once its first message is written
 - **Deadlines, not HttpClient.Timeout**: `DefaultDeadlineInterceptor` (installed by the `Create*ServiceClient` helpers) sets per-call deadlines and refuses bidirectional streams; raw channels must be wrapped
-- Streaming, signing and deadline details: [`docs/csharp/STREAMING.md`](../docs/csharp/STREAMING.md)
+- Streaming, signing and timeout rules: [`docs/STREAMING.md`](../docs/STREAMING.md)
 - **Interfaces for testability**: `ISigner` and `ISignatureVerifier` enable mocking without real crypto
 - **BackgroundService pattern**: `QuotePublisherService` provides periodic timer with error handling
 
@@ -104,9 +104,9 @@ Template files live in `starter/template/` as a buildable standalone project usi
 
 ## Cross-Language Testing
 
-**Test vectors:** `CrossTestVectors.cs` validates crypto against shared `cross_test/test_vectors.json` (Keccak-256, key derivation, request hash, sign/verify round-trips, and `stream_signing_cases`, whose first-envelope cases also run through `SigningDelegatingHandler`).
+**Test vectors:** `CrossTestVectors.cs` checks the C# crypto and `SigningDelegatingHandler` against the shared `cross_test/test_vectors.json`.
 
-**Server-to-server:** `CrossTest/CrossServerTests.cs` exercises health check round-trips (both directions), Go→C# PayOut, and C#→Go client and server streaming ([cases](../docs/csharp/STREAMING.md#testing)) between C# and Go using the shared helper at `cross_test/go_helper/`. Build it first:
+**Server-to-server:** `CrossTest/CrossServerTests.cs` exercises health check round-trips (both directions), Go→C# PayOut, and C#→Go client and server streaming between C# and Go using the shared helper at `cross_test/go_helper/`. Build it first:
 
 ```bash
 cd ../cross_test/go_helper && go build -o go_helper . && cd ../../csharp
@@ -120,4 +120,4 @@ CI builds the Go helper automatically. Tests fail (not skip) in CI if the helper
 Docs live in [`docs/csharp/`](../docs/csharp/):
 - [`ARCHITECTURE.md`](../docs/csharp/ARCHITECTURE.md) — Architecture and design decisions
 - [`QUICKSTART.md`](../docs/csharp/QUICKSTART.md) — Getting started guide
-- [`STREAMING.md`](../docs/csharp/STREAMING.md) — Streaming signing, deadlines, bidirectional refusal, and how they are tested
+- [`STREAMING.md`](../docs/STREAMING.md) (shared by all SDKs) — Signing, streaming calls and timeouts

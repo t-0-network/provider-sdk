@@ -12,7 +12,7 @@ namespace T0.ProviderSdk.Network;
 /// It sits below the gRPC framer, so for <c>application/grpc</c> and <c>application/grpc+*</c> it
 /// signs the first request frame exactly as sent, prefix included, and sends the request as soon
 /// as that frame exists: a client stream goes out only once its first message is written. Other
-/// content is signed over the whole body. See docs/csharp/STREAMING.md.
+/// content is signed over the whole body. See docs/STREAMING.md.
 /// </remarks>
 public sealed class SigningDelegatingHandler : DelegatingHandler
 {

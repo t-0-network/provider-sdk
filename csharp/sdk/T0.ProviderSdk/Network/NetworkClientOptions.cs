@@ -28,6 +28,6 @@ public sealed class NetworkClientOptions
     /// not apply it. The default deadline of a client- or server-streaming call that sets none; null (the
     /// default) means none.
     /// </summary>
-    /// <remarks>See docs/csharp/STREAMING.md.</remarks>
+    /// <remarks>See docs/STREAMING.md.</remarks>
     public TimeSpan? StreamTimeout { get; set; }
 }

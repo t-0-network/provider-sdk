@@ -9,7 +9,7 @@ namespace T0.ProviderSdk.Network;
 /// <see cref="NetworkClientOptions.StreamTimeout"/> for client and server streams. Bidirectional
 /// streams fail with <see cref="StatusCode.Unimplemented"/> before anything is sent.
 /// </summary>
-/// <remarks>See docs/csharp/STREAMING.md.</remarks>
+/// <remarks>See docs/STREAMING.md.</remarks>
 public sealed class DefaultDeadlineInterceptor : Interceptor
 {
     private readonly TimeSpan? _unaryTimeout;

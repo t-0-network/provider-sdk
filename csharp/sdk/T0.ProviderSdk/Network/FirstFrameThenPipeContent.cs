@@ -11,7 +11,7 @@ namespace T0.ProviderSdk.Network;
 /// </summary>
 /// <remarks>
 /// Can be sent again (SocketsHttpHandler does on a refused HTTP/2 stream) until it has written the
-/// first frame and starts forwarding the rest. See docs/csharp/STREAMING.md.
+/// first frame and starts forwarding the rest. See docs/STREAMING.md.
 /// </remarks>
 internal sealed class FirstFrameThenPipeContent : HttpContent
 {

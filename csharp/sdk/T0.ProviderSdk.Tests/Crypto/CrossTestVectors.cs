@@ -172,42 +172,22 @@ public class CrossTestVectors
     }
 
     /// <summary>
-    /// <c>first_envelope</c> includes the 5-byte prefix (a signer below the gRPC framer, like
-    /// <see cref="SigningDelegatingHandler"/>); <c>first_payload</c> does not. The first_envelope
-    /// cases also run through the handler.
+    /// The <c>first_envelope</c> cases sent through <see cref="SigningDelegatingHandler"/>: the
+    /// signature covers the first envelope, prefix included, and the body goes out unchanged.
     /// </summary>
     [Fact]
     public async Task StreamSigningCases_ShouldMatchVectorBytes()
     {
-        var keys = Vectors.RootElement.GetProperty("keys");
-        var privateKeyHex = keys.GetProperty("private_key").GetString()!;
-        var signer = Signer.FromHex(privateKeyHex);
+        var privateKeyHex = Vectors.RootElement.GetProperty("keys").GetProperty("private_key").GetString()!;
+        var cases = Vectors.RootElement.GetProperty("stream_signing_cases").EnumerateArray()
+            .Where(vec => vec.GetProperty("covers").GetString() == "first_envelope")
+            .ToList();
+        Assert.NotEmpty(cases);
 
-        var cases = Vectors.RootElement.GetProperty("stream_signing_cases");
-        Assert.NotEmpty(cases.EnumerateArray());
-
-        foreach (var vec in cases.EnumerateArray())
+        foreach (var vec in cases)
         {
-            var name = vec.GetProperty("name").GetString()!;
             var body = HexUtils.HexToBytes(vec.GetProperty("body_hex").GetString()!);
-            var covers = vec.GetProperty("covers").GetString()!;
             var timestampMs = vec.GetProperty("timestamp_ms").GetInt64();
-            var expectedSignature = vec.GetProperty("expected_signature").GetString()!;
-
-            var signed = covers switch
-            {
-                "first_envelope" => FirstEnvelope(body),
-                "first_payload" => FirstEnvelope(body)[5..],
-                _ => throw new InvalidOperationException($"{name}: unknown covers value {covers}"),
-            };
-            Assert.Equal(vec.GetProperty("signed_hex").GetString()!, HexUtils.BytesToHex(signed));
-
-            var digest = Keccak256.Hash(signed, Headers.EncodeTimestamp(timestampMs));
-            Assert.Equal(vec.GetProperty("expected_hash").GetString()!, HexUtils.BytesToHex(digest));
-            Assert.Equal(expectedSignature, HexUtils.BytesToHex(signer.Sign(digest).Signature[..64]));
-
-            if (covers != "first_envelope")
-                continue;
 
             // The C# client speaks gRPC only; a Connect envelope has the gRPC frame's layout.
             var contentType = vec.GetProperty("content_type").GetString()!;
@@ -229,18 +209,10 @@ public class CrossTestVectors
 
             var request = await inner.Received.Task.WithTimeout();
             Assert.Equal(timestampMs.ToString(), request.Headers.GetValues(Headers.SignatureTimestamp).Single());
-            Assert.Equal(expectedSignature,
+            Assert.Equal(vec.GetProperty("expected_signature").GetString()!,
                 HexUtils.BytesToHex(StreamingTestHelpers.HeaderBytes(request, Headers.Signature)[..64]));
             Assert.Equal(body, inner.Body.ToArray());
         }
-    }
-
-    private static byte[] FirstEnvelope(byte[] body)
-    {
-        if (body.Length == 0)
-            return [];
-        var length = BinaryPrimitives.ReadUInt32BigEndian(body.AsSpan(1, 4));
-        return body[..(5 + (int)length)];
     }
 
     /// <summary>

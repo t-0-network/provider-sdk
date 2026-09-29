@@ -17,7 +17,7 @@ public static class NetworkClient
     /// <remarks>
     /// <see cref="NetworkClientOptions.Timeout"/> and <see cref="NetworkClientOptions.StreamTimeout"/>
     /// apply only through <c>channel.Intercept(new DefaultDeadlineInterceptor(options))</c>, which also
-    /// rejects bidirectional streams. See docs/csharp/STREAMING.md.
+    /// rejects bidirectional streams. See docs/STREAMING.md.
     /// </remarks>
     public static GrpcChannel Create(
         NetworkClientOptions options,
