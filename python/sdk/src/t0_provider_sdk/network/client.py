@@ -5,11 +5,13 @@ Proto-agnostic: works with ANY generated ConnectRPC client class.
 
 from __future__ import annotations
 
-import contextlib
 import functools
+import inspect
 import ipaddress
+import logging
 import math
 import re
+import types
 from typing import TYPE_CHECKING, Any, NoReturn, TypeVar
 from urllib.parse import urlsplit
 
@@ -32,6 +34,8 @@ if TYPE_CHECKING:
     from collections.abc import Callable
 
 T = TypeVar("T")
+
+_LOGGER = logging.getLogger("t0_provider_sdk")
 
 # A host name: dot-separated labels of ASCII letters, digits and inner '-', none empty, the last one
 # starting with a letter (so "1.2.3" is not taken for a name). Other names ("my_host", "a..b",
@@ -283,15 +287,25 @@ class _CallRequest:
 
     async def __anext__(self) -> Any:
         if self._done:
-            await _aclose(self._source)
+            await self._close()
             raise StopAsyncIteration
         return await anext(self._source)
 
     async def finish(self) -> None:
         self._done = True
-        # RuntimeError: the transport is inside it right now; its next pull closes it.
-        with contextlib.suppress(RuntimeError):
-            await _aclose(self._source)
+        await self._close()
+
+    async def _close(self) -> None:
+        # Best effort: a failure to close is logged and never replaces the call's own result.
+        source = self._source
+        if inspect.isasyncgen(source) and inspect.getasyncgenstate(source) == inspect.AGEN_RUNNING:
+            # The transport's task is inside it; the transport cancels that task when the call
+            # ends, and the cancellation closes it.
+            return
+        try:
+            await _aclose(source)
+        except Exception:
+            _LOGGER.warning("closing the request messages of a client stream failed", exc_info=True)
 
 
 class _CallRequestSync:
@@ -307,15 +321,24 @@ class _CallRequestSync:
 
     def __next__(self) -> Any:
         if self._done:
-            _close(self._source)
+            self._close()
             raise StopIteration
         return next(self._source)
 
     def finish(self) -> None:
         self._done = True
-        # ValueError: the writer thread entered it between the check in _close and the close.
-        with contextlib.suppress(ValueError):
-            _close(self._source)
+        self._close()
+
+    def _close(self) -> None:
+        # Best effort: a failure to close is logged and never replaces the call's own result.
+        # _close skips a source the writer thread is inside; that thread closes it at its next pull.
+        source = self._source
+        try:
+            _close(source)
+        except Exception:
+            if isinstance(source, types.GeneratorType) and inspect.getgeneratorstate(source) == inspect.GEN_RUNNING:
+                return  # the writer thread entered it between the check and the close
+            _LOGGER.warning("closing the request messages of a client stream failed", exc_info=True)
 
 
 def _reject_bidi_streams(client: object) -> None:

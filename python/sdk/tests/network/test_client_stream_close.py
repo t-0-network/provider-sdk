@@ -7,6 +7,8 @@ re-raises it would.
 
 from __future__ import annotations
 
+import asyncio
+import logging
 import socket
 import threading
 import time
@@ -93,3 +95,82 @@ def test_sync_request_stops_and_is_closed_when_the_call_fails(rejecting_server: 
     assert exc_info.value.code == Code.UNAUTHENTICATED
     assert closed.wait(1.0), "closed soon after the call, while the error is still held"
     assert len(produced) <= at_return + 1, "at most the message in flight is produced after the call"
+
+
+@pytest.mark.asyncio
+async def test_async_request_waiting_inside_an_await_is_cancelled_by_the_transport(rejecting_server: str) -> None:
+    """The call cannot close a generator the transport's task is inside; the transport cancels that
+    task when the call ends, and the cancellation closes the generator."""
+    seen: list[str] = []
+
+    async def messages():
+        try:
+            yield StringValue(value="m1")
+            await asyncio.Event().wait()  # never set
+            yield StringValue(value="never")
+        except BaseException as e:
+            seen.append(type(e).__name__)
+            raise
+
+    client = new_service_client(PRIVATE_KEY, _Client, base_url=rejecting_server)
+    with pytest.raises(ConnectError):
+        await client.client_stream(messages())
+    for _ in range(100):
+        if seen:
+            break
+        await asyncio.sleep(0.01)
+
+    assert seen == ["CancelledError"]
+
+
+class _CloseError(Exception):
+    pass
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("cleanup", ["raises", "ignores GeneratorExit"])
+async def test_async_close_failure_is_logged_not_raised(
+    rejecting_server: str, cleanup: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    async def messages():
+        try:
+            for i in range(100_000):
+                yield StringValue(value=f"m{i}")
+        finally:
+            if cleanup == "raises":
+                raise _CloseError
+            yield StringValue(value="after close")
+
+    client = new_service_client(PRIVATE_KEY, _Client, base_url=rejecting_server)
+    with caplog.at_level(logging.WARNING, logger="t0_provider_sdk"), pytest.raises(ConnectError) as exc_info:
+        await client.client_stream(messages())
+
+    assert exc_info.value.code == Code.UNAUTHENTICATED, "the call's own error, not the close failure"
+    assert [r.getMessage() for r in caplog.records] == ["closing the request messages of a client stream failed"]
+
+
+def test_sync_close_failure_is_logged_not_raised(rejecting_server: str, caplog: pytest.LogCaptureFixture) -> None:
+    closed = threading.Event()
+
+    def messages():
+        try:
+            for i in range(100_000):
+                time.sleep(0.01)
+                yield StringValue(value=f"m{i}")
+        finally:
+            closed.set()
+            raise _CloseError
+
+    client = new_service_client_sync(PRIVATE_KEY, _SyncClient, base_url=rejecting_server)
+    with caplog.at_level(logging.WARNING, logger="t0_provider_sdk"):
+        with pytest.raises(ConnectError) as exc_info:
+            client.client_stream(messages())
+        assert closed.wait(1.0)
+        # Closed from the caller's thread or, if the writer thread was inside, from that thread.
+        for _ in range(100):
+            if caplog.records:
+                break
+            time.sleep(0.01)
+
+    assert exc_info.value.code == Code.UNAUTHENTICATED, "the call's own error, not the close failure"
+    assert [r.getMessage() for r in caplog.records] == ["closing the request messages of a client stream failed"]
