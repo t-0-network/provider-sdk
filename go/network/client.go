@@ -4,6 +4,7 @@ package network
 import (
 	"net/http"
 	"net/url"
+	"sync"
 	"time"
 
 	"connectrpc.com/connect"
@@ -46,12 +47,15 @@ func NewServiceClient[T any](
 
 	transport := options.transport
 	if baseURL, _ := url.Parse(options.baseURL); transport == nil && options.protocol == ProtocolGRPC && baseURL.Scheme == "http" {
-		transport = cleartextHTTP2Transport()
+		transport = cleartextHTTP2()
 	}
 
 	// No http.Client.Timeout: it would cap whole streams. callTimeouts sets per-call deadlines.
 	client := http.Client{
 		Transport: NewSigningTransport(options.signFn, time.Now, WithTransport(transport)),
+		// A redirect is returned, not followed: following it would send the signed request to
+		// another URL, or turn it into a GET.
+		CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse },
 	}
 
 	connectOptions := []connect.ClientOption{
@@ -67,10 +71,16 @@ func NewServiceClient[T any](
 	return clientFactory(&client, options.baseURL, connectOptions...), nil
 }
 
-// cleartextHTTP2Transport speaks HTTP/2 without TLS, with prior knowledge: gRPC needs HTTP/2, and
-// without TLS there is no handshake in which to agree on it.
-func cleartextHTTP2Transport() *http.Transport {
-	protocols := new(http.Protocols)
-	protocols.SetUnencryptedHTTP2(true)
-	return &http.Transport{Protocols: protocols}
-}
+// cleartextHTTP2 carries gRPC to an http:// base URL: HTTP/2 without TLS, with prior knowledge,
+// because gRPC needs HTTP/2 and without TLS there is no handshake in which to agree on it. Every
+// such client shares this one transport and its connections.
+var cleartextHTTP2 = sync.OnceValue(func() *http.Transport {
+	transport := &http.Transport{}
+	if base, ok := http.DefaultTransport.(*http.Transport); ok {
+		transport = base.Clone() // keeps its dial and idle timeouts
+	}
+	transport.Proxy = nil
+	transport.Protocols = new(http.Protocols)
+	transport.Protocols.SetUnencryptedHTTP2(true)
+	return transport
+})

@@ -270,3 +270,23 @@ func TestNewServiceClient_ValidationErrors(t *testing.T) {
 		require.EqualError(t, err, "private key must not be null or empty")
 	})
 }
+
+// Every gRPC client on an http:// base URL shares one transport, with the default dial and idle
+// timeouts, so a client per request does not leave a connection behind each time.
+func TestNewServiceClient_GRPCOverHTTPSharesOneTransport(t *testing.T) {
+	transportOf := func() http.RoundTripper {
+		factory, captured := capturingFactory()
+		_, err := NewServiceClient("", factory,
+			WithSignatureFunction(testSignFn(t)), WithBaseURL("http://localhost:1"), WithProtocol(ProtocolGRPC))
+		require.NoError(t, err)
+		return captured().(*http.Client).Transport.(*SigningTransport).transport
+	}
+
+	first, second := transportOf(), transportOf()
+	require.Same(t, first, second)
+	shared, ok := first.(*http.Transport)
+	require.True(t, ok)
+	require.NotNil(t, shared.DialContext)
+	require.Equal(t, http.DefaultTransport.(*http.Transport).IdleConnTimeout, shared.IdleConnTimeout)
+	require.Nil(t, shared.Proxy)
+}

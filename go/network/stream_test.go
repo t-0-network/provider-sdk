@@ -880,6 +880,31 @@ func TestStream_GETIsRefused(t *testing.T) {
 	require.Empty(t, srv.deadlineHeaders(), "nothing reaches the server")
 }
 
+// A redirect reaches the caller as an error: the signed request is not sent again anywhere, and it
+// does not turn into a GET.
+func TestStream_RedirectsAreNotFollowed(t *testing.T) {
+	for _, status := range []int{http.StatusFound, http.StatusTemporaryRedirect} {
+		t.Run(strconv.Itoa(status), func(t *testing.T) {
+			var followed atomic.Int32
+			mux := http.NewServeMux()
+			mux.HandleFunc(procUnary, func(w http.ResponseWriter, r *http.Request) {
+				http.Redirect(w, r, "/elsewhere", status)
+			})
+			mux.HandleFunc("/elsewhere", func(http.ResponseWriter, *http.Request) { followed.Add(1) })
+			srv := httptest.NewServer(mux)
+			t.Cleanup(srv.Close)
+
+			client, err := NewServiceClient("", newStreamTestClient,
+				WithSignatureFunction(newTestKey(t).sign), WithBaseURL(srv.URL))
+			require.NoError(t, err)
+			_, err = client.unary.CallUnary(testContext(t), connect.NewRequest(wrapperspb.String("ping")))
+			require.Error(t, err)
+			require.NotEqual(t, connect.CodeUnimplemented, connect.CodeOf(err), "a followed redirect became a GET: %v", err)
+			require.Zero(t, followed.Load(), "the redirect was followed")
+		})
+	}
+}
+
 func TestStream_BidiIsRejected(t *testing.T) {
 	for _, p := range streamProtocols {
 		t.Run(p.name, func(t *testing.T) {
