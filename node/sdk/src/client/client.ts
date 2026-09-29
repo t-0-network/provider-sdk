@@ -1,12 +1,12 @@
-import { createClient as createClientCommon, type Signature, type SignerFunction } from "../common/client/client.js";
+import { createClient as createClientCommon, type ClientOptions, type Signature, type SignerFunction } from "../common/client/client.js";
 import type { DescService } from "@bufbuild/protobuf";
 
 export const DEFAULT_ENDPOINT = "https://api.t-0.network"
 
-export function createClient<T extends DescService>(signer: string | Buffer | ((data: Buffer) => Promise<Signature>) | Buffer<ArrayBufferLike>, endpoint: string | undefined, svc: T) {
-    return createClientCommon(signer, endpoint || DEFAULT_ENDPOINT, svc);
+export function createClient<T extends DescService>(signer: string | Buffer | ((data: Buffer) => Promise<Signature>) | Buffer<ArrayBufferLike>, endpoint: string | undefined, svc: T, opts?: ClientOptions) {
+    return createClientCommon(signer, endpoint || DEFAULT_ENDPOINT, svc, opts);
 }
 
-export type { Signature, SignerFunction } from "../common/client/client.js";
+export type { ClientOptions, Signature, SignerFunction } from "../common/client/client.js";
 
 export default createClient;

@@ -6,6 +6,9 @@ import { CreateSigner } from '../src/client/signer.js';
 import { verifySignature, keccak256, computeDigest, parsePublicKey, publicKeyFromPrivateKey, publicKeysEqual, createRequestVerifier, DEFAULT_TOLERANCE_MS, NetworkHeaders } from '../src/crypto/index.js';
 import * as sdk from '../src/index.js';
 import type { VerifyRequest } from '../src/crypto/index.js';
+import type { TestContext } from 'node:test';
+import { Code, ConnectError } from '@connectrpc/connect';
+import { createSigningFetchClient } from '../src/common/client/signing-http-client.js';
 import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -910,5 +913,130 @@ describe('crypto/parsePublicKey hex validation', () => {
     nodeAssert.throws(() => parsePublicKey('0x' + 'a'.repeat(131)), {
       message: /invalid hex/,
     });
+  });
+});
+
+// ---- Streaming requests ----
+
+// The bytes a streaming request's signature covers, cut from the body as sent: the first envelope,
+// its 5-byte prefix included, or — for a signer above the gRPC framer (Java) — its payload alone.
+function streamSignedBytes(body: Buffer, covers: string): Buffer {
+  if (body.length === 0) {
+    return body;
+  }
+  const end = 5 + body.readUInt32BE(1);
+  switch (covers) {
+    case 'first_envelope':
+      return body.subarray(0, end);
+    case 'first_payload':
+      return body.subarray(5, end);
+    default:
+      throw new Error(`unknown covers: ${covers}`);
+  }
+}
+
+// The envelopes of a body, one per chunk, the way connect hands them to the HTTP client.
+function splitEnvelopes(body: Buffer): Buffer[] {
+  const envelopes: Buffer[] = [];
+  for (let at = 0; at < body.length;) {
+    const end = at + 5 + body.readUInt32BE(at + 1);
+    envelopes.push(body.subarray(at, end));
+    at = end;
+  }
+  return envelopes;
+}
+
+interface SentRequest {
+  headers: Headers;
+  body: Buffer;
+  duplex: unknown;
+}
+
+// Runs the streaming transport's HTTP client over the given body chunks at the vector's timestamp,
+// with a fake fetch, and returns the request it sent (undefined if it sent none).
+async function sendThroughSigningClient(t: TestContext, vec: any, chunks: Uint8Array[]): Promise<SentRequest | undefined> {
+  t.mock.method(Date, 'now', () => vec.timestamp_ms);
+  let sent: SentRequest | undefined;
+  const fakeFetch = async (_url: string | URL | Request, init?: RequestInit) => {
+    const body = Buffer.from(await new Response(init?.body).arrayBuffer());
+    sent = { headers: new Headers(init?.headers), body, duplex: (init as { duplex?: unknown }).duplex };
+    return new Response(null, { status: 200 });
+  };
+  const httpClient = createSigningFetchClient(CreateSigner(vectors.keys.private_key), fakeFetch);
+  await httpClient({
+    url: 'http://127.0.0.1/test.v1.StreamTest/ClientStream',
+    method: 'POST',
+    header: new Headers({ 'Content-Type': vec.content_type }),
+    body: (async function* () { yield* chunks; })(),
+  });
+  return sent;
+}
+
+describe('Stream signing cases', () => {
+  for (const vec of vectors.stream_signing_cases) {
+    it(`${vec.name} signs its ${vec.covers.replace('_', ' ')} to the vector bytes`, async () => {
+      const signed = streamSignedBytes(Buffer.from(vec.body_hex, 'hex'), vec.covers);
+      nodeAssert.equal(signed.toString('hex'), vec.signed_hex);
+
+      const digest = computeDigest(signed, vec.timestamp_ms);
+      nodeAssert.equal(digest.toString('hex'), vec.expected_hash);
+
+      const sig = await CreateSigner(vectors.keys.private_key)(digest);
+      nodeAssert.equal(sig.signature.subarray(0, 64).toString('hex'), vec.expected_signature);
+    });
+  }
+
+  // Node signs below the framer, so it produces first_envelope signatures only; first_payload is
+  // the Java variant.
+  const firstEnvelopeCases = vectors.stream_signing_cases.filter((v: any) => v.covers === 'first_envelope');
+
+  for (const vec of firstEnvelopeCases) {
+    it(`${vec.name}: the streaming HTTP client sends the vector signature and the body as given`, async (t) => {
+      const body = Buffer.from(vec.body_hex, 'hex');
+      const sent = await sendThroughSigningClient(t, vec, splitEnvelopes(body));
+      nodeAssert.ok(sent, 'the request is sent');
+
+      nodeAssert.equal(sent.headers.get(NetworkHeaders.Signature), '0x' + vec.expected_signature);
+      nodeAssert.equal(sent.headers.get(NetworkHeaders.PublicKey), '0x' + vectors.keys.public_key);
+      nodeAssert.equal(sent.headers.get(NetworkHeaders.SignatureTimestamp), String(vec.timestamp_ms));
+      nodeAssert.equal(sent.body.toString('hex'), vec.body_hex);
+      nodeAssert.equal(sent.duplex, 'half');
+    });
+  }
+
+  // Connect hands the HTTP client one envelope per chunk, but the signed bytes follow the length
+  // prefix, not the chunking.
+  const chunkings: [string, (body: Buffer) => Buffer[]][] = [
+    ['the whole body in one chunk', (body) => (body.length > 0 ? [body] : [])],
+    ['one byte per chunk', (body) => [...body].map((b) => Buffer.from([b]))],
+    ['7-byte chunks across envelope boundaries', (body) => {
+      const chunks: Buffer[] = [];
+      for (let at = 0; at < body.length; at += 7) {
+        chunks.push(body.subarray(at, at + 7));
+      }
+      return chunks;
+    }],
+  ];
+  for (const [name, chunk] of chunkings) {
+    it(`the streaming HTTP client signs the first envelope whatever the chunking: ${name}`, async (t) => {
+      for (const vec of firstEnvelopeCases) {
+        const body = Buffer.from(vec.body_hex, 'hex');
+        const sent = await sendThroughSigningClient(t, vec, chunk(body));
+        nodeAssert.ok(sent, `${vec.name}: the request is sent`);
+        nodeAssert.equal(sent.headers.get(NetworkHeaders.Signature), '0x' + vec.expected_signature, vec.name);
+        nodeAssert.equal(sent.body.toString('hex'), vec.body_hex, vec.name);
+      }
+    });
+  }
+
+  it('the streaming HTTP client refuses a body that ends inside its first envelope', async (t) => {
+    const vec = vectors.stream_signing_cases.find((v: any) => v.name === 'connect-client-stream');
+    const firstEnvelope = Buffer.from(vec.signed_hex, 'hex');
+    let sent: SentRequest | undefined;
+    await nodeAssert.rejects(
+      async () => { sent = await sendThroughSigningClient(t, vec, [firstEnvelope.subarray(0, firstEnvelope.length - 1)]); },
+      (err: unknown) => err instanceof ConnectError && err.code === Code.InvalidArgument,
+    );
+    nodeAssert.equal(sent, undefined, 'nothing is sent');
   });
 });

@@ -216,6 +216,19 @@ const quote = await networkClient.getQuote({
 });
 ```
 
+#### Streaming calls
+
+Client-streaming and server-streaming methods work on the same client. Unary calls are signed over the whole request body. A streaming call is signed over its **first request message only**: the signature headers cover the first envelope exactly as sent, its 5-byte prefix (flags and big-endian length) included. The request goes out as soon as that first message is available, and later messages are streamed unsigned and unbuffered. A client stream closed before its first message is still sent, signed over empty bytes, and the network rejects it. Bidirectional streaming is not supported.
+
+Timeouts are off by default. Pass them as the fourth argument; a call's own `timeoutMs` overrides them:
+
+```ts
+const client = createClient(privateKey, endpoint, NetworkService, {
+  unaryTimeoutMs: 15_000,  // each unary call
+  streamTimeoutMs: 60_000, // each streaming call, from waiting for the first message to the end of the response
+});
+```
+
 ## Development
 
 ```bash

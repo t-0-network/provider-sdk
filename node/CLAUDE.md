@@ -37,7 +37,7 @@ Runtime version constant: `src/version.ts` (`SDK_VERSION`). Full details: [`docs
 
 ## Cross-Language Testing
 
-Server-to-server cross-tests in `sdk/test/cross_server.test.ts` exercise bidirectional health check round-trips between Node and Go using the shared helper at `cross_test/go_helper/`. Build it first:
+Server-to-server cross-tests in `sdk/test/cross_server.test.ts` exercise bidirectional health check round-trips between Node and Go using the shared helper at `cross_test/go_helper/`. `sdk/test/cross_stream.test.ts` makes signed client- and server-streaming calls to the helper's `test.v1.StreamTest`, which verifies the signature over the first request envelope. Build it first:
 
 ```bash
 cd ../cross_test/go_helper && go build -o go_helper . && cd ../../node/sdk
