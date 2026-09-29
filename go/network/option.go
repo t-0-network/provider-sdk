@@ -68,12 +68,16 @@ func (c *clientOptions) validate() error {
 	return nil
 }
 
-// validBaseURL accepts http:// or https://, a host without user info and, if given, a port in
-// 1..65535. The host is an IP literal or a name of ASCII letters, digits, '-' and '.': gRPC clients
-// cannot reach a name with other characters, such as '_'.
+// validBaseURL accepts http:// or https://, a host without user info, if given a port in 1..65535,
+// and at most a trailing "/": no path, query or fragment. The host is an IP literal or a name of
+// ASCII letters, digits, '-' and '.': gRPC clients cannot reach a name with other characters, such
+// as '_'.
 func validBaseURL(raw string) bool {
 	u, err := url.Parse(raw)
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.User != nil || !validHost(u) {
+		return false
+	}
+	if (u.Path != "" && u.Path != "/") || strings.ContainsAny(raw, "?#") {
 		return false
 	}
 	if port := u.Port(); port != "" || strings.HasSuffix(u.Host, ":") {
