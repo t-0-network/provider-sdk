@@ -74,6 +74,22 @@ gunicorn provider.wsgi:app --bind 0.0.0.0:8080
 
 The sync variant uses `payment_sync.py` -- implement the same RPC methods as regular `def` functions instead of `async def`.
 
+## Network Client Timeouts and Streaming
+
+`new_service_client()` / `new_service_client_sync()` sign every request. Unary calls time out after `timeout` (15 seconds by default). Client- and server-streaming calls have no timeout unless you set `stream_timeout`, because a stream runs as long as its upload or download takes. A call's own `timeout_ms` overrides either default.
+
+```python
+network_client = new_service_client(
+    config.provider_private_key,
+    NetworkServiceClient,
+    base_url=config.tzero_endpoint,
+    timeout=15.0,  # unary calls, seconds
+    stream_timeout=300.0,  # streaming calls, seconds; None (default) = no timeout
+)
+```
+
+A streaming call is signed over its first request message only, and the request is sent as soon as that message is available. For a client stream, send a message (or close the stream) before waiting for a response. Bidirectional streams are not supported.
+
 ## Available Commands
 
 ```bash

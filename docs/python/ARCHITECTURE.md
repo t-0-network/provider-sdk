@@ -167,6 +167,8 @@ Message byte layout:
 
 > **CRITICAL INVARIANT:** The body bytes used for signing and verification MUST be the exact bytes from the HTTP request. Re-encoding a deserialized Protobuf message produces different bytes and will cause signature verification to fail.
 
+**Streaming RPCs:** for client- and server-streaming requests the signature covers only the **first request message**. For an enveloped body (Connect streaming, `application/connect+*`; gRPC, `application/grpc` and `application/grpc+*`; not gRPC-Web) `body` is the first envelope exactly as sent: flags (1 byte) ‖ big-endian uint32 length ‖ payload, compressed if flag bit 0 is set. Later messages are not covered. A gRPC unary request is a single envelope, so for it this is the whole body. A client stream closed before its first message is signed over empty bytes; the network rejects it.
+
 #### 2.1.2 Digest Computation
 
 The message is hashed using **legacy Keccak-256** (the pre-NIST Keccak variant used in the Ethereum ecosystem). The output is always 32 bytes.
@@ -420,6 +422,8 @@ sequenceDiagram
     CC-->>App: Deserialized response
 ```
 
+**Streaming requests:** for client- and server-streaming calls, and for every gRPC call (unary included), ConnectRPC passes `stream()` an iterator that yields one envelope per message instead of bytes. When the content type is enveloped, the wrapper reads the first envelope as the returned context manager is entered (inside ConnectRPC's call timeout), signs it, and sends the request at once; the body replays that envelope and then forwards the rest of the iterator unbuffered. So a client-streaming request goes out only when its first message is available: send a message (or close the stream) before waiting for a response. Other iterator bodies (gRPC-Web) are read in full and signed whole. Bidirectional streams are not supported.
+
 **Wrapper pattern (not subclass):** `pyqwest.Client` is backed by a Rust FFI implementation. Subclassing Rust-backed Python objects is fragile and may produce undefined behavior. The wrapper pattern -- creating a class that holds a reference to the real client and delegates method calls -- is the safe and proven approach. This mirrors Go SDK's `SigningTransport` wrapping `http.RoundTripper`.
 
 Both async (`SigningClient` wrapping `pyqwest.Client`) and sync (`SigningSyncClient` wrapping `pyqwest.SyncClient`) variants are provided.
@@ -651,18 +655,30 @@ class SigningClient:
     def __init__(self, sign_fn: SignFn, *, transport: Any | None = None) -> None: ...
     async def get(self, url, headers=None) -> Any: ...
     async def post(self, url, headers=None, content=None) -> Any: ...
-    def stream(self, method, url, headers=None, content=None) -> Any: ...
+    def stream(self, method, url, headers=None, content=None) -> AbstractAsyncContextManager[Response]: ...
 ```
 
 **`SigningSyncClient`** is the synchronous equivalent wrapping `pyqwest.SyncClient`.
 
-Both classes share the signing logic via the `_sign_request()` helper:
+Both classes share the signing logic via the `_sign_request()` helper, which takes the bytes the signature covers:
 
 1. `timestamp_ms = int(time.time() * 1000)`
 2. `timestamp_bytes = struct.pack("<Q", timestamp_ms)` (little-endian uint64)
 3. `digest = legacy_keccak256(body + timestamp_bytes)`
 4. `signature, pub_key = sign_fn(digest)`
 5. Set headers: `X-Public-Key = "0x" + pub_key.hex()`, `X-Signature = "0x" + signature.hex()`, `X-Signature-Timestamp = str(timestamp_ms)`
+
+What `body` is depends on the call:
+
+| Call | `content` | Signed bytes |
+|------|-----------|--------------|
+| `get()` | -- | `b""` |
+| `post()` (Connect unary) | bytes | Whole body |
+| `stream()` | bytes | Whole body |
+| `stream()`, enveloped content type (Connect streaming, gRPC incl. unary) | (async) iterator | First envelope as sent |
+| `stream()`, any other content type (gRPC-Web) | (async) iterator | Whole body, read in full |
+
+For the enveloped case `stream()` returns a context manager that, on enter, reads the iterator up to the end of its first envelope (ConnectRPC yields one envelope per chunk, but a split or merged chunk is handled), signs it, and enters the inner `stream()` with a body that yields that envelope, any bytes read past it, then the rest of the iterator. pyqwest closes only the body it is given, so closing that body closes ConnectRPC's iterator. A body that ends before its first envelope is complete is signed as it is (`b""` for an empty client stream) and sent; the network rejects it. The sync variant deducts the wait for the first message from the `timeout` it passes on, so the call's deadline covers that wait as asyncio's does in the async variant.
 
 #### 4.3.2 `client.py` -- Generic Client Factory
 
@@ -674,7 +690,8 @@ def new_service_client(
     client_class: type[T],      # Generated ConnectRPC client class
     *,
     base_url: str = DEFAULT_BASE_URL,
-    timeout: float = DEFAULT_TIMEOUT,
+    timeout: float = DEFAULT_TIMEOUT,         # Unary calls, seconds
+    stream_timeout: float | None = None,      # Client-/server-streaming calls; None = no timeout
 ) -> T: ...
 
 def new_service_client_sync(
@@ -683,17 +700,20 @@ def new_service_client_sync(
     *,
     base_url: str = DEFAULT_BASE_URL,
     timeout: float = DEFAULT_TIMEOUT,
+    stream_timeout: float | None = None,
 ) -> T: ...
 ```
 
 The functions create a `SignFn` from the private key, wrap it in `SigningClient`/`SigningSyncClient`, and pass it as the `http_client` parameter to the generated ConnectRPC client constructor.
+
+A ConnectRPC client has a single `timeout_ms` for all calls, and in the async client a stream's timeout covers the whole stream, so a 15-second default would cut off long uploads and downloads. The factories therefore build the client with `timeout_ms=None` and wrap the instance's `execute_unary`, `execute_client_stream`, `execute_server_stream` and `execute_bidi_stream`, each filling in its call type's default when the call passes no `timeout_ms`: `timeout` for unary calls (gRPC unary included: it still enters through `execute_unary`), `stream_timeout` for the others. A per-call `timeout_ms` wins. `timeout <= 0` and `stream_timeout < 0` raise `ValueError`; `stream_timeout=0` means no timeout.
 
 #### 4.3.3 `options.py`
 
 | Constant | Value | Purpose |
 |----------|-------|---------|
 | `DEFAULT_BASE_URL` | `"https://api.t-0.network"` | T-0 Network API endpoint |
-| `DEFAULT_TIMEOUT` | `15.0` | Request timeout in seconds |
+| `DEFAULT_TIMEOUT` | `15.0` | Unary call timeout in seconds (streams have no default timeout) |
 
 ### 4.4 Server-Side Framework (`provider/`)
 
@@ -879,6 +899,9 @@ Tests are organized to mirror the SDK module structure under `sdk/tests/`:
 | `crypto/signer` | `test_signer.py` | 65-byte format, recovery byte range (0-1), sign-verify round-trip, cross-key |
 | `crypto/verifier` | `test_verifier.py` | 64/65-byte signatures, wrong key/digest, tampered signatures |
 | `network/signing` | `test_signing.py` | Header presence/format, signature verifiability, existing header preservation |
+| `network/signing` | `test_stream_signing.py` | Streams signed over the first envelope, sent before message 2, split/merged/empty first envelope, close forwarding, bytes and gRPC-Web bodies signed whole |
+| `network/client` | `test_client_timeouts.py` | Unary default (gRPC unary too), stream default or none, per-call `timeout_ms`, validation |
+| `crypto` (vectors) | `test_cross_vectors.py` | Shared `cross_test/test_vectors.json` cases, incl. `stream_signing_cases` driven through both stream wrappers |
 | `provider/middleware` | `test_middleware.py` | All ASGI verification paths: valid, missing headers, invalid encoding, timestamp range, wrong key, bad signature, body size |
 | `provider/middleware_wsgi` | `test_middleware_wsgi.py` | All WSGI verification paths (mirrors ASGI tests) |
 | `integration` | `test_signature_verification.py` | End-to-end ASGI: sign via transport → verify via middleware, wrong key rejection, large body |
@@ -897,7 +920,7 @@ Located in `tests/cross_test/`, these tests validate interoperability between th
 - `sign <hex_private_key> <hex_digest>` -- Sign a digest
 - `verify <hex_public_key> <hex_digest> <hex_signature>` -- Verify a signature
 - `pubkey <hex_private_key>` -- Derive public key
-- `serve <port> <hex_network_public_key>` -- Start a Go ProviderService server
+- `serve <port> <hex_network_public_key>` -- Start a Go ProviderService server (also serves health and `test.v1.StreamTest`; Connect over HTTP/1.1, gRPC over h2c)
 - `call-pay-out <base_url> <hex_private_key>` -- Call PayOut on a server
 
 **Signature cross-tests** (`test_cross_signature.py`):
@@ -911,6 +934,10 @@ Located in `tests/cross_test/`, these tests validate interoperability between th
 - Go client → Python ASGI ProviderService server
 - Python sync client → Go ProviderService server (WSGI)
 - Go client → Python WSGI ProviderService server
+
+**Streaming cross-tests** (`test_cross_stream.py`):
+- Python async and sync clients → Go `test.v1.StreamTest` (`cross_test/stream_test.proto`), which `serve` exposes behind a verifier that checks the signature over the first envelope only
+- Client streaming and server streaming, over Connect (SDK factory) and gRPC (h2c), plus a gRPC unary health check and a rejected unknown key
 
 #### 4.7.3 Running Tests
 

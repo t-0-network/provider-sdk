@@ -47,7 +47,8 @@ python/
     └── cross_test/             # Go interop tests (uses shared cross_test/go_helper/)
         ├── test_cross_signature.py   # Crypto interop (hash, sign, verify)
         ├── test_cross_server.py      # ASGI server-to-server
-        └── test_cross_server_sync.py # WSGI server-to-server
+        ├── test_cross_server_sync.py # WSGI server-to-server
+        └── test_cross_stream.py      # Client/server streaming, Connect + gRPC
 ```
 
 ## Key Dependencies
@@ -68,6 +69,8 @@ python/
 - Generated code imports as `tzero.v1.payment.provider_pb2` (not `t0_provider_sdk.api.tzero...`). The `api/` directory is on `sys.path` via package layout.
 - Client constructors accept `http_client: pyqwest.Client | None` — we wrap pyqwest with `SigningClient` (not subclass).
 - ConnectRPC calls exactly 3 methods on the client: `get()`, `post()`, `stream()`.
+- `stream()` carries every client-/server-streaming call and every gRPC call (unary included), and its `content` is an (async) iterator yielding one envelope per message, not bytes.
+- A `ConnectClient` has one `timeout_ms` for all calls. `new_service_client()` builds it with `None` and wraps the instance's `execute_*` methods to fill in `timeout` (unary, 15 s) or `stream_timeout` (streams, none by default); a per-call `timeout_ms` wins.
 
 ## Proto Code Generation
 
@@ -86,7 +89,7 @@ cd ../cross_test/go_helper && go build -o go_helper . && cd ../../python
 uv run pytest tests/cross_test/ -v
 ```
 
-Uses the shared Go helper at `cross_test/go_helper/` (repo root). Validates: Keccak256 hash, public key derivation, bidirectional signature verification, and end-to-end server-to-server communication (both ASGI and WSGI, plus health checks). In CI, tests fail (not skip) if the helper is missing.
+Uses the shared Go helper at `cross_test/go_helper/` (repo root). Validates: Keccak256 hash, public key derivation, bidirectional signature verification, end-to-end server-to-server communication (both ASGI and WSGI, plus health checks), and signed client/server streaming against the helper's first-envelope verifier (`test_cross_stream.py`). In CI, tests fail (not skip) if the helper is missing.
 
 ## Versioning
 
@@ -112,6 +115,7 @@ Runtime version: `_version.py` (`__version__`). Full details: [`docs/VERSIONING.
 - **Raw bytes:** Signature verification and signing always use original wire bytes, never re-serialized protobuf (see critical requirement above)
 - **Two-phase verification:** ASGI/WSGI middleware (raw bytes) → `contextvars.ContextVar` → ConnectRPC interceptor (error codes). Do not collapse into a single layer.
 - **Wrapper pattern:** `SigningClient` wraps `pyqwest.Client` via delegation (not subclass). pyqwest is Rust-backed FFI — subclassing is undefined.
+- **Streaming signs the first message only:** for an enveloped `stream()` body (`application/connect+*`, `application/grpc`, `application/grpc+*`; not gRPC-Web) `SigningClient` signs the first envelope as sent (flags + uint32be length + payload), sends at once, and forwards later messages unbuffered. So a client stream goes out only when its first message is available: send before waiting for a response. An empty client stream is signed over `b""` and sent; the network rejects it.
 - **Proto-agnostic:** `handler()`/`handler_sync()` and `new_service_client()`/`new_service_client_sync()` accept any generated ConnectRPC class. Do not add service-specific logic to these functions.
 
 ## Signature Protocol Quick Reference
@@ -121,6 +125,8 @@ digest  = Keccak256(body_bytes || struct.pack("<Q", timestamp_ms))
 sig, pk = sign_fn(digest)   # 65-byte sig (r+s+v), 65-byte uncompressed pubkey
 headers = { X-Public-Key: "0x"+pk.hex(), X-Signature: "0x"+sig.hex(), X-Signature-Timestamp: str(ms) }
 ```
+
+`body_bytes` is the whole body, except for enveloped requests (Connect streaming, gRPC): the first envelope as sent, which for gRPC unary is the whole body.
 
 Timestamp tolerance: ±60 seconds. Max body: 4 MB default.
 
