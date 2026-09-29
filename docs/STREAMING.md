@@ -6,7 +6,7 @@ the root [`CLAUDE.md`](../CLAUDE.md#signature-protocol), and the shared test vec
 
 ## What is signed
 
-The client picks the signed bytes from the request's content type.
+What a call is signed over depends on its kind, which the content type of the request shows.
 
 | Content type | Calls | Signed bytes |
 |---|---|---|
