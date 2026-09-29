@@ -71,8 +71,8 @@ Versions: `sdk/pyproject.toml`.
 - Generated code imports as `tzero.v1.payment.provider_pb2` (not `t0_provider_sdk.api.tzero...`). The `api/` directory is on `sys.path` via package layout.
 - Client constructors accept `http_client: pyqwest.Client | None` — we wrap pyqwest with `SigningClient` (not subclass).
 - ConnectRPC calls exactly 3 methods on the client: `get()`, `post()`, `stream()`.
-- `stream()` carries every client-/server-streaming call and every gRPC and gRPC-Web call (unary included), and its `content` is an (async) iterator yielding one envelope per message, not bytes.
-- A `ConnectClient` has one `timeout_ms` for all calls, so `new_service_client()` wraps the instance's `execute_*` methods to apply `timeout` (unary) or `stream_timeout` (streams, 5 minutes by default), and makes `execute_bidi_stream` raise `UNIMPLEMENTED`.
+- `stream()` carries every client-/server-streaming call and every gRPC call (unary included), and its `content` is an (async) iterator yielding one envelope per message, not bytes. `post()` carries Connect unary calls; `get()` (Connect GET) is refused.
+- A `ConnectClient` has one `timeout_ms` for all calls, so `new_service_client()` wraps the instance's `execute_*` methods to apply `timeout` (unary) or `stream_timeout` (streams, 5 minutes by default) and to check a per-call `timeout_ms`, and makes `execute_bidi_stream` raise `UNIMPLEMENTED`. The factories pass `protocol`, `send_compression=None` and, for `WireFormat.JSON`, the JSON codec to the generated class.
 
 ## Proto Code Generation
 
@@ -116,9 +116,9 @@ Runtime version: `_version.py` (`__version__`). Full details: [`docs/VERSIONING.
 
 - **Raw bytes:** Signature verification and signing always use original wire bytes, never re-serialized protobuf (see critical requirement above)
 - **Two-phase verification:** ASGI/WSGI middleware (raw bytes) → `contextvars.ContextVar` → ConnectRPC interceptor (error codes). Do not collapse into a single layer.
-- **Wrapper pattern:** `SigningClient` wraps `pyqwest.Client` via delegation (not subclass). pyqwest is Rust-backed FFI — subclassing is undefined.
-- **Content type decides what is signed, never the body's form:** `application/connect+*`, `application/grpc`, `application/grpc+*` are signed over their first envelope as sent; anything else, gRPC-Web included, over its whole body.
-- **Streaming signs the first message and sends at once, never buffered.** The first chunk is checked to be exactly one envelope; anything else fails the call with `INTERNAL` rather than being mis-signed. Details: [`docs/STREAMING.md`](../docs/STREAMING.md).
+- **Wrapper pattern:** `SigningClient` wraps `pyqwest.Client` via delegation, not a subclass: ConnectRPC calls only `get()`, `post()` and `stream()` on it, and each of them is signed or refused in the wrapper.
+- **What is signed:** `application/connect+*`, `application/grpc` and `application/grpc+*` requests over their first envelope as sent; a Connect unary body (`post()`) whole.
+- **Streaming signs the first message and sends at once, never buffered.** The first chunk is checked to be exactly one envelope: one that ends early fails with `INVALID_ARGUMENT` ("streaming request ends inside its first message"), one that holds more fails with `INTERNAL`, and neither is signed. Details: [`docs/STREAMING.md`](../docs/STREAMING.md).
 - **Proto-agnostic:** `handler()`/`handler_sync()` and `new_service_client()`/`new_service_client_sync()` accept any generated ConnectRPC class. Do not add service-specific logic to these functions.
 
 ## Signature Protocol Quick Reference
@@ -129,7 +129,7 @@ sig, pk = sign_fn(digest)   # 65-byte sig (r+s+v), 65-byte uncompressed pubkey
 headers = { X-Public-Key: "0x"+pk.hex(), X-Signature: "0x"+sig.hex(), X-Signature-Timestamp: str(ms) }
 ```
 
-`body_bytes` is the whole body, except for enveloped requests (by content type: Connect streaming, gRPC; not gRPC-Web): the first envelope as sent, which for gRPC unary is the whole body.
+`body_bytes` is the whole body of a Connect unary call, and the first envelope as sent of a Connect stream or any gRPC call (for gRPC unary, that is the whole body).
 
 Timestamp tolerance: ±60 seconds. Max body: 4 MB default.
 

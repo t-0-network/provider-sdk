@@ -227,10 +227,10 @@ class MyInterceptor:
 
 ## 10. `pyqwest.Client` — Wrapper, Not Subclass
 
-`pyqwest.Client` is Rust-backed (via PyO3). Subclassing fails or produces unpredictable behavior.
+A subclass of `pyqwest.Client` inherits every request method it does not override, and each of those would send requests unsigned. The wrapper exposes only the methods it signs.
 
 ```python
-# WRONG — Rust-backed class, subclassing is fragile
+# WRONG — every method not overridden here sends unsigned
 class SigningClient(pyqwest.Client):
     def post(self, url, headers=None, content=None):
         headers = self._sign(content, headers)
@@ -247,9 +247,9 @@ class SigningClient:
         return await self._inner.post(url, headers=headers, content=content)
 ```
 
-ConnectRPC calls exactly 3 methods: `get()`, `post()`, `stream()`. Only these need wrapping.
+ConnectRPC calls exactly 3 methods: `get()`, `post()`, `stream()`. Only these need wrapping, and `get()` is refused: a GET has no body to sign.
 
-`stream()` gets an (async) iterator of envelopes, not bytes, for every streaming call and every gRPC and gRPC-Web call, unary included. Treating it as bytes (`content + timestamp_bytes`) raises `TypeError`, which ConnectRPC reports as `UNAVAILABLE`. What it signs is decided by the content type, not by the body's form; see [docs/STREAMING.md](../STREAMING.md#what-is-signed).
+`stream()` gets an (async) iterator of envelopes, not bytes, for every streaming call and every gRPC call, unary included. Treating it as bytes (`content + timestamp_bytes`) raises `TypeError`, which ConnectRPC reports as `UNAVAILABLE`. It signs the first envelope as sent; see [docs/STREAMING.md](../STREAMING.md#what-is-signed).
 
 ---
 

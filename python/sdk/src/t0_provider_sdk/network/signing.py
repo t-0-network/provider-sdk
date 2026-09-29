@@ -6,8 +6,6 @@ on the client: get(), post(), and stream(); get() is refused.
 
 The content type decides what is signed: enveloped requests (Connect streaming, gRPC) over their
 first envelope as sent, everything else over the whole body. See docs/STREAMING.md.
-
-Go equivalent: network/signing_transport.go → SigningTransport.RoundTrip(req)
 """
 
 from __future__ import annotations

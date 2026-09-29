@@ -74,21 +74,25 @@ gunicorn provider.wsgi:app --bind 0.0.0.0:8080
 
 The sync variant uses `payment_sync.py` -- implement the same RPC methods as regular `def` functions instead of `async def`.
 
-## Network Client Timeouts and Streaming
+## Streaming and timeouts
 
-`new_service_client()` / `new_service_client_sync()` sign every request. Unary calls time out after `timeout` (15 seconds by default), and client- and server-streaming calls after `stream_timeout` (5 minutes by default, including the wait for the first message). A call's own `timeout_ms` replaces the default, shorter or longer. Every timeout must be positive and at most 2147483647 ms; none can be turned off.
+`new_service_client()` and `new_service_client_sync()` sign every request. A streaming call is signed over its first message and sent as soon as that message exists, so send a message (or close the stream) before waiting for a response. Unary calls time out after 15 seconds and streaming calls after 5 minutes; a call's own `timeout_ms` replaces either default.
 
 ```python
+from t0_provider_sdk.network import Protocol, WireFormat, new_service_client
+
 network_client = new_service_client(
     config.provider_private_key,
     NetworkServiceClient,
     base_url=config.tzero_endpoint,
     timeout=15.0,  # unary calls, seconds
     stream_timeout=600.0,  # streaming calls, seconds (default 300)
+    wire_format=WireFormat.BINARY,  # or WireFormat.JSON
+    protocol=Protocol.CONNECT,  # or Protocol.GRPC
 )
 ```
 
-A streaming call is signed over its first request message and sent as soon as that message is available: for a client stream, send a message (or close the stream) before waiting for a response. Bidirectional streams are not supported (`ConnectError` with `Code.UNIMPLEMENTED`). Details: [`docs/STREAMING.md`](../docs/STREAMING.md).
+The rules for every SDK (what is signed, refused calls, timeout bounds, option names): [`docs/STREAMING.md`](../docs/STREAMING.md).
 
 ## Available Commands
 

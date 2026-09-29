@@ -76,7 +76,7 @@ The SDK is a faithful port of the Go SDK (the golden standard), ensuring binary-
 | **ProviderService** | The server-side RPC service that the T-0 Network calls on the provider (inbound) |
 | **NetworkService** | The client-side RPC service that the provider calls on the T-0 Network (outbound) |
 | **Signature Protocol** | The Keccak-256 + secp256k1 ECDSA message authentication scheme |
-| **ConnectRPC** | The RPC framework used for communication (HTTP/1.1 and HTTP/2 compatible, not gRPC) |
+| **ConnectRPC** | The RPC framework used for communication; its clients speak the Connect protocol (HTTP/1.1 or HTTP/2) and gRPC |
 | **Raw Payload Bytes** | The original HTTP request body bytes as they appear on the wire |
 | **Network Public Key** | The T-0 Network's secp256k1 public key, used to verify inbound requests |
 | **Provider Private Key** | The provider's secp256k1 private key, used to sign outbound requests |
@@ -167,7 +167,7 @@ Message byte layout:
 
 > **CRITICAL INVARIANT:** The body bytes used for signing and verification MUST be the exact bytes from the HTTP request. Re-encoding a deserialized Protobuf message produces different bytes and will cause signature verification to fail.
 
-**Streaming RPCs:** for an enveloped request (`application/connect+*`, `application/grpc`, `application/grpc+*`) `body` is only the **first envelope**, exactly as sent (flags ‖ uint32be length ‖ payload); any other request is signed over its whole body. See [docs/STREAMING.md](../STREAMING.md#what-is-signed).
+**Streaming RPCs:** for an enveloped request (`application/connect+*`, `application/grpc`, `application/grpc+*`) `body` is only the **first envelope**, exactly as sent (flags ‖ uint32be length ‖ payload); a Connect unary request is signed over its whole body. See [docs/STREAMING.md](../STREAMING.md#what-is-signed).
 
 #### 2.1.2 Digest Computation
 
@@ -305,7 +305,6 @@ ConnectRPC was chosen over gRPC for its HTTP/1.1 compatibility, simpler deployme
 | `hashlib.sha3_256()` | Implements NIST SHA-3, not legacy Keccak-256 (different padding) |
 | Pre-0.10 `connectrpc` on PyPI (v0.0.1 by Gaudiy) | Squatted package, not the official runtime; pin `>=0.10.0` to skip it |
 | `connectrpc` 0.10.x with current stubs | Stubs generated with `protobuf=google` import `connectrpc.compat`, absent before 0.11; conversely, pre-0.11 stubs on a 0.11 runtime fail every request with `ConnectError('to_binary')` |
-| Subclassing `pyqwest.Client` | Rust-backed FFI object -- subclassing is fragile and undefined |
 
 ### 3.2 Package Architecture
 
@@ -397,7 +396,7 @@ The two phases communicate through `contextvars.ContextVar`, which is request-sc
 
 ### 3.4 Client-Side: Signing Transport
 
-On the client side, the SDK wraps the HTTP client to inject signature headers before each outgoing request. ConnectRPC Python calls exactly three methods on its HTTP client: `get()`, `post()`, and `stream()`. The signing wrapper intercepts these three methods, computes the signature, adds headers, and delegates to the real HTTP client.
+On the client side, the SDK wraps the HTTP client to inject signature headers before each outgoing request. ConnectRPC Python calls exactly three methods on its HTTP client: `get()`, `post()`, and `stream()`. The signing wrapper signs `post()` and `stream()`, adds the headers, and delegates to the real HTTP client; `get()` is refused, since a GET has no body to sign.
 
 ```mermaid
 sequenceDiagram
@@ -424,7 +423,7 @@ sequenceDiagram
 
 **Streaming requests:** ConnectRPC hands `stream()` an iterator of envelopes. For an enveloped request the wrapper signs the first envelope as soon as it is available, sends at once and forwards the rest unbuffered; see [docs/STREAMING.md](../STREAMING.md#when-the-request-is-sent).
 
-**Wrapper pattern (not subclass):** `pyqwest.Client` is backed by a Rust FFI implementation. Subclassing Rust-backed Python objects is fragile and may produce undefined behavior. The wrapper pattern -- creating a class that holds a reference to the real client and delegates method calls -- is the safe and proven approach. This mirrors Go SDK's `SigningTransport` wrapping `http.RoundTripper`.
+**Wrapper pattern (not subclass):** the wrapper holds the real client and delegates to it. ConnectRPC calls only `get()`, `post()` and `stream()`, so the wrapper covers everything it uses and nothing else of `pyqwest.Client` leaks through.
 
 Both async (`SigningClient` wrapping `pyqwest.Client`) and sync (`SigningSyncClient` wrapping `pyqwest.SyncClient`) variants are provided.
 
@@ -679,22 +678,28 @@ def new_service_client(
     private_key: str,           # Hex-encoded secp256k1 private key
     client_class: type[T],      # Generated ConnectRPC client class
     *,
-    base_url: str = DEFAULT_BASE_URL,
-    timeout: float = DEFAULT_TIMEOUT,         # Unary calls, seconds
+    base_url: str | None = DEFAULT_BASE_URL,        # None means the default
+    timeout: float = DEFAULT_TIMEOUT,               # Unary calls, seconds
     stream_timeout: float = DEFAULT_STREAM_TIMEOUT,  # Client-/server-streaming calls, seconds
+    wire_format: WireFormat = WireFormat.BINARY,    # or WireFormat.JSON
+    protocol: Protocol = Protocol.CONNECT,          # or Protocol.GRPC
+    sign_fn: SignFn | None = None,                  # signs in place of private_key
 ) -> T: ...
 
 def new_service_client_sync(
     private_key: str,
     client_class: type[T],
     *,
-    base_url: str = DEFAULT_BASE_URL,
+    base_url: str | None = DEFAULT_BASE_URL,
     timeout: float = DEFAULT_TIMEOUT,
     stream_timeout: float = DEFAULT_STREAM_TIMEOUT,
+    wire_format: WireFormat = WireFormat.BINARY,
+    protocol: Protocol = Protocol.CONNECT,
+    sign_fn: SignFn | None = None,
 ) -> T: ...
 ```
 
-The functions create a `SignFn` from the private key, wrap it in `SigningClient`/`SigningSyncClient`, and pass it as the `http_client` parameter to the generated ConnectRPC client constructor.
+The functions check the base URL and the key, create a `SignFn` from the private key (unless `sign_fn` is given), wrap it in `SigningClient`/`SigningSyncClient`, and pass it as the `http_client` parameter to the generated ConnectRPC client constructor, together with the protocol, the codec for `WireFormat.JSON` and `send_compression=None` (requests go out uncompressed). `Protocol.GRPC` on an `http://` base URL gets an HTTP/2 transport without TLS. An empty base URL raises `ValueError("base URL is not set")`, one without an http/https scheme or host `ValueError("base URL is not valid")`.
 
 `timeout` (15 s) is the default of unary calls and `stream_timeout` (300 s) that of client- and server-streaming calls; a per-call `timeout_ms` replaces it, shorter or longer. Values that are not positive or exceed 2147483647 ms raise `ValueError`. Bidirectional calls raise `ConnectError(Code.UNIMPLEMENTED)` before anything is sent. See [docs/STREAMING.md](../STREAMING.md#timeouts).
 

@@ -1,7 +1,5 @@
 """Generic client factory for creating ConnectRPC clients with signing transport.
 
-Go equivalent: network/client.go → NewServiceClient[T]
-
 Proto-agnostic: works with ANY generated ConnectRPC client class.
 """
 
