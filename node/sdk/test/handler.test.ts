@@ -16,7 +16,7 @@ import {
   Code,
   createClient as createConnectClient,
 } from '@connectrpc/connect';
-import { createConnectTransport } from '@connectrpc/connect-web';
+import { createConnectTransport } from '@connectrpc/connect-node';
 import { secp256k1 } from '@noble/curves/secp256k1.js';
 
 function newKeypair() {
@@ -71,7 +71,7 @@ describe('createHandler', () => {
     const { publicKeyHex } = newKeypair();
     const { url, close } = await bootServer(publicKeyHex);
     try {
-      const transport = createConnectTransport({ baseUrl: url, fetch: globalThis.fetch });
+      const transport = createConnectTransport({ baseUrl: url, httpVersion: '1.1' });
       const client = createConnectClient(Health, transport);
       await assert.rejects(
         async () => client.check({ service: '' }),

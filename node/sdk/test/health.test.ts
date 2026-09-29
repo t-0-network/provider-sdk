@@ -4,7 +4,7 @@ import http from 'node:http';
 import { randomBytes } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
 import { secp256k1 } from '@noble/curves/secp256k1.js';
-import { connectNodeAdapter } from '@connectrpc/connect-node';
+import { connectNodeAdapter, createConnectTransport } from '@connectrpc/connect-node';
 import { createClient } from '../src/client/client.js';
 import { createService } from '../src/service/service.js';
 import { SDK_ECOSYSTEM_HEADER, SDK_VERSION_HEADER } from '../src/service/health.js';
@@ -21,7 +21,6 @@ import {
   createClient as createConnectClient,
   type ServiceImpl,
 } from '@connectrpc/connect';
-import { createConnectTransport } from '@connectrpc/connect-web';
 
 type RegisterRoutes = Parameters<typeof createService>[1];
 
@@ -118,7 +117,7 @@ describe('health is mounted by the transport', () => {
     const { publicKeyHex } = newKeypair();
     const { url, close } = await bootServer(publicKeyHex);
     try {
-      const transport = createConnectTransport({ baseUrl: url, fetch: globalThis.fetch });
+      const transport = createConnectTransport({ baseUrl: url, httpVersion: '1.1' });
       const client = createConnectClient(Health, transport);
       await assert.rejects(
         async () => client.check({ service: '' }),

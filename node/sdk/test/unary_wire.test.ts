@@ -7,13 +7,11 @@ import { resolve } from 'node:path';
 import { gzipSync } from 'node:zlib';
 import { create, fromBinary, fromJsonString, toBinary } from '@bufbuild/protobuf';
 import { StringValueSchema } from '@bufbuild/protobuf/wkt';
-import { Code, ConnectError, createClient as createConnectClient, type Transport } from '@connectrpc/connect';
+import { Code, ConnectError, createClient as createConnectClient } from '@connectrpc/connect';
 import { createTransport } from '@connectrpc/connect/protocol-connect';
-import { createConnectTransport } from '@connectrpc/connect-web';
-import { createClient, type SignerFunction } from '../src/client/client.js';
+import { createClient } from '../src/client/client.js';
 import { CreateSigner } from '../src/client/signer.js';
 import { transportOptions } from '../src/common/client/client.js';
-import { signatureHeaders } from '../src/common/client/sign.js';
 import { createSigningFetchClient } from '../src/common/client/signing-http-client.js';
 import { computeDigest, NetworkHeaders, parsePublicKey, verifySignature } from '../src/crypto/index.js';
 import {
@@ -29,13 +27,13 @@ const signer = CreateSigner(vectors.keys.private_key);
 const TIMESTAMP_MS = 1_706_000_000_000;
 const BASE_URL = 'http://127.0.0.1:9'; // never dialed: every test here sends through a fake fetch
 
-// The call every path makes: a health check with a non-empty body, a call header and a timeout.
+// The golden call: a health check with a non-empty body, a call header and a timeout.
 const REQUEST = { service: 'grpc.health.v1.Health' };
 const CALL_OPTIONS = { headers: { 'X-Call': 'golden' }, timeoutMs: 5_000 };
 
-// What the connect-web transport (unary, Connect JSON) sent for this call, captured from it before
-// it was removed. Headers are listed without the three signature headers, whose values depend on
-// the key and the time.
+// What the connect-web transport (unary, Connect JSON) sent for this call, recorded from it before
+// it was removed: it was also signed over the body as sent, and had no User-Agent. Headers are
+// listed without the three signature headers, whose values depend on the key and the time.
 const LEGACY = {
   body: '{"service":"grpc.health.v1.Health"}',
   headers: {
@@ -58,49 +56,30 @@ interface Sent {
   body: Buffer;
 }
 
-// A fetch that records each request and answers a serving health check in the request's format.
+// A fetch that records each request and answers a serving health check.
 function recordingFetch(sent: Sent[]): typeof globalThis.fetch {
   return async (url, init) => {
     const body = init?.body == null ? Buffer.alloc(0) : Buffer.from(await new Response(init.body).arrayBuffer());
     sent.push({ url: String(url), init: init ?? {}, body });
     const serving = create(HealthCheckResponseSchema, { status: HealthCheckResponse_ServingStatus.SERVING });
-    return new Headers(init?.headers).get('Content-Type') === 'application/json'
-      ? new Response('{"status":"SERVING"}', { headers: { 'Content-Type': 'application/json' } })
-      : new Response(toBinary(HealthCheckResponseSchema, serving), { headers: { 'Content-Type': 'application/proto' } });
+    return new Response(toBinary(HealthCheckResponseSchema, serving), { headers: { 'Content-Type': 'application/proto' } });
   };
 }
 
-// The unary transport createClient used before: connect-web over a fetch that signed init.body.
-function legacyTransport(sign: SignerFunction, fetchFn: typeof globalThis.fetch): Transport {
-  const customFetch: typeof globalThis.fetch = async (r, init) => {
-    if (!init?.body || !(init.body instanceof Uint8Array)) {
-      throw 'unsupported body type';
-    }
-    const headers = new Headers(init?.headers);
-    for (const [name, value] of await signatureHeaders(sign, init.body)) {
-      headers.append(name, value);
-    }
-    return fetchFn(r, { ...init, headers });
-  };
-  return createConnectTransport({ baseUrl: BASE_URL, fetch: customFetch });
-}
-
-function currentTransport(sign: SignerFunction, fetchFn: typeof globalThis.fetch): Transport {
-  return createTransport({ ...transportOptions(sign, BASE_URL), httpClient: createSigningFetchClient(sign, fetchFn) });
-}
-
-async function check(t: TestContext, transport: (sign: SignerFunction, fetchFn: typeof globalThis.fetch) => Transport): Promise<Sent> {
+// Makes the health check through the client's transport over a recording fetch.
+async function check(t: TestContext): Promise<Sent> {
   t.mock.method(Date, 'now', () => TIMESTAMP_MS);
   const sent: Sent[] = [];
-  const client = createConnectClient(Health, transport(signer, recordingFetch(sent)));
+  const transport = createTransport({ ...transportOptions(signer, BASE_URL), httpClient: createSigningFetchClient(signer, recordingFetch(sent)) });
+  const client = createConnectClient(Health, transport);
   const resp = await client.check(REQUEST, CALL_OPTIONS);
   assert.equal(resp.status, HealthCheckResponse_ServingStatus.SERVING);
   assert.equal(sent.length, 1);
   return sent[0];
 }
 
-// The headers of a request without the signature headers, and without the User-Agent, which only
-// the current transport sets.
+// The headers of a request without the signature headers, and without the User-Agent, which
+// connect-web did not send.
 function plainHeaders(init: RequestInit): Record<string, string> {
   const headers = new Headers(init.headers);
   for (const name of [NetworkHeaders.Signature, NetworkHeaders.PublicKey, NetworkHeaders.SignatureTimestamp, 'User-Agent']) {
@@ -120,19 +99,8 @@ function assertSignedOverBody(s: Sent): void {
 }
 
 describe('Unary request on the wire (golden)', () => {
-  it('the connect-web transport sent the recorded request', async (t) => {
-    const s = await check(t, legacyTransport);
-    assert.equal(s.url, `${BASE_URL}/grpc.health.v1.Health/Check`);
-    assert.equal(s.init.method, 'POST');
-    assert.equal(s.init.redirect, 'error');
-    assert.equal(s.body.toString(), LEGACY.body);
-    assert.deepEqual(plainHeaders(s.init), LEGACY.headers);
-    assert.equal(new Headers(s.init.headers).get('User-Agent'), null);
-    assertSignedOverBody(s);
-  });
-
   it('the SDK sends the same Connect request in binary, signed over the whole body', async (t) => {
-    const s = await check(t, currentTransport);
+    const s = await check(t);
     assert.equal(s.url, `${BASE_URL}/grpc.health.v1.Health/Check`);
     assert.equal(s.init.method, 'POST');
     assert.equal(s.init.redirect, 'error');
@@ -146,7 +114,7 @@ describe('Unary request on the wire (golden)', () => {
     assert.equal(s.init.duplex, undefined);
   });
 
-  it('both carry the same message', () => {
+  it('carries the message connect-web sent', () => {
     assert.deepEqual(
       fromBinary(HealthCheckRequestSchema, Buffer.from(CURRENT.body, 'hex')),
       fromJsonString(HealthCheckRequestSchema, LEGACY.body),
