@@ -279,7 +279,8 @@ public abstract class NetworkClient implements Closeable {
      * Parses a base URL into its components.
      *
      * @param endpoint {@code http://} or {@code https://} (any case), a host, an optional port from 1 to
-     *                 65535 and an optional path; {@code null} for {@value #DEFAULT_ENDPOINT}
+     *                 65535 and an optional trailing {@code /}, with no path, query or fragment;
+     *                 {@code null} for {@value #DEFAULT_ENDPOINT}
      * @return the parsed endpoint information
      * @throws IllegalArgumentException if the base URL is empty or not valid
      */
@@ -296,15 +297,12 @@ public abstract class NetworkClient implements Closeable {
         if (!usePlaintext && !"https".equalsIgnoreCase(scheme)) {
             throw invalidBaseUrl();
         }
-        String rest = endpoint.substring(schemeEnd + 3);
-        int authorityEnd = rest.length();
-        for (char end : new char[] {'/', '?', '#'}) {
-            int i = rest.indexOf(end);
-            if (i >= 0 && i < authorityEnd) {
-                authorityEnd = i;
-            }
+        // Calls go to <base URL>/<service>/<method>, so a path, query or fragment could only be dropped:
+        // after one trailing '/', whatever the host and port patterns do not match is refused.
+        String authority = endpoint.substring(schemeEnd + 3);
+        if (authority.endsWith("/")) {
+            authority = authority.substring(0, authority.length() - 1);
         }
-        String authority = rest.substring(0, authorityEnd);
         // The port follows the last ':' outside an IPv6 literal's brackets.
         int colon = authority.lastIndexOf(':');
         if (colon < authority.lastIndexOf(']')) {
