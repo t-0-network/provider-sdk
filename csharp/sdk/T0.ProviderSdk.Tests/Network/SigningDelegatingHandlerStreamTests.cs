@@ -89,6 +89,31 @@ public class SigningDelegatingHandlerStreamTests
     }
 
     [Fact]
+    public async Task FirstFrameOver128KiBInSmallWrites_GrowsItsBufferAndIsSignedWhole()
+    {
+        var payload = new byte[200_000];
+        Random.Shared.NextBytes(payload);
+        var frame1 = Frame(payload);
+        var frame2 = Frame("m2");
+        var source = new PushContent(async stream =>
+        {
+            for (var start = 0; start < frame1.Length; start += 4096)
+            {
+                await stream.WriteAsync(frame1.AsMemory(start, Math.Min(4096, frame1.Length - start)));
+                await stream.FlushAsync();
+            }
+            await stream.WriteAsync(frame2);
+        });
+        var (client, inner) = NewClient();
+
+        using var response = await client.SendAsync(Post(source)).WithTimeout();
+
+        var request = await inner.Received.Task.WithTimeout();
+        Assert.True(SignatureCovers(request, frame1));
+        Assert.Equal([.. frame1, .. frame2], inner.Body.ToArray());
+    }
+
+    [Fact]
     public async Task FirstFrameSplitAcrossWrites_IsReassembled()
     {
         var frame1 = Frame(Encoding.UTF8.GetBytes("a first message written in pieces"), flags: 1);
@@ -187,7 +212,8 @@ public class SigningDelegatingHandlerStreamTests
     [Fact]
     public async Task SingleFrameBody_GetsItsLength()
     {
-        // A single-frame body of unknown length, as a unary gRPC call sends it, still goes out with a length.
+        // A single-frame body of unknown length, as a unary gRPC call sends it, goes out with a length
+        // when it has ended by the time its frame is read.
         var frame = Frame("hello");
         var (client, inner) = NewClient();
 

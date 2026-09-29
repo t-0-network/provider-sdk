@@ -18,8 +18,8 @@ internal sealed class FirstFrameThenPipeContent : HttpContent
 {
     private const int FramePrefixLength = 5;
 
-    // A length prefix is a claim until its bytes arrive, so the frame buffer starts at most this big
-    // and grows as they do.
+    // A length prefix is a claim until its bytes arrive, so the frame buffer starts no bigger than
+    // this or the bytes already read, and grows as more arrive.
     private const int MaxPreallocation = 64 * 1024;
 
     private const int StateIdle = 0;
@@ -67,7 +67,8 @@ internal sealed class FirstFrameThenPipeContent : HttpContent
             if (restIsEmpty)
                 await pipe.Reader.CompleteAsync().ConfigureAwait(false);
 
-            // A body of one frame (a unary call) has a known length even when the source had none.
+            // A body that had ended by the time its only frame was read (a small unary call) has a
+            // known length even when the source had none.
             return new FirstFrameThenPipeContent(
                 source, firstFrame, restIsEmpty ? null : pipe.Reader, restIsEmpty ? firstFrame.Length : length);
         }
@@ -201,7 +202,7 @@ internal sealed class FirstFrameThenPipeContent : HttpContent
                 }
 
                 frameLength = FramePrefixLength + ReadPayloadLength(buffer.Slice(0, FramePrefixLength));
-                frame = new byte[Math.Min(frameLength, MaxPreallocation)];
+                frame = new byte[(int)Math.Min(frameLength, Math.Max(MaxPreallocation, buffer.Length))];
             }
 
             var take = (int)Math.Min(buffer.Length, frameLength - filled);
