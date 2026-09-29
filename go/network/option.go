@@ -8,7 +8,6 @@ import (
 	"net/url"
 	"time"
 
-	"connectrpc.com/connect"
 	"github.com/t-0-network/provider-sdk/go/crypto"
 )
 
@@ -30,12 +29,13 @@ var (
 )
 
 type clientOptions struct {
-	baseURL        string
-	signFn         crypto.SignFn
-	timeout        time.Duration
-	streamTimeout  time.Duration
-	transport      http.RoundTripper
-	connectOptions []connect.ClientOption
+	baseURL       string
+	signFn        crypto.SignFn
+	timeout       time.Duration
+	streamTimeout time.Duration
+	wireFormat    WireFormat
+	protocol      Protocol
+	transport     http.RoundTripper
 }
 
 func (c *clientOptions) validate() error {
@@ -53,6 +53,14 @@ func (c *clientOptions) validate() error {
 
 	if c.streamTimeout <= 0 || c.streamTimeout > maxTimeout {
 		return ErrInvalidStreamTimeout
+	}
+
+	if c.wireFormat != WireFormatBinary && c.wireFormat != WireFormatJSON {
+		return fmt.Errorf("unknown wire format %d", c.wireFormat)
+	}
+
+	if c.protocol != ProtocolConnect && c.protocol != ProtocolGRPC {
+		return fmt.Errorf("unknown protocol %d", c.protocol)
 	}
 
 	return nil
@@ -101,9 +109,41 @@ func WithStreamTimeout(t time.Duration) ClientOption {
 	}
 }
 
-func WithConnectOptions(options ...connect.ClientOption) ClientOption {
+// WireFormat is how a client encodes its messages.
+type WireFormat int
+
+const (
+	// WireFormatBinary encodes messages as binary protobuf.
+	WireFormatBinary WireFormat = iota
+	// WireFormatJSON encodes messages as protobuf JSON.
+	WireFormatJSON
+)
+
+// WithWireFormat sets how messages are encoded.
+//
+// Default: WireFormatBinary.
+func WithWireFormat(f WireFormat) ClientOption {
 	return func(c *clientOptions) {
-		c.connectOptions = options
+		c.wireFormat = f
+	}
+}
+
+// Protocol is the RPC protocol a client speaks.
+type Protocol int
+
+const (
+	// ProtocolConnect is the Connect protocol.
+	ProtocolConnect Protocol = iota
+	// ProtocolGRPC is gRPC. On an http:// base URL it runs over HTTP/2 without TLS.
+	ProtocolGRPC
+)
+
+// WithProtocol sets the RPC protocol.
+//
+// Default: ProtocolConnect.
+func WithProtocol(p Protocol) ClientOption {
+	return func(c *clientOptions) {
+		c.protocol = p
 	}
 }
 

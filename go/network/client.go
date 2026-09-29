@@ -4,7 +4,7 @@ package network
 import (
 	"fmt"
 	"net/http"
-	"slices"
+	"net/url"
 	"time"
 
 	"connectrpc.com/connect"
@@ -45,15 +45,33 @@ func NewServiceClient[T any](
 		options.signFn = defaultSignFn
 	}
 
-	// No http.Client.Timeout: it would cap whole streams. callTimeouts sets per-call deadlines.
-	client := http.Client{
-		Transport: NewSigningTransport(
-			options.signFn, time.Now, WithTransport(options.transport),
-		),
+	transport := options.transport
+	if baseURL, _ := url.Parse(options.baseURL); transport == nil && options.protocol == ProtocolGRPC && baseURL.Scheme == "http" {
+		transport = cleartextHTTP2Transport()
 	}
 
-	connectOptions := append(slices.Clone(options.connectOptions),
-		connect.WithInterceptors(rejectBidi{}, callTimeouts{unary: options.timeout, stream: options.streamTimeout}))
+	// No http.Client.Timeout: it would cap whole streams. callTimeouts sets per-call deadlines.
+	client := http.Client{
+		Transport: NewSigningTransport(options.signFn, time.Now, WithTransport(transport)),
+	}
+
+	connectOptions := []connect.ClientOption{
+		connect.WithInterceptors(rejectBidi{}, callTimeouts{unary: options.timeout, stream: options.streamTimeout}),
+	}
+	if options.wireFormat == WireFormatJSON {
+		connectOptions = append(connectOptions, connect.WithProtoJSON())
+	}
+	if options.protocol == ProtocolGRPC {
+		connectOptions = append(connectOptions, connect.WithGRPC())
+	}
 
 	return clientFactory(&client, options.baseURL, connectOptions...), nil
+}
+
+// cleartextHTTP2Transport speaks HTTP/2 without TLS, with prior knowledge: gRPC needs HTTP/2, and
+// without TLS there is no handshake in which to agree on it.
+func cleartextHTTP2Transport() *http.Transport {
+	protocols := new(http.Protocols)
+	protocols.SetUnencryptedHTTP2(true)
+	return &http.Transport{Protocols: protocols}
 }

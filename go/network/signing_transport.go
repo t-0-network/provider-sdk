@@ -53,6 +53,11 @@ type SigningTransport struct {
 }
 
 func (t *SigningTransport) RoundTrip(req *http.Request) (*http.Response, error) {
+	// A GET request carries its message in the URL, which the signature does not cover.
+	if req.Method == http.MethodGet || req.Method == "" {
+		closeRequestBody(req)
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("GET requests are not supported"))
+	}
 	if isEnveloped(req) {
 		return t.signFirstEnvelope(req)
 	}
@@ -193,7 +198,6 @@ func mediaType(req *http.Request) string {
 }
 
 func isGRPCMediaType(mt string) bool {
-	// Excludes gRPC-Web (application/grpc-web*), which is signed whole.
 	return mt == "application/grpc" || strings.HasPrefix(mt, "application/grpc+")
 }
 

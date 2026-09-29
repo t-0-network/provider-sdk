@@ -14,7 +14,6 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/hex"
 	"fmt"
 	"log"
@@ -32,7 +31,6 @@ import (
 	"github.com/t-0-network/provider-sdk/go/crypto"
 	"github.com/t-0-network/provider-sdk/go/network"
 	"github.com/t-0-network/provider-sdk/go/provider"
-	"golang.org/x/net/http2"
 )
 
 func main() {
@@ -210,10 +208,7 @@ func cmdCallPayOut() {
 	var clientOpts []network.ClientOption
 	clientOpts = append(clientOpts, network.WithBaseURL(baseURL))
 	if grpcMode {
-		clientOpts = append(clientOpts,
-			network.WithConnectOptions(connect.WithGRPC()),
-			network.WithHTTPTransport(newH2CTransport()),
-		)
+		clientOpts = append(clientOpts, network.WithProtocol(network.ProtocolGRPC))
 	}
 
 	client, err := network.NewServiceClient(
@@ -261,10 +256,7 @@ func cmdCallHealth() {
 	var clientOpts []network.ClientOption
 	clientOpts = append(clientOpts, network.WithBaseURL(baseURL))
 	if grpcMode {
-		clientOpts = append(clientOpts,
-			network.WithConnectOptions(connect.WithGRPC()),
-			network.WithHTTPTransport(newH2CTransport()),
-		)
+		clientOpts = append(clientOpts, network.WithProtocol(network.ProtocolGRPC))
 	}
 
 	client, err := network.NewServiceClient(
@@ -286,18 +278,6 @@ func cmdCallHealth() {
 		os.Exit(1)
 	}
 	fmt.Printf("status=%s\n", resp.Status)
-}
-
-// newH2CTransport returns an HTTP transport that speaks h2c (HTTP/2 over cleartext).
-// Required for --grpc mode against plaintext servers.
-func newH2CTransport() *http2.Transport {
-	return &http2.Transport{
-		AllowHTTP: true,
-		DialTLSContext: func(ctx context.Context, netw, addr string, _ *tls.Config) (net.Conn, error) {
-			var d net.Dialer
-			return d.DialContext(ctx, netw, addr)
-		},
-	}
 }
 
 type testProviderService struct{}

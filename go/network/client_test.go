@@ -133,26 +133,20 @@ func TestNewServiceClient_NilTransportIgnored(t *testing.T) {
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 }
 
-func TestSigningTransport_NilBody(t *testing.T) {
-	var captured *http.Request
-	recorder := roundTripperFunc(func(r *http.Request) (*http.Response, error) {
-		captured = r.Clone(r.Context())
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader("")),
-		}, nil
-	})
+// A GET request carries its message in the URL, where the signature does not cover it.
+func TestSigningTransport_RefusesGET(t *testing.T) {
+	st := NewSigningTransport(testSignFn(t), time.Now, WithTransport(roundTripperFunc(func(*http.Request) (*http.Response, error) {
+		t.Fatal("a GET request must not be sent")
+		return nil, nil
+	})))
 
-	st := NewSigningTransport(testSignFn(t), func() time.Time { return time.Now() }, WithTransport(recorder))
-
-	req, err := http.NewRequest("GET", "http://localhost/health", nil)
-	require.NoError(t, err)
-	resp, err := st.RoundTrip(req)
-	require.NoError(t, err)
-	resp.Body.Close()
-
-	require.NotNil(t, captured)
-	require.NotEmpty(t, captured.Header.Get(common.SignatureHeader))
+	for _, method := range []string{http.MethodGet, ""} {
+		req, err := http.NewRequest(method, "http://localhost/health", nil)
+		require.NoError(t, err)
+		_, err = st.RoundTrip(req)
+		require.Equal(t, connect.CodeUnimplemented, connect.CodeOf(err), "method %q: %v", method, err)
+		require.ErrorContains(t, err, "GET requests are not supported")
+	}
 }
 
 func TestSigningTransport_NoBody(t *testing.T) {
@@ -235,6 +229,13 @@ func TestNewServiceClient_ValidationErrors(t *testing.T) {
 			require.EqualError(t, err, "WithStreamTimeout must be a positive duration of at most 2147483647 ms")
 		})
 	}
+
+	t.Run("unknown wire format and protocol", func(t *testing.T) {
+		_, err := NewServiceClient("", factory, WithSignatureFunction(testSignFn(t)), WithWireFormat(WireFormat(7)))
+		require.EqualError(t, err, "unknown wire format 7")
+		_, err = NewServiceClient("", factory, WithSignatureFunction(testSignFn(t)), WithProtocol(Protocol(7)))
+		require.EqualError(t, err, "unknown protocol 7")
+	})
 
 	t.Run("the largest timeouts are accepted", func(t *testing.T) {
 		_, err := NewServiceClient("", factory, WithSignatureFunction(testSignFn(t)),

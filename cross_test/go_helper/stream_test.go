@@ -197,11 +197,8 @@ var helperProtocols = []struct {
 	opts []network.ClientOption
 }{
 	{"connect", nil},
-	{"connect-json", []network.ClientOption{network.WithConnectOptions(connect.WithProtoJSON())}},
-	{"grpc", []network.ClientOption{
-		network.WithConnectOptions(connect.WithGRPC()),
-		network.WithHTTPTransport(newH2CTransport()),
-	}},
+	{"connect-json", []network.ClientOption{network.WithWireFormat(network.WireFormatJSON)}},
+	{"grpc", []network.ClientOption{network.WithProtocol(network.ProtocolGRPC)}},
 }
 
 func newHelperClient(t *testing.T, url, privateKey string, opts []network.ClientOption) *streamTestClient {
