@@ -10,7 +10,13 @@ from connectrpc.method import IdempotencyLevel, MethodInfo
 from google.protobuf.wrappers_pb2 import StringValue
 from t0_provider_sdk.common.headers import PUBLIC_KEY_HEADER
 from t0_provider_sdk.crypto.signer import new_signer_from_hex
-from t0_provider_sdk.network import DEFAULT_BASE_URL, Protocol, new_service_client, new_service_client_sync
+from t0_provider_sdk.network import (
+    DEFAULT_BASE_URL,
+    Protocol,
+    WireFormat,
+    new_service_client,
+    new_service_client_sync,
+)
 from t0_provider_sdk.network.client import _transport
 
 PRIVATE_KEY = "0x6b30303de7b26bfb1222b317a52113357f8bb06de00160b4261a2fef9c8b9bd8"
@@ -68,11 +74,46 @@ class TestBaseURL:
         with pytest.raises(ValueError, match="^base URL is not set$"):
             factory(PRIVATE_KEY, _Client, base_url="")
 
-    @pytest.mark.parametrize("base_url", ["api.t-0.network", "localhost:8080", "ftp://example.test", "https://"])
+    @pytest.mark.parametrize(
+        "base_url", ["https://api.t-0.network", "http://localhost:8080", "http://127.0.0.1:1234", "http://my_host:8080"]
+    )
     @pytest.mark.parametrize("factory", FACTORIES)
-    def test_url_without_http_scheme_or_host_is_refused(self, factory, base_url: str) -> None:
+    def test_valid_url_is_accepted(self, factory, base_url: str) -> None:
+        client = factory(PRIVATE_KEY, _Client, base_url=base_url)
+        assert client._address == base_url
+
+    @pytest.mark.parametrize(
+        "base_url",
+        [
+            "api.t-0.network",
+            "api.t-0.network:443",
+            "ftp://h",
+            "http://",
+            "http://:8080",
+            "http:foo",
+            "http://h:99999",
+            "http://h:0",
+            "not a url",
+        ],
+    )
+    @pytest.mark.parametrize("factory", FACTORIES)
+    def test_invalid_url_is_refused(self, factory, base_url: str) -> None:
         with pytest.raises(ValueError, match="^base URL is not valid$"):
             factory(PRIVATE_KEY, _Client, base_url=base_url)
+
+
+class TestEnumOptions:
+    @pytest.mark.parametrize("value", ["json", None, 1])
+    @pytest.mark.parametrize("factory", FACTORIES)
+    def test_wire_format_must_be_a_wire_format(self, factory, value: object) -> None:
+        with pytest.raises(ValueError, match=r"^wire_format must be WireFormat\.BINARY or WireFormat\.JSON$"):
+            factory(PRIVATE_KEY, _Client, wire_format=value)
+
+    @pytest.mark.parametrize("value", ["grpc", None, WireFormat.JSON])
+    @pytest.mark.parametrize("factory", FACTORIES)
+    def test_protocol_must_be_a_protocol(self, factory, value: object) -> None:
+        with pytest.raises(ValueError, match=r"^protocol must be Protocol\.CONNECT or Protocol\.GRPC$"):
+            factory(PRIVATE_KEY, _Client, protocol=value)
 
 
 class TestSigner:

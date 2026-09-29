@@ -589,7 +589,7 @@ All functions use `coincurve.PrivateKey` and `coincurve.PublicKey`. Hex strings 
 
 | Function | Signature | Notes |
 |----------|-----------|-------|
-| `private_key_from_hex` | `(hex_key: str) -> PrivateKey` | Strips `0x` prefix if present |
+| `private_key_from_hex` | `(hex_key: str) -> PrivateKey` | 64 hex digits after an optional `0x`/`0X`, value in [1, n-1]; `ValueError` otherwise |
 | `public_key_from_hex` | `(hex_key: str) -> PublicKey` | Accepts compressed (33B) or uncompressed (65B) |
 | `public_key_to_bytes` | `(key: PublicKey) -> bytes` | Returns 65-byte uncompressed: `04 ∥ x(32) ∥ y(32)` |
 | `public_key_from_bytes` | `(data: bytes) -> PublicKey` | Accepts compressed or uncompressed format |
@@ -699,7 +699,7 @@ def new_service_client_sync(
 ) -> T: ...
 ```
 
-The functions check the base URL and the key, create a `SignFn` from the private key (unless `sign_fn` is given), wrap it in `SigningClient`/`SigningSyncClient`, and pass it as the `http_client` parameter to the generated ConnectRPC client constructor, together with the protocol, the codec for `WireFormat.JSON` and `send_compression=None` (requests go out uncompressed). `Protocol.GRPC` on an `http://` base URL gets an HTTP/2 transport without TLS. An empty base URL raises `ValueError("base URL is not set")`, one without an http/https scheme or host `ValueError("base URL is not valid")`.
+The functions check the base URL and the key, create a `SignFn` from the private key (unless `sign_fn` is given), wrap it in `SigningClient`/`SigningSyncClient`, and pass it as the `http_client` parameter to the generated ConnectRPC client constructor, together with the protocol, the codec for `WireFormat.JSON` and `send_compression=None` (requests go out uncompressed). `Protocol.GRPC` on an `http://` base URL gets an HTTP/2 transport without TLS. An empty base URL raises `ValueError("base URL is not set")`; one without `http://` or `https://`, without a host name, or with a port outside 1..65535 raises `ValueError("base URL is not valid")`. A `wire_format` or `protocol` that is not a member of its enum raises `ValueError`.
 
 `timeout` (15 s) is the default of unary calls and `stream_timeout` (300 s) that of client- and server-streaming calls; a per-call `timeout_ms` replaces it, shorter or longer. Values that are not positive or exceed 2147483647 ms raise `ValueError`. Bidirectional calls raise `ConnectError(Code.UNIMPLEMENTED)` before anything is sent. See [docs/STREAMING.md](../STREAMING.md#timeouts).
 

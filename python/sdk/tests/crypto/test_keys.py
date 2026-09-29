@@ -26,6 +26,10 @@ class TestPrivateKeyFromHex:
         key = private_key_from_hex(PRIVATE_KEY_HEX_1.removeprefix("0x"))
         assert isinstance(key, PrivateKey)
 
+    def test_with_upper_case_0x_prefix(self):
+        key = private_key_from_hex("0X" + PRIVATE_KEY_HEX_1.removeprefix("0x"))
+        assert key.secret == private_key_from_hex(PRIVATE_KEY_HEX_1).secret
+
     def test_derives_correct_public_key_1(self):
         """Verify private key derives the expected public key (Go test vector 1)."""
         key = private_key_from_hex(PRIVATE_KEY_HEX_1)
@@ -52,10 +56,21 @@ class TestPrivateKeyFromHex:
     @pytest.mark.parametrize(
         "key",
         ["0x", "01" * 31, "0x" + "01" * 31, "01" * 33, "01" * 31 + "  ", " " + "01" * 31 + " ", "zz" + "01" * 31],
+        ids=["prefix only", "62 hex", "0x + 62 hex", "66 hex", "62 hex + 2 spaces", "spaces around", "zz + 62 hex"],
     )
     def test_key_that_is_not_64_hex_digits_is_refused(self, key):
         """A 31-byte key, padded with whitespace or not, would otherwise become a different key."""
         with pytest.raises(ValueError, match=r"^private key must be 32 bytes \(64 hex characters\)$"):
+            private_key_from_hex(key)
+
+    @pytest.mark.parametrize(
+        "key",
+        ["0" * 64, "FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141", "F" * 64],
+        ids=["zero", "the order n", "above n"],
+    )
+    def test_key_outside_the_curve_order_is_refused(self, key):
+        """Never reduced mod n: such a key is refused, not turned into another one."""
+        with pytest.raises(ValueError, match=r"^private key must be in range \[1, n-1\]$"):
             private_key_from_hex(key)
 
 

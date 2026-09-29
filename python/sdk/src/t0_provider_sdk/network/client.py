@@ -60,11 +60,11 @@ def new_service_client(
     raise ConnectError UNIMPLEMENTED. See docs/STREAMING.md.
 
     Args:
-        private_key: Hex-encoded secp256k1 private key of 32 bytes (with or without 0x prefix).
+        private_key: Hex-encoded secp256k1 private key: 64 hex digits, optionally after 0x or 0X.
             Ignored when sign_fn is given.
         client_class: Generated ConnectRPC async client class (e.g. NetworkServiceClient).
-        base_url: Base URL of the T-0 Network API, an http:// or https:// URL. None means the
-            default; an empty string raises ValueError.
+        base_url: Base URL of the T-0 Network API: http:// or https://, a host name, and a port of
+            1..65535 if one is given. None means the default; an empty string raises ValueError.
         timeout: Timeout of unary calls in seconds, 15 by default.
         stream_timeout: Timeout of client- and server-streaming calls in seconds, including the
             wait for the first request message, 300 by default.
@@ -81,7 +81,7 @@ def new_service_client(
     """
     base_url = _checked_base_url(base_url)
     unary_ms, stream_ms = _default_timeouts_ms(timeout, stream_timeout)
-    protocol = Protocol(protocol)
+    _check_enums(wire_format, protocol)
     transport = _transport(base_url, protocol, sync=False)
     signing_client = SigningClient(sign_fn or new_signer_from_hex(private_key), transport=transport)
     client = client_class(base_url, http_client=signing_client, **_client_kwargs(wire_format, protocol))  # type: ignore[call-arg]
@@ -106,7 +106,7 @@ def new_service_client_sync(
     Signing, timeouts and the rejection of bidirectional streams work as in new_service_client.
 
     Args:
-        private_key: Hex-encoded secp256k1 private key of 32 bytes (with or without 0x prefix).
+        private_key: Hex-encoded secp256k1 private key: 64 hex digits, optionally after 0x or 0X.
             Ignored when sign_fn is given.
         client_class: Generated ConnectRPC sync client class (e.g. NetworkServiceClientSync).
         base_url: Base URL of the T-0 Network API; see new_service_client.
@@ -121,7 +121,7 @@ def new_service_client_sync(
     """
     base_url = _checked_base_url(base_url)
     unary_ms, stream_ms = _default_timeouts_ms(timeout, stream_timeout)
-    protocol = Protocol(protocol)
+    _check_enums(wire_format, protocol)
     transport = _transport(base_url, protocol, sync=True)
     signing_client = SigningSyncClient(sign_fn or new_signer_from_hex(private_key), transport=transport)
     client = client_class(base_url, http_client=signing_client, **_client_kwargs(wire_format, protocol))  # type: ignore[call-arg]
@@ -135,14 +135,29 @@ def _checked_base_url(base_url: str | None) -> str:
         return DEFAULT_BASE_URL
     if base_url == "":
         raise ValueError("base URL is not set")
-    try:
-        parts = urlsplit(base_url)
-        valid = parts.scheme in ("http", "https") and bool(parts.hostname)
-    except ValueError:
-        valid = False
-    if not valid:
+    if not _is_valid_base_url(base_url):
         raise ValueError("base URL is not valid")
     return base_url
+
+
+def _is_valid_base_url(base_url: str) -> bool:
+    """http:// or https:// (any case), a host name, and a port of 1..65535 if one is given."""
+    scheme, separator, _ = base_url.partition("://")
+    if not separator or scheme.lower() not in ("http", "https"):
+        return False
+    try:
+        parts = urlsplit(base_url)
+        port = parts.port  # ValueError outside 0..65535 or not a number
+    except ValueError:
+        return False
+    return bool(parts.hostname) and (port is None or 1 <= port <= 65535)
+
+
+def _check_enums(wire_format: WireFormat, protocol: Protocol) -> None:
+    if not isinstance(wire_format, WireFormat):
+        raise ValueError("wire_format must be WireFormat.BINARY or WireFormat.JSON")
+    if not isinstance(protocol, Protocol):
+        raise ValueError("protocol must be Protocol.CONNECT or Protocol.GRPC")
 
 
 def _client_kwargs(wire_format: WireFormat, protocol: Protocol) -> dict[str, Any]:
@@ -153,7 +168,7 @@ def _client_kwargs(wire_format: WireFormat, protocol: Protocol) -> dict[str, Any
         # Each call gets its default from _set_default_timeouts.
         "timeout_ms": None,
     }
-    if WireFormat(wire_format) is WireFormat.JSON:
+    if wire_format is WireFormat.JSON:
         # The generated classes use google.protobuf messages; binary is their own default codec.
         kwargs["codec"] = google_protobuf_json_codec()
     return kwargs
