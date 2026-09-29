@@ -79,8 +79,8 @@ public sealed class SigningDelegatingHandler : DelegatingHandler
         SetHeader(request, Headers.SignatureTimestamp, timestampMs.ToString());
     }
 
-    // Replaces a value the caller set (e.g. as call metadata): TryAddWithoutValidation appends,
-    // and a second value makes the request unverifiable.
+    // Replaces a value the caller set (e.g. as call metadata): a second value would make the
+    // request unverifiable.
     private static void SetHeader(HttpRequestMessage request, string name, string value)
     {
         request.Headers.Remove(name);

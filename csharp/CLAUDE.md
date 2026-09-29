@@ -59,8 +59,9 @@ csharp/
 - **Two-phase server build**: `T0ProviderServer` collects service registrations, then `RunAsync()` calls `Build()` + middleware + `MapGrpcService<T>()`
 - **Raw bytes signing**: `SignatureVerificationMiddleware` reads body bytes BEFORE gRPC deserialization
 - **DelegatingHandler pattern**: `SigningDelegatingHandler` wraps HttpClient to auto-sign outgoing requests
-- **First-frame signing for gRPC**: the handler signs only the first request frame as sent and pipes the rest unbuffered (`FirstFrameThenPipeContent`); a client stream goes out once its first message is written
+- **First-envelope signing**: for `application/grpc`, `application/grpc+*` and `application/connect+*` the handler signs only the first envelope as sent and pipes the rest unbuffered (`FirstFrameThenPipeContent`); a client stream goes out once its first message is written
 - **Deadlines, not HttpClient.Timeout**: every `NetworkClient` factory installs the internal `DefaultDeadlineInterceptor`, which gives a call without its own deadline the default for its kind and refuses bidirectional streams
+- **Transport**: `SocketsHttpHandler` with HTTP/2 keepalive pings (30 s, 10 s timeout) while a call is open; no client-side request validation
 - Streaming, signing and timeout rules: [`docs/STREAMING.md`](../docs/STREAMING.md)
 - **Interfaces for testability**: `ISigner` and `ISignatureVerifier` enable mocking without real crypto
 - **BackgroundService pattern**: `QuotePublisherService` provides periodic timer with error handling
@@ -72,7 +73,7 @@ digest  = Keccak256(body_bytes || LE_uint64(timestamp_ms))
 headers = { X-Public-Key: "0x...", X-Signature: "0x...", X-Signature-Timestamp: "<ms>" }
 ```
 
-- `body_bytes`: for gRPC requests the first frame only, prefix included (the whole body for unary and server streaming); otherwise the whole body
+- `body_bytes`: for enveloped content the first envelope only, prefix included (for a unary or server-streaming gRPC call that is the whole body); otherwise the whole body
 - Timestamp tolerance: ±60 seconds
 - Public keys: uncompressed secp256k1 (65 bytes, 0x04 prefix)
 - Signatures: 65 bytes (r[32] + s[32] + v[1]), verification accepts 64 bytes too

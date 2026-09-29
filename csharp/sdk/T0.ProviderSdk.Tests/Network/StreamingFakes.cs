@@ -6,7 +6,7 @@ using T0.ProviderSdk.Crypto;
 namespace T0.ProviderSdk.Tests.Network;
 
 /// <summary>
-/// Push-style request content like grpc-dotnet's: it decides when (and whether) to write each frame.
+/// Request content of unknown length that writes its frames when it chooses, as a streaming call's body does.
 /// </summary>
 internal sealed class PushContent : HttpContent
 {

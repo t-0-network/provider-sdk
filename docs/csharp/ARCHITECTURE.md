@@ -19,10 +19,10 @@ csharp/
 │   │   └── SignResult.cs             # Immutable signing result
 │   ├── Network/                      # Client-side (outbound calls)
 │   │   ├── NetworkClient.cs          # Factory for auto-signing gRPC clients
-│   │   ├── NetworkClientOptions.cs   # Client configuration (Timeout, StreamTimeout)
+│   │   ├── NetworkClientOptions.cs   # Client configuration (BaseUrl, Timeout, StreamTimeout)
 │   │   ├── DefaultDeadlineInterceptor.cs # Default deadline per call type (internal)
 │   │   ├── SigningDelegatingHandler.cs # HTTP message signing
-│   │   └── FirstFrameThenPipeContent.cs # Sends the signed first gRPC frame, then pipes the rest
+│   │   └── FirstFrameThenPipeContent.cs # Sends the signed first envelope, then pipes the rest
 │   ├── Provider/                     # Server-side (incoming requests)
 │   │   ├── SignatureVerificationMiddleware.cs
 │   │   └── ProviderServerOptions.cs
@@ -49,11 +49,11 @@ csharp/
 **CRITICAL**: Protobuf encoding is not canonical. Re-encoding a deserialized message produces different bytes. All signing and verification operates on original wire bytes:
 
 - **Server-side**: `SignatureVerificationMiddleware` reads `Request.Body` as raw bytes BEFORE gRPC deserialization
-- **Client-side**: `SigningDelegatingHandler` signs `request.Content` bytes as sent. For gRPC content it signs only the first frame and pipes the rest through unbuffered (`FirstFrameThenPipeContent`); other content is read whole before sending. See [STREAMING.md](../STREAMING.md).
+- **Client-side**: `SigningDelegatingHandler` signs `request.Content` bytes as sent. For enveloped content (`application/grpc`, `application/grpc+*`, `application/connect+*`) it signs only the first envelope and pipes the rest through unbuffered (`FirstFrameThenPipeContent`); other content is read whole before sending. See [STREAMING.md](../STREAMING.md).
 
 ### Deadlines
 
-Timeouts are gRPC call deadlines: a call without its own deadline gets `NetworkClientOptions.Timeout` (unary, 15 s) or `StreamTimeout` (client and server streams, 5 min), and the caller's own deadline replaces the default. Every `NetworkClient` factory applies both through an interceptor, which also refuses bidirectional streams; `HttpClient.Timeout` is infinite. See [STREAMING.md](../STREAMING.md#timeouts).
+Timeouts are gRPC call deadlines: a call without its own deadline gets `NetworkClientOptions.Timeout` (unary, 15 s) or `StreamTimeout` (client and server streams, 5 min), and the caller's own deadline replaces the default. Every `NetworkClient` factory applies both through an interceptor, which also refuses bidirectional streams; `HttpClient.Timeout` is infinite. The transport sends HTTP/2 keepalive pings every 30 s (10 s timeout) while a call is open. The client does not validate requests; the network does. See [STREAMING.md](../STREAMING.md#timeouts).
 
 ### Two-Phase Server Architecture
 
@@ -96,7 +96,7 @@ headers = {
 }
 ```
 
-- **body_bytes**: for gRPC requests, the first request frame as sent, 5-byte prefix included; otherwise the whole body ([STREAMING.md](../STREAMING.md#what-is-signed))
+- **body_bytes**: for enveloped content, the first envelope as sent, 5-byte prefix included (for a unary gRPC call, the whole body); otherwise the whole body ([STREAMING.md](../STREAMING.md#what-is-signed))
 - **Hash**: Keccak-256 (legacy, NOT NIST SHA-3)
 - **Curve**: secp256k1 (same as Ethereum)
 - **Nonce**: RFC 6979 deterministic (HMAC-SHA256)

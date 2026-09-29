@@ -7,12 +7,12 @@ using Grpc.Core;
 namespace T0.ProviderSdk.Network;
 
 /// <summary>
-/// Request content that sends the first gRPC frame, read ahead for signing, then forwards the rest
+/// Request content that sends the first envelope, read ahead for signing, then forwards the rest
 /// of the original content through a pipe as it is written, unbuffered.
 /// </summary>
 /// <remarks>
-/// Can be sent again (SocketsHttpHandler does on a refused HTTP/2 stream) until it has written the
-/// first frame and starts forwarding the rest. See docs/STREAMING.md.
+/// A request the server refused before reading it may be sent again, so the content can be sent
+/// again until it has written the first envelope and starts forwarding the rest. See docs/STREAMING.md.
 /// </remarks>
 internal sealed class FirstFrameThenPipeContent : HttpContent
 {

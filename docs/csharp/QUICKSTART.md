@@ -34,6 +34,8 @@ server.AddHostedService<MyProvider.Services.QuotePublisher>();
 await server.RunAsync();
 ```
 
+`NetworkClientOptions` also sets `Timeout` (unary calls, 15 s) and `StreamTimeout` (client and server streams, 5 min); see [Streaming and timeouts](../../csharp/README.md#streaming-and-timeouts).
+
 ## Environment Variables
 
 | Variable | Required | Default | Description |

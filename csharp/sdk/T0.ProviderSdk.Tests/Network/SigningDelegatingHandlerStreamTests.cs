@@ -187,7 +187,7 @@ public class SigningDelegatingHandlerStreamTests
     [Fact]
     public async Task SingleFrameBody_GetsItsLength()
     {
-        // grpc-dotnet's unary content reports no length; the request had one before it was signed per frame.
+        // A single-frame body of unknown length, as a unary gRPC call sends it, still goes out with a length.
         var frame = Frame("hello");
         var (client, inner) = NewClient();
 

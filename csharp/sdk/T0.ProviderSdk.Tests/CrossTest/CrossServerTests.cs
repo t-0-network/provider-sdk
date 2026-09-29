@@ -375,8 +375,8 @@ public class CrossServerTests
         }
 
         await using var server = await GoStreamServer.StartAsync(GoHelperPath);
-        // The SDK's signing handler and transport with a header recorder between them; the default
-        // GrpcChannelOptions include the gzip provider.
+        // The SDK's signing handler and transport with a header recorder between them, so the test
+        // can check that the first message went out compressed.
         var recorder = new HeaderRecorder { InnerHandler = NetworkClient.CreateTransport() };
         using var channel = GrpcChannel.ForAddress(server.BaseUrl, new GrpcChannelOptions
         {
