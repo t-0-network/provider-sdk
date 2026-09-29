@@ -71,9 +71,7 @@ func signatureHeaders(t *testing.T, privateKey string, signed []byte, ts time.Ti
 	return h
 }
 
-// TestVerifyFirstEnvelope pins the verifier every SDK's streaming cross tests run against: it
-// accepts a signature over the first envelope (and, for gRPC only, over its payload without the
-// prefix), rejects everything else, and hands the handler the whole body.
+// TestVerifyFirstEnvelope pins the verifier every SDK's streaming cross tests run against.
 func TestVerifyFirstEnvelope(t *testing.T) {
 	publicKey, err := crypto.GetPublicKeyFromHex(clientPublicKey)
 	if err != nil {
@@ -84,7 +82,7 @@ func TestVerifyFirstEnvelope(t *testing.T) {
 	p1, p2 := payloadOf(t, "m1"), payloadOf(t, "m2")
 	env1, env2 := envelopeOf(p1), envelopeOf(p2)
 	body := concat(env1, env2)
-	// The verifier reads envelopes, whatever the codec: Connect JSON streams are signed alike.
+	// The codec does not matter: Connect JSON streams are enveloped and signed alike.
 	jsonEnv1 := envelopeOf([]byte(`"m1"`))
 	jsonBody := concat(jsonEnv1, envelopeOf([]byte(`"m2"`)))
 	now := time.Now()
@@ -181,8 +179,7 @@ func serveHelper(t *testing.T) (string, *syncBuffer) {
 	return srv.URL, logs
 }
 
-// The Go SDK client against the helper's verifier, over the protocols `call-client-stream` and
-// `call-server-stream` use, Connect over HTTP/1.1 and gRPC over h2c, and over Connect JSON.
+// The protocols of call-client-stream and call-server-stream, plus Connect JSON.
 var helperProtocols = []struct {
 	name string
 	opts []network.ClientOption
@@ -226,7 +223,7 @@ func TestGoClientAgainstHelper(t *testing.T) {
 				if got := resp.Msg.GetValue(); got != "m1,m2,m3" {
 					t.Fatalf("got %q, want m1,m2,m3", got)
 				}
-				// The Go SDK signs below the framer, over the first envelope, for gRPC too.
+				// Go signs below the gRPC framer: the first envelope for gRPC too.
 				if want := streamTestClientStream + " verified over the first envelope"; !strings.Contains(logs.String(), want) {
 					t.Fatalf("log has no %q:\n%s", want, logs)
 				}

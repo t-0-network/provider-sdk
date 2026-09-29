@@ -22,9 +22,7 @@ import (
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
-// test.v1.StreamTest (cross_test/stream_test.proto): the streaming service every SDK's client
-// calls in the cross-language tests. There is no generated code for it; both sides are built by
-// hand on google.protobuf.StringValue.
+// test.v1.StreamTest (cross_test/stream_test.proto), built by hand on google.protobuf.StringValue.
 const (
 	streamTestPrefix       = "/test.v1.StreamTest/"
 	streamTestClientStream = streamTestPrefix + "ClientStream"
@@ -32,11 +30,8 @@ const (
 	serverStreamReplies    = 3
 )
 
-// newStreamTestHandler serves test.v1.StreamTest behind a verifier that checks a streaming
-// request's signature the way the T-0 Network does: over the first envelope only (flags,
-// uint32be length, payload), read before the handler sees the rest of the body. For gRPC it also
-// accepts the payload without its 5-byte prefix, which is what a signer above the gRPC framer
-// (Java) covers.
+// newStreamTestHandler serves test.v1.StreamTest behind a verifier that checks the signature over
+// the first envelope, as the network does. See cross_test/README.md.
 func newStreamTestHandler(publicKeyHex string) (http.Handler, error) {
 	publicKey, err := crypto.GetPublicKeyFromHex(publicKeyHex)
 	if err != nil {
@@ -68,6 +63,7 @@ func newStreamTestHandler(publicKeyHex string) (http.Handler, error) {
 		}))
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		// Every SDK's streaming cross tests wait for these log lines: keep their wording.
 		framing, err := verifyFirstEnvelope(r, trustedKey)
 		if err != nil {
 			log.Printf("%s rejected: %v", r.URL.Path, err)
@@ -92,7 +88,7 @@ func verifyFirstEnvelope(r *http.Request, trustedKey []byte) (string, error) {
 	if err != nil {
 		return "", errors.New("invalid timestamp header")
 	}
-	// Checked when the headers arrive, before the body is read.
+	// Checked before the body is read, as the network does.
 	if d := time.Since(time.UnixMilli(timestamp)); d > time.Minute || d < -time.Minute {
 		return "", errors.New("timestamp is outside the allowed time window")
 	}
@@ -130,7 +126,7 @@ func verifyFirstEnvelope(r *http.Request, trustedKey []byte) (string, error) {
 	switch {
 	case verifies(envelope):
 		return "envelope", nil
-	case isGRPC && verifies(payload):
+	case isGRPC && verifies(payload): // a signer above the gRPC framer (Java)
 		return "payload", nil
 	default:
 		return "", errors.New("signature does not verify over the first message")

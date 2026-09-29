@@ -99,20 +99,33 @@ CI builds the helper automatically (each language's CI workflow sets up Go and b
 `serve` also serves `test.v1.StreamTest` ([`stream_test.proto`](stream_test.proto), reference
 only) behind a verifier that checks the signature over the first request message, as the T-0
 Network does for streaming RPCs. Each SDK's streaming cross test calls it with hand-built methods
-on `google.protobuf.StringValue`.
+on `google.protobuf.StringValue`; the helper builds its side the same way (`stream.go`).
 
-The verifier logs its verdict on each request to stderr before the handler reads past the first
-message:
+The verifier (`verifyFirstEnvelope`), in order:
+
+1. checks the public key, the signature header and the timestamp window (±60 s) as the headers
+   arrive, before it reads any of the body;
+2. accepts only `application/connect+*`, `application/grpc` and `application/grpc+*`;
+3. reads exactly the first envelope and verifies the signature over it, prefix included — or, for
+   gRPC only, over its payload without the prefix, which is what a signer above the gRPC framer
+   (Java) covers. The codec does not matter: Connect JSON streams are signed the same way;
+4. hands the handler the whole body, first envelope included.
+
+It logs its verdict on each request to stderr before the handler reads past the first message:
 
 - `<path> verified over the first envelope` (or `payload`: gRPC without the prefix, as Java signs)
 - `<path> rejected: <reason>`, answered with HTTP 401. Reasons: `unknown public key`,
   `timestamp is outside the allowed time window`, `signature does not verify over the first
-  message`, `no first message`, and a few for malformed headers or bodies.
+  message`, `no first message`, `truncated first message`, `... is not a streaming content type`,
+  and malformed signature or timestamp headers.
 
-The streaming cross tests wait for these lines: to check the framing, that the request went out
-with its first message (message 2 is produced only once message 1 is logged as verified), and why
-a request was refused. `go test ./...` here tests the verifier and runs the Go client against it;
-Go CI also runs `call-client-stream` and `call-server-stream` against `serve`.
+The streaming cross tests of every SDK wait for these lines, so their wording is a contract: they
+check the framing, that the request went out with its first message (message 2 is produced only
+once message 1 is logged as verified), and why a request was refused. `go test ./...` here pins
+the verifier (`TestVerifyFirstEnvelope`) and runs the Go client against it over Connect, Connect
+JSON and gRPC (`TestGoClientAgainstHelper`; Go signs below the gRPC framer, so it is always
+verified over the envelope). Go CI also runs `call-client-stream` and `call-server-stream` against
+`serve`. The Go client's side: [`docs/go/STREAMING.md`](../docs/go/STREAMING.md).
 
 Default protocol is Connect (HTTP/1.1). Pass `--grpc` for gRPC protocol over h2c.
 

@@ -43,7 +43,7 @@ go/
 - `provider.StartServer()` — Starts HTTP/2 (h2c) server, returns immediately with shutdown function
 - `provider.NewHttpHandler()` — Creates handler with signature verification middleware.
 - `provider.Handler()` — Registers ConnectRPC service with options (`WithMaxBodySize`, `WithVerifySignatureFn`)
-- `network.NewServiceClient()` — Creates auto-signing ConnectRPC client. Unary calls are signed over the whole body; client-/server-streaming calls over their first request envelope only (`SigningTransport`, chosen by content type). `WithTimeout` bounds unary calls (15s), `WithStreamTimeout` streaming calls (none by default)
+- `network.NewServiceClient()` — Creates auto-signing ConnectRPC client: unary calls signed over the whole body, client-/server-streaming calls over their first request envelope (by content type); `WithTimeout` (unary, 15s), `WithStreamTimeout` (streams, none). See [`docs/go/STREAMING.md`](../docs/go/STREAMING.md)
 - `crypto.Sign()` / `crypto.VerifySignature()` — secp256k1 operations
 - `sdkversion.Version` — the version the running SDK reports about itself. Bumped by `release.yaml`, validated by `publish.yaml`. See [`docs/VERSIONING.md`](../docs/VERSIONING.md).
 

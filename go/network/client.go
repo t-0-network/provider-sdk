@@ -15,14 +15,9 @@ type PrivateKeyHexed string
 
 type ClientFactory[T any] func(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) T
 
-// NewServiceClient builds a client for a T-0 Network service that signs every request.
-//
-// Unary calls are signed over the whole request body. Client-streaming and server-streaming calls
-// are signed over their first request message only, and the request goes out as soon as that
-// message is sent: see SigningTransport. Unary calls time out after WithTimeout (15 seconds by
-// default); streaming calls have no timeout unless WithStreamTimeout is set. The timeout is the
-// call's deadline, which connect-go also sends to the server. A bidirectional-streaming call fails
-// with connect.CodeUnimplemented and sends nothing.
+// NewServiceClient builds a client for a T-0 Network service that signs every request: unary calls
+// over the whole body, client- and server-streaming calls over their first request message.
+// Bidirectional-streaming calls fail with connect.CodeUnimplemented. See docs/go/STREAMING.md.
 func NewServiceClient[T any](
 	privateKey PrivateKeyHexed, clientFactory ClientFactory[T], opts ...ClientOption,
 ) (T, error) {
@@ -50,8 +45,7 @@ func NewServiceClient[T any](
 		options.signFn = defaultSignFn
 	}
 
-	// No http.Client.Timeout: it would cover a whole upload or download. Each call gets the unary
-	// or the stream timeout as a context deadline instead.
+	// No http.Client.Timeout: it would cap whole streams. callTimeouts sets per-call deadlines.
 	client := http.Client{
 		Transport: NewSigningTransport(
 			options.signFn, time.Now, WithTransport(options.transport),

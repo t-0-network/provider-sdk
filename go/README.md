@@ -140,7 +140,7 @@ _, err = networkClient.CreatePayment(ctx, connect.NewRequest(&networkproto.Creat
 
 #### Streaming calls
 
-The same client signs client-streaming (upload) and server-streaming (download) calls. For those the signature covers only the **first request message** — its envelope exactly as sent, 5-byte prefix included — and the request goes out as soon as that message is sent; later messages are streamed as they come, never buffered. Unary calls keep whole-body signing.
+The same client signs client-streaming (upload) and server-streaming (download) calls over their **first request message** only, and sends the request as soon as that message is sent; later messages are streamed, never buffered.
 
 ```go
 stream := client.Upload(ctx) // a client-streaming method
@@ -149,9 +149,11 @@ if err := stream.Send(nextChunk); err != nil { /* ... */ }
 resp, err := stream.CloseAndReceive()
 ```
 
-- Send the first message (or call `CloseAndReceive`) before waiting for a response: the request is only sent once the first message exists. A stream closed before its first message is signed over empty bytes and sent; the network rejects it.
-- Streams have no timeout by default, since an upload or download can take as long as it takes. Bound one with the call's context, or set `WithStreamTimeout`. `WithTimeout` applies to unary calls only. Either timeout becomes the call's deadline, which is also sent to the server.
-- Bidirectional streams are not supported: a bidirectional-streaming call fails with `CodeUnimplemented` and sends nothing.
+- Send the first message (or call `CloseAndReceive`) before waiting for a response.
+- Streams have no timeout by default: bound one with its context or `WithStreamTimeout`.
+- Bidirectional-streaming calls fail with `CodeUnimplemented` and send nothing.
+
+Details: [`docs/go/STREAMING.md`](../docs/go/STREAMING.md).
 
 ## Examples
 

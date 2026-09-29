@@ -29,7 +29,7 @@ import (
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
-// test.v1.StreamTest, the service every SDK's streaming tests use (see cross_test/stream_test.proto).
+// test.v1.StreamTest (cross_test/stream_test.proto).
 const (
 	procClientStream = "/test.v1.StreamTest/ClientStream"
 	procServerStream = "/test.v1.StreamTest/ServerStream"
@@ -44,8 +44,6 @@ type streamTestClient struct {
 	bidi         *connect.Client[wrapperspb.StringValue, wrapperspb.StringValue]
 }
 
-// newStreamTestClient has the shape of a generated client constructor, so it can be passed to
-// NewServiceClient.
 func newStreamTestClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) *streamTestClient {
 	return &streamTestClient{
 		clientStream: connect.NewClient[wrapperspb.StringValue, wrapperspb.StringValue](httpClient, baseURL+procClientStream, opts...),
@@ -55,22 +53,20 @@ func newStreamTestClient(httpClient connect.HTTPClient, baseURL string, opts ...
 	}
 }
 
-// verified is one request the test server accepted: the bytes the signature covered, and how they
-// relate to the body.
 type verified struct {
 	procedure string
 	framing   string // "envelope", "payload" (gRPC without the prefix) or "body" (unary)
 	signed    []byte
 }
 
-// streamTestServer is a TLS + HTTP/2 server for test.v1.StreamTest. Like the network, it checks a
-// streaming request's signature against the first envelope only, before the handler reads the rest.
+// streamTestServer verifies like the network: a streaming request over its first envelope, before
+// the handler reads the rest.
 type streamTestServer struct {
 	url       string
 	transport http.RoundTripper
 	publicKey []byte
 
-	// received gets every message the ClientStream handler reads, as it reads it.
+	// received gets each ClientStream message as the handler reads it.
 	received chan string
 	// serverStreamGap and unaryDelay slow the handlers down for the timeout tests.
 	serverStreamGap time.Duration
@@ -79,8 +75,7 @@ type streamTestServer struct {
 	mu       sync.Mutex
 	accepted []verified
 	rejected []string
-	// deadlines has the deadline header of every request (Connect-Timeout-Ms or grpc-timeout),
-	// by procedure; empty when the request had none.
+	// deadlines: "<path> <Connect-Timeout-Ms or grpc-timeout>" per request.
 	deadlines []string
 }
 
@@ -276,8 +271,6 @@ var streamProtocols = []struct {
 	{name: "grpc-gzip", opts: []connect.ClientOption{connect.WithGRPC(), connect.WithSendGzip()}, compressed: true},
 }
 
-// requireFirstEnvelopeSigned checks that the server accepted exactly one request, on the envelope
-// path: the Go client signs the first envelope, prefix included, for Connect and gRPC alike.
 func requireFirstEnvelopeSigned(t *testing.T, srv *streamTestServer, procedure string, compressed bool) {
 	t.Helper()
 	accepted, rejected := srv.results()
@@ -337,8 +330,6 @@ func TestStream_ServerStreamSignsFirstEnvelope(t *testing.T) {
 	}
 }
 
-// The request must reach the server as soon as the first message is signed. A transport that
-// buffers the body sends nothing until CloseAndReceive, and this test times out waiting.
 func TestStream_ClientStreamIsNotBuffered(t *testing.T) {
 	for _, p := range streamProtocols {
 		t.Run(p.name, func(t *testing.T) {
@@ -365,8 +356,7 @@ func TestStream_ClientStreamIsNotBuffered(t *testing.T) {
 	}
 }
 
-// incompressible returns a random string of n bytes, which stays larger than several HTTP/2 DATA
-// frames (16 KiB) after gzip.
+// incompressible returns n random characters, so gzip leaves the message several 16 KiB frames long.
 func incompressible(t *testing.T, n int) string {
 	t.Helper()
 	raw := make([]byte, n*3/4)
@@ -375,7 +365,6 @@ func incompressible(t *testing.T, n int) string {
 	return base64.StdEncoding.EncodeToString(raw)
 }
 
-// A first message larger than one HTTP/2 DATA frame (16 KiB), compressed or not.
 func TestStream_LargeFirstMessage(t *testing.T) {
 	for _, p := range streamProtocols {
 		t.Run(p.name, func(t *testing.T) {
@@ -396,8 +385,6 @@ func TestStream_LargeFirstMessage(t *testing.T) {
 	}
 }
 
-// A client stream closed before its first message is signed over empty bytes and sent, as in the
-// other SDKs; the server rejects it for having no first message.
 func TestStream_EmptyClientStreamIsSentAndRejected(t *testing.T) {
 	for _, p := range streamProtocols {
 		t.Run(p.name, func(t *testing.T) {
@@ -462,8 +449,7 @@ func TestSigningTransport_EmptyStreamSignsEmptyBytes(t *testing.T) {
 	}
 }
 
-// A generated client uses one http.Client for all its methods: unary calls on it keep whole-body
-// signing, which for gRPC is the single envelope.
+// Unary calls keep whole-body signing; a gRPC unary body is a single envelope.
 func TestStream_UnaryOnSameClient(t *testing.T) {
 	for _, p := range streamProtocols {
 		t.Run(p.name, func(t *testing.T) {
@@ -568,8 +554,6 @@ func TestSigningTransport_FirstEnvelopeDoesNotModifyRequest(t *testing.T) {
 	require.Equal(t, append(first, rest...), forwarded, "the body is forwarded unchanged")
 }
 
-// A body that is not enveloped (Connect unary, gRPC-Web) is signed whole, and the caller's request
-// is not modified either.
 func TestSigningTransport_WholeBodyDoesNotModifyRequest(t *testing.T) {
 	key := newTestKey(t)
 	var sent *http.Request
@@ -623,7 +607,6 @@ func TestSigningTransport_WholeBodyReadErrorClosesBody(t *testing.T) {
 	require.True(t, body.closed, "the body must be closed")
 }
 
-// A client stream waits for its first message; the call's context ends the wait.
 func TestSigningTransport_ContextEndsWaitForFirstMessage(t *testing.T) {
 	pr, pw := io.Pipe()
 	ctx, cancel := context.WithCancel(context.Background())
@@ -718,7 +701,6 @@ func TestStream_Timeouts(t *testing.T) {
 	}
 }
 
-// The stream timeout also ends a client stream that never gets its first message; nothing is sent.
 func TestStream_StreamTimeoutBeforeFirstMessage(t *testing.T) {
 	for _, p := range streamProtocols {
 		t.Run(p.name, func(t *testing.T) {
@@ -739,8 +721,6 @@ func TestStream_StreamTimeoutBeforeFirstMessage(t *testing.T) {
 	}
 }
 
-// Timeouts are call deadlines, which connect-go sends to the server: unary calls always have one,
-// streams only with WithStreamTimeout.
 func TestStream_DeadlinesAreSent(t *testing.T) {
 	for _, p := range streamProtocols {
 		t.Run(p.name, func(t *testing.T) {
@@ -775,7 +755,6 @@ func TestStream_DeadlinesAreSent(t *testing.T) {
 	}
 }
 
-// A bidirectional stream fails before anything is sent.
 func TestStream_BidiIsRejected(t *testing.T) {
 	for _, p := range streamProtocols {
 		t.Run(p.name, func(t *testing.T) {
@@ -840,8 +819,6 @@ type streamSigningCase struct {
 	ExpectedSignature string `json:"expected_signature"`
 }
 
-// The transport produces the shared vectors' signatures byte for byte, and forwards the body
-// unchanged.
 func TestSigningTransport_StreamSigningVectors(t *testing.T) {
 	data, err := os.ReadFile("../../cross_test/test_vectors.json")
 	require.NoError(t, err)

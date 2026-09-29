@@ -42,23 +42,10 @@ func NewSigningTransport(signFn crypto.SignFn, timeNow func() time.Time, opts ..
 	return st
 }
 
-// SigningTransport is an HTTP transport that signs requests with a given signing function and adds
-// the signature, public key and timestamp headers before forwarding the request to the underlying
-// transport.
-//
-// What it signs depends on the request's content type:
-//
-//   - Enveloped requests (Connect streaming, application/connect+*, and gRPC, application/grpc
-//     and application/grpc+*): only the first envelope, exactly as sent — flags, 4-byte length and
-//     payload. The transport reads that envelope, signs it, and sends the request at once; later
-//     messages are streamed as they come and are not covered by the signature. gRPC unary requests
-//     are a single envelope, so for them this is the whole body.
-//   - Everything else (Connect unary, application/proto and application/json): the whole body.
-//
-// For a client-streaming call the request is sent only when the first message is available, so
-// send a message (or close the stream) before waiting for a response. A stream closed before its
-// first message is signed over empty bytes and sent; the network rejects it. Bidirectional streams
-// are not supported: NewServiceClient fails them before they reach the transport.
+// SigningTransport is an http.RoundTripper that signs each request and sets the signature, public
+// key and timestamp headers. Connect-streaming and gRPC requests are signed over their first
+// envelope and sent as soon as it is read; other requests over the whole body.
+// See docs/go/STREAMING.md.
 type SigningTransport struct {
 	transport http.RoundTripper
 	sign      crypto.SignFn
@@ -110,8 +97,7 @@ func (t *SigningTransport) signFirstEnvelope(req *http.Request) (*http.Response,
 		closeRequestBody(req)
 		return nil, err
 	}
-	// Put the envelope back in front of the rest of the body. ContentLength and GetBody are kept:
-	// the body is unchanged, and a retry replays the same bytes under the same signature.
+	// The forwarded bytes are unchanged, so ContentLength and GetBody stay valid.
 	if len(envelope) > 0 {
 		signed.Body = struct {
 			io.Reader
@@ -122,15 +108,14 @@ func (t *SigningTransport) signFirstEnvelope(req *http.Request) (*http.Response,
 	return t.transport.RoundTrip(signed)
 }
 
-// setSignatureHeaders signs signed with the current timestamp and sets the signature headers:
-// digest = Keccak256(signed || uint64le(timestamp_ms)).
+// setSignatureHeaders signs Keccak256(signed || uint64le(now_ms)) and sets the signature headers.
 func (t *SigningTransport) setSignatureHeaders(header http.Header, signed []byte) error {
 	timestamp := t.timeNow().UnixMilli()
 
 	timestampBytes := [8]byte{}
 	binary.LittleEndian.PutUint64(timestampBytes[:], uint64(timestamp))
 
-	// The full slice expression makes append copy, so the caller's spare capacity is never written.
+	// Full slice expression: append must copy, never write into signed's spare capacity.
 	digest := crypto.LegacyKeccak256(append(signed[:len(signed):len(signed)], timestampBytes[:]...))
 
 	signature, pubKeyBytes, err := t.sign(digest)
@@ -144,10 +129,8 @@ func (t *SigningTransport) setSignatureHeaders(header http.Header, signed []byte
 	return nil
 }
 
-// readFirstEnvelope reads exactly one envelope from the request body and nothing after it. For a
-// client stream the body is a pipe that connect-go fills as the caller sends, so this waits for
-// the first message; the request's context ends the wait. A body that ends before its first
-// message, as a client stream closed without Send does, has no envelope: nil is returned.
+// readFirstEnvelope reads the first envelope and nothing after it; nil if the body ends before one.
+// A client stream's body is a pipe, so this blocks until the first Send; the context ends the wait.
 func readFirstEnvelope(req *http.Request) ([]byte, error) {
 	if req.Body == nil || req.Body == http.NoBody {
 		return nil, nil
@@ -156,14 +139,13 @@ func readFirstEnvelope(req *http.Request) ([]byte, error) {
 	stop := context.AfterFunc(req.Context(), func() { _ = req.Body.Close() })
 	envelope, err := readEnvelope(req.Body)
 	if !stop() {
-		// The context ended while we waited, and the body is closed.
+		// The AfterFunc ran: the context ended and the body is closed.
 		return nil, req.Context().Err()
 	}
 	return envelope, err
 }
 
-// maxPrealloc caps the buffer allocated up front from the length in the prefix. A larger message
-// grows the buffer as it arrives.
+// maxPrealloc caps what the length prefix may allocate up front; larger messages grow as they arrive.
 const maxPrealloc = 64 << 10
 
 func readEnvelope(r io.Reader) ([]byte, error) {
@@ -184,10 +166,9 @@ func readEnvelope(r io.Reader) ([]byte, error) {
 	return envelope.Bytes(), nil
 }
 
-// firstMessageError reports a body that ends inside its first envelope with a Connect code on
-// purpose: connect-go reports any other RoundTrip error as unavailable, which looks retryable. It
-// must not wrap io.EOF either — connect-go replaces a RoundTrip error that wraps io.EOF with
-// io.ErrUnexpectedEOF, and the code is lost.
+// firstMessageError gives a truncated first envelope CodeInvalidArgument, not wrapping io.EOF:
+// connect-go reports an uncoded RoundTrip error as unavailable (retryable), and replaces one that
+// wraps io.EOF, losing its code.
 func firstMessageError(err error) error {
 	if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
 		return connect.NewError(connect.CodeInvalidArgument,
@@ -212,22 +193,18 @@ func mediaType(req *http.Request) string {
 }
 
 func isGRPCMediaType(mt string) bool {
-	// Not gRPC-Web: application/grpc-web and friends.
+	// Excludes gRPC-Web (application/grpc-web*), which is signed whole.
 	return mt == "application/grpc" || strings.HasPrefix(mt, "application/grpc+")
 }
 
-// isEnveloped reports whether the request body is a sequence of enveloped messages, in which case
-// the signature covers only the first envelope.
+// isEnveloped reports whether the body is a sequence of envelopes, of which only the first is signed.
 func isEnveloped(req *http.Request) bool {
 	mt := mediaType(req)
 	return strings.HasPrefix(mt, "application/connect+") || isGRPCMediaType(mt)
 }
 
-// callTimeouts gives each call the default timeout of its type as a context deadline: unary calls
-// the unary timeout, client- and server-streaming calls the stream timeout; zero means none.
-// connect-go enforces the deadline and sends it to the server (Connect-Timeout-Ms, grpc-timeout).
-// It is an interceptor, not part of SigningTransport, because only connect-go knows a call's
-// stream type: gRPC unary and gRPC server-streaming requests look alike on the wire.
+// callTimeouts sets each call's deadline from its stream type; zero means none. It is an
+// interceptor because the transport cannot tell gRPC unary from gRPC server-streaming requests.
 type callTimeouts struct {
 	unary, stream time.Duration
 }
@@ -257,10 +234,8 @@ func (callTimeouts) WrapStreamingHandler(next connect.StreamingHandlerFunc) conn
 	return next
 }
 
-// rejectBidi fails a bidirectional-streaming call before anything is sent, with
-// connect.CodeUnimplemented. The network accepts client- and server-streaming calls only, and
-// SigningTransport sends a stream only once its first message is signed, so a bidi caller that
-// waited for a response first would block until its deadline.
+// rejectBidi fails bidirectional-streaming calls with CodeUnimplemented before anything is sent:
+// the network does not accept them.
 type rejectBidi struct{}
 
 func (rejectBidi) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {

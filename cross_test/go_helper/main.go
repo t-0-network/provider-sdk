@@ -161,9 +161,8 @@ func cmdServe() {
 	}
 }
 
-// newServeHandler is the handler of `serve`: the provider service and grpc.health.v1.Health
-// behind the SDK's signature verification, and test.v1.StreamTest behind the first-envelope
-// verifier. It speaks Connect over HTTP/1.1 and gRPC over h2c on the same port.
+// newServeHandler serves the provider service behind the SDK's verification and test.v1.StreamTest
+// behind the first-envelope verifier; h2c lets Connect (HTTP/1.1) and gRPC share the port.
 func newServeHandler(networkPublicKeyHex string) (http.Handler, error) {
 	httpHandler, err := provider.NewHttpHandler(
 		provider.NetworkPublicKeyHexed(networkPublicKeyHex),

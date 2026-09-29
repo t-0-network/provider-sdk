@@ -183,9 +183,7 @@ func TestCrossVectors_SignatureVerification(t *testing.T) {
 	}
 }
 
-// Streaming requests are signed over their first message only. signed_hex is derived from body_hex:
-// the first envelope (flags, uint32be length, payload) or, for a signer above the gRPC framer, its
-// payload alone. An empty body is a stream closed before its first message.
+// An empty body_hex is a client stream closed before its first message, signed over empty bytes.
 func TestCrossVectors_StreamSigningCases(t *testing.T) {
 	v := loadVectors(t)
 	require.NotEmpty(t, v.StreamSigningCases)
