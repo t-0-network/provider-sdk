@@ -420,6 +420,33 @@ class CrossServerTests {
         }
     }
 
+    /** Compressed bytes on the wire would not match a signature over the message as serialized. */
+    @Test
+    @Timeout(30)
+    void javaClient_goServer_compressedCallIsRefusedBeforeSending() throws Exception {
+        skipOrFailIfNoHelper();
+        GoServer goServer = startGoServer();
+
+        try (var client = streamClient(goServer.port(), PRIVATE_KEY)) {
+            CompletableFuture<String> result = new CompletableFuture<>();
+            StreamObserver<StringValue> requests = ClientCalls.asyncClientStreamingCall(
+                    client.getChannel().newCall(CLIENT_STREAM, CallOptions.DEFAULT.withCompression("gzip")),
+                    resultObserver(result));
+            requests.onNext(StringValue.of("m1"));
+            requests.onCompleted();
+
+            ExecutionException thrown = org.junit.jupiter.api.Assertions.assertThrows(
+                    ExecutionException.class, () -> result.get(10, TimeUnit.SECONDS));
+            Status status = Status.fromThrowable(thrown.getCause());
+            assertThat(status.getCode()).isEqualTo(Status.Code.UNIMPLEMENTED);
+            assertThat(status.getDescription()).isEqualTo("compressed requests are not supported");
+            TimeUnit.MILLISECONDS.sleep(200);
+            assertThat(goServer.logText()).doesNotContain("/test.v1.StreamTest/ClientStream");
+        } finally {
+            stop(goServer);
+        }
+    }
+
     @Test
     @Timeout(30)
     void javaClient_goServer_emptyClientStreamIsRejected() throws Exception {

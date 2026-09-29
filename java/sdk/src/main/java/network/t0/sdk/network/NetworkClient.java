@@ -313,8 +313,8 @@ public abstract class NetworkClient implements Closeable {
      * <p>Only the first request message is signed, without its 5-byte gRPC prefix (this interceptor
      * sits above the framer); later stream messages are sent unsigned. The underlying call starts on
      * that first message, since the headers must be complete by then, or unsigned when it is cancelled
-     * or its deadline or context ends first. Bidirectional streams are refused with
-     * {@code UNIMPLEMENTED}. See {@code docs/STREAMING.md}.
+     * or its deadline or context ends first. Bidirectional streams and calls with a compressor are
+     * refused with {@code UNIMPLEMENTED} before anything is sent. See {@code docs/STREAMING.md}.
      *
      * <p>This class is thread-safe. Each call to {@link #interceptCall} creates
      * independent state for that specific call.
@@ -363,7 +363,13 @@ public abstract class NetworkClient implements Closeable {
             // The network accepts no bidi streams, and with the deferred start a bidi caller that
             // awaits a response before sending would hang: fail fast.
             if (method.getType() == MethodDescriptor.MethodType.BIDI_STREAMING) {
-                return new BidiNotSupportedCall<>();
+                return new RefusedCall<>(Status.UNIMPLEMENTED.withDescription("bidirectional streams are not supported"));
+            }
+            // The signature covers the message as serialized here, and a compressor would change the
+            // bytes on the wire after that, so the network would refuse the call: refuse it first.
+            String compressor = callOptions.getCompressor();
+            if (compressor != null && !"identity".equals(compressor)) {
+                return new RefusedCall<>(Status.UNIMPLEMENTED.withDescription("compressed requests are not supported"));
             }
 
             // Create a method descriptor that accepts raw bytes for the request.
@@ -643,16 +649,20 @@ public abstract class NetworkClient implements Closeable {
         }
 
         /**
-         * Handed out for bidi streams: closes its listener on start, as grpc-java calls that fail
-         * to start do, and ignores everything else.
+         * Handed out for calls the SDK does not send: closes its listener with {@code status} on start,
+         * before anything is sent, and ignores everything else.
          */
-        private static final class BidiNotSupportedCall<ReqT, RespT> extends ClientCall<ReqT, RespT> {
+        private static final class RefusedCall<ReqT, RespT> extends ClientCall<ReqT, RespT> {
+
+            private final Status status;
+
+            RefusedCall(Status status) {
+                this.status = status;
+            }
 
             @Override
             public void start(Listener<RespT> responseListener, Metadata headers) {
-                responseListener.onClose(
-                        Status.UNIMPLEMENTED.withDescription("bidirectional streams are not supported"),
-                        new Metadata());
+                responseListener.onClose(status, new Metadata());
             }
 
             @Override

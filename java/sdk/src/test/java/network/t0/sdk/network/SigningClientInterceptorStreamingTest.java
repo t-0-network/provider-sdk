@@ -21,6 +21,8 @@ import network.t0.sdk.crypto.Signer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.EnumSource;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -211,6 +213,38 @@ class SigningClientInterceptorStreamingTest {
         call.halfClose();
         call.cancel("done", null);
         assertThat(channel.lastCall()).isNull();
+    }
+
+    // ==================== Compression ====================
+
+    @ParameterizedTest
+    @EnumSource(value = MethodType.class, names = {"UNARY", "CLIENT_STREAMING", "SERVER_STREAMING"})
+    @DisplayName("A call with a compressor is refused with UNIMPLEMENTED; no underlying call is created")
+    void compressedCallIsRefused(MethodType type) {
+        RecordingListener<StringValue> listener = new RecordingListener<>();
+        ClientCall<StringValue, StringValue> call =
+                intercepted.newCall(stringMethod(type, "Compressed"), callOptions().withCompression("gzip"));
+        call.start(listener, new Metadata());
+        call.request(1);
+        call.sendMessage(value("m1"));
+        call.halfClose();
+
+        assertThat(listener.closeStatus.getCode()).isEqualTo(Status.Code.UNIMPLEMENTED);
+        assertThat(listener.closeStatus.getDescription()).isEqualTo("compressed requests are not supported");
+        assertThat(channel.lastCall()).isNull();
+    }
+
+    @Test
+    @DisplayName("The identity compressor sends the message as signed: the call goes ahead")
+    void identityCompressionIsAllowed() {
+        ClientCall<StringValue, StringValue> call =
+                intercepted.newCall(CLIENT_STREAM, callOptions().withCompression("identity"));
+        call.start(new RecordingListener<>(), new Metadata());
+        call.sendMessage(value("m1"));
+
+        RecordingCall raw = channel.lastCall();
+        assertThat(raw.events).containsExactly("start", "send");
+        assertThat(verifies(raw.headers, bytes("m1"))).isTrue();
     }
 
     // ==================== Before the deferred start ====================
