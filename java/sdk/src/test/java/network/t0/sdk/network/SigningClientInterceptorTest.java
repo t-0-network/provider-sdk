@@ -1,7 +1,6 @@
 package network.t0.sdk.network;
 
 import network.t0.sdk.common.Headers;
-import network.t0.sdk.common.HexUtils;
 import network.t0.sdk.crypto.Keccak256;
 import network.t0.sdk.crypto.SignatureVerifier;
 import network.t0.sdk.crypto.Signer;

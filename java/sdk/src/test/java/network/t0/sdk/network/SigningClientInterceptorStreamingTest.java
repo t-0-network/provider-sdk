@@ -32,7 +32,13 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -300,6 +306,66 @@ class SigningClientInterceptorStreamingTest {
         assertThat(listener.closeStatus.getCause()).isSameAs(failure);
     }
 
+    // ==================== Concurrent start ====================
+
+    @Test
+    @DisplayName("cancel() while the first message starts the call waits for that start: one start, signed")
+    void cancelWhileTheFirstMessageStartsTheCall() throws Exception {
+        channel.blockStarts();
+        ClientCall<StringValue, StringValue> call = intercepted.newCall(CLIENT_STREAM, CallOptions.DEFAULT);
+        call.start(new RecordingListener<>(), new Metadata());
+
+        ExecutorService threads = Executors.newFixedThreadPool(2);
+        try {
+            Future<?> send = threads.submit(() -> call.sendMessage(value("m1")));
+            RecordingCall raw = channel.lastCall();
+            raw.awaitStartEntered();
+
+            Future<?> cancel = threads.submit(() -> call.cancel("caller gave up", null));
+            TimeUnit.MILLISECONDS.sleep(100);
+            assertThat(raw.events()).containsExactly("start");
+
+            raw.releaseStart();
+            send.get(5, TimeUnit.SECONDS);
+            cancel.get(5, TimeUnit.SECONDS);
+
+            assertThat(raw.starts).isEqualTo(1);
+            assertThat(raw.events()).containsExactlyInAnyOrder("start", "send", "cancel");
+            assertThat(verifies(raw.headers, bytes("m1"))).isTrue();
+        } finally {
+            threads.shutdownNow();
+        }
+    }
+
+    @Test
+    @DisplayName("sendMessage() while cancel() starts the call waits for that start: one start, unsigned, then the send")
+    void sendMessageWhileCancelStartsTheCall() throws Exception {
+        channel.blockStarts();
+        ClientCall<StringValue, StringValue> call = intercepted.newCall(CLIENT_STREAM, CallOptions.DEFAULT);
+        call.start(new RecordingListener<>(), new Metadata());
+
+        ExecutorService threads = Executors.newFixedThreadPool(2);
+        try {
+            Future<?> cancel = threads.submit(() -> call.cancel("caller gave up", null));
+            RecordingCall raw = channel.lastCall();
+            raw.awaitStartEntered();
+
+            Future<?> send = threads.submit(() -> call.sendMessage(value("m1")));
+            TimeUnit.MILLISECONDS.sleep(100);
+            assertThat(raw.events()).containsExactly("start");
+
+            raw.releaseStart();
+            cancel.get(5, TimeUnit.SECONDS);
+            send.get(5, TimeUnit.SECONDS);
+
+            assertThat(raw.starts).isEqualTo(1);
+            assertThat(raw.events()).containsExactlyInAnyOrder("start", "cancel", "send");
+            assertThat(raw.headers.get(SIGNATURE)).isNull();
+        } finally {
+            threads.shutdownNow();
+        }
+    }
+
     // ==================== Unary ====================
 
     @Test
@@ -429,17 +495,23 @@ class SigningClientInterceptorStreamingTest {
 
     /** Hands out {@link RecordingCall}s and keeps the last one. */
     static final class FakeChannel extends Channel {
-        private RecordingCall lastCall;
+        private volatile RecordingCall lastCall;
+        private boolean blockStarts;
 
         RecordingCall lastCall() {
             return lastCall;
+        }
+
+        /** Calls handed out from now on block in start() until {@link RecordingCall#releaseStart()}. */
+        void blockStarts() {
+            blockStarts = true;
         }
 
         @Override
         @SuppressWarnings("unchecked")
         public <ReqT, RespT> ClientCall<ReqT, RespT> newCall(
                 MethodDescriptor<ReqT, RespT> method, CallOptions callOptions) {
-            lastCall = new RecordingCall(method);
+            lastCall = new RecordingCall(method, blockStarts);
             return (ClientCall<ReqT, RespT>) lastCall;
         }
 
@@ -449,27 +521,57 @@ class SigningClientInterceptorStreamingTest {
         }
     }
 
-    /** Minimal ClientCall fake that records what the interceptor does to the underlying call. */
+    /**
+     * Minimal ClientCall fake that records what the interceptor does to the underlying call. Like
+     * ClientCallImpl, it refuses a second start().
+     */
     @SuppressWarnings({"rawtypes", "unchecked"})
     static final class RecordingCall extends ClientCall<Object, Object> {
         final MethodDescriptor<?, ?> method;
-        final List<String> events = new ArrayList<>();
-        final List<Object> sent = new ArrayList<>();
-        Listener listener;
-        Metadata headers;
-        String headersAtStart;
-        boolean ready;
+        final List<String> events = Collections.synchronizedList(new ArrayList<>());
+        final List<Object> sent = Collections.synchronizedList(new ArrayList<>());
+        private final CountDownLatch startEntered = new CountDownLatch(1);
+        private final CountDownLatch startReleased;
+        volatile Listener listener;
+        volatile Metadata headers;
+        volatile String headersAtStart;
+        volatile int starts;
+        volatile boolean ready;
 
-        RecordingCall(MethodDescriptor<?, ?> method) {
+        RecordingCall(MethodDescriptor<?, ?> method, boolean blockStart) {
             this.method = method;
+            this.startReleased = new CountDownLatch(blockStart ? 1 : 0);
+        }
+
+        List<String> events() {
+            synchronized (events) {
+                return new ArrayList<>(events);
+            }
+        }
+
+        void awaitStartEntered() throws InterruptedException {
+            assertThat(startEntered.await(5, TimeUnit.SECONDS)).as("start() entered").isTrue();
+        }
+
+        void releaseStart() {
+            startReleased.countDown();
         }
 
         @Override
         public void start(Listener responseListener, Metadata headers) {
+            if (++starts > 1) {
+                throw new IllegalStateException("Already started");
+            }
             events.add("start");
             this.listener = responseListener;
             this.headers = headers;
             this.headersAtStart = headers.toString();
+            startEntered.countDown();
+            try {
+                startReleased.await();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
         }
 
         @Override

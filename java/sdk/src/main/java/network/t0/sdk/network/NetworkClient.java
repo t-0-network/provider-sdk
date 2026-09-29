@@ -337,18 +337,23 @@ public abstract class NetworkClient implements Closeable {
             // while we need to return ClientCall<ReqT, RespT>.
             return new ClientCall<ReqT, RespT>() {
 
-                // Guards the hand-off of buffered request() calls, which may come from any thread.
+                // Guards the start of rawCall and the hand-off of request() calls made before it. The
+                // first of sendMessage, halfClose and cancel to find the call unstarted claims the start
+                // (starting); the others wait until it has started. cancel() may come from another thread.
                 private final Object lock = new Object();
                 private Listener<RespT> responseListener;
                 private Metadata headers;
                 private volatile boolean started = false;
+                private boolean starting = false;
                 private int pendingRequests = 0;
 
                 @Override
                 public void start(Listener<RespT> responseListener, Metadata headers) {
                     // Delay start until we have the first message and can compute the signature
-                    this.responseListener = responseListener;
-                    this.headers = headers;
+                    synchronized (lock) {
+                        this.responseListener = responseListener;
+                        this.headers = headers;
+                    }
                 }
 
                 @Override
@@ -362,8 +367,7 @@ public abstract class NetworkClient implements Closeable {
                     }
 
                     // Only the first message is signed; later stream messages go out as-is.
-                    if (!started) {
-                        addSignatureHeaders(messageBytes, clock.millis());
+                    if (claimStart(messageBytes)) {
                         startRawCall();
                     }
 
@@ -375,8 +379,7 @@ public abstract class NetworkClient implements Closeable {
                 @Override
                 public void halfClose() {
                     // If no message was sent, start with empty body signature
-                    if (!started) {
-                        addSignatureHeaders(new byte[0], clock.millis());
+                    if (claimStart(new byte[0])) {
                         startRawCall();
                     }
                     rawCall.halfClose();
@@ -399,8 +402,12 @@ public abstract class NetworkClient implements Closeable {
                 @Override
                 public void cancel(String message, Throwable cause) {
                     // An unstarted call never notifies its listener: start it (unsigned) so the
-                    // listener still gets onClose(CANCELLED).
-                    if (!started && responseListener != null) {
+                    // listener still gets onClose(CANCELLED). Before start() there is no listener.
+                    boolean startCalled;
+                    synchronized (lock) {
+                        startCalled = responseListener != null;
+                    }
+                    if (startCalled && claimStart(null)) {
                         startRawCall();
                     }
                     rawCall.cancel(message, cause);
@@ -423,13 +430,57 @@ public abstract class NetworkClient implements Closeable {
                     return rawCall.getAttributes();
                 }
 
-                private void startRawCall() {
-                    rawCall.start(responseListener, headers);
-                    int requests;
+                /**
+                 * Returns true if the caller is to start rawCall, with the headers signed over
+                 * {@code signed} (unsigned if null). Otherwise rawCall has started, if need be after
+                 * waiting for the thread that claimed it.
+                 */
+                private boolean claimStart(byte[] signed) {
                     synchronized (lock) {
-                        started = true;
-                        requests = pendingRequests;
-                        pendingRequests = 0;
+                        if (started) {
+                            return false;
+                        }
+                        if (!starting) {
+                            if (signed != null) {
+                                addSignatureHeaders(signed, clock.millis());
+                            }
+                            starting = true;
+                            return true;
+                        }
+                        while (!started) {
+                            try {
+                                lock.wait();
+                            } catch (InterruptedException e) {
+                                Thread.currentThread().interrupt();
+                                throw Status.CANCELLED
+                                        .withDescription("interrupted while waiting for the call to start")
+                                        .withCause(e)
+                                        .asRuntimeException();
+                            }
+                        }
+                        return false;
+                    }
+                }
+
+                // Outside the lock: request() from another thread must not block on it meanwhile.
+                private void startRawCall() {
+                    Listener<RespT> listener;
+                    Metadata startHeaders;
+                    synchronized (lock) {
+                        listener = responseListener;
+                        startHeaders = headers;
+                    }
+                    int requests;
+                    try {
+                        rawCall.start(listener, startHeaders);
+                    } finally {
+                        synchronized (lock) {
+                            started = true;
+                            starting = false;
+                            requests = pendingRequests;
+                            pendingRequests = 0;
+                            lock.notifyAll();
+                        }
                     }
                     // Flush any pending request() calls that happened before start
                     if (requests > 0) {
@@ -437,7 +488,7 @@ public abstract class NetworkClient implements Closeable {
                     }
                 }
 
-                // Before start only: once started, the headers belong to the transport.
+                // Under the lock, before start: once started, the headers belong to the transport.
                 private void addSignatureHeaders(byte[] messageBytes, long timestampMs) {
                     byte[] timestampBytes = Headers.encodeTimestamp(timestampMs);
                     byte[] digest = Keccak256.hash(messageBytes, timestampBytes);
