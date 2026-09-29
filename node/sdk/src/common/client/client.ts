@@ -46,9 +46,8 @@ export function createClient<T extends DescService>(signer: string | Buffer | ((
 
 type ServerStreamingCall = (input: unknown, options?: CallOptions) => AsyncIterable<unknown>;
 
-// connect-es's server stream has no return(), so leaving a for-await loop early would keep the
-// call, its socket and its deadline timer until the deadline. Here return() cancels the call, then
-// reads the stream to its end: only a call that has ended clears its timer.
+// Leaving a for-await loop over a server stream early calls return(): it cancels the call and reads
+// it to its end, so the socket and the deadline timer are released at once, not at the deadline.
 function cancelOnReturn(call: ServerStreamingCall): ServerStreamingCall {
     return (input, options) => {
         const cancel = new AbortController();

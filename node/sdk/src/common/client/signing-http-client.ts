@@ -58,7 +58,7 @@ function isEnveloped(contentType: string | null): boolean {
 }
 
 // The first chunk is signed as the first envelope, so it must be exactly one: the call fails
-// instead of signing other bytes. connect-es yields one complete envelope per chunk; checked, not trusted.
+// instead of signing other bytes.
 function requireOneEnvelope(chunk: Uint8Array): void {
     const size = chunk.byteLength >= 5
         ? 5 + new DataView(chunk.buffer, chunk.byteOffset, chunk.byteLength).getUint32(1)
@@ -71,7 +71,7 @@ function requireOneEnvelope(chunk: Uint8Array): void {
     }
 }
 
-// connect-es sends a unary body as one chunk, but that is not relied on.
+// A unary body is signed whole, however many chunks it comes in.
 async function readAll(it: AsyncIterator<Uint8Array>): Promise<Uint8Array> {
     const chunks: Uint8Array[] = [];
     let size = 0;
@@ -88,8 +88,8 @@ async function readAll(it: AsyncIterator<Uint8Array>): Promise<Uint8Array> {
     return body;
 }
 
-// `first` (if any), then the rest of `it`. Not an async generator: connect-node closes or throws
-// into the body while a next() may be pending, and a generator would queue that behind it.
+// `first` (if any), then the rest of `it`. Not an async generator: return() and throw() must reach
+// `it` at once, even while a next() is pending, so that a failed send closes the caller's stream.
 function firstThenRest(first: Uint8Array | undefined, it: AsyncIterator<Uint8Array>): AsyncIterable<Uint8Array> {
     let pending = first;
     const rest: AsyncIterator<Uint8Array> = {
@@ -112,7 +112,6 @@ function untilAborted<T>(promise: Promise<T>, signal: AbortSignal | undefined): 
         return promise;
     }
     return new Promise<T>((resolve, reject) => {
-        // connect aborts the signal with a ConnectError (deadline_exceeded on timeout).
         const onAbort = () => reject(signal.reason);
         if (signal.aborted) {
             onAbort();

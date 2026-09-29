@@ -30,23 +30,21 @@ const BASE_URL = 'http://127.0.0.1:9'; // never dialed: only used with a recordi
 const REQUEST = { service: 'grpc.health.v1.Health' };
 const CALL_OPTIONS = { headers: { 'X-Call': 'golden' }, timeoutMs: 5_000 };
 
-// What connect-web sent for this call, recorded before it was removed (without signature headers).
-// fetch added Content-Length on the wire; the SDK now sets it itself (LEGACY_ON_THE_WIRE).
-const LEGACY = {
+// The Connect request for this call, without the signature headers and User-Agent.
+const JSON_REQUEST = {
   body: '{"service":"grpc.health.v1.Health"}',
   headers: {
     'connect-protocol-version': '1',
     'connect-timeout-ms': '5000',
     'content-type': 'application/json',
+    'content-length': '35',
     'x-call': 'golden',
   },
 };
 
-const LEGACY_ON_THE_WIRE = { ...LEGACY.headers, 'content-length': String(LEGACY.body.length) };
-
-const CURRENT = {
+const BINARY_REQUEST = {
   body: '0a15' + Buffer.from('grpc.health.v1.Health').toString('hex'),
-  headers: { ...LEGACY.headers, 'content-type': 'application/proto', 'content-length': '23' },
+  headers: { ...JSON_REQUEST.headers, 'content-type': 'application/proto', 'content-length': '23' },
 };
 
 interface Sent {
@@ -93,7 +91,7 @@ async function check(t: TestContext, wireFormat: WireFormat = WireFormat.Binary)
   return sent[0];
 }
 
-// Without the signature headers and without User-Agent, which connect-web did not send.
+// Without the signature headers and User-Agent.
 function plainHeaders(header: Headers): Record<string, string> {
   const headers = new Headers(header);
   for (const name of [NetworkHeaders.Signature, NetworkHeaders.PublicKey, NetworkHeaders.SignatureTimestamp, 'User-Agent']) {
@@ -118,30 +116,30 @@ function assertSignedOverBody(s: Sent): void {
 }
 
 describe('Unary request on the wire (golden)', () => {
-  it('the SDK sends the same Connect request in binary, signed over the whole body', async (t) => {
+  it('the SDK sends the Connect request in binary, signed over the whole body', async (t) => {
     const s = await check(t);
     assert.equal(s.url, `${BASE_URL}/grpc.health.v1.Health/Check`);
     assert.equal(s.method, 'POST');
-    assert.equal(s.body.toString('hex'), CURRENT.body);
-    assert.deepEqual(plainHeaders(s.header), CURRENT.headers);
+    assert.equal(s.body.toString('hex'), BINARY_REQUEST.body);
+    assert.deepEqual(plainHeaders(s.header), BINARY_REQUEST.headers);
     assert.match(s.header.get('User-Agent') ?? '', /^connect-es\//);
     assertSignedOverBody(s);
     assertOneChunk(s);
   });
 
-  it('with WireFormat.Json the SDK sends the request connect-web sent', async (t) => {
+  it('with WireFormat.Json the SDK sends the Connect JSON request, signed over the whole body', async (t) => {
     const s = await check(t, WireFormat.Json);
     assert.equal(s.url, `${BASE_URL}/grpc.health.v1.Health/Check`);
-    assert.equal(s.body.toString(), LEGACY.body);
-    assert.deepEqual(plainHeaders(s.header), LEGACY_ON_THE_WIRE);
+    assert.equal(s.body.toString(), JSON_REQUEST.body);
+    assert.deepEqual(plainHeaders(s.header), JSON_REQUEST.headers);
     assertSignedOverBody(s);
     assertOneChunk(s);
   });
 
-  it('carries the message connect-web sent', () => {
+  it('the binary and the JSON request carry the same message', () => {
     assert.deepEqual(
-      fromBinary(HealthCheckRequestSchema, Buffer.from(CURRENT.body, 'hex')),
-      fromJsonString(HealthCheckRequestSchema, LEGACY.body),
+      fromBinary(HealthCheckRequestSchema, Buffer.from(BINARY_REQUEST.body, 'hex')),
+      fromJsonString(HealthCheckRequestSchema, JSON_REQUEST.body),
     );
   });
 });

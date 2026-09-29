@@ -33,7 +33,7 @@ node/
 
 ## Dependencies on the signing path
 
-`@connectrpc/connect` and `@connectrpc/connect-node` are pinned to one exact version (no `^`) and bumped together as a Tier 3 update ([`.claude/skills/dependency-update/SKILL.md`](../.claude/skills/dependency-update/SKILL.md)): the client signs the bytes connect-es builds, relies on connect-es's `@private` `CommonTransportOptions`, and sends through connect-node's `@private` `createNodeHttpClient`.
+`@connectrpc/connect` and `@connectrpc/connect-node` are pinned to one exact version (no `^`) and bumped together as a Tier 3 update ([`.claude/skills/dependency-update/SKILL.md`](../.claude/skills/dependency-update/SKILL.md)): the client signs the bytes connect-es builds, relies on connect-es's `@private` `CommonTransportOptions`, and sends through connect-node's `@private` `createNodeHttpClient`. It also replaces the server-streaming methods on the client that connect-es `createClient` returns, because connect-es's server-stream iterable has no `return()`: leaving a `for await` early must cancel the call (test "leaving a server stream early cancels the call").
 
 What the client signs, when it sends, timeouts and refused calls: [`docs/STREAMING.md`](../docs/STREAMING.md).
 

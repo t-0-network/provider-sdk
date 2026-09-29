@@ -183,7 +183,7 @@ The input may be bare hexadecimal or use the lowercase `0x` prefix; output is ca
 
 ### Network Client
 
-Use `createClient` to call T-0 Network APIs. The client handles request signing automatically. It speaks the Connect protocol, in binary unless you pass `useBinaryFormat: false` for Connect JSON.
+Use `createClient` to call T-0 Network APIs. The client handles request signing automatically. It speaks the Connect protocol. `endpoint` is the network's base URL (`http://` or `https://`); `undefined` means `https://api.t-0.network`.
 
 ```ts
 import { createClient, NetworkService } from "@t-0/provider-sdk";
@@ -216,19 +216,22 @@ const quote = await networkClient.getQuote({
 });
 ```
 
-Options go in the fourth argument. Unary calls time out after 15 s by default, streaming calls have no timeout; `0` turns a timeout off, and a call's own `timeoutMs` overrides both:
+### Streaming and timeouts
+
+Client- and server-streaming calls are signed over their first request message only, and the request goes out as soon as that message is available. Unary calls get a default deadline of 15 seconds and streaming calls one of 5 minutes, which includes the wait for the first message. A call's own `timeoutMs` replaces the default, shorter or longer. Every timeout is greater than 0 and at most 2147483647 ms. Bidirectional streams are refused with `unimplemented` before anything is sent.
 
 ```ts
+import { createClient, NetworkService, WireFormat } from "@t-0/provider-sdk";
+
 const client = createClient(privateKey, endpoint, NetworkService, {
-  unaryTimeoutMs: 15_000,  // each unary call (the default)
-  streamTimeoutMs: 60_000, // each streaming call, from waiting for the first message to the end of the response (default: none)
-  useBinaryFormat: true,   // the default; false for Connect JSON
+  timeoutMs: 30_000,             // unary calls
+  streamTimeoutMs: 30 * 60_000,  // streaming calls
+  wireFormat: WireFormat.Binary, // the default; WireFormat.Json for Connect JSON
 });
+await client.updateQuote(request, { timeoutMs: 120_000 }); // this call only
 ```
 
-#### Streaming calls
-
-Client-streaming and server-streaming methods work on the same client. A streaming call is signed over its **first request message only** (the first envelope exactly as sent) and goes out as soon as that message is available; later messages are streamed unsigned. A client stream with no messages is still sent, and the network rejects it. Bidirectional streams fail with `unimplemented`. Details: [`docs/STREAMING.md`](../../docs/STREAMING.md).
+The rules shared by every SDK: [`docs/STREAMING.md`](../../docs/STREAMING.md).
 
 ## Development
 

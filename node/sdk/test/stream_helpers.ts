@@ -11,7 +11,7 @@ import { Code, ConnectError } from '@connectrpc/connect';
 import { secp256k1 } from '@noble/curves/secp256k1.js';
 
 // test.v1.StreamTest (cross_test/stream_test.proto), described by hand so nothing is generated.
-// Unary and Bidi are Node-only additions; go_helper serves neither.
+// Unary and Bidi are not in stream_test.proto; go_helper serves neither.
 const streamTestFile = createFileRegistry(
   create(FileDescriptorProtoSchema, {
     name: 'test/v1/stream_test.proto',

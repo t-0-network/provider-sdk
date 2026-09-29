@@ -972,7 +972,7 @@ async function sendThroughSigningClient(t: TestContext, vec: any, chunks: Uint8A
 }
 
 describe('Stream signing cases', () => {
-  // Node signs below the framer: first_envelope only.
+  // The client signs below the framer: first_envelope cases only.
   const firstEnvelopeCases = vectors.stream_signing_cases.filter((v: any) => v.covers === 'first_envelope');
 
   for (const vec of firstEnvelopeCases) {
