@@ -82,12 +82,12 @@ How it works:
 - The client is built with `timeout_ms=None`, and the instance's `execute_unary`, `execute_client_stream` and `execute_server_stream` are wrapped to fill in their call type's default. gRPC unary goes out through `stream()` but still enters through `execute_unary`, so it gets `timeout`.
 - A call's own `timeout_ms` wins. As in connectrpc, a falsy `timeout_ms` falls back to the default.
 - Defaults are rounded to whole milliseconds, at least 1 ms: connectrpc reads `0` as "no timeout".
-- The timeout is the call's deadline, so connectrpc also sends it to the server (`connect-timeout-ms` / `grpc-timeout`). When it elapses the call fails with `ConnectError(Code.DEADLINE_EXCEEDED)`, and if that happens before the first message, nothing is sent.
+- The timeout is the call's deadline, so connectrpc also sends it to the server (`connect-timeout-ms` / `grpc-timeout`). When it elapses the call fails with `ConnectError(Code.DEADLINE_EXCEEDED)` (sync: not before the source yields, see below), and if that happens before the first message, nothing is sent.
 
-Async and sync reach the same deadline differently:
+Async and sync apply the deadline differently:
 
 - **Async:** connectrpc enters `stream()`, and runs the whole call, inside `asyncio.timeout`, so the wait for the first message is covered.
-- **Sync:** connectrpc passes the remaining time to pyqwest as `timeout`, which only starts when pyqwest sends. `SigningSyncClient` therefore deducts the time spent waiting for the first message (or, for a whole-body iterator, for the whole body) from the `timeout` it passes on, and raises `TimeoutError` when none is left; connectrpc reports that as `DEADLINE_EXCEEDED`.
+- **Sync:** connectrpc passes the remaining time to pyqwest as `timeout`, which only starts when pyqwest sends. `SigningSyncClient` deducts the time the source took to yield its first message (or, for a whole-body iterator, the whole body) from the `timeout` it passes on, but it does not interrupt a source that blocks: if no time is left once the source yields, nothing is sent, the source is closed and `TimeoutError` is raised, which connectrpc reports as `DEADLINE_EXCEEDED`. Bounding the time of each read is up to the source.
 
 ## 5. Bidirectional streams
 
@@ -103,7 +103,7 @@ The rejection lives in the factory-built clients. A ConnectRPC client built by h
 
 | File | Covers |
 |------|--------|
-| `network/test_stream_signing.py` | Both wrappers against a fake pyqwest client that reads and closes the body as pyqwest does. Content-type rule (case, parameters, JSON codec, gRPC-Web); enveloped iterators and bytes signed over the first envelope; other iterators signed whole and sent as bytes; request sent before message 2; first message read on enter; empty stream; first chunks that are not one envelope and truncated enveloped bytes refused with nothing sent; close forwarding, including a running sync generator; sync timeout deduction. |
+| `network/test_stream_signing.py` | Both wrappers against a fake pyqwest client that reads and closes the body as pyqwest does. Content-type rule (case, parameters, JSON codec, gRPC-Web); enveloped iterators and bytes signed over the first envelope; other iterators signed whole and sent as bytes; request sent before message 2; first message read on enter; empty stream; first chunks that are not one envelope and truncated enveloped bytes refused with nothing sent; close forwarding, including a running sync generator; sync timeout: the time the source took is deducted, and a first message or body yielded after the timeout is not sent (raised no earlier than the source yielded). |
 | `network/test_client_timeouts.py` | Real ConnectRPC clients (Connect and gRPC) down to a recording fake: unary default (gRPC unary too), stream default or none, per-call `timeout_ms`, the timeout header and the sync pyqwest timeout, validation. |
 | `network/test_client_bidi.py` | Bidirectional calls raise `UNIMPLEMENTED` before anything is read or sent (async and sync, Connect and gRPC). |
 | `crypto/test_cross_vectors.py` | `stream_signing_cases` in `cross_test/test_vectors.json`: signed bytes, digest and signature of every case, and the `first_envelope` cases driven through both wrappers with the vector's timestamp. `first_payload` cases (the first message without its 5-byte prefix, what a signer above the gRPC framer covers) are checked for bytes, digest and signature only, since this SDK never produces them. |
@@ -117,7 +117,7 @@ Against `go_helper serve` (Connect over HTTP/1.1, gRPC over h2c), which serves `
 - Over Connect (factory clients) and gRPC (the wrappers on an h2c pyqwest transport), async and sync: client streaming with a gzip-compressed and an uncompressed first envelope (the signed bytes checked to be one envelope with that flag), server streaming, a 256 KiB first message, and a unary health check. Each stream is logged as verified over the first envelope.
 - No buffering: the request generator holds message 2 until the helper has logged message 1 as verified; a client that buffered the stream would time out.
 - Refusals, each `UNAUTHENTICATED` with the helper's reason: unknown key, unsigned stream, stream signed over its whole body, stale timestamp, empty client stream.
-- A stream timeout that elapses before the first message: `DEADLINE_EXCEEDED` and nothing logged.
+- A stream timeout that elapses before the first message: `DEADLINE_EXCEEDED` (sync: once the late message is yielded) and nothing logged.
 - Connect JSON streams (async and sync): signed over the JSON first envelope and verified by the helper.
 
 ### Running

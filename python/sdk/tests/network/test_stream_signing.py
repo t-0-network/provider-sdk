@@ -420,7 +420,7 @@ class TestSigningSyncClientStream:
         assert Source.closed
         assert fake.events == []
 
-    def test_timeout_covers_the_wait_for_the_first_message(self) -> None:
+    def test_wait_for_the_first_message_is_deducted_from_the_timeout(self) -> None:
         def source():
             time.sleep(0.05)
             yield ENV1
@@ -431,19 +431,22 @@ class TestSigningSyncClientStream:
         assert fake.timeout is not None
         assert 9.0 < fake.timeout <= 10.0 - 0.05
 
-    def test_timeout_elapsed_waiting_for_the_first_message(self) -> None:
+    def test_first_message_after_the_timeout_is_not_sent(self) -> None:
+        """A blocked source is not interrupted: the call fails once it yields, with nothing sent."""
         events: list[str] = []
 
         def source():
             try:
-                time.sleep(0.05)
+                time.sleep(0.3)
                 yield ENV1
             finally:
                 events.append("source closed")
 
+        started = time.monotonic()
         with pytest.raises(TimeoutError):
-            _send_sync(_FakeSyncClient(events), CONNECT_STREAM, source(), timeout=0.01)
-        assert events == ["source closed"]
+            _send_sync(_FakeSyncClient(events), CONNECT_STREAM, source(), timeout=0.05)
+        assert time.monotonic() - started >= 0.3
+        assert events == ["source closed"], "nothing is sent and the source is closed"
 
     def test_no_timeout_stays_none(self) -> None:
         fake = _FakeSyncClient()
@@ -501,7 +504,7 @@ class TestSigningSyncClientStream:
         assert Source.closed
         assert fake.events == [], "nothing is sent"
 
-    def test_timeout_covers_reading_a_whole_body(self) -> None:
+    def test_whole_body_read_is_deducted_from_the_timeout(self) -> None:
         def source():
             time.sleep(0.05)
             yield ENV1
@@ -512,19 +515,21 @@ class TestSigningSyncClientStream:
         assert fake.timeout is not None
         assert 9.0 < fake.timeout <= 10.0 - 0.05
 
-    def test_timeout_elapsed_reading_a_whole_body(self) -> None:
+    def test_body_read_after_the_timeout_is_not_sent(self) -> None:
         events: list[str] = []
 
         def source():
             try:
                 yield ENV1
-                time.sleep(0.05)
+                time.sleep(0.3)
                 yield ENV2
             finally:
                 events.append("source closed")
 
+        started = time.monotonic()
         with pytest.raises(TimeoutError):
-            _send_sync(_FakeSyncClient(events), GRPC_WEB, source(), timeout=0.01)
+            _send_sync(_FakeSyncClient(events), GRPC_WEB, source(), timeout=0.05)
+        assert time.monotonic() - started >= 0.3
         assert events == ["source closed"], "nothing is sent and the source is closed"
 
     @pytest.mark.parametrize("content_type", ENVELOPED_CONTENT_TYPES)

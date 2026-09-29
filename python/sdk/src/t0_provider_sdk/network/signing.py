@@ -98,7 +98,8 @@ def _require_one_envelope(chunk: bytes) -> None:
 
 
 def _remaining_timeout(timeout: float | None, started: float, waited_for: str) -> float | None:
-    """A sync call's timeout also covers the wait for its body, as asyncio's does for async calls."""
+    """Deducts the time a sync source took to yield what is signed. A blocked source is not
+    interrupted: once it yields with no time left, this raises TimeoutError and nothing is sent."""
     if timeout is None:
         return None
     timeout -= time.monotonic() - started
@@ -244,7 +245,12 @@ class SigningSyncClient:
 
     A streaming request is sent once its first message is available: send one (or close the
     stream) before waiting for a response. Bidirectional streams are not supported; only the
-    factory-built clients reject them. See docs/python/STREAMING.md.
+    factory-built clients reject them.
+
+    A blocked source is not interrupted: the time it takes to yield the first message (for a
+    whole-body iterator, the whole body) is deducted from the call's timeout, and if none is left,
+    nothing is sent, the source is closed and the call fails with TimeoutError (DEADLINE_EXCEEDED
+    in connectrpc). Bounding the time of each read is up to the source. See docs/python/STREAMING.md.
     """
 
     def __init__(self, sign_fn: SignFn, *, transport: Any | None = None) -> None:
