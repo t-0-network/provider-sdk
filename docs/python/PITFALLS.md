@@ -249,7 +249,7 @@ class SigningClient:
 
 ConnectRPC calls exactly 3 methods: `get()`, `post()`, `stream()`. Only these need wrapping.
 
-`stream()` gets an (async) iterator of envelopes, not bytes, for every streaming call and every gRPC call, unary included. Treating it as bytes (`content + timestamp_bytes`) raises `TypeError`, which ConnectRPC reports as `UNAVAILABLE`, so every such call failed. See [ARCHITECTURE.md §4.3.1](ARCHITECTURE.md#431-signingpy----signing-http-transport) for what `stream()` signs.
+`stream()` gets an (async) iterator of envelopes, not bytes, for every streaming call and every gRPC and gRPC-Web call, unary included. Treating it as bytes (`content + timestamp_bytes`) raises `TypeError`, which ConnectRPC reports as `UNAVAILABLE`, so every such call failed. Whether `stream()` signs the first envelope or the whole body is decided by the request's content type, not by the body's form; see [ARCHITECTURE.md §4.3.1](ARCHITECTURE.md#431-signingpy----signing-http-transport).
 
 ---
 

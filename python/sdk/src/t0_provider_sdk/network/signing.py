@@ -4,15 +4,21 @@ These wrappers intercept outgoing requests to add T-0 Network signature headers
 before delegating to the underlying pyqwest client. ConnectRPC uses exactly
 three methods on the client: get(), post(), and stream().
 
-What is signed depends on the body connectrpc hands over:
+What is signed depends on the request's content type -- its media type, parameters dropped and
+case ignored -- as in every SDK, whatever form the body comes in:
 
-- An iterator: the body of every Connect streaming call and every gRPC(-Web) call, one envelope
-  per message. Only the first envelope is signed, exactly as sent -- flags, 4-byte big-endian
-  length and payload. The request goes out as soon as that envelope is available; later messages
-  are forwarded as they come and are not covered by the signature. A gRPC unary request is a
-  single envelope, so for it this is the whole body.
-- Bytes (Connect unary ``application/proto`` and ``application/json``) or nothing (GET): the
-  whole body.
+- Enveloped requests, a sequence of envelopes: Connect streaming (``application/connect+*``) and
+  gRPC (``application/grpc`` and ``application/grpc+*``). Only the first envelope is signed,
+  exactly as sent -- flags, 4-byte big-endian length and payload. connectrpc hands these bodies
+  over as an iterator yielding one envelope per message: the request goes out as soon as the first
+  envelope is available, and later messages are forwarded as they come, not covered by the
+  signature. A gRPC unary request is a single envelope, so for it this is the whole body. An
+  enveloped body given as bytes is signed over the first envelope cut from it by its length prefix.
+- Everything else: the whole body. That is Connect unary (``application/proto`` and
+  ``application/json``, bytes), GET (no body) and gRPC-Web (``application/grpc-web*``), whose
+  iterator body is read to its end, signed and sent as bytes.
+
+Bidirectional streams are not supported; the clients built by network.client reject them.
 
 Go equivalent: network/signing_transport.go → SigningTransport.RoundTrip(req)
 """
@@ -81,6 +87,33 @@ def _sign_request(
     return headers
 
 
+def _is_enveloped(headers: pyqwest.Headers | None) -> bool:
+    """Whether the request body is a sequence of envelopes, of which only the first is signed.
+
+    pyqwest.Headers looks names up case-insensitively. gRPC-Web (application/grpc-web*) is not
+    enveloped here: the network signs and verifies its whole body.
+    """
+    content_type = headers.get("content-type") if headers is not None else None
+    media_type = (content_type or "").partition(";")[0].strip().lower()
+    return (
+        media_type.startswith("application/connect+")
+        or media_type == "application/grpc"
+        or media_type.startswith("application/grpc+")
+    )
+
+
+def _first_envelope(body: bytes) -> bytes:
+    """The first envelope of an enveloped body given as bytes; b"" for an empty body, as for a
+    client stream closed before its first message. A body that ends inside its first envelope
+    fails the call rather than being signed over bytes that are not that envelope."""
+    if not body:
+        return b""
+    size = _ENVELOPE_PREFIX_SIZE + int.from_bytes(body[1:_ENVELOPE_PREFIX_SIZE], "big")
+    if len(body) < _ENVELOPE_PREFIX_SIZE or len(body) < size:
+        raise ConnectError(Code.INTERNAL, "the request body ends inside its first envelope")
+    return body[:size]
+
+
 def _require_one_envelope(chunk: bytes) -> None:
     """connectrpc yields one complete envelope per chunk, so the first chunk is the first envelope.
     It is checked rather than trusted: a change in that framing must fail the call, never sign bytes
@@ -88,6 +121,17 @@ def _require_one_envelope(chunk: bytes) -> None:
     size = _ENVELOPE_PREFIX_SIZE + int.from_bytes(chunk[1:_ENVELOPE_PREFIX_SIZE], "big")
     if len(chunk) < _ENVELOPE_PREFIX_SIZE or len(chunk) != size:
         raise ConnectError(Code.INTERNAL, "the first request chunk is not one complete envelope")
+
+
+def _remaining_timeout(timeout: float | None, started: float, waited_for: str) -> float | None:
+    """What is left of a sync call's timeout after waiting since started for its body: the timeout
+    covers that wait too, as it does for async calls."""
+    if timeout is None:
+        return None
+    timeout -= time.monotonic() - started
+    if timeout <= 0:
+        raise TimeoutError(f"timed out waiting for {waited_for}")
+    return timeout
 
 
 async def _aclose(source: AsyncIterator[bytes]) -> None:
@@ -158,7 +202,9 @@ class SigningClient:
     Intercepts get(), post(), stream() to add signature headers.
 
     A streaming request is sent only when its first message is available, so send a message (or
-    close the stream) before waiting for a response. Bidirectional streams are not supported.
+    close the stream) before waiting for a response. Bidirectional streams are not supported: the
+    clients built by new_service_client() reject them, and a client built on this wrapper by hand
+    must not make them.
     """
 
     def __init__(self, sign_fn: SignFn, *, transport: Any | None = None) -> None:
@@ -181,10 +227,14 @@ class SigningClient:
         headers: pyqwest.Headers | None = None,
         content: bytes | AsyncIterator[bytes] | None = None,
     ) -> AbstractAsyncContextManager[pyqwest.Response]:
+        enveloped = _is_enveloped(headers)
         if content is None or isinstance(content, (bytes, bytearray, memoryview)):
-            headers = _sign_request(self._sign_fn, bytes(content or b""), headers)
+            body = bytes(content or b"")
+            headers = _sign_request(self._sign_fn, _first_envelope(body) if enveloped else body, headers)
             return self._inner.stream(method, url, headers=headers, content=content)
-        return self._stream_signing_first_envelope(method, url, headers, aiter(content))
+        if enveloped:
+            return self._stream_signing_first_envelope(method, url, headers, aiter(content))
+        return self._stream_signing_whole_body(method, url, headers, aiter(content))
 
     # The body is read when the context is entered, which connectrpc does inside its call timeout.
 
@@ -206,6 +256,18 @@ class SigningClient:
         async with self._inner.stream(method, url, headers=headers, content=content) as response:
             yield response
 
+    @asynccontextmanager
+    async def _stream_signing_whole_body(
+        self, method: str, url: str, headers: pyqwest.Headers | None, source: AsyncIterator[bytes]
+    ) -> AsyncIterator[pyqwest.Response]:
+        try:
+            body = b"".join([chunk async for chunk in source])
+            headers = _sign_request(self._sign_fn, body, headers)
+        finally:
+            await _aclose(source)
+        async with self._inner.stream(method, url, headers=headers, content=body) as response:
+            yield response
+
 
 class SigningSyncClient:
     """Sync signing wrapper for pyqwest.SyncClient.
@@ -214,7 +276,9 @@ class SigningSyncClient:
     Intercepts get(), post(), stream() to add signature headers.
 
     A streaming request is sent only when its first message is available, so send a message (or
-    close the stream) before waiting for a response. Bidirectional streams are not supported.
+    close the stream) before waiting for a response. Bidirectional streams are not supported: the
+    clients built by new_service_client_sync() reject them, and a client built on this wrapper by
+    hand must not make them.
     """
 
     def __init__(self, sign_fn: SignFn, *, transport: Any | None = None) -> None:
@@ -244,10 +308,14 @@ class SigningSyncClient:
         content: bytes | Iterable[bytes] | None = None,
         timeout: float | None = None,
     ) -> AbstractContextManager[pyqwest.SyncResponse]:
+        enveloped = _is_enveloped(headers)
         if content is None or isinstance(content, (bytes, bytearray, memoryview)):
-            headers = _sign_request(self._sign_fn, bytes(content or b""), headers)
+            body = bytes(content or b"")
+            headers = _sign_request(self._sign_fn, _first_envelope(body) if enveloped else body, headers)
             return self._inner.stream(method, url, headers=headers, content=content, timeout=timeout)
-        return self._stream_signing_first_envelope(method, url, headers, iter(content), timeout)
+        if enveloped:
+            return self._stream_signing_first_envelope(method, url, headers, iter(content), timeout)
+        return self._stream_signing_whole_body(method, url, headers, iter(content), timeout)
 
     @contextmanager
     def _stream_signing_first_envelope(
@@ -263,15 +331,30 @@ class SigningSyncClient:
             first = next(source, None)
             if first is not None:
                 _require_one_envelope(first)
-            if timeout is not None:
-                # The timeout covers the wait for the first message too, as it does for async calls.
-                timeout -= time.monotonic() - started
-                if timeout <= 0:
-                    raise TimeoutError("timed out waiting for the first request message")
+            timeout = _remaining_timeout(timeout, started, "the first request message")
             headers = _sign_request(self._sign_fn, first or b"", headers)
         except BaseException:
             _close(source)
             raise
         content = _SyncChain(first, source)
         with self._inner.stream(method, url, headers=headers, content=content, timeout=timeout) as response:
+            yield response
+
+    @contextmanager
+    def _stream_signing_whole_body(
+        self,
+        method: str,
+        url: str,
+        headers: pyqwest.Headers | None,
+        source: Iterator[bytes],
+        timeout: float | None,
+    ) -> Iterator[pyqwest.SyncResponse]:
+        started = time.monotonic()
+        try:
+            body = b"".join(source)
+            timeout = _remaining_timeout(timeout, started, "the request body")
+            headers = _sign_request(self._sign_fn, body, headers)
+        finally:
+            _close(source)
+        with self._inner.stream(method, url, headers=headers, content=body, timeout=timeout) as response:
             yield response

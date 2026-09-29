@@ -69,8 +69,8 @@ python/
 - Generated code imports as `tzero.v1.payment.provider_pb2` (not `t0_provider_sdk.api.tzero...`). The `api/` directory is on `sys.path` via package layout.
 - Client constructors accept `http_client: pyqwest.Client | None` — we wrap pyqwest with `SigningClient` (not subclass).
 - ConnectRPC calls exactly 3 methods on the client: `get()`, `post()`, `stream()`.
-- `stream()` carries every client-/server-streaming call and every gRPC call (unary included), and its `content` is an (async) iterator yielding one envelope per message, not bytes.
-- A `ConnectClient` has one `timeout_ms` for all calls. `new_service_client()` builds it with `None` and wraps the instance's `execute_*` methods to fill in `timeout` (unary, 15 s) or `stream_timeout` (streams, none by default); a per-call `timeout_ms` wins.
+- `stream()` carries every client-/server-streaming call and every gRPC and gRPC-Web call (unary included), and its `content` is an (async) iterator yielding one envelope per message, not bytes.
+- A `ConnectClient` has one `timeout_ms` for all calls. `new_service_client()` builds it with `None` and wraps the instance's `execute_*` methods to fill in `timeout` (unary, 15 s) or `stream_timeout` (streams, none by default); a per-call `timeout_ms` wins. It replaces `execute_bidi_stream` with one that raises `UNIMPLEMENTED`: bidirectional streams are not supported.
 
 ## Proto Code Generation
 
@@ -89,7 +89,7 @@ cd ../cross_test/go_helper && go build -o go_helper . && cd ../../python
 uv run pytest tests/cross_test/ -v
 ```
 
-Uses the shared Go helper at `cross_test/go_helper/` (repo root). Validates: Keccak256 hash, public key derivation, bidirectional signature verification, end-to-end server-to-server communication (both ASGI and WSGI, plus health checks), and signed client/server streaming against the helper's first-envelope verifier (`test_cross_stream.py`). In CI, tests fail (not skip) if the helper is missing.
+Uses the shared Go helper at `cross_test/go_helper/` (repo root). Validates: Keccak256 hash, public key derivation, bidirectional signature verification, end-to-end server-to-server communication (both ASGI and WSGI, plus health checks), and signed client/server streaming against the helper's first-envelope verifier (`test_cross_stream.py`, which asserts on the helper's stderr log: verified over the first envelope, sent before the second message, or rejected and why). In CI, tests fail (not skip) if the helper is missing.
 
 ## Versioning
 
@@ -115,7 +115,8 @@ Runtime version: `_version.py` (`__version__`). Full details: [`docs/VERSIONING.
 - **Raw bytes:** Signature verification and signing always use original wire bytes, never re-serialized protobuf (see critical requirement above)
 - **Two-phase verification:** ASGI/WSGI middleware (raw bytes) → `contextvars.ContextVar` → ConnectRPC interceptor (error codes). Do not collapse into a single layer.
 - **Wrapper pattern:** `SigningClient` wraps `pyqwest.Client` via delegation (not subclass). pyqwest is Rust-backed FFI — subclassing is undefined.
-- **Streaming signs the first message only:** for an iterator `stream()` body (every Connect streaming and gRPC(-Web) call; one envelope per chunk) `SigningClient` signs the first chunk, checked to be exactly one envelope (flags + uint32be length + payload), sends at once, and forwards later messages unbuffered. Any other first chunk fails the call with `INTERNAL` rather than being mis-signed. So a client stream goes out only when its first message is available: send before waiting for a response. An empty client stream is signed over `b""` and sent; the network rejects it.
+- **Content type decides what is signed, never the body's form:** `application/connect+*`, `application/grpc`, `application/grpc+*` (media type, parameters dropped, case ignored) are enveloped; anything else, gRPC-Web included, is signed over its whole body (an iterator is read to its end and sent as bytes).
+- **Streaming signs the first message only:** for an enveloped iterator `stream()` body (every Connect streaming and gRPC call; one envelope per chunk) `SigningClient` signs the first chunk, checked to be exactly one envelope (flags + uint32be length + payload), sends at once, and forwards later messages unbuffered. Any other first chunk fails the call with `INTERNAL` rather than being mis-signed, as do enveloped bytes that end inside their first envelope. So a client stream goes out only when its first message is available: send before waiting for a response. An empty client stream is signed over `b""` and sent; the network rejects it.
 - **Proto-agnostic:** `handler()`/`handler_sync()` and `new_service_client()`/`new_service_client_sync()` accept any generated ConnectRPC class. Do not add service-specific logic to these functions.
 
 ## Signature Protocol Quick Reference
@@ -126,7 +127,7 @@ sig, pk = sign_fn(digest)   # 65-byte sig (r+s+v), 65-byte uncompressed pubkey
 headers = { X-Public-Key: "0x"+pk.hex(), X-Signature: "0x"+sig.hex(), X-Signature-Timestamp: str(ms) }
 ```
 
-`body_bytes` is the whole body, except for enveloped requests (Connect streaming, gRPC): the first envelope as sent, which for gRPC unary is the whole body.
+`body_bytes` is the whole body, except for enveloped requests (by content type: Connect streaming, gRPC; not gRPC-Web): the first envelope as sent, which for gRPC unary is the whole body.
 
 Timestamp tolerance: ±60 seconds. Max body: 4 MB default.
 

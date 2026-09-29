@@ -8,7 +8,10 @@ Proto-agnostic: works with ANY generated ConnectRPC client class.
 from __future__ import annotations
 
 import functools
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any, NoReturn, TypeVar
+
+from connectrpc.code import Code
+from connectrpc.errors import ConnectError
 
 from t0_provider_sdk.crypto.signer import new_signer_from_hex
 from t0_provider_sdk.network.options import DEFAULT_BASE_URL, DEFAULT_TIMEOUT
@@ -21,11 +24,11 @@ T = TypeVar("T")
 
 # The ConnectClient / ConnectClientSync entry points of each call type, and whether the call
 # streams. gRPC unary calls go out through stream() but still enter through execute_unary.
+# execute_bidi_stream is not here: bidirectional calls are rejected instead.
 _EXECUTE_METHODS = (
     ("execute_unary", False),
     ("execute_client_stream", True),
     ("execute_server_stream", True),
-    ("execute_bidi_stream", True),
 )
 
 
@@ -42,6 +45,8 @@ def new_service_client(
     Unary calls are signed over the whole request body. Client- and server-streaming calls are
     signed over their first request message only, and the request goes out as soon as that
     message is available: send a message (or close the stream) before waiting for a response.
+    Bidirectional streams are not supported: calling one raises ConnectError UNIMPLEMENTED, and
+    nothing is sent.
 
     Args:
         private_key: Hex-encoded secp256k1 private key (with or without 0x prefix).
@@ -62,6 +67,7 @@ def new_service_client(
     signing_client = SigningClient(sign_fn)
     client = client_class(base_url, http_client=signing_client, timeout_ms=None)  # type: ignore[call-arg]
     _set_default_timeouts(client, unary_ms, stream_ms)
+    _reject_bidi_streams(client)
     return client
 
 
@@ -75,7 +81,7 @@ def new_service_client_sync(
 ) -> T:
     """Create a sync ConnectRPC client with signing transport.
 
-    Signing and timeouts work as in new_service_client.
+    Signing, timeouts and the rejection of bidirectional streams work as in new_service_client.
 
     Args:
         private_key: Hex-encoded secp256k1 private key (with or without 0x prefix).
@@ -93,6 +99,7 @@ def new_service_client_sync(
     signing_client = SigningSyncClient(sign_fn)
     client = client_class(base_url, http_client=signing_client, timeout_ms=None)  # type: ignore[call-arg]
     _set_default_timeouts(client, unary_ms, stream_ms)
+    _reject_bidi_streams(client)
     return client
 
 
@@ -117,6 +124,23 @@ def _set_default_timeouts(client: object, unary_ms: int, stream_ms: int | None) 
         execute = getattr(client, name, None)
         if execute is not None:
             setattr(client, name, _with_default_timeout(execute, stream_ms if streaming else unary_ms))
+
+
+def _reject_bidi_streams(client: object) -> None:
+    """Makes the client's bidirectional calls fail at once, before anything is sent.
+
+    The signing transport sends a stream once it has signed the first message, and only client-
+    and server-streaming requests are defined to be signed that way; the network serves no
+    bidirectional streams. Failing here is clearer than a rejection from the network.
+    """
+    if getattr(client, "execute_bidi_stream", None) is not None:
+        setattr(client, "execute_bidi_stream", _bidi_stream_unsupported)  # noqa: B010
+
+
+def _bidi_stream_unsupported(*args: Any, **kwargs: Any) -> NoReturn:
+    # Raised at the call, for the async client too: its execute_bidi_stream is a plain def that
+    # returns the response iterator.
+    raise ConnectError(Code.UNIMPLEMENTED, "bidirectional streams are not supported")
 
 
 def _with_default_timeout(execute: Callable[..., Any], default_ms: int | None) -> Callable[..., Any]:

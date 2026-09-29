@@ -88,7 +88,7 @@ network_client = new_service_client(
 )
 ```
 
-A streaming call is signed over its first request message only, and the request is sent as soon as that message is available. For a client stream, send a message (or close the stream) before waiting for a response. Bidirectional streams are not supported.
+A streaming call is signed over its first request message only, and the request is sent as soon as that message is available. For a client stream, send a message (or close the stream) before waiting for a response. Bidirectional streams are not supported: a client built by `new_service_client()` / `new_service_client_sync()` raises `ConnectError` with `Code.UNIMPLEMENTED` when one is called, before anything is sent.
 
 ## Available Commands
 
