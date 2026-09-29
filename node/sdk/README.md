@@ -183,7 +183,7 @@ The input may be bare hexadecimal or use the lowercase `0x` prefix; output is ca
 
 ### Network Client
 
-Use `createClient` to call T-0 Network APIs. The client handles request signing automatically:
+Use `createClient` to call T-0 Network APIs. The client handles request signing automatically. It speaks the Connect protocol in binary: unary calls go out as `application/proto` and are signed over the whole request body.
 
 ```ts
 import { createClient, NetworkService } from "@t-0/provider-sdk";
@@ -218,7 +218,7 @@ const quote = await networkClient.getQuote({
 
 #### Streaming calls
 
-Client-streaming and server-streaming methods work on the same client. Unary calls are signed over the whole request body. A streaming call is signed over its **first request message only**: the signature headers cover the first envelope exactly as sent, its 5-byte prefix (flags and big-endian length) included. The request goes out as soon as that first message is available, and later messages are streamed unsigned and unbuffered. A client stream closed before its first message is still sent, signed over empty bytes, and the network rejects it. Bidirectional streaming is not supported.
+Client-streaming and server-streaming methods work on the same client and go out as `application/connect+proto`. A streaming call is signed over its **first request message only**: the signature headers cover the first envelope exactly as sent, its 5-byte prefix (flags and big-endian length) included. The request goes out as soon as that first message is available, and later messages are streamed unsigned and unbuffered. A client stream closed before its first message is still sent, signed over empty bytes, and the network rejects it. Bidirectional streaming is not supported.
 
 Timeouts are off by default. Pass them as the fourth argument; a call's own `timeoutMs` overrides them:
 
