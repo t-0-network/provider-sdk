@@ -17,13 +17,16 @@ function baseUrl(endpoint: string | undefined): string {
     if (endpoint === null || endpoint === "") {
         throw new Error("base URL is not set");
     }
+    // "://" is required: the URL parser would read "http:foo" as http://foo/.
     let url: URL | undefined;
-    try {
-        url = new URL(endpoint);
-    } catch {
-        // not a URL
+    if (typeof endpoint === "string" && /^https?:\/\//i.test(endpoint)) {
+        try {
+            url = new URL(endpoint);
+        } catch {
+            // not a URL, or a port above 65535
+        }
     }
-    if (url === undefined || (url.protocol !== "http:" && url.protocol !== "https:") || url.hostname === "") {
+    if (url === undefined || url.hostname === "" || url.port === "0") {
         throw new Error("base URL is not valid");
     }
     return endpoint;

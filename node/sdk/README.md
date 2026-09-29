@@ -179,7 +179,7 @@ const publicKey = publicKeyFromPrivateKey(process.env.PROVIDER_PRIVATE_KEY!);
 console.log(publicKey); // 0x04-prefixed uncompressed public key
 ```
 
-The input may be bare hexadecimal or use the lowercase `0x` prefix; output is canonical lowercase `0x04...`.
+The input is 64 hex characters, with an optional `0x` or `0X` prefix; output is canonical lowercase `0x04...`.
 
 ### Network Client
 

@@ -57,11 +57,22 @@ type ServerStreamingCall = (input: unknown, options?: CallOptions) => AsyncItera
 function cancelOnReturn(call: ServerStreamingCall): ServerStreamingCall {
     return (input, options) => {
         const cancel = new AbortController();
-        const signal = options?.signal === undefined ? cancel.signal : AbortSignal.any([options.signal, cancel.signal]);
-        const it = call(input, {...options, signal})[Symbol.asyncIterator]();
+        const unlink = linkSignal(options?.signal, cancel);
+        const it = call(input, {...options, signal: cancel.signal})[Symbol.asyncIterator]();
         return {
             [Symbol.asyncIterator]: () => ({
-                next: () => it.next(),
+                next: () => it.next().then(
+                    (r) => {
+                        if (r.done) {
+                            unlink();
+                        }
+                        return r;
+                    },
+                    (e) => {
+                        unlink();
+                        throw e;
+                    },
+                ),
                 return: async (value?: unknown) => {
                     cancel.abort(new ConnectError("the stream was closed before its end", Code.Canceled));
                     try {
@@ -69,11 +80,27 @@ function cancelOnReturn(call: ServerStreamingCall): ServerStreamingCall {
                     } catch {
                         // the cancellation
                     }
+                    unlink();
                     return {done: true, value};
                 },
             }),
         };
     };
+}
+
+// The caller's signal cancels the call; the returned function detaches it once the call has ended,
+// so a signal shared by many calls does not collect their listeners.
+function linkSignal(signal: AbortSignal | undefined, cancel: AbortController): () => void {
+    if (signal === undefined) {
+        return () => {};
+    }
+    if (signal.aborted) {
+        cancel.abort(signal.reason);
+        return () => {};
+    }
+    const onAbort = () => cancel.abort(signal.reason);
+    signal.addEventListener("abort", onAbort, {once: true});
+    return () => signal.removeEventListener("abort", onAbort);
 }
 
 /**

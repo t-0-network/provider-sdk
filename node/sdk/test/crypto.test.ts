@@ -140,6 +140,16 @@ describe('CreateSigner', () => {
     );
   });
 
+  const keyHex = vectors.keys.private_key.replace(/^0x/, '');
+  const order = 'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141';
+
+  it('accepts a private key with a 0x prefix, a 0X prefix or none', async () => {
+    for (const key of ['0x' + keyHex, '0X' + keyHex, keyHex]) {
+      const signature = await CreateSigner(key)(Buffer.alloc(32, 0x01));
+      nodeAssert.equal(signature.publicKey.toString('hex'), vectors.keys.public_key);
+    }
+  });
+
   it('rejects an empty private key', () => {
     for (const key of ['', Buffer.alloc(0), null, undefined] as unknown as string[]) {
       nodeAssert.throws(() => CreateSigner(key), { message: 'private key must not be null or empty' });
@@ -147,16 +157,15 @@ describe('CreateSigner', () => {
   });
 
   it('rejects a private key that is not 32 bytes', () => {
-    const hex = vectors.keys.private_key.replace(/^0x/, '');
-    for (const key of ['not-a-valid-key', '0x', hex.slice(2), hex + '00', 'zz' + hex.slice(2), Buffer.alloc(31, 1), Buffer.alloc(33, 1)]) {
+    for (const key of [keyHex.slice(2), keyHex + '00', keyHex.slice(2) + '  ', 'zz' + keyHex.slice(2), 'not-a-valid-key', '0x', Buffer.alloc(31, 1), Buffer.alloc(33, 1)]) {
       nodeAssert.throws(() => CreateSigner(key), { message: 'private key must be 32 bytes (64 hex characters)' });
     }
   });
 
-  it('accepts a private key with or without the 0x prefix', () => {
-    const hex = vectors.keys.private_key.replace(/^0x/, '');
-    nodeAssert.doesNotThrow(() => CreateSigner(hex));
-    nodeAssert.doesNotThrow(() => CreateSigner('0x' + hex));
+  it('rejects a private key outside [1, n-1]', () => {
+    for (const key of ['0'.repeat(64), order, '0x' + order.toLowerCase(), Buffer.alloc(32), Buffer.from(order, 'hex')]) {
+      nodeAssert.throws(() => CreateSigner(key), { message: 'private key must be in range [1, n-1]' });
+    }
   });
 });
 
@@ -504,8 +513,8 @@ describe('crypto/publicKeyFromPrivateKey', () => {
     }
   });
 
-  it('rejects an uppercase 0X private-key prefix', () => {
-    nodeAssert.throws(() => publicKeyFromPrivateKey(`0X${vectors.keys.private_key}`));
+  it('accepts an uppercase 0X private-key prefix', () => {
+    nodeAssert.equal(publicKeyFromPrivateKey(`0X${vectors.keys.private_key}`), `0x${vectors.keys.public_key}`);
   });
 
   it('rejects malformed, wrong-length, zero, and out-of-range secrets', () => {
@@ -522,8 +531,8 @@ describe('crypto/publicKeyFromPrivateKey', () => {
   });
 
   it('preserves synchronous signer validation for string and Buffer inputs', async () => {
-    nodeAssert.throws(() => CreateSigner('0'.repeat(64)), {message: 'Invalid private key'});
-    nodeAssert.throws(() => CreateSigner(Buffer.alloc(32)), {message: 'Invalid private key'});
+    nodeAssert.throws(() => CreateSigner('0'.repeat(64)), {message: 'private key must be in range [1, n-1]'});
+    nodeAssert.throws(() => CreateSigner(Buffer.alloc(32)), {message: 'private key must be in range [1, n-1]'});
 
     const signer = CreateSigner(Buffer.from(vectors.keys.private_key, 'hex'));
     const signature = await signer(Buffer.alloc(32, 0x01));

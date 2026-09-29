@@ -1,6 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
+import { getEventListeners } from 'node:events';
 import type { AddressInfo } from 'node:net';
 import { Code, createConnectRouter, type ServiceImpl } from '@connectrpc/connect';
 import { universalRequestFromNodeRequest, universalResponseToNodeResponse } from '@connectrpc/connect-node';
@@ -384,11 +385,12 @@ describe('createClient routes unary and streaming calls to their own transport',
     for (const url of ['', null] as unknown as string[]) {
       assert.throws(() => createClient(key, url, StreamTest), { message: 'base URL is not set' });
     }
-    for (const url of ['api.t-0.network', 'ftp://api.t-0.network', 'http://', 'not a url']) {
-      assert.throws(() => createClient(key, url, StreamTest), { message: 'base URL is not valid' });
+    for (const url of ['api.t-0.network', 'api.t-0.network:443', 'ftp://h', 'http://', 'http://:8080', 'http:foo', 'http://h:99999', 'http://h:0', 'not a url']) {
+      assert.throws(() => createClient(key, url, StreamTest), { message: 'base URL is not valid' }, url);
     }
-    assert.doesNotThrow(() => createClient(key, undefined, StreamTest));
-    assert.doesNotThrow(() => createClient(key, 'http://127.0.0.1:9', StreamTest));
+    for (const url of [undefined, 'https://api.t-0.network', 'http://localhost:8080', 'http://127.0.0.1:1234', 'http://my_host:8080', 'HTTPS://api.t-0.network/v1']) {
+      assert.doesNotThrow(() => createClient(key, url, StreamTest), String(url));
+    }
   });
 
   it('a missing private key is refused', () => {
@@ -439,6 +441,43 @@ describe('createClient routes unary and streaming calls to their own transport',
       await assert.rejects(drain(refusedBidi), isCode(Code.Unimplemented));
     } finally {
       process.off('unhandledRejection', onUnhandled);
+    }
+  });
+
+  it('the caller\'s signal cancels a server stream, and its listener goes when the call ends', async () => {
+    const abortListeners = (signal: AbortSignal) => getEventListeners(signal, 'abort').length;
+    await withServer(async (srv, key) => {
+      const client = createClient(key.privateKeyHex, srv.url, StreamTest);
+      const shared = new AbortController();
+      for await (const _ of client.serverStream({ value: 'a' }, { signal: shared.signal })) { /* to the end */ }
+      for await (const _ of client.serverStream({ value: 'b' }, { signal: shared.signal })) { break; }
+      assert.equal(abortListeners(shared.signal), 0, 'no listener is left on the caller\'s signal');
+    });
+
+    let closed: () => void = () => {};
+    const serverSawClose = new Promise<void>((resolve) => { closed = resolve; });
+    const server = http.createServer(async (req, res) => {
+      for await (const _ of req) { /* the request */ }
+      res.on('close', () => closed());
+      res.writeHead(200, { 'Content-Type': 'application/connect+proto' });
+      res.write(Buffer.from(envelopeOf('ok'), 'hex')); // and never ends
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    try {
+      const client = createClient(newKeypair().privateKeyHex, `http://127.0.0.1:${(server.address() as AddressInfo).port}`, StreamTest);
+      const caller = new AbortController();
+      const it = client.serverStream({ value: 's' }, { signal: caller.signal })[Symbol.asyncIterator]();
+      assert.equal((await it.next()).value?.value, 'ok');
+      caller.abort();
+      await assert.rejects(it.next(), isCode(Code.Canceled));
+      assert.equal(abortListeners(caller.signal), 0);
+      const giveUp = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('the call stayed open after the caller aborted')), 5_000).unref();
+      });
+      await Promise.race([serverSawClose, giveUp]);
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
     }
   });
 
