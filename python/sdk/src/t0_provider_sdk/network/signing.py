@@ -11,6 +11,7 @@ its first envelope as sent. See docs/STREAMING.md.
 
 from __future__ import annotations
 
+import functools
 import inspect
 import struct
 import time
@@ -118,6 +119,18 @@ def _close(source: Iterator[bytes]) -> None:
         close()
 
 
+@functools.cache
+def _shared_transport(*, sync: bool, http2: bool) -> Any:
+    """One per kind for the process: a transport holds its connections, and clients never close it.
+
+    Redirects are not followed: the next request would carry this request's signature to another URL.
+    """
+    http_version = pyqwest.HTTPVersion.HTTP2 if http2 else None
+    if sync:
+        return pyqwest.SyncHTTPTransport(http_version=http_version, follow_redirects=False)
+    return pyqwest.HTTPTransport(http_version=http_version, follow_redirects=False)
+
+
 class _AsyncChain:
     """The first envelope, already read, then the rest of source. pyqwest closes only the body it
     is given, so closing the chain closes source."""
@@ -168,10 +181,13 @@ class SigningClient:
     A streaming request is sent once its first message is available: send one (or close the
     stream) before waiting for a response. Bidirectional streams are not supported; only the
     factory-built clients reject them. See docs/STREAMING.md.
+
+    Redirects are not followed, so a 3xx response fails the call. A transport passed in must not
+    follow them either.
     """
 
     def __init__(self, sign_fn: SignFn, *, transport: Any | None = None) -> None:
-        self._inner = pyqwest.Client(transport=transport) if transport else pyqwest.Client()
+        self._inner = pyqwest.Client(transport=transport or _shared_transport(sync=False, http2=False))
         self._sign_fn = sign_fn
 
     async def get(self, url: str, headers: pyqwest.Headers | None = None) -> Any:
@@ -222,13 +238,16 @@ class SigningSyncClient:
     factory-built clients reject them.
 
     A blocked source is not interrupted: the time it takes to yield the first message is deducted
-    from the call's timeout, and if none is left,
-    nothing is sent, the source is closed and the call fails with TimeoutError (DEADLINE_EXCEEDED
-    in connectrpc). Bounding the time of each read is up to the source. See docs/STREAMING.md.
+    from the call's timeout, and if none is left, nothing is sent, the source is closed and the call
+    fails with TimeoutError (DEADLINE_EXCEEDED in connectrpc). Bounding the time of each read is up
+    to the source. See docs/STREAMING.md.
+
+    Redirects are not followed, so a 3xx response fails the call. A transport passed in must not
+    follow them either.
     """
 
     def __init__(self, sign_fn: SignFn, *, transport: Any | None = None) -> None:
-        self._inner = pyqwest.SyncClient(transport=transport) if transport else pyqwest.SyncClient()
+        self._inner = pyqwest.SyncClient(transport=transport or _shared_transport(sync=True, http2=False))
         self._sign_fn = sign_fn
 
     def get(self, url: str, headers: pyqwest.Headers | None = None, timeout: float | None = None) -> Any:

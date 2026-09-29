@@ -9,6 +9,9 @@ authors = [
 ]
 dependencies = [
     "connectrpc>=0.11.1",
+    # connectrpc's HTTP client. 0.9 is the first that can be told not to follow redirects, which
+    # would re-send a signed request to another URL.
+    "pyqwest>=0.9.0",
     "protobuf>=7.34.1",
     "coincurve>=21.0",
     "pycryptodome>=3.23",

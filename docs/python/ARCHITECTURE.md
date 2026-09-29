@@ -291,7 +291,7 @@ ConnectRPC was chosen over gRPC for its HTTP/1.1 compatibility, simpler deployme
 | Concern | Library | PyPI Name | Import | Rationale |
 |---------|---------|-----------|--------|-----------|
 | RPC Framework | connectrpc | `connectrpc>=0.11.1` | `connectrpc` | Official ConnectRPC Python runtime (renamed from `connect-python` at v0.10.0). Floor is 0.11.1: the generated stubs use `connectrpc.compat` so the runtime's protobuf-py default codec is bypassed in favour of the shipped `google.protobuf` messages |
-| HTTP Client | pyqwest | *(transitive)* | `pyqwest` | Rust-backed HTTP client; transitive dependency of connectrpc |
+| HTTP Client | pyqwest | `pyqwest>=0.9.0` | `pyqwest` | Rust-backed HTTP client of connectrpc; 0.9 is the first that can turn off redirects, which the signing wrappers do |
 | Protobuf | protobuf | `protobuf>=5.28` | `google.protobuf` | Standard Protocol Buffers runtime |
 | ECDSA Crypto | coincurve | `coincurve>=21.0` | `coincurve` | Python bindings for libsecp256k1 |
 | Keccak Hash | pycryptodome | `pycryptodome>=3.23` | `Crypto.Hash.keccak` | Legacy Keccak-256 implementation |
@@ -425,7 +425,7 @@ sequenceDiagram
 
 **Wrapper pattern (not subclass):** the wrapper holds the real client and delegates to it. ConnectRPC calls only `get()`, `post()` and `stream()`, so the wrapper covers everything it uses and nothing else of `pyqwest.Client` leaks through.
 
-Both async (`SigningClient` wrapping `pyqwest.Client`) and sync (`SigningSyncClient` wrapping `pyqwest.SyncClient`) variants are provided.
+Both async (`SigningClient` wrapping `pyqwest.Client`) and sync (`SigningSyncClient` wrapping `pyqwest.SyncClient`) variants are provided. Their transports do not follow redirects: a redirect would re-send the signed request, headers included, to another URL, so a 3xx response fails the call.
 
 ### 3.5 Proto-Agnostic Design
 

@@ -12,7 +12,6 @@ import re
 from typing import TYPE_CHECKING, Any, NoReturn, TypeVar
 from urllib.parse import urlsplit
 
-import pyqwest
 from connectrpc.code import Code
 from connectrpc.compat import google_protobuf_json_codec
 from connectrpc.errors import ConnectError
@@ -26,7 +25,7 @@ from t0_provider_sdk.network.options import (
     Protocol,
     WireFormat,
 )
-from t0_provider_sdk.network.signing import SigningClient, SigningSyncClient
+from t0_provider_sdk.network.signing import SigningClient, SigningSyncClient, _shared_transport
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -197,15 +196,7 @@ def _transport(base_url: str, protocol: Protocol, *, sync: bool) -> Any | None:
     # gRPC needs HTTP/2, and pyqwest speaks HTTP/1.1 on a plain http:// connection unless told.
     if protocol is not Protocol.GRPC or urlsplit(base_url).scheme != "http":
         return None
-    return _h2c_transport(sync)
-
-
-@functools.cache
-def _h2c_transport(sync: bool) -> Any:
-    """One per kind for the process: a transport holds its connections, and clients never close it."""
-    if sync:
-        return pyqwest.SyncHTTPTransport(http_version=pyqwest.HTTPVersion.HTTP2)
-    return pyqwest.HTTPTransport(http_version=pyqwest.HTTPVersion.HTTP2)
+    return _shared_transport(sync=sync, http2=True)
 
 
 def _default_timeouts_ms(timeout: float, stream_timeout: float) -> tuple[int, int]:

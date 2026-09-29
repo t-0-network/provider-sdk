@@ -56,7 +56,7 @@ python/
 | Package | Import | Purpose |
 |---------|--------|---------|
 | connectrpc | `connectrpc` | ConnectRPC runtime (renamed from `connect-python` at v0.10.0; v0.11 switched its default codec to protobuf-py) |
-| pyqwest (transitive) | `pyqwest` | HTTP client (Rust-backed) |
+| pyqwest | `pyqwest` | HTTP client (Rust-backed); a direct dependency from 0.9, the first that can turn off redirects |
 | protobuf | `google.protobuf` | Message serialization |
 | coincurve | `coincurve` | secp256k1 ECDSA |
 | pycryptodome | `Crypto.Hash.keccak` | Keccak256 |
