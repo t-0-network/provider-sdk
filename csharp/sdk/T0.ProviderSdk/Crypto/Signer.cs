@@ -43,14 +43,14 @@ public sealed class Signer : ISigner
     /// <summary>
     /// Creates a new Signer from a hex-encoded private key.
     /// </summary>
-    /// <param name="hexPrivateKey">Private key in hex format (with or without 0x prefix).</param>
+    /// <param name="hexPrivateKey">Private key as 64 hex characters, with or without a 0x or 0X prefix.</param>
     public static Signer FromHex(string hexPrivateKey)
     {
         if (string.IsNullOrEmpty(hexPrivateKey))
             throw new ArgumentException("private key must not be null or empty");
 
-        var cleanHex = HexUtils.StripHexPrefix(hexPrivateKey.ToLowerInvariant());
-        if (cleanHex.Length != PrivateKeyHexLength)
+        var cleanHex = HexUtils.StripHexPrefix(hexPrivateKey);
+        if (cleanHex.Length != PrivateKeyHexLength || !cleanHex.All(char.IsAsciiHexDigit))
             throw new ArgumentException("private key must be 32 bytes (64 hex characters)");
 
         var privateKeyBytes = HexUtils.HexToBytes(cleanHex);

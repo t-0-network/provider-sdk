@@ -210,6 +210,23 @@ public class SigningDelegatingHandlerStreamTests
     }
 
     [Fact]
+    public async Task KnownLength_IsKept_ForASingleFrameOverThePipeThreshold()
+    {
+        // Over 64 KiB, the frame is read before the source has ended; the length comes from the source.
+        var body = Frame(new byte[100_000]);
+        var source = new ByteArrayContent(body);
+        source.Headers.ContentType = new("application/grpc");
+        var (client, inner) = NewClient();
+
+        using var response = await client.SendAsync(Post(source)).WithTimeout();
+
+        var request = await inner.Received.Task.WithTimeout();
+        Assert.Equal(body.Length, request.Content!.Headers.ContentLength);
+        Assert.True(SignatureCovers(request, body));
+        Assert.Equal(body, inner.Body.ToArray());
+    }
+
+    [Fact]
     public async Task SingleFrameBody_GetsItsLength()
     {
         // A single-frame body of unknown length, as a unary gRPC call sends it, goes out with a length
@@ -362,8 +379,10 @@ public class SigningDelegatingHandlerStreamTests
         byte[] body = [0, 0xFF, 0xFF, 0xFF, 0xFF, .. Encoding.UTF8.GetBytes("m1")];
         var (client, inner) = NewClient();
 
-        await Assert.ThrowsAsync<InvalidOperationException>(
+        var ex = await Assert.ThrowsAsync<RpcException>(
             () => client.SendAsync(Post(PushContent.Frames(body))).WithTimeout());
+        Assert.Equal(StatusCode.ResourceExhausted, ex.StatusCode);
+        Assert.Equal("first request message is too large to sign", ex.Status.Detail);
         Assert.False(inner.Received.Task.IsCompleted);
     }
 

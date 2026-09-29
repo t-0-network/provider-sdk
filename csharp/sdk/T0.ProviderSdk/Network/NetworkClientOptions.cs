@@ -18,7 +18,8 @@ public sealed class NetworkClientOptions
     /// Base URL of the T-0 Network API, <c>https://api.t-0.network</c> by default or when set to null.
     /// </summary>
     /// <exception cref="ArgumentException">
-    /// The value is empty, or is not an absolute http or https URL with a host.
+    /// The value is empty, or is not an <c>http://</c> or <c>https://</c> URL with a host and, if it
+    /// has a port, a port from 1 to 65535.
     /// </exception>
     [AllowNull]
     public string BaseUrl
@@ -56,9 +57,13 @@ public sealed class NetworkClientOptions
     {
         if (value.Length == 0)
             throw new ArgumentException("base URL is not set", nameof(BaseUrl));
-        if (!Uri.TryCreate(value, UriKind.Absolute, out var uri)
-            || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)
-            || uri.Host.Length == 0)
+        // Uri alone would read "http:host" as http://host and accept port 0.
+        var hasScheme = value.StartsWith("http://", StringComparison.OrdinalIgnoreCase)
+            || value.StartsWith("https://", StringComparison.OrdinalIgnoreCase);
+        if (!hasScheme
+            || !Uri.TryCreate(value, UriKind.Absolute, out var uri)
+            || uri.Host.Length == 0
+            || uri.Port is < 1 or > 65535)
             throw new ArgumentException("base URL is not valid", nameof(BaseUrl));
         return value;
     }

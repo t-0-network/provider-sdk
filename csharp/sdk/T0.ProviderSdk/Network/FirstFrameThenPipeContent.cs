@@ -233,7 +233,7 @@ internal sealed class FirstFrameThenPipeContent : HttpContent
         prefix.CopyTo(bytes);
         var length = BinaryPrimitives.ReadUInt32BigEndian(bytes[1..]);
         if (length > Array.MaxLength - FramePrefixLength)
-            throw new InvalidOperationException($"gRPC request message of {length} bytes is too large to sign.");
+            throw new RpcException(new Status(StatusCode.ResourceExhausted, "first request message is too large to sign"));
         return (int)length;
     }
 
