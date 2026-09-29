@@ -10,7 +10,6 @@ import (
 	"io"
 	"log"
 	"net/http"
-	"os"
 	"strconv"
 	"strings"
 	"time"
@@ -18,7 +17,6 @@ import (
 	"connectrpc.com/connect"
 	sdkcommon "github.com/t-0-network/provider-sdk/go/common"
 	"github.com/t-0-network/provider-sdk/go/crypto"
-	"github.com/t-0-network/provider-sdk/go/network"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
@@ -131,87 +129,4 @@ func verifyFirstEnvelope(r *http.Request, trustedKey []byte) (string, error) {
 	default:
 		return "", errors.New("signature does not verify over the first message")
 	}
-}
-
-type streamTestClient struct {
-	clientStream *connect.Client[wrapperspb.StringValue, wrapperspb.StringValue]
-	serverStream *connect.Client[wrapperspb.StringValue, wrapperspb.StringValue]
-}
-
-func newStreamTestClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) *streamTestClient {
-	return &streamTestClient{
-		clientStream: connect.NewClient[wrapperspb.StringValue, wrapperspb.StringValue](httpClient, baseURL+streamTestClientStream, opts...),
-		serverStream: connect.NewClient[wrapperspb.StringValue, wrapperspb.StringValue](httpClient, baseURL+streamTestServerStream, opts...),
-	}
-}
-
-func dialStreamTest(usage string) *streamTestClient {
-	grpcMode := hasFlag("--grpc")
-	positional := make([]string, 0, 2)
-	for _, arg := range os.Args[2:] {
-		if !strings.HasPrefix(arg, "--") {
-			positional = append(positional, arg)
-		}
-	}
-	if len(positional) != 2 {
-		fmt.Fprintln(os.Stderr, usage)
-		os.Exit(1)
-	}
-
-	clientOpts := []network.ClientOption{network.WithBaseURL(positional[0])}
-	if grpcMode {
-		clientOpts = append(clientOpts,
-			network.WithConnectOptions(connect.WithGRPC()),
-			network.WithHTTPTransport(newH2CTransport()),
-		)
-	}
-	client, err := network.NewServiceClient(network.PrivateKeyHexed(positional[1]), newStreamTestClient, clientOpts...)
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error creating client: %v\n", err)
-		os.Exit(1)
-	}
-	return client
-}
-
-func cmdCallClientStream() {
-	client := dialStreamTest("Usage: go_helper call-client-stream <base_url> <hex_private_key> [--grpc]")
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	stream := client.clientStream.CallClientStream(ctx)
-	for _, m := range []string{"m1", "m2", "m3"} {
-		if err := stream.Send(wrapperspb.String(m)); err != nil {
-			break // the error is reported by CloseAndReceive
-		}
-	}
-	resp, err := stream.CloseAndReceive()
-	if err != nil {
-		fmt.Printf("ERROR: %v\n", err)
-		os.Exit(1)
-	}
-	fmt.Printf("result=%s\n", resp.Msg.GetValue())
-}
-
-func cmdCallServerStream() {
-	client := dialStreamTest("Usage: go_helper call-server-stream <base_url> <hex_private_key> [--grpc]")
-
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
-	defer cancel()
-
-	stream, err := client.serverStream.CallServerStream(ctx, connect.NewRequest(wrapperspb.String("hello")))
-	if err != nil {
-		fmt.Printf("ERROR: %v\n", err)
-		os.Exit(1)
-	}
-	defer stream.Close()
-	var got []string
-	for stream.Receive() {
-		got = append(got, stream.Msg().GetValue())
-	}
-	if err := stream.Err(); err != nil {
-		fmt.Printf("ERROR: %v\n", err)
-		os.Exit(1)
-	}
-	fmt.Printf("received=%s\n", strings.Join(got, ","))
 }

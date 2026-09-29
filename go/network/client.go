@@ -17,7 +17,7 @@ type ClientFactory[T any] func(httpClient connect.HTTPClient, baseURL string, op
 
 // NewServiceClient builds a client for a T-0 Network service that signs every request: unary calls
 // over the whole body, client- and server-streaming calls over their first request message.
-// Bidirectional-streaming calls fail with connect.CodeUnimplemented. See docs/go/STREAMING.md.
+// Bidirectional-streaming calls fail with connect.CodeUnimplemented. See docs/STREAMING.md.
 func NewServiceClient[T any](
 	privateKey PrivateKeyHexed, clientFactory ClientFactory[T], opts ...ClientOption,
 ) (T, error) {

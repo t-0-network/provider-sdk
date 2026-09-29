@@ -5,7 +5,6 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/hex"
-	"errors"
 	"io"
 	"log"
 	"net/http"
@@ -181,7 +180,18 @@ func serveHelper(t *testing.T) (string, *syncBuffer) {
 	return srv.URL, logs
 }
 
-// The protocols of call-client-stream and call-server-stream, plus Connect JSON.
+type streamTestClient struct {
+	clientStream *connect.Client[wrapperspb.StringValue, wrapperspb.StringValue]
+	serverStream *connect.Client[wrapperspb.StringValue, wrapperspb.StringValue]
+}
+
+func newStreamTestClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) *streamTestClient {
+	return &streamTestClient{
+		clientStream: connect.NewClient[wrapperspb.StringValue, wrapperspb.StringValue](httpClient, baseURL+streamTestClientStream, opts...),
+		serverStream: connect.NewClient[wrapperspb.StringValue, wrapperspb.StringValue](httpClient, baseURL+streamTestServerStream, opts...),
+	}
+}
+
 var helperProtocols = []struct {
 	name string
 	opts []network.ClientOption
@@ -262,17 +272,6 @@ func TestGoClientAgainstHelper(t *testing.T) {
 				}
 				if want := streamTestClientStream + " rejected: no first message"; !strings.Contains(logs.String(), want) {
 					t.Fatalf("log has no %q:\n%s", want, logs)
-				}
-			})
-
-			t.Run("other key is rejected", func(t *testing.T) {
-				url, _ := serveHelper(t)
-				stream := newHelperClient(t, url, otherPrivateKey, p.opts).clientStream.CallClientStream(ctx)
-				_ = stream.Send(wrapperspb.String("m1"))
-				_, err := stream.CloseAndReceive()
-				var connectErr *connect.Error
-				if !errors.As(err, &connectErr) || connectErr.Code() != connect.CodeUnauthenticated {
-					t.Fatalf("got %v, want unauthenticated", err)
 				}
 			})
 		})

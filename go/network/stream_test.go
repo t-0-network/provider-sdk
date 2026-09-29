@@ -387,6 +387,9 @@ func TestStream_LargeFirstMessage(t *testing.T) {
 
 func TestStream_EmptyClientStreamIsSentAndRejected(t *testing.T) {
 	for _, p := range streamProtocols {
+		if p.name != "connect" && p.name != "grpc" {
+			continue // no message, so the codec and compression do not matter
+		}
 		t.Run(p.name, func(t *testing.T) {
 			key := newTestKey(t)
 			srv := newStreamTestServer(t, key.publicKey)

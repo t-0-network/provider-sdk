@@ -159,7 +159,7 @@ resp, err := stream.CloseAndReceive()
 - Streams have no timeout by default: bound one with its context or `WithStreamTimeout`.
 - Bidirectional-streaming calls fail with `CodeUnimplemented` and send nothing.
 
-Details: [`docs/go/STREAMING.md`](../docs/go/STREAMING.md).
+Details: [`docs/STREAMING.md`](../docs/STREAMING.md).
 
 ## Examples
 

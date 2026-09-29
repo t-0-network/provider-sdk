@@ -10,8 +10,6 @@
 //	go_helper serve <port> <hex_network_public_key>
 //	go_helper call-pay-out <base_url> <hex_private_key> [--grpc]
 //	go_helper call-health <base_url> <hex_private_key> [--grpc]
-//	go_helper call-client-stream <base_url> <hex_private_key> [--grpc]
-//	go_helper call-server-stream <base_url> <hex_private_key> [--grpc]
 package main
 
 import (
@@ -58,10 +56,6 @@ func main() {
 		cmdCallPayOut()
 	case "call-health":
 		cmdCallHealth()
-	case "call-client-stream":
-		cmdCallClientStream()
-	case "call-server-stream":
-		cmdCallServerStream()
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command: %s\n", os.Args[1])
 		os.Exit(1)

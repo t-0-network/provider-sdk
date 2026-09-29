@@ -84,7 +84,7 @@ func WithTimeout(t time.Duration) ClientOption {
 }
 
 // WithStreamTimeout sets the deadline of each client- and server-streaming call, including the wait
-// for its first message. See docs/go/STREAMING.md.
+// for its first message. See docs/STREAMING.md.
 //
 // Default: 0, no timeout.
 func WithStreamTimeout(t time.Duration) ClientOption {
