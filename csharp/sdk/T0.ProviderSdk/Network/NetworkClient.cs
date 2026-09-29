@@ -14,6 +14,13 @@ public static class NetworkClient
     /// <summary>
     /// Creates a gRPC channel with auto-signing transport.
     /// </summary>
+    /// <remarks>
+    /// The channel applies no default deadline: <see cref="NetworkClientOptions.Timeout"/> and
+    /// <see cref="NetworkClientOptions.StreamTimeout"/> take effect through
+    /// <see cref="DefaultDeadlineInterceptor"/>, so either set <c>CallOptions.Deadline</c> on
+    /// each call or wrap the channel:
+    /// <c>channel.Intercept(new DefaultDeadlineInterceptor(options))</c>.
+    /// </remarks>
     public static GrpcChannel Create(
         NetworkClientOptions options,
         Signer signer,
@@ -27,9 +34,11 @@ public static class NetworkClient
             InnerHandler = new HttpClientHandler()
         };
 
+        // Deadlines come from the call, never from HttpClient: its Timeout only runs until the
+        // response headers, which for a client stream is the whole upload.
         var httpClient = new HttpClient(signingHandler)
         {
-            Timeout = options.Timeout
+            Timeout = Timeout.InfiniteTimeSpan
         };
 
         try
@@ -50,6 +59,9 @@ public static class NetworkClient
     /// <summary>
     /// Creates a gRPC channel with auto-signing transport from a private key hex string.
     /// </summary>
+    /// <remarks>
+    /// Like <see cref="Create"/>, the channel applies no default deadline.
+    /// </remarks>
     public static GrpcChannel CreateChannel(
         string privateKeyHex,
         NetworkClientOptions? options = null,
@@ -62,28 +74,32 @@ public static class NetworkClient
     }
 
     /// <summary>
-    /// Creates a Payment NetworkService client with auto-signing transport and request validation.
+    /// Creates a Payment NetworkService client with auto-signing transport, request validation,
+    /// and the default deadlines of <see cref="NetworkClientOptions"/>.
     /// </summary>
     public static PaymentApi.NetworkService.NetworkServiceClient CreateNetworkServiceClient(
         string baseUrl,
         Signer signer,
         TimeProvider? timeProvider = null)
     {
-        var channel = Create(new NetworkClientOptions { BaseUrl = baseUrl }, signer, timeProvider);
-        var invoker = channel.Intercept(new RequestValidationInterceptor());
+        var options = new NetworkClientOptions { BaseUrl = baseUrl };
+        var channel = Create(options, signer, timeProvider);
+        var invoker = channel.Intercept(new RequestValidationInterceptor(), new DefaultDeadlineInterceptor(options));
         return new PaymentApi.NetworkService.NetworkServiceClient(invoker);
     }
 
     /// <summary>
-    /// Creates a PaymentIntent NetworkService client with auto-signing transport and request validation.
+    /// Creates a PaymentIntent NetworkService client with auto-signing transport, request
+    /// validation, and the default deadlines of <see cref="NetworkClientOptions"/>.
     /// </summary>
     public static PaymentIntentApi.NetworkService.NetworkServiceClient CreatePaymentIntentNetworkServiceClient(
         string baseUrl,
         Signer signer,
         TimeProvider? timeProvider = null)
     {
-        var channel = Create(new NetworkClientOptions { BaseUrl = baseUrl }, signer, timeProvider);
-        var invoker = channel.Intercept(new RequestValidationInterceptor());
+        var options = new NetworkClientOptions { BaseUrl = baseUrl };
+        var channel = Create(options, signer, timeProvider);
+        var invoker = channel.Intercept(new RequestValidationInterceptor(), new DefaultDeadlineInterceptor(options));
         return new PaymentIntentApi.NetworkService.NetworkServiceClient(invoker);
     }
 }

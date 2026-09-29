@@ -3,6 +3,8 @@ using System.Text;
 using System.Text.Json;
 using T0.ProviderSdk.Common;
 using T0.ProviderSdk.Crypto;
+using T0.ProviderSdk.Network;
+using T0.ProviderSdk.Tests.Network;
 
 namespace T0.ProviderSdk.Tests.Crypto;
 
@@ -167,6 +169,85 @@ public class CrossTestVectors
                 vec.GetProperty("valid").GetBoolean(),
                 SignatureVerifier.Verify(publicKey, RequestDigest(vec), signature));
         }
+    }
+
+    /// <summary>
+    /// Streaming requests are signed over their first message only. <c>first_envelope</c> covers
+    /// the first frame with its 5-byte prefix (what a signer below the gRPC framer, like
+    /// <see cref="SigningDelegatingHandler"/>, sees); <c>first_payload</c> covers the message
+    /// without it (Java's signer above the framer). The first_envelope cases also go through the
+    /// handler with the vector's timestamp.
+    /// </summary>
+    [Fact]
+    public async Task StreamSigningCases_ShouldMatchVectorBytes()
+    {
+        var keys = Vectors.RootElement.GetProperty("keys");
+        var privateKeyHex = keys.GetProperty("private_key").GetString()!;
+        var signer = Signer.FromHex(privateKeyHex);
+
+        var cases = Vectors.RootElement.GetProperty("stream_signing_cases");
+        Assert.NotEmpty(cases.EnumerateArray());
+
+        foreach (var vec in cases.EnumerateArray())
+        {
+            var name = vec.GetProperty("name").GetString()!;
+            var body = HexUtils.HexToBytes(vec.GetProperty("body_hex").GetString()!);
+            var covers = vec.GetProperty("covers").GetString()!;
+            var timestampMs = vec.GetProperty("timestamp_ms").GetInt64();
+            var expectedSignature = vec.GetProperty("expected_signature").GetString()!;
+
+            var signed = covers switch
+            {
+                "first_envelope" => FirstEnvelope(body),
+                "first_payload" => FirstEnvelope(body)[5..],
+                _ => throw new InvalidOperationException($"{name}: unknown covers value {covers}"),
+            };
+            Assert.Equal(vec.GetProperty("signed_hex").GetString()!, HexUtils.BytesToHex(signed));
+
+            var digest = Keccak256.Hash(signed, Headers.EncodeTimestamp(timestampMs));
+            Assert.Equal(vec.GetProperty("expected_hash").GetString()!, HexUtils.BytesToHex(digest));
+            Assert.Equal(expectedSignature, HexUtils.BytesToHex(signer.Sign(digest).Signature[..64]));
+
+            if (covers != "first_envelope")
+                continue;
+
+            // The C# client speaks gRPC only. A Connect envelope has the gRPC frame's layout, so
+            // the Connect cases go through the handler as gRPC.
+            var contentType = vec.GetProperty("content_type").GetString()!;
+            if (!contentType.StartsWith("application/grpc", StringComparison.Ordinal))
+                contentType = "application/grpc";
+
+            var inner = new RecordingHandler();
+            var handler = new SigningDelegatingHandler(
+                Signer.FromHex(privateKeyHex),
+                new FixedTimeProvider(DateTimeOffset.FromUnixTimeMilliseconds(timestampMs)))
+            {
+                InnerHandler = inner
+            };
+            using var client = new HttpClient(handler);
+            using var response = await client.SendAsync(new HttpRequestMessage(HttpMethod.Post, "http://example.com/")
+            {
+                Content = new PushContent(stream => stream.WriteAsync(body).AsTask(), contentType)
+            }).WithTimeout();
+
+            var request = await inner.Received.Task.WithTimeout();
+            Assert.Equal(timestampMs.ToString(), request.Headers.GetValues(Headers.SignatureTimestamp).Single());
+            Assert.Equal(expectedSignature,
+                HexUtils.BytesToHex(StreamingTestHelpers.HeaderBytes(request, Headers.Signature)[..64]));
+            Assert.Equal(body, inner.Body.ToArray());
+        }
+    }
+
+    /// <summary>
+    /// The first frame of a gRPC or Connect streaming body: flags(1) || uint32be(length) ||
+    /// payload. Empty for an empty body.
+    /// </summary>
+    private static byte[] FirstEnvelope(byte[] body)
+    {
+        if (body.Length == 0)
+            return [];
+        var length = BinaryPrimitives.ReadUInt32BigEndian(body.AsSpan(1, 4));
+        return body[..(5 + (int)length)];
     }
 
     /// <summary>

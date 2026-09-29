@@ -50,6 +50,7 @@ csharp/
 - `NetworkClient.CreatePaymentIntentNetworkServiceClient()` — Auto-signing PaymentIntent gRPC client
 - `SignatureVerificationMiddleware` — ASP.NET Core middleware, verifies incoming requests
 - `SigningDelegatingHandler` — HttpClient handler, signs outgoing requests
+- `DefaultDeadlineInterceptor` — gRPC client interceptor, default deadline per call type from `NetworkClientOptions`
 - `QuotePublisherService` — Abstract BackgroundService for periodic quote publishing
 
 ## Architecture Notes
@@ -57,6 +58,8 @@ csharp/
 - **Two-phase server build**: `T0ProviderServer` collects service registrations, then `RunAsync()` calls `Build()` + middleware + `MapGrpcService<T>()`
 - **Raw bytes signing**: `SignatureVerificationMiddleware` reads body bytes BEFORE gRPC deserialization
 - **DelegatingHandler pattern**: `SigningDelegatingHandler` wraps HttpClient to auto-sign outgoing requests
+- **First-frame signing for gRPC**: for `application/grpc` / `application/grpc+*` the handler signs only the first request frame as sent (`flags || uint32be len || payload`) and sends as soon as it is available; later frames are piped through unbuffered (`FirstFrameThenPipeContent`). Unary and server streaming are one frame, so nothing changes for them. Other content types sign the whole body. A client stream goes out only once its first message is written (or it is completed), so write before awaiting response headers. Completed with no message: signs empty bytes and sends; the network rejects it.
+- **Deadlines, not HttpClient.Timeout**: `NetworkClient.Create` sets `HttpClient.Timeout` to infinite (it runs only until response headers, i.e. the whole upload of a client stream). `DefaultDeadlineInterceptor` sets `CallOptions.Deadline` when the call has none: `Timeout` (15 s) for unary, `StreamTimeout` (null = none) for streams. The `Create*ServiceClient` helpers install it; a raw channel from `Create`/`CreateChannel` does not, so set deadlines per call or `channel.Intercept(new DefaultDeadlineInterceptor(options))`.
 - **Interfaces for testability**: `ISigner` and `ISignatureVerifier` enable mocking without real crypto
 - **BackgroundService pattern**: `QuotePublisherService` provides periodic timer with error handling
 
@@ -67,6 +70,7 @@ digest  = Keccak256(body_bytes || LE_uint64(timestamp_ms))
 headers = { X-Public-Key: "0x...", X-Signature: "0x...", X-Signature-Timestamp: "<ms>" }
 ```
 
+- `body_bytes`: for gRPC requests the first frame only, prefix included (the whole body for unary and server streaming); otherwise the whole body
 - Timestamp tolerance: ±60 seconds
 - Public keys: uncompressed secp256k1 (65 bytes, 0x04 prefix)
 - Signatures: 65 bytes (r[32] + s[32] + v[1]), verification accepts 64 bytes too
@@ -97,9 +101,9 @@ Template files live in `starter/template/` as a buildable standalone project usi
 
 ## Cross-Language Testing
 
-**Test vectors:** `CrossTestVectors.cs` validates crypto against shared `cross_test/test_vectors.json` (Keccak-256, key derivation, request hash, sign/verify round-trips).
+**Test vectors:** `CrossTestVectors.cs` validates crypto against shared `cross_test/test_vectors.json` (Keccak-256, key derivation, request hash, sign/verify round-trips, and `stream_signing_cases`, whose first-envelope cases also run through `SigningDelegatingHandler`).
 
-**Server-to-server:** `CrossTest/CrossServerTests.cs` exercises health check round-trips (both directions) and Go→C# PayOut between C# and Go using the shared helper at `cross_test/go_helper/`. Build it first:
+**Server-to-server:** `CrossTest/CrossServerTests.cs` exercises health check round-trips (both directions), Go→C# PayOut, and C#→Go client and server streaming (`test.v1.StreamTest`, built by hand on `StringValue`) between C# and Go using the shared helper at `cross_test/go_helper/`. Build it first:
 
 ```bash
 cd ../cross_test/go_helper && go build -o go_helper . && cd ../../csharp
