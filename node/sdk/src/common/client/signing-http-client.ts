@@ -30,10 +30,11 @@ export function createSigningHttpClient(signer: SignerFunction, httpClient: Univ
                     first = r.value;
                     requireOneEnvelope(first);
                 }
-                headers = await signatureHeaders(signer, first ?? new Uint8Array(0));
+                // The signing function is the caller's: the deadline or a cancellation ends the wait for it too.
+                headers = await untilAborted(signatureHeaders(signer, first ?? new Uint8Array(0)), req.signal);
             } else {
                 whole = await untilAborted(readAll(it), req.signal);
-                headers = await signatureHeaders(signer, whole);
+                headers = await untilAborted(signatureHeaders(signer, whole), req.signal);
             }
         } catch (e) {
             it.return?.().catch(() => {});

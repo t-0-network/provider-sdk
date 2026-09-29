@@ -37,7 +37,11 @@ export function createClient<T extends DescService>(signer: string | Buffer | ((
             })();
             // A server stream is awaited only once its iteration starts; until then a refusal must not
             // count as an unhandled rejection. The caller still gets it from the first next().
-            response.catch(() => {});
+            response.catch(() => {
+                if (signal !== undefined) {
+                    streamEnds.get(signal)?.();
+                }
+            });
             return response;
         },
     });
@@ -52,12 +56,17 @@ export function createClient<T extends DescService>(signer: string | Buffer | ((
 
 type ServerStreamingCall = (input: unknown, options?: CallOptions) => AsyncIterable<unknown>;
 
+// What to do when a server stream's call fails before it is read, keyed by the signal its transport gets.
+const streamEnds = new WeakMap<AbortSignal, () => void>();
+
 // Leaving a for-await loop over a server stream early calls return(): it cancels the call and reads
 // it to its end, so the socket and the deadline timer are released at once, not at the deadline.
 function cancelOnReturn(call: ServerStreamingCall): ServerStreamingCall {
     return (input, options) => {
         const cancel = new AbortController();
+        // Unlinked when the call ends: refused or failed before it is read, read to its end, or left.
         const unlink = linkSignal(options?.signal, cancel);
+        streamEnds.set(cancel.signal, unlink);
         const it = call(input, {...options, signal: cancel.signal})[Symbol.asyncIterator]();
         return {
             [Symbol.asyncIterator]: () => ({

@@ -5,7 +5,7 @@ import { getEventListeners } from 'node:events';
 import type { AddressInfo } from 'node:net';
 import { Code, createConnectRouter, type ServiceImpl } from '@connectrpc/connect';
 import { universalRequestFromNodeRequest, universalResponseToNodeResponse } from '@connectrpc/connect-node';
-import { createClient, WireFormat } from '../src/client/client.js';
+import { createClient, WireFormat, type Signature } from '../src/client/client.js';
 import { computeDigest, NetworkHeaders, parsePublicKey, publicKeysEqual, verifySignature } from '../src/crypto/index.js';
 import { StreamTest, isCode, newKeypair, stringValues } from './stream_helpers.js';
 
@@ -385,7 +385,7 @@ describe('createClient routes unary and streaming calls to their own transport',
     for (const url of ['', null] as unknown as string[]) {
       assert.throws(() => createClient(key, url, StreamTest), { message: 'base URL is not set' });
     }
-    for (const url of ['api.t-0.network', 'api.t-0.network:443', 'ftp://h', 'http://', 'http://:8080', 'http:foo', 'http://h:99999', 'http://h:0', 'not a url', 'http://my_host:8080', 'http://user@h', 'http://h:', 'http://bücher.example', 'https://api.t-0.network/v1', 'https://api.t-0.network?x', 'https://api.t-0.network#x']) {
+    for (const url of ['api.t-0.network', 'api.t-0.network:443', 'ftp://h', 'http://', 'http://:8080', 'http:foo', 'http://h:99999', 'http://h:0', 'not a url', 'http://my_host:8080', 'http://user@h', 'http://h:', 'http://bücher.example', 'https://api.t-0.network/v1', 'https://api.t-0.network?x', 'https://api.t-0.network#x', 'http://[:::]:8080']) {
       assert.throws(() => createClient(key, url, StreamTest), { message: 'base URL is not valid' }, url);
     }
     for (const url of [undefined, 'https://api.t-0.network', 'http://localhost:8080', 'http://127.0.0.1:1234', 'http://[::1]:8080', 'https://api.t-0.network/', 'HTTPS://api.t-0.network']) {
@@ -475,6 +475,64 @@ describe('createClient routes unary and streaming calls to their own transport',
         setTimeout(() => reject(new Error('the call stayed open after the caller aborted')), 5_000).unref();
       });
       await Promise.race([serverSawClose, giveUp]);
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
+  it('a signing function that never returns is ended by the deadline, and nothing is sent', async () => {
+    await withServer(async (srv) => {
+      const never = () => new Promise<Signature>(() => {});
+      const client = createClient(never, srv.url, StreamTest, { timeoutMs: 100, streamTimeoutMs: 100 });
+      const drain = async (stream: AsyncIterable<unknown>) => {
+        for await (const _ of stream) { /* drain */ }
+      };
+      const giveUp = new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error('the deadline did not end the wait for the signature')), 5_000).unref();
+      });
+      await assert.rejects(Promise.race([client.unary({ value: 'u' }), giveUp]), isCode(Code.DeadlineExceeded));
+      await assert.rejects(Promise.race([client.clientStream(stringValues('c')), giveUp]), isCode(Code.DeadlineExceeded));
+      await assert.rejects(Promise.race([drain(client.serverStream({ value: 's' })), giveUp]), isCode(Code.DeadlineExceeded));
+      assert.equal(srv.checks.length, 0, 'nothing is sent');
+    });
+  });
+
+  it('refused server streams that are never read leave no listener on the caller\'s signal', async () => {
+    const client = createClient(newKeypair().privateKeyHex, 'http://127.0.0.1:9', StreamTest);
+    const shared = new AbortController();
+    for (let i = 0; i < 5; i++) {
+      client.serverStream({ value: 's' }, { signal: shared.signal, timeoutMs: 0 });
+    }
+    await new Promise((resolve) => setTimeout(resolve, 20));
+    assert.equal(getEventListeners(shared.signal, 'abort').length, 0);
+  });
+
+  it('aborting the caller\'s signal before the first next() cancels the running request', async () => {
+    let arrived: () => void = () => {};
+    const requestArrived = new Promise<void>((resolve) => { arrived = resolve; });
+    let closed: () => void = () => {};
+    const serverSawClose = new Promise<void>((resolve) => { closed = resolve; });
+    const server = http.createServer(async (req, res) => {
+      for await (const _ of req) { /* the request */ }
+      res.on('close', () => closed());
+      res.writeHead(200, { 'Content-Type': 'application/connect+proto' });
+      res.write(Buffer.from(envelopeOf('ok'), 'hex')); // and never ends
+      arrived();
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    try {
+      const client = createClient(newKeypair().privateKeyHex, `http://127.0.0.1:${(server.address() as AddressInfo).port}`, StreamTest);
+      const caller = new AbortController();
+      const it = client.serverStream({ value: 's' }, { signal: caller.signal })[Symbol.asyncIterator]();
+      const giveUp = (what: string) => new Promise<never>((_, reject) => {
+        setTimeout(() => reject(new Error(what)), 5_000).unref();
+      });
+      await Promise.race([requestArrived, giveUp('the request did not arrive')]);
+      caller.abort();
+      await Promise.race([serverSawClose, giveUp('the request stayed open after the caller aborted')]);
+      await assert.rejects(it.next(), isCode(Code.Canceled));
+      assert.equal(getEventListeners(caller.signal, 'abort').length, 0);
     } finally {
       server.closeAllConnections();
       await new Promise<void>((resolve) => server.close(() => resolve()));
