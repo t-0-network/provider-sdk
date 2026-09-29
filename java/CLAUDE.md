@@ -29,7 +29,7 @@ GitHub issue #89 raised concern that the framed path looked like dead code — i
 
 ## Streaming Calls & Deadlines (client side)
 
-`SigningClientInterceptor` signs only the first message of a client/server stream (unframed) and defers the call's start until then (or until it is cancelled or its deadline or context ends), giving the listener one `onReady` before it; bidi is refused with `UNIMPLEMENTED`. `DefaultDeadlineInterceptor`: unary 15 s, streams none by default. Read [`docs/java/STREAMING.md`](../docs/java/STREAMING.md) before touching either.
+`SigningClientInterceptor` signs only the first message of a client/server stream (unframed) and defers the call's start until then (or until it is cancelled or its deadline or context ends), giving the listener one `onReady` before it; bidi is refused with `UNIMPLEMENTED`. `DefaultDeadlineInterceptor`: unary 15 s, streams none by default. Read [`docs/STREAMING.md`](../docs/STREAMING.md) before touching either.
 
 ---
 
@@ -41,11 +41,6 @@ Cross-server tests live in `sdk/src/test/java/network/t0/sdk/integration/CrossSe
 cd cross_test/go_helper && go build -o go_helper .                              # Build Go helper
 cd java && ./gradlew test --tests "network.t0.sdk.integration.CrossServerTests" # Run cross-tests
 ```
-
-Tests cover:
-- **Go→Java**: Health check + PayOut (via `--grpc`)
-- **Java→Go**: Health check + PayOut (Java `BlockingNetworkClient` → Go server with dual-framing)
-- **Java→Go streaming**: client and server streams against `test.v1.StreamTest`, checked through the helper's log (see [`STREAMING.md`](../docs/java/STREAMING.md#how-it-is-tested))
 
 In CI, tests **fail** (not skip) if the Go helper binary is missing.
 
@@ -114,7 +109,8 @@ See [`docs/java/ISSUES_AND_LESSONS.md`](../docs/java/ISSUES_AND_LESSONS.md) for 
 
 Docs live in the top-level [`docs/java/`](../docs/java/) directory:
 - [`SIGNATURE_VERIFICATION.md`](../docs/java/SIGNATURE_VERIFICATION.md) — dual-path verification rationale (CRITICAL — read before touching `SignatureVerificationInterceptor`)
-- [`STREAMING.md`](../docs/java/STREAMING.md) — streaming signing, deferred start, deadlines, and how they are tested
 - [`GITHUB_SETUP.md`](../docs/java/GITHUB_SETUP.md) — CI/CD, secrets, publishing setup
 - [`PROTO_SCHEMA_MANAGEMENT.md`](../docs/java/PROTO_SCHEMA_MANAGEMENT.md) — protobuf code generation
 - [`ISSUES_AND_LESSONS.md`](../docs/java/ISSUES_AND_LESSONS.md) — historical issues and solutions
+
+The streaming and timeout rules shared by every SDK: [`docs/STREAMING.md`](../docs/STREAMING.md).

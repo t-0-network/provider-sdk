@@ -46,7 +46,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Tests {@link NetworkClient.SigningClientInterceptor} over a recording fake of the underlying call.
- * See {@code docs/java/STREAMING.md}.
+ * See {@code docs/STREAMING.md}.
  */
 class SigningClientInterceptorStreamingTest {
 
@@ -102,6 +102,12 @@ class SigningClientInterceptorStreamingTest {
         assertThat(raw.headers.getAll(SIGNATURE)).hasSize(1);
         assertThat(raw.headers.get(SIGNATURE_TIMESTAMP)).isEqualTo(String.valueOf(FIXED_TIMESTAMP_MS));
         assertThat(raw.headers.get(PUBLIC_KEY)).isEqualTo("0x" + HexUtils.bytesToHex(signer.getPublicKey()));
+
+        assertThat(verifies(raw.headers, bytes("m1"))).isTrue();
+        assertThat(verifies(raw.headers, bytes("m2"))).isFalse();
+        assertThat(verifies(raw.headers, concat(bytes("m1"), bytes("m2")))).isFalse();
+        // Signed above the gRPC framer: not the framed first message.
+        assertThat(verifies(raw.headers, frame(bytes("m1")))).isFalse();
     }
 
     @Test
@@ -143,23 +149,6 @@ class SigningClientInterceptorStreamingTest {
         assertThat(raw.headers.getAll(PUBLIC_KEY)).hasSize(1);
         assertThat(raw.headers.getAll(SIGNATURE_TIMESTAMP)).hasSize(1);
         assertThat(raw.headers.get(SIGNATURE)).isNotEqualTo("0xstale");
-    }
-
-    @Test
-    @DisplayName("Client stream: the signature covers the first message's bytes, nothing else")
-    void clientStreamSignatureCoversFirstMessageBytes() {
-        ClientCall<StringValue, StringValue> call = intercepted.newCall(CLIENT_STREAM, callOptions());
-        call.start(new RecordingListener<>(), new Metadata());
-        call.sendMessage(value("m1"));
-        call.sendMessage(value("m2"));
-        call.halfClose();
-
-        Metadata headers = channel.lastCall().headers;
-        assertThat(verifies(headers, bytes("m1"))).isTrue();
-        assertThat(verifies(headers, bytes("m2"))).isFalse();
-        assertThat(verifies(headers, concat(bytes("m1"), bytes("m2")))).isFalse();
-        // Java signs above the gRPC framer: not the framed first message.
-        assertThat(verifies(headers, frame(bytes("m1")))).isFalse();
     }
 
     @Test
@@ -411,8 +400,7 @@ class SigningClientInterceptorStreamingTest {
 
         // No sendMessage(), no halfClose(): the deadline alone.
         RecordingCall raw = channel.lastCall();
-        raw.awaitStartEntered();
-        assertThat(raw.events()).containsExactly("start", "request:1");
+        awaitEvents(raw, "start", "request:1");
         assertThat(raw.headers.get(SIGNATURE)).isNull();
 
         // A message after that goes to the started call, which grpc has already failed.
@@ -433,8 +421,58 @@ class SigningClientInterceptorStreamingTest {
         context.cancel(null);
 
         RecordingCall raw = channel.lastCall();
-        assertThat(raw.events()).containsExactly("start");
+        awaitEvents(raw, "start");
         assertThat(raw.headers.get(SIGNATURE)).isNull();
+    }
+
+    @Test
+    @DisplayName("A listener run by one call's pre-start deadline does not hold up the deadline of another")
+    void preStartDeadlineCallbacksDoNotHoldUpOtherCalls() throws Exception {
+        // As ClientCallImpl with a direct executor: the expired call closes its listener inside start().
+        channel.closeOnStart(Status.DEADLINE_EXCEEDED);
+        CountDownLatch inSlowCallback = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        RecordingListener<StringValue> slow = new RecordingListener<>();
+        slow.onCloseAction = () -> {
+            inSlowCallback.countDown();
+            awaitQuietly(release);
+        };
+        try {
+            intercepted.newCall(CLIENT_STREAM, callOptions().withDeadlineAfter(20, TimeUnit.MILLISECONDS))
+                    .start(slow, new Metadata());
+            assertThat(inSlowCallback.await(5, TimeUnit.SECONDS)).as("slow onClose entered").isTrue();
+
+            intercepted.newCall(CLIENT_STREAM, callOptions().withDeadlineAfter(20, TimeUnit.MILLISECONDS))
+                    .start(new RecordingListener<>(), new Metadata());
+            channel.lastCall().awaitStartEntered();
+        } finally {
+            release.countDown();
+        }
+    }
+
+    @Test
+    @DisplayName("Cancelling the caller's context does not run the listener on the cancelling thread")
+    void contextCancellationDoesNotRunTheListenerOnTheCancellingThread() throws Exception {
+        // In a provider handler that thread is the server's: a slow listener must not hold it.
+        channel.closeOnStart(Status.CANCELLED);
+        CountDownLatch release = new CountDownLatch(1);
+        RecordingListener<StringValue> slow = new RecordingListener<>();
+        slow.onCloseAction = () -> awaitQuietly(release);
+        Context.CancellableContext context = Context.current().withCancellation();
+        ClientCall<StringValue, StringValue> call =
+                context.call(() -> intercepted.newCall(CLIENT_STREAM, callOptions()));
+        call.start(slow, new Metadata());
+
+        Thread canceller = new Thread(() -> context.cancel(null));
+        canceller.setDaemon(true); // a hang must not keep the test JVM alive
+        try {
+            canceller.start();
+            canceller.join(5_000);
+            assertThat(canceller.isAlive()).as("context.cancel() returned").isFalse();
+        } finally {
+            release.countDown();
+        }
+        awaitEvents(channel.lastCall(), "start");
     }
 
     @Test
@@ -637,6 +675,23 @@ class SigningClientInterceptorStreamingTest {
     private static String signature64Hex(Metadata headers) {
         byte[] signature = HexUtils.hexToBytes(HexUtils.stripHexPrefix(headers.get(SIGNATURE)));
         return HexUtils.bytesToHex(Arrays.copyOf(signature, 64));
+    }
+
+    /** Waits until the call has recorded exactly {@code expected}; starts on other threads record late. */
+    private static void awaitEvents(RecordingCall raw, String... expected) throws InterruptedException {
+        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+        while (!raw.events().equals(List.of(expected)) && System.nanoTime() < deadline) {
+            TimeUnit.MILLISECONDS.sleep(5);
+        }
+        assertThat(raw.events()).containsExactly(expected);
+    }
+
+    private static void awaitQuietly(CountDownLatch latch) {
+        try {
+            latch.await(10, TimeUnit.SECONDS);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     private static byte[] concat(byte[] a, byte[] b) {

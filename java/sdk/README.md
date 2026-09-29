@@ -226,7 +226,7 @@ AsyncNetworkClient.create(endpoint, signer, NetworkServiceGrpc::newStub,
         Duration.ofSeconds(15), Duration.ofMinutes(10));
 ```
 
-Details (readiness, cancellation, empty streams, deadlines, tests): [`docs/java/STREAMING.md`](../../docs/java/STREAMING.md).
+The rules shared by every SDK: [`docs/STREAMING.md`](../../docs/STREAMING.md).
 
 ---
 

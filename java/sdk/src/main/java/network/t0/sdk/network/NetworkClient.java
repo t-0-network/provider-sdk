@@ -65,7 +65,7 @@ import java.util.concurrent.TimeUnit;
  *
  * <p>Unary calls get a default deadline of {@value #DEFAULT_TIMEOUT_SECONDS} seconds, streaming calls
  * none. Client- and server-streaming calls are signed over their first request message only;
- * bidirectional streams fail with {@code UNIMPLEMENTED}. See {@code docs/java/STREAMING.md}.
+ * bidirectional streams fail with {@code UNIMPLEMENTED}. See {@code docs/STREAMING.md}.
  *
  * <p><b>Thread Safety:</b> Client instances are thread-safe. The underlying gRPC channel
  * and stubs support concurrent use from multiple threads. The signing interceptor creates
@@ -291,7 +291,7 @@ public abstract class NetworkClient implements Closeable {
      * sits above the framer); later stream messages are sent unsigned. The underlying call starts on
      * that first message, since the headers must be complete by then, or unsigned when it is cancelled
      * or its deadline or context ends first. Bidirectional streams are refused with
-     * {@code UNIMPLEMENTED}. See {@code docs/java/STREAMING.md}.
+     * {@code UNIMPLEMENTED}. See {@code docs/STREAMING.md}.
      *
      * <p>This class is thread-safe. Each call to {@link #interceptCall} creates
      * independent state for that specific call.
@@ -306,8 +306,11 @@ public abstract class NetworkClient implements Closeable {
                 Metadata.Key.of(Headers.SIGNATURE_TIMESTAMP, Metadata.ASCII_STRING_MARSHALLER);
 
         // Deadlines of calls still waiting for their first message; grpc keeps the ones of started calls.
+        // One thread for every call in the JVM, so it only hands the start on to CALLBACK_EXECUTOR.
         private static final ScheduledExecutorService DEADLINE_TIMER = newDeadlineTimer();
-        // Runs the first onReady of calls whose CallOptions have no executor.
+        // Runs the first onReady of calls whose CallOptions have no executor, and the unsigned start of
+        // calls whose deadline or context ends first. That start may run the caller's listener inline,
+        // which must not hold up the shared timer or the thread that cancelled the context.
         private static final ExecutorService CALLBACK_EXECUTOR = Executors.newCachedThreadPool(task -> {
             Thread thread = new Thread(task, "t0-network-client-callback");
             thread.setDaemon(true);
@@ -387,10 +390,11 @@ public abstract class NetworkClient implements Closeable {
                         this.headers = headers;
                         Deadline deadline = callOptions.getDeadline();
                         if (deadline != null) {
-                            deadlineTimer = deadline.runOnExpiration(this::startUnsigned, DEADLINE_TIMER);
+                            deadlineTimer = deadline.runOnExpiration(
+                                    () -> CALLBACK_EXECUTOR.execute(this::startUnsigned), DEADLINE_TIMER);
                         }
                     }
-                    context.addListener(contextListener, Runnable::run);
+                    context.addListener(contextListener, CALLBACK_EXECUTOR);
 
                     // The call is ready for its first message, and only that message starts rawCall: a
                     // sender that sends only on onReady needs this one, or both wait for ever.
@@ -652,7 +656,7 @@ public abstract class NetworkClient implements Closeable {
     /**
      * gRPC client interceptor that gives each call without a deadline one when the call is created:
      * the unary timeout for unary calls, the stream timeout (possibly none) for all others.
-     * See {@code docs/java/STREAMING.md}.
+     * See {@code docs/STREAMING.md}.
      */
     static final class DefaultDeadlineInterceptor implements ClientInterceptor {
 

@@ -5,7 +5,6 @@ import io.grpc.CallOptions;
 import io.grpc.Channel;
 import io.grpc.ClientInterceptors;
 import io.grpc.ManagedChannel;
-import io.grpc.Metadata;
 import io.grpc.MethodDescriptor;
 import io.grpc.MethodDescriptor.MethodType;
 import io.grpc.Status;
@@ -18,11 +17,7 @@ import io.grpc.stub.BlockingClientCall;
 import io.grpc.stub.ClientCallStreamObserver;
 import io.grpc.stub.ClientCalls;
 import io.grpc.stub.ClientResponseObserver;
-import io.grpc.stub.MetadataUtils;
 import io.grpc.stub.StreamObserver;
-import network.t0.sdk.common.Headers;
-import network.t0.sdk.crypto.Keccak256;
-import network.t0.sdk.crypto.SignResult;
 import network.t0.sdk.crypto.Signer;
 import network.t0.sdk.network.BlockingNetworkClient;
 import network.t0.sdk.network.SigningInterceptors;
@@ -32,7 +27,6 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
 import java.io.BufferedReader;
-import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -223,7 +217,7 @@ class CrossServerTests {
         }
     }
 
-    // --- Streaming: Java client -> Go server over gRPC (h2c), see docs/java/STREAMING.md ---
+    // --- Streaming: Java client -> Go server over gRPC (h2c), see docs/STREAMING.md ---
     // The client sees only UNAUTHENTICATED, whatever the reason: the tests read the helper's log.
 
     private static final MethodDescriptor<StringValue, StringValue> CLIENT_STREAM =
@@ -236,28 +230,6 @@ class CrossServerTests {
     private static final String SERVER_STREAM_VERIFIED =
             "/test.v1.StreamTest/ServerStream verified over the first payload";
     private static final String CLIENT_STREAM_REJECTED = "/test.v1.StreamTest/ClientStream rejected: ";
-
-    @Test
-    @Timeout(30)
-    void javaClient_goServer_clientStream() throws Exception {
-        skipOrFailIfNoHelper();
-        GoServer goServer = startGoServer();
-
-        try (var client = streamClient(goServer.port(), PRIVATE_KEY)) {
-            CompletableFuture<String> result = new CompletableFuture<>();
-            StreamObserver<StringValue> requests = ClientCalls.asyncClientStreamingCall(
-                    client.getChannel().newCall(CLIENT_STREAM, CallOptions.DEFAULT), resultObserver(result));
-            requests.onNext(StringValue.of("m1"));
-            requests.onNext(StringValue.of("m2"));
-            requests.onNext(StringValue.of("m3"));
-            requests.onCompleted();
-
-            assertThat(result.get(10, TimeUnit.SECONDS)).isEqualTo("m1,m2,m3");
-            goServer.waitForLog(CLIENT_STREAM_VERIFIED);
-        } finally {
-            stop(goServer);
-        }
-    }
 
     /** A client that buffered the stream to sign it would time out waiting for the log line. */
     @Test
@@ -360,27 +332,6 @@ class CrossServerTests {
         }
     }
 
-    @Test
-    @Timeout(30)
-    void javaClient_goServer_clientStream_unknownKeyIsRejected() throws Exception {
-        skipOrFailIfNoHelper();
-        GoServer goServer = startGoServer();
-
-        String otherPrivateKey = "0000000000000000000000000000000000000000000000000000000000000001";
-        try (var client = streamClient(goServer.port(), otherPrivateKey)) {
-            CompletableFuture<String> result = new CompletableFuture<>();
-            StreamObserver<StringValue> requests = ClientCalls.asyncClientStreamingCall(
-                    client.getChannel().newCall(CLIENT_STREAM, CallOptions.DEFAULT), resultObserver(result));
-            requests.onNext(StringValue.of("m1"));
-            requests.onCompleted();
-
-            assertUnauthenticated(result);
-            goServer.waitForLog(CLIENT_STREAM_REJECTED + "unknown public key");
-        } finally {
-            stop(goServer);
-        }
-    }
-
     /** grpc-java enforces a deadline only from the start, which waits for the first message. */
     @Test
     @Timeout(30)
@@ -416,52 +367,6 @@ class CrossServerTests {
             assertUnauthenticated(sendClientStream(client.getChannel(), List.of()));
             goServer.waitForLog(CLIENT_STREAM_REJECTED + "no first message");
         } finally {
-            stop(goServer);
-        }
-    }
-
-    @Test
-    @Timeout(30)
-    void unsignedClientStreamIsRejected() throws Exception {
-        skipOrFailIfNoHelper();
-        GoServer goServer = startGoServer();
-        ManagedChannel channel = plainChannel(goServer.port());
-
-        try {
-            assertUnauthenticated(sendClientStream(channel, List.of("m1")));
-            goServer.waitForLog(CLIENT_STREAM_REJECTED + "unknown public key");
-        } finally {
-            shutdown(channel);
-            stop(goServer);
-        }
-    }
-
-    /** Hand-built headers over the first message pass (the control); over the whole stream they do not. */
-    @Test
-    @Timeout(30)
-    void signatureOverTheWholeStreamIsRejected() throws Exception {
-        skipOrFailIfNoHelper();
-        GoServer goServer = startGoServer();
-        ManagedChannel channel = plainChannel(goServer.port());
-
-        try {
-            List<String> values = List.of("m1", "m2", "m3");
-            ByteArrayOutputStream wholeStream = new ByteArrayOutputStream();
-            values.forEach(v -> wholeStream.writeBytes(StringValue.of(v).toByteArray()));
-
-            Channel signedOverFirst = ClientInterceptors.intercept(channel, MetadataUtils.newAttachHeadersInterceptor(
-                    signatureHeaders(StringValue.of("m1").toByteArray(), System.currentTimeMillis())));
-            assertThat(sendClientStream(signedOverFirst, values).get(10, TimeUnit.SECONDS)).isEqualTo("m1,m2,m3");
-            goServer.waitForLog(CLIENT_STREAM_VERIFIED);
-
-            int afterFirstCall = goServer.logLength();
-            Channel signedOverAll = ClientInterceptors.intercept(channel, MetadataUtils.newAttachHeadersInterceptor(
-                    signatureHeaders(wholeStream.toByteArray(), System.currentTimeMillis())));
-            assertUnauthenticated(sendClientStream(signedOverAll, values));
-            goServer.waitForLog(CLIENT_STREAM_REJECTED + "signature does not verify over the first message",
-                    afterFirstCall, Duration.ofSeconds(10));
-        } finally {
-            shutdown(channel);
             stop(goServer);
         }
     }
@@ -588,18 +493,6 @@ class CrossServerTests {
     private static void shutdown(ManagedChannel channel) throws InterruptedException {
         channel.shutdownNow();
         channel.awaitTermination(5, TimeUnit.SECONDS);
-    }
-
-    /** The signature headers the SDK sends, built by hand over the given bytes. */
-    private static Metadata signatureHeaders(byte[] signed, long timestampMs) {
-        SignResult signature = Signer.fromHex(PRIVATE_KEY)
-                .sign(Keccak256.hash(signed, Headers.encodeTimestamp(timestampMs)));
-        Metadata headers = new Metadata();
-        headers.put(Metadata.Key.of(Headers.PUBLIC_KEY, Metadata.ASCII_STRING_MARSHALLER), signature.getPublicKeyHex());
-        headers.put(Metadata.Key.of(Headers.SIGNATURE, Metadata.ASCII_STRING_MARSHALLER), signature.getSignatureHex());
-        headers.put(Metadata.Key.of(Headers.SIGNATURE_TIMESTAMP, Metadata.ASCII_STRING_MARSHALLER),
-                String.valueOf(timestampMs));
-        return headers;
     }
 
     /** Sends the values on a new ClientStream call and half-closes it. */

@@ -95,7 +95,7 @@ public final class BlockingNetworkClient<S extends AbstractBlockingStub<S>> exte
     /**
      * Creates a new BlockingNetworkClient with separate default deadlines for unary and streaming calls.
      *
-     * <p>See {@code docs/java/STREAMING.md}.
+     * <p>See {@code docs/STREAMING.md}.
      *
      * @param endpoint      the T-0 Network endpoint (e.g., "https://api.t-0.network" or "api.t-0.network:443")
      * @param signer        the signer to use for signing requests

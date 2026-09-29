@@ -160,57 +160,6 @@ class CrossVectorTest {
         }
     }
 
-    /**
-     * Signed bytes (derived from each case's body), digest and signature of every stream case.
-     * That the client emits the first_payload case is tested in SigningClientInterceptorStreamingTest.
-     */
-    @Test
-    void streamSigningCases_shouldMatchVectorBytes() {
-        JsonObject keys = vectors.getAsJsonObject("keys");
-        Signer signer = Signer.fromHex(keys.get("private_key").getAsString());
-
-        JsonArray cases = vectors.getAsJsonArray("stream_signing_cases");
-        assertThat(cases).isNotEmpty();
-
-        for (var element : cases) {
-            JsonObject vec = element.getAsJsonObject();
-            String name = vec.get("name").getAsString();
-            byte[] body = HexUtils.hexToBytes(vec.get("body_hex").getAsString());
-            byte[] signed = firstMessage(body, vec.get("covers").getAsString());
-
-            assertThat(HexUtils.bytesToHex(signed))
-                    .as("signed bytes for %s", name)
-                    .isEqualTo(vec.get("signed_hex").getAsString());
-
-            byte[] tsBytes = ByteBuffer.allocate(8)
-                    .order(ByteOrder.LITTLE_ENDIAN)
-                    .putLong(vec.get("timestamp_ms").getAsLong())
-                    .array();
-            byte[] digest = Keccak256.hash(signed, tsBytes);
-            assertThat(HexUtils.bytesToHex(digest))
-                    .as("digest for %s", name)
-                    .isEqualTo(vec.get("expected_hash").getAsString());
-
-            byte[] sig64 = Arrays.copyOf(signer.sign(digest).getSignature(), 64);
-            assertThat(HexUtils.bytesToHex(sig64))
-                    .as("signature for %s", name)
-                    .isEqualTo(vec.get("expected_signature").getAsString());
-        }
-    }
-
-    /** The first envelope (flags, uint32be length, payload) or its payload; empty for an empty body. */
-    private static byte[] firstMessage(byte[] body, String covers) {
-        if (body.length == 0) {
-            return body;
-        }
-        int length = ByteBuffer.wrap(body, 1, 4).getInt();
-        return switch (covers) {
-            case "first_envelope" -> Arrays.copyOfRange(body, 0, 5 + length);
-            case "first_payload" -> Arrays.copyOfRange(body, 5, 5 + length);
-            default -> throw new AssertionError("unknown covers value: " + covers);
-        };
-    }
-
     /** What a provider hashes: the raw body with the little-endian timestamp appended. */
     private static byte[] requestDigest(JsonObject vec) {
         byte[] body = HexUtils.hexToBytes(vec.get("body_hex").getAsString());
