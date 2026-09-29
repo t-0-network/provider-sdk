@@ -33,6 +33,51 @@ UNARY = MethodInfo(
 )
 
 
+# The same rows in every SDK.
+ACCEPTED_BASE_URLS = [
+    "https://api.t-0.network",
+    "https://api.t-0.network/",
+    "HTTPS://api.t-0.network",
+    "http://localhost:8080",
+    "http://localhost:8080/",
+    "http://127.0.0.1:1234",
+    "http://255.255.255.255:1",
+    "http://[::1]:8080",
+    "http://my-host:8080",
+    "http://a1.b2.example",
+    "http://h",
+]
+REFUSED_BASE_URLS = [
+    "api.t-0.network",
+    "api.t-0.network:443",
+    "ftp://h",
+    "http://",
+    "http://:8080",
+    "http:foo",
+    "not a url",
+    "http://h:99999",
+    "http://h:0",
+    "http://h:",
+    "http://user@h",
+    "http://my_host:8080",
+    "http://bücher.example",
+    "https://api.t-0.network/v1",
+    "https://api.t-0.network/v1/",
+    "https://api.t-0.network?x",
+    "https://api.t-0.network#x",
+    "http://[:::]:8080",
+    "http://a..b",
+    "http://-foo",
+    "http://foo-",
+    "http://1.2.3",
+    "http://127.1",
+    "http://256.1.1.1",
+    "http://01.2.3.4",
+    "http://a.1b",
+    "http://localhost.",
+]
+
+
 class _Client(ConnectClient):
     def __init__(self, address: str, **kwargs) -> None:
         super().__init__(address, codec=google_protobuf_binary_codec(), **kwargs)
@@ -74,58 +119,14 @@ class TestBaseURL:
         with pytest.raises(ValueError, match="^base URL is not set$"):
             factory(PRIVATE_KEY, _Client, base_url="")
 
-    @pytest.mark.parametrize(
-        "base_url",
-        [
-            "https://api.t-0.network",
-            "http://localhost:8080",
-            "http://127.0.0.1:1234",
-            "http://[::1]:8080",
-            "http://my-host:8080",
-            "http://a1.b2.example",
-            "http://h",
-        ],
-    )
+    @pytest.mark.parametrize("base_url", ACCEPTED_BASE_URLS)
     @pytest.mark.parametrize("factory", FACTORIES)
     def test_valid_url_is_accepted(self, factory, base_url: str) -> None:
         client = factory(PRIVATE_KEY, _Client, base_url=base_url)
-        assert client._address == base_url
+        # A trailing "/" is dropped: connectrpc appends "/<service>/<method>" to the address.
+        assert client._address == base_url.removesuffix("/")
 
-    @pytest.mark.parametrize("factory", FACTORIES)
-    def test_trailing_slash_is_accepted_and_dropped(self, factory) -> None:
-        """connectrpc appends "/<service>/<method>" to the address."""
-        client = factory(PRIVATE_KEY, _Client, base_url="https://api.t-0.network/")
-        assert client._address == "https://api.t-0.network"
-
-    @pytest.mark.parametrize(
-        "base_url",
-        [
-            "http://my_host:8080",
-            "api.t-0.network",
-            "api.t-0.network:443",
-            "ftp://h",
-            "http://",
-            "http://:8080",
-            "http:foo",
-            "http://h:99999",
-            "http://h:0",
-            "not a url",
-            "http://user@h",
-            "http://h:",
-            "http://bücher.example",
-            "https://api.t-0.network/v1",
-            "https://api.t-0.network?x",
-            "https://api.t-0.network#x",
-            "http://[:::]:8080",
-            "http://a..b",
-            "http://-foo",
-            "http://foo-",
-            "http://1.2.3",
-            "http://localhost.",
-            "http://256.1.1.1",
-            "http://a.1b",
-        ],
-    )
+    @pytest.mark.parametrize("base_url", REFUSED_BASE_URLS)
     @pytest.mark.parametrize("factory", FACTORIES)
     def test_invalid_url_is_refused(self, factory, base_url: str) -> None:
         with pytest.raises(ValueError, match="^base URL is not valid$"):
