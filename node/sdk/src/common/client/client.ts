@@ -27,12 +27,18 @@ export function createClient<T extends DescService>(signer: string | Buffer | ((
     const client = createConnectClient(svc, {
         unary: async (method, signal, timeoutMs, header, input, contextValues) =>
             unaryTransport.unary(method, signal, timeout("timeoutMs", timeoutMs), header, input, contextValues),
-        stream: async (method, signal, timeoutMs, header, input, contextValues) => {
-            // Policy: the network accepts no bidi streams (#370); over HTTP/1.1 they could not interleave anyway.
-            if (method.methodKind === "bidi_streaming") {
-                throw new ConnectError("bidirectional streams are not supported", Code.Unimplemented);
-            }
-            return streamTransport.stream(method, signal, timeout("timeoutMs", timeoutMs), header, input, contextValues);
+        stream: (method, signal, timeoutMs, header, input, contextValues) => {
+            const response = (async () => {
+                // Policy: the network accepts no bidi streams (#370); over HTTP/1.1 they could not interleave anyway.
+                if (method.methodKind === "bidi_streaming") {
+                    throw new ConnectError("bidirectional streams are not supported", Code.Unimplemented);
+                }
+                return streamTransport.stream(method, signal, timeout("timeoutMs", timeoutMs), header, input, contextValues);
+            })();
+            // A server stream is awaited only once its iteration starts; until then a refusal must not
+            // count as an unhandled rejection. The caller still gets it from the first next().
+            response.catch(() => {});
+            return response;
         },
     });
     const calls = client as Record<string, unknown>;

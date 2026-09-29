@@ -422,6 +422,26 @@ describe('createClient routes unary and streaming calls to their own transport',
     });
   });
 
+  it('a refused server stream rejects only when iterated, never unhandled', async () => {
+    const unhandled: unknown[] = [];
+    const onUnhandled = (reason: unknown) => { unhandled.push(reason); };
+    process.on('unhandledRejection', onUnhandled);
+    try {
+      const client = createClient(newKeypair().privateKeyHex, 'http://127.0.0.1:9', StreamTest);
+      const drain = async (stream: AsyncIterable<unknown>) => {
+        for await (const _ of stream) { /* drain */ }
+      };
+      const refusedTimeout = client.serverStream({ value: 's' }, { timeoutMs: 0 });
+      const refusedBidi = client.bidi(stringValues('m1'));
+      await new Promise((resolve) => setTimeout(resolve, 50)); // time for an unhandled rejection to be reported
+      assert.deepEqual(unhandled, []);
+      await assert.rejects(drain(refusedTimeout), { name: 'RangeError', message: 'timeoutMs must be a positive duration of at most 2147483647 ms' });
+      await assert.rejects(drain(refusedBidi), isCode(Code.Unimplemented));
+    } finally {
+      process.off('unhandledRejection', onUnhandled);
+    }
+  });
+
   it('leaving a server stream early cancels the call', async () => {
     let closed: () => void = () => {};
     const serverSawClose = new Promise<void>((resolve) => { closed = resolve; });
