@@ -16,10 +16,10 @@ namespace T0.ProviderSdk.Network;
 /// </remarks>
 public sealed class SigningDelegatingHandler : DelegatingHandler
 {
-    private readonly Signer _signer;
+    private readonly ISigner _signer;
     private readonly TimeProvider _timeProvider;
 
-    public SigningDelegatingHandler(Signer signer, TimeProvider? timeProvider = null)
+    public SigningDelegatingHandler(ISigner signer, TimeProvider? timeProvider = null)
     {
         _signer = signer ?? throw new ArgumentNullException(nameof(signer));
         _timeProvider = timeProvider ?? TimeProvider.System;

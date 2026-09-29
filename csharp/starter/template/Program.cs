@@ -9,7 +9,8 @@ Console.WriteLine($"Provider public key: {signer.GetPublicKeyHexPrefixed()}");
 
 // TODO: Step 1.2 Share the generated public key from .env with the T-0 team
 
-var networkClient = NetworkClient.CreateNetworkServiceClient(config.TZeroEndpoint, signer);
+var networkClient = NetworkClient.CreateNetworkServiceClient(
+    new NetworkClientOptions { BaseUrl = config.TZeroEndpoint }, signer);
 
 var server = new T0ProviderServer(config, signer);
 server.MapPaymentService<MyProvider.Services.PaymentHandler>(networkClient);

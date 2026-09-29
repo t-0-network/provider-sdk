@@ -50,7 +50,8 @@ csharp/
 - `NetworkClient.CreatePaymentIntentNetworkServiceClient()` — Auto-signing PaymentIntent gRPC client
 - `SignatureVerificationMiddleware` — ASP.NET Core middleware, verifies incoming requests
 - `SigningDelegatingHandler` — HttpClient handler, signs outgoing requests
-- `DefaultDeadlineInterceptor` — gRPC client interceptor, default deadline per call type from `NetworkClientOptions`
+- `NetworkClient.Create(options, signer, invoker => new XClient(invoker))` — Auto-signing client for any generated gRPC client
+- `NetworkClientOptions` — `BaseUrl`, `Timeout` (unary, 15 s), `StreamTimeout` (streams, 5 min)
 - `QuotePublisherService` — Abstract BackgroundService for periodic quote publishing
 
 ## Architecture Notes
@@ -59,7 +60,7 @@ csharp/
 - **Raw bytes signing**: `SignatureVerificationMiddleware` reads body bytes BEFORE gRPC deserialization
 - **DelegatingHandler pattern**: `SigningDelegatingHandler` wraps HttpClient to auto-sign outgoing requests
 - **First-frame signing for gRPC**: the handler signs only the first request frame as sent and pipes the rest unbuffered (`FirstFrameThenPipeContent`); a client stream goes out once its first message is written
-- **Deadlines, not HttpClient.Timeout**: `DefaultDeadlineInterceptor` (installed by the `Create*ServiceClient` helpers) sets per-call deadlines and refuses bidirectional streams; raw channels must be wrapped
+- **Deadlines, not HttpClient.Timeout**: every `NetworkClient` factory installs the internal `DefaultDeadlineInterceptor`, which gives a call without its own deadline the default for its kind and refuses bidirectional streams
 - Streaming, signing and timeout rules: [`docs/STREAMING.md`](../docs/STREAMING.md)
 - **Interfaces for testability**: `ISigner` and `ISignatureVerifier` enable mocking without real crypto
 - **BackgroundService pattern**: `QuotePublisherService` provides periodic timer with error handling
@@ -93,7 +94,7 @@ Versions: `sdk/T0.ProviderSdk/T0.ProviderSdk.csproj`.
 |----|----|
 | `crypto.Sign()` | `Signer.Sign()` |
 | `crypto.VerifySignature()` | `SignatureVerifier.Verify()` |
-| `network.NewServiceClient()` | `NetworkClient.CreateNetworkServiceClient()` |
+| `network.NewServiceClient()` | `NetworkClient.Create()` |
 | `network.SigningTransport` | `SigningDelegatingHandler` |
 | `provider.NewHttpHandler()` | `T0ProviderServer` |
 | `provider.StartServer()` | `T0ProviderServer.RunAsync()` |

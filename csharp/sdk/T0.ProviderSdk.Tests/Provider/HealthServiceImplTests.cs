@@ -32,7 +32,8 @@ public class HealthServiceImplTests
     {
         var port = TestPorts.FindFreePort();
         var signer = Signer.FromHex(PrivateKey);
-        var dummyNetworkClient = NetworkClient.CreateNetworkServiceClient("http://localhost:1", signer);
+        var dummyNetworkClient = NetworkClient.CreateNetworkServiceClient(
+            new NetworkClientOptions { BaseUrl = "http://localhost:1" }, signer);
 
         var config = new T0Config
         {
@@ -49,9 +50,10 @@ public class HealthServiceImplTests
     }
 
     private static Health.HealthClient NewSignedClient(int port) =>
-        new(NetworkClient.Create(
+        NetworkClient.Create(
             new NetworkClientOptions { BaseUrl = $"http://127.0.0.1:{port}" },
-            Signer.FromHex(PrivateKey)));
+            Signer.FromHex(PrivateKey),
+            invoker => new Health.HealthClient(invoker));
 
     [Fact]
     public async Task SignedCheck_AnswersForRegisteredServicesAndRefusesTheRest()

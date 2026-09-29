@@ -1,3 +1,4 @@
+using Grpc.Core;
 using Grpc.Core.Interceptors;
 using Grpc.Net.Client;
 using T0.ProviderSdk.Crypto;
@@ -7,30 +8,34 @@ using PaymentIntentApi = T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.Provider;
 namespace T0.ProviderSdk.Network;
 
 /// <summary>
-/// Factory for creating auto-signing gRPC clients.
+/// Factory for auto-signing gRPC clients of the T-0 Network.
 /// </summary>
+/// <remarks>
+/// Every client signs its requests and gives a call without a deadline of its own
+/// <see cref="NetworkClientOptions.Timeout"/> (unary) or <see cref="NetworkClientOptions.StreamTimeout"/>
+/// (client and server streams). Bidirectional streams are refused. A client keeps its connection for
+/// as long as it lives, so create one and reuse it. See docs/STREAMING.md.
+/// </remarks>
 public static class NetworkClient
 {
     /// <summary>
-    /// Creates a gRPC channel with auto-signing transport.
+    /// Creates a client from a generated gRPC client's constructor, for example
+    /// <c>NetworkClient.Create(options, signer, invoker =&gt; new NetworkService.NetworkServiceClient(invoker))</c>.
     /// </summary>
-    /// <remarks>
-    /// <see cref="NetworkClientOptions.Timeout"/> and <see cref="NetworkClientOptions.StreamTimeout"/>
-    /// apply only through <c>channel.Intercept(new DefaultDeadlineInterceptor(options))</c>, which also
-    /// rejects bidirectional streams. See docs/STREAMING.md.
-    /// </remarks>
-    public static GrpcChannel Create(
+    public static TClient Create<TClient>(
         NetworkClientOptions options,
-        Signer signer,
-        TimeProvider? timeProvider = null)
+        ISigner signer,
+        Func<CallInvoker, TClient> newClient)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(signer);
+        ArgumentNullException.ThrowIfNull(newClient);
 
-        var httpClient = CreateHttpClient(signer, timeProvider);
+        var httpClient = CreateHttpClient(signer);
+        GrpcChannel channel;
         try
         {
-            return GrpcChannel.ForAddress(options.BaseUrl, new GrpcChannelOptions
+            channel = GrpcChannel.ForAddress(options.BaseUrl, new GrpcChannelOptions
             {
                 HttpClient = httpClient,
                 DisposeHttpClient = true
@@ -41,11 +46,21 @@ public static class NetworkClient
             httpClient.Dispose();
             throw;
         }
+
+        try
+        {
+            return newClient(channel.Intercept(new DefaultDeadlineInterceptor(options)));
+        }
+        catch
+        {
+            channel.Dispose();
+            throw;
+        }
     }
 
-    internal static HttpClient CreateHttpClient(Signer signer, TimeProvider? timeProvider)
+    internal static HttpClient CreateHttpClient(ISigner signer)
     {
-        var signingHandler = new SigningDelegatingHandler(signer, timeProvider)
+        var signingHandler = new SigningDelegatingHandler(signer)
         {
             InnerHandler = new HttpClientHandler()
         };
@@ -54,52 +69,27 @@ public static class NetworkClient
         // which for a client stream is the whole upload.
         return new HttpClient(signingHandler)
         {
-            Timeout = Timeout.InfiniteTimeSpan
+            Timeout = System.Threading.Timeout.InfiniteTimeSpan
         };
     }
 
     /// <summary>
-    /// Creates a gRPC channel with auto-signing transport from a private key hex string.
-    /// </summary>
-    /// <remarks>Like <see cref="Create"/>, timeouts apply only through <see cref="DefaultDeadlineInterceptor"/>.</remarks>
-    public static GrpcChannel CreateChannel(
-        string privateKeyHex,
-        NetworkClientOptions? options = null,
-        TimeProvider? timeProvider = null)
-    {
-        if (string.IsNullOrEmpty(privateKeyHex))
-            throw new ArgumentException("provider private key is not set", nameof(privateKeyHex));
-
-        return Create(options ?? new NetworkClientOptions(), Signer.FromHex(privateKeyHex), timeProvider);
-    }
-
-    /// <summary>
     /// Creates a Payment NetworkService client with auto-signing transport, request validation and
-    /// <see cref="DefaultDeadlineInterceptor"/>.
+    /// default deadlines.
     /// </summary>
     public static PaymentApi.NetworkService.NetworkServiceClient CreateNetworkServiceClient(
-        string baseUrl,
-        Signer signer,
-        TimeProvider? timeProvider = null)
-    {
-        var options = new NetworkClientOptions { BaseUrl = baseUrl };
-        var channel = Create(options, signer, timeProvider);
-        var invoker = channel.Intercept(new RequestValidationInterceptor(), new DefaultDeadlineInterceptor(options));
-        return new PaymentApi.NetworkService.NetworkServiceClient(invoker);
-    }
+        NetworkClientOptions options,
+        ISigner signer) =>
+        Create(options, signer, invoker =>
+            new PaymentApi.NetworkService.NetworkServiceClient(invoker.Intercept(new RequestValidationInterceptor())));
 
     /// <summary>
-    /// Creates a PaymentIntent NetworkService client with auto-signing transport, request
-    /// validation and <see cref="DefaultDeadlineInterceptor"/>.
+    /// Creates a PaymentIntent NetworkService client with auto-signing transport, request validation
+    /// and default deadlines.
     /// </summary>
     public static PaymentIntentApi.NetworkService.NetworkServiceClient CreatePaymentIntentNetworkServiceClient(
-        string baseUrl,
-        Signer signer,
-        TimeProvider? timeProvider = null)
-    {
-        var options = new NetworkClientOptions { BaseUrl = baseUrl };
-        var channel = Create(options, signer, timeProvider);
-        var invoker = channel.Intercept(new RequestValidationInterceptor(), new DefaultDeadlineInterceptor(options));
-        return new PaymentIntentApi.NetworkService.NetworkServiceClient(invoker);
-    }
+        NetworkClientOptions options,
+        ISigner signer) =>
+        Create(options, signer, invoker =>
+            new PaymentIntentApi.NetworkService.NetworkServiceClient(invoker.Intercept(new RequestValidationInterceptor())));
 }

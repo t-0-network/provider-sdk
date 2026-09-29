@@ -10,24 +10,19 @@ namespace T0.ProviderSdk.Network;
 /// streams fail with <see cref="StatusCode.Unimplemented"/> before anything is sent.
 /// </summary>
 /// <remarks>See docs/STREAMING.md.</remarks>
-public sealed class DefaultDeadlineInterceptor : Interceptor
+internal sealed class DefaultDeadlineInterceptor : Interceptor
 {
-    private readonly TimeSpan? _unaryTimeout;
-    private readonly TimeSpan? _streamTimeout;
+    private readonly TimeSpan _unaryTimeout;
+    private readonly TimeSpan _streamTimeout;
 
     /// <summary>
     /// Takes the timeouts from <paramref name="options"/> as they are now.
     /// </summary>
-    /// <exception cref="ArgumentOutOfRangeException">
-    /// A timeout is zero or negative, other than <see cref="System.Threading.Timeout.InfiniteTimeSpan"/>.
-    /// </exception>
     public DefaultDeadlineInterceptor(NetworkClientOptions options)
     {
         ArgumentNullException.ThrowIfNull(options);
-        _unaryTimeout = Validate(options.Timeout, nameof(NetworkClientOptions.Timeout));
-        _streamTimeout = options.StreamTimeout is { } stream
-            ? Validate(stream, nameof(NetworkClientOptions.StreamTimeout))
-            : null;
+        _unaryTimeout = options.Timeout;
+        _streamTimeout = options.StreamTimeout;
     }
 
     public override TResponse BlockingUnaryCall<TRequest, TResponse>(
@@ -59,29 +54,18 @@ public sealed class DefaultDeadlineInterceptor : Interceptor
         AsyncDuplexStreamingCallContinuation<TRequest, TResponse> continuation) =>
         throw new RpcException(new Status(StatusCode.Unimplemented, "bidirectional streams are not supported"));
 
+    // The caller's own deadline replaces the default, longer or shorter. DateTime.MaxValue means no
+    // deadline to gRPC, so it gets the default: a timeout cannot be turned off.
     private ClientInterceptorContext<TRequest, TResponse> WithDefaultDeadline<TRequest, TResponse>(
         ClientInterceptorContext<TRequest, TResponse> context)
         where TRequest : class
         where TResponse : class
     {
-        if (context.Options.Deadline is not null)
+        if (context.Options.Deadline is { } deadline && deadline != DateTime.MaxValue)
             return context;
 
         var timeout = context.Method.Type == MethodType.Unary ? _unaryTimeout : _streamTimeout;
-        if (timeout is null)
-            return context;
-
         return new ClientInterceptorContext<TRequest, TResponse>(
-            context.Method, context.Host, context.Options.WithDeadline(DateTime.UtcNow + timeout.Value));
-    }
-
-    // InfiniteTimeSpan means no deadline.
-    private static TimeSpan? Validate(TimeSpan timeout, string name)
-    {
-        if (timeout == Timeout.InfiniteTimeSpan)
-            return null;
-        if (timeout <= TimeSpan.Zero)
-            throw new ArgumentOutOfRangeException(name, timeout, $"{name} must be greater than zero.");
-        return timeout;
+            context.Method, context.Host, context.Options.WithDeadline(DateTime.UtcNow + timeout));
     }
 }

@@ -231,10 +231,10 @@ public class CrossServerTests
             await TestPorts.WaitForPortAsync(port, TimeSpan.FromSeconds(10));
 
             var signer = Signer.FromHex(PrivateKey);
-            using var channel = NetworkClient.Create(
+            var healthClient = NetworkClient.Create(
                 new NetworkClientOptions { BaseUrl = $"http://127.0.0.1:{port}" },
-                signer);
-            var healthClient = new Grpc.Health.V1.Health.HealthClient(channel);
+                signer,
+                invoker => new Grpc.Health.V1.Health.HealthClient(invoker));
 
             var response = await healthClient.CheckAsync(
                 new Grpc.Health.V1.HealthCheckRequest { Service = Grpc.Health.V1.Health.Descriptor.FullName });
@@ -275,9 +275,8 @@ public class CrossServerTests
         }
 
         await using var server = await GoStreamServer.StartAsync(GoHelperPath);
-        using var channel = NetworkClient.Create(
-            new NetworkClientOptions { BaseUrl = server.BaseUrl }, Signer.FromHex(PrivateKey));
-        var invoker = channel.CreateCallInvoker();
+        var invoker = NetworkClient.Create(
+            new NetworkClientOptions { BaseUrl = server.BaseUrl }, Signer.FromHex(PrivateKey), i => i);
 
         using var call = invoker.AsyncClientStreamingCall(ClientStreamMethod, null, StreamCallOptions());
         await call.RequestStream.WriteAsync(new StringValue { Value = "m1" });
@@ -303,9 +302,8 @@ public class CrossServerTests
         }
 
         await using var server = await GoStreamServer.StartAsync(GoHelperPath);
-        using var channel = NetworkClient.Create(
-            new NetworkClientOptions { BaseUrl = server.BaseUrl }, Signer.FromHex(PrivateKey));
-        var invoker = channel.CreateCallInvoker();
+        var invoker = NetworkClient.Create(
+            new NetworkClientOptions { BaseUrl = server.BaseUrl }, Signer.FromHex(PrivateKey), i => i);
 
         using var call = invoker.AsyncServerStreamingCall(
             ServerStreamMethod, null, StreamCallOptions(), new StringValue { Value = "hello" });
@@ -329,9 +327,8 @@ public class CrossServerTests
         }
 
         await using var server = await GoStreamServer.StartAsync(GoHelperPath);
-        using var channel = NetworkClient.Create(
-            new NetworkClientOptions { BaseUrl = server.BaseUrl }, Signer.FromHex(PrivateKey));
-        var invoker = channel.CreateCallInvoker();
+        var invoker = NetworkClient.Create(
+            new NetworkClientOptions { BaseUrl = server.BaseUrl }, Signer.FromHex(PrivateKey), i => i);
 
         using var call = invoker.AsyncClientStreamingCall(ClientStreamMethod, null, StreamCallOptions());
         await call.RequestStream.CompleteAsync();
@@ -353,9 +350,8 @@ public class CrossServerTests
         }
 
         await using var server = await GoStreamServer.StartAsync(GoHelperPath);
-        using var channel = NetworkClient.Create(
-            new NetworkClientOptions { BaseUrl = server.BaseUrl }, Signer.FromHex(PrivateKey));
-        var invoker = channel.CreateCallInvoker();
+        var invoker = NetworkClient.Create(
+            new NetworkClientOptions { BaseUrl = server.BaseUrl }, Signer.FromHex(PrivateKey), i => i);
         var large = Convert.ToBase64String(RandomNumberGenerator.GetBytes(192 * 1024)); // 256 KiB, over the pipe's pause threshold
 
         using var call = invoker.AsyncClientStreamingCall(ClientStreamMethod, null, StreamCallOptions());
@@ -379,7 +375,7 @@ public class CrossServerTests
         }
 
         await using var server = await GoStreamServer.StartAsync(GoHelperPath);
-        // NetworkClient.Create's pipeline plus a header recorder below the signer; the default
+        // The signing handler plus a header recorder below it; the default
         // GrpcChannelOptions include the gzip provider.
         var recorder = new HeaderRecorder { InnerHandler = new HttpClientHandler() };
         using var channel = GrpcChannel.ForAddress(server.BaseUrl, new GrpcChannelOptions
@@ -413,12 +409,19 @@ public class CrossServerTests
         }
 
         await using var server = await GoStreamServer.StartAsync(GoHelperPath);
-        using var channel = NetworkClient.Create(
-            new NetworkClientOptions { BaseUrl = server.BaseUrl },
-            Signer.FromHex(PrivateKey),
-            timeProvider: new FixedTimeProvider(DateTimeOffset.UtcNow.AddMinutes(-2)));
+        // The factories take no clock, so the signing handler is built here with one two minutes behind.
+        var signer = new SigningDelegatingHandler(
+            Signer.FromHex(PrivateKey), new FixedTimeProvider(DateTimeOffset.UtcNow.AddMinutes(-2)))
+        {
+            InnerHandler = new HttpClientHandler()
+        };
+        using var channel = GrpcChannel.ForAddress(server.BaseUrl, new GrpcChannelOptions
+        {
+            HttpClient = new HttpClient(signer),
+            DisposeHttpClient = true,
+        });
 
-        var ex = await FirstMessageOnlyClientStreamAsync(channel);
+        var ex = await FirstMessageOnlyClientStreamAsync(channel.CreateCallInvoker());
 
         Assert.Equal(StatusCode.Unauthenticated, ex.StatusCode);
         await server.WaitForLogAsync(
@@ -427,9 +430,9 @@ public class CrossServerTests
     }
 
     // Only m1: later writes could race the rejection.
-    private static async Task<RpcException> FirstMessageOnlyClientStreamAsync(GrpcChannel channel)
+    private static async Task<RpcException> FirstMessageOnlyClientStreamAsync(CallInvoker invoker)
     {
-        using var call = channel.CreateCallInvoker().AsyncClientStreamingCall(ClientStreamMethod, null, StreamCallOptions());
+        using var call = invoker.AsyncClientStreamingCall(ClientStreamMethod, null, StreamCallOptions());
         await call.RequestStream.WriteAsync(new StringValue { Value = "m1" });
         return await Assert.ThrowsAsync<RpcException>(() => call.ResponseAsync);
     }

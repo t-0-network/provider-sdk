@@ -20,7 +20,7 @@ csharp/
 │   ├── Network/                      # Client-side (outbound calls)
 │   │   ├── NetworkClient.cs          # Factory for auto-signing gRPC clients
 │   │   ├── NetworkClientOptions.cs   # Client configuration (Timeout, StreamTimeout)
-│   │   ├── DefaultDeadlineInterceptor.cs # Default deadline per call type
+│   │   ├── DefaultDeadlineInterceptor.cs # Default deadline per call type (internal)
 │   │   ├── SigningDelegatingHandler.cs # HTTP message signing
 │   │   └── FirstFrameThenPipeContent.cs # Sends the signed first gRPC frame, then pipes the rest
 │   ├── Provider/                     # Server-side (incoming requests)
@@ -53,7 +53,7 @@ csharp/
 
 ### Deadlines
 
-Timeouts are gRPC deadlines set by `DefaultDeadlineInterceptor` (unary 15 s, streams none), which also refuses bidirectional streams; `HttpClient.Timeout` is infinite. The `Create*ServiceClient` helpers install the interceptor, raw channels must be wrapped. See [STREAMING.md](../STREAMING.md#timeouts).
+Timeouts are gRPC call deadlines: a call without its own deadline gets `NetworkClientOptions.Timeout` (unary, 15 s) or `StreamTimeout` (client and server streams, 5 min), and the caller's own deadline replaces the default. Every `NetworkClient` factory applies both through an interceptor, which also refuses bidirectional streams; `HttpClient.Timeout` is infinite. See [STREAMING.md](../STREAMING.md#timeouts).
 
 ### Two-Phase Server Architecture
 
@@ -110,7 +110,7 @@ headers = {
 | `crypto.Sign()` | `Signer.Sign()` |
 | `crypto.VerifySignature()` | `SignatureVerifier.Verify()` |
 | `crypto.Keccak256()` | `Keccak256.Hash()` |
-| `network.NewServiceClient()` | `NetworkClient.CreateNetworkServiceClient()` |
+| `network.NewServiceClient()` | `NetworkClient.Create()` |
 | `network.SigningTransport` | `SigningDelegatingHandler` |
 | `provider.NewHttpHandler()` | `T0ProviderServer` |
 | `provider.StartServer()` | `T0ProviderServer.RunAsync()` |

@@ -5,29 +5,45 @@ namespace T0.ProviderSdk.Network;
 /// </summary>
 public sealed class NetworkClientOptions
 {
+    private const long MaxTimeoutMs = int.MaxValue;
+
+    private TimeSpan _timeout = TimeSpan.FromSeconds(15);
+    private TimeSpan _streamTimeout = TimeSpan.FromMinutes(5);
+
     /// <summary>
     /// Base URL of the T-0 Network API.
     /// </summary>
     public string BaseUrl { get; set; } = "https://api.t-0.network";
 
     /// <summary>
-    /// Read only by <see cref="DefaultDeadlineInterceptor"/>, which
-    /// <see cref="NetworkClient.CreateNetworkServiceClient"/> and
-    /// <see cref="NetworkClient.CreatePaymentIntentNetworkServiceClient"/> install with default options;
-    /// channels from <see cref="NetworkClient.Create"/> and <see cref="NetworkClient.CreateChannel"/> do
-    /// not apply it. The default deadline of a unary call that sets none;
-    /// <see cref="System.Threading.Timeout.InfiniteTimeSpan"/> means none.
+    /// Deadline of a unary call that sets none of its own. Defaults to 15 seconds.
     /// </summary>
-    public TimeSpan Timeout { get; set; } = TimeSpan.FromSeconds(15);
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// The value is not positive or is longer than 2147483647 ms.
+    /// </exception>
+    public TimeSpan Timeout
+    {
+        get => _timeout;
+        set => _timeout = Validate(value, nameof(Timeout));
+    }
 
     /// <summary>
-    /// Read only by <see cref="DefaultDeadlineInterceptor"/>, which
-    /// <see cref="NetworkClient.CreateNetworkServiceClient"/> and
-    /// <see cref="NetworkClient.CreatePaymentIntentNetworkServiceClient"/> install with default options;
-    /// channels from <see cref="NetworkClient.Create"/> and <see cref="NetworkClient.CreateChannel"/> do
-    /// not apply it. The default deadline of a client- or server-streaming call that sets none; null (the
-    /// default) means none.
+    /// Deadline of a client- or server-streaming call that sets none of its own, for the whole call
+    /// including the wait for its first message. Defaults to 5 minutes. See docs/STREAMING.md.
     /// </summary>
-    /// <remarks>See docs/STREAMING.md.</remarks>
-    public TimeSpan? StreamTimeout { get; set; }
+    /// <exception cref="ArgumentOutOfRangeException">
+    /// The value is not positive or is longer than 2147483647 ms.
+    /// </exception>
+    public TimeSpan StreamTimeout
+    {
+        get => _streamTimeout;
+        set => _streamTimeout = Validate(value, nameof(StreamTimeout));
+    }
+
+    // A timeout cannot be turned off, so Timeout.InfiniteTimeSpan is refused like any other negative value.
+    private static TimeSpan Validate(TimeSpan value, string name) =>
+        value > TimeSpan.Zero && value.TotalMilliseconds <= MaxTimeoutMs
+            ? value
+            : throw new ArgumentOutOfRangeException(
+                name, value, $"{name} must be a positive duration of at most {MaxTimeoutMs} ms");
 }
