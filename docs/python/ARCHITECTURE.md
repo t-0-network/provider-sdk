@@ -681,7 +681,7 @@ def new_service_client(
     *,
     base_url: str = DEFAULT_BASE_URL,
     timeout: float = DEFAULT_TIMEOUT,         # Unary calls, seconds
-    stream_timeout: float | None = None,      # Client-/server-streaming calls; None = no timeout
+    stream_timeout: float = DEFAULT_STREAM_TIMEOUT,  # Client-/server-streaming calls, seconds
 ) -> T: ...
 
 def new_service_client_sync(
@@ -690,13 +690,13 @@ def new_service_client_sync(
     *,
     base_url: str = DEFAULT_BASE_URL,
     timeout: float = DEFAULT_TIMEOUT,
-    stream_timeout: float | None = None,
+    stream_timeout: float = DEFAULT_STREAM_TIMEOUT,
 ) -> T: ...
 ```
 
 The functions create a `SignFn` from the private key, wrap it in `SigningClient`/`SigningSyncClient`, and pass it as the `http_client` parameter to the generated ConnectRPC client constructor.
 
-`timeout` is the default of unary calls and `stream_timeout` that of client- and server-streaming calls (none by default); a per-call `timeout_ms` wins. Bidirectional calls raise `ConnectError(Code.UNIMPLEMENTED)` before anything is sent. See [docs/STREAMING.md](../STREAMING.md#timeouts).
+`timeout` (15 s) is the default of unary calls and `stream_timeout` (300 s) that of client- and server-streaming calls; a per-call `timeout_ms` replaces it, shorter or longer. Values that are not positive or exceed 2147483647 ms raise `ValueError`. Bidirectional calls raise `ConnectError(Code.UNIMPLEMENTED)` before anything is sent. See [docs/STREAMING.md](../STREAMING.md#timeouts).
 
 #### 4.3.3 `options.py`
 

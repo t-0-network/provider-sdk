@@ -6,6 +6,7 @@ records the timeout header (and the sync pyqwest timeout) and fails the call.
 
 from __future__ import annotations
 
+import math
 from contextlib import asynccontextmanager, contextmanager
 
 import pytest
@@ -140,33 +141,50 @@ async def _messages():
     yield StringValue(value="m1")
 
 
-async def _call(client, kind: str, timeout_ms: int | None = None) -> None:
+async def _invoke(client, kind: str, timeout_ms: float | None = None) -> None:
+    match kind:
+        case "unary":
+            await client.unary(StringValue(value="m1"), timeout_ms=timeout_ms)
+        case "client_stream":
+            await client.client_stream(_messages(), timeout_ms=timeout_ms)
+        case "server_stream":
+            async for _ in client.server_stream(StringValue(value="m1"), timeout_ms=timeout_ms):
+                pass
+
+
+def _invoke_sync(client, kind: str, timeout_ms: float | None = None) -> None:
+    match kind:
+        case "unary":
+            client.unary(StringValue(value="m1"), timeout_ms=timeout_ms)
+        case "client_stream":
+            client.client_stream(iter([StringValue(value="m1")]), timeout_ms=timeout_ms)
+        case "server_stream":
+            for _ in client.server_stream(StringValue(value="m1"), timeout_ms=timeout_ms):
+                pass
+
+
+async def _call(client, kind: str, timeout_ms: float | None = None) -> None:
     with pytest.raises(ConnectError) as exc_info:
-        match kind:
-            case "unary":
-                await client.unary(StringValue(value="m1"), timeout_ms=timeout_ms)
-            case "client_stream":
-                await client.client_stream(_messages(), timeout_ms=timeout_ms)
-            case "server_stream":
-                async for _ in client.server_stream(StringValue(value="m1"), timeout_ms=timeout_ms):
-                    pass
+        await _invoke(client, kind, timeout_ms)
     assert exc_info.value.code == Code.UNAVAILABLE
 
 
-def _call_sync(client, kind: str, timeout_ms: int | None = None) -> None:
+def _call_sync(client, kind: str, timeout_ms: float | None = None) -> None:
     with pytest.raises(ConnectError) as exc_info:
-        match kind:
-            case "unary":
-                client.unary(StringValue(value="m1"), timeout_ms=timeout_ms)
-            case "client_stream":
-                client.client_stream(iter([StringValue(value="m1")]), timeout_ms=timeout_ms)
-            case "server_stream":
-                for _ in client.server_stream(StringValue(value="m1"), timeout_ms=timeout_ms):
-                    pass
+        _invoke_sync(client, kind, timeout_ms)
     assert exc_info.value.code == Code.UNAVAILABLE
+
+
+def _refused(option: str) -> str:
+    return f"^{option} must be a positive duration of at most 2147483647 ms$"
 
 
 STREAMS = ["client_stream", "server_stream"]
+KINDS = ["unary", *STREAMS]
+# Shorter and longer than both defaults: the call's own timeout replaces the default either way.
+CALL_TIMEOUTS_MS = [700, 600_000]
+BAD_TIMEOUTS_S = [0, -1.0, None, math.inf, math.nan, 2_147_484, True]
+BAD_CALL_TIMEOUTS_MS = [0, -5, math.inf, math.nan, 2**31, True]
 
 
 @pytest.mark.asyncio
@@ -188,28 +206,37 @@ class TestAsyncClientTimeouts:
         assert recorder.timeout_header == "15000m"
 
     @pytest.mark.parametrize("kind", STREAMS)
-    async def test_streams_have_no_timeout_by_default(self, kind: str) -> None:
+    async def test_streams_get_five_minutes_by_default(self, kind: str) -> None:
         client, recorder = _async_client()
         await _call(client, kind)
-        assert recorder.timeout_header is None
+        assert recorder.timeout_header == "300000"
 
     @pytest.mark.parametrize("kind", STREAMS)
-    async def test_streams_get_the_stream_default(self, kind: str) -> None:
+    async def test_streams_get_the_stream_timeout_option(self, kind: str) -> None:
         client, recorder = _async_client(stream_timeout=30)
         await _call(client, kind)
         assert recorder.timeout_header == "30000"
 
     @pytest.mark.parametrize("kind", STREAMS)
-    async def test_grpc_streams_get_the_stream_default(self, kind: str) -> None:
+    async def test_grpc_streams_get_the_stream_timeout_option(self, kind: str) -> None:
         client, recorder = _async_client(_GRPCClient, stream_timeout=30)
         await _call(client, kind)
         assert recorder.timeout_header == "30000m"
 
-    @pytest.mark.parametrize("kind", ["unary", *STREAMS])
-    async def test_explicit_timeout_wins(self, kind: str) -> None:
+    @pytest.mark.parametrize("timeout_ms", CALL_TIMEOUTS_MS)
+    @pytest.mark.parametrize("kind", KINDS)
+    async def test_call_timeout_replaces_the_default(self, kind: str, timeout_ms: int) -> None:
         client, recorder = _async_client(stream_timeout=30)
-        await _call(client, kind, timeout_ms=700)
-        assert recorder.timeout_header == "700"
+        await _call(client, kind, timeout_ms=timeout_ms)
+        assert recorder.timeout_header == str(timeout_ms)
+
+    @pytest.mark.parametrize("timeout_ms", BAD_CALL_TIMEOUTS_MS)
+    @pytest.mark.parametrize("kind", KINDS)
+    async def test_bad_call_timeout_is_refused(self, kind: str, timeout_ms: float) -> None:
+        client, recorder = _async_client()
+        with pytest.raises(ValueError, match=_refused("timeout_ms")):
+            await _invoke(client, kind, timeout_ms)
+        assert recorder.timeout_header is None, "nothing is sent"
 
 
 class TestSyncClientTimeouts:
@@ -229,46 +256,58 @@ class TestSyncClientTimeouts:
         assert 14.0 < recorder.timeout <= 15.0
 
     @pytest.mark.parametrize("kind", STREAMS)
-    def test_streams_have_no_timeout_by_default(self, kind: str) -> None:
+    def test_streams_get_five_minutes_by_default(self, kind: str) -> None:
         client, recorder = _sync_client()
         _call_sync(client, kind)
-        assert recorder.timeout_header is None
-        assert recorder.timeout is None
+        assert recorder.timeout_header == "300000"
+        assert recorder.timeout is not None
+        assert 299.0 < recorder.timeout <= 300.0
 
     @pytest.mark.parametrize("kind", STREAMS)
-    def test_streams_get_the_stream_default(self, kind: str) -> None:
+    def test_streams_get_the_stream_timeout_option(self, kind: str) -> None:
         client, recorder = _sync_client(stream_timeout=30)
         _call_sync(client, kind)
         assert recorder.timeout_header == "30000"
         assert recorder.timeout is not None
         assert 29.0 < recorder.timeout <= 30.0
 
-    @pytest.mark.parametrize("kind", ["unary", *STREAMS])
-    def test_explicit_timeout_wins(self, kind: str) -> None:
+    @pytest.mark.parametrize("timeout_ms", CALL_TIMEOUTS_MS)
+    @pytest.mark.parametrize("kind", KINDS)
+    def test_call_timeout_replaces_the_default(self, kind: str, timeout_ms: int) -> None:
         client, recorder = _sync_client(stream_timeout=30)
-        _call_sync(client, kind, timeout_ms=700)
-        assert recorder.timeout_header == "700"
+        _call_sync(client, kind, timeout_ms=timeout_ms)
+        assert recorder.timeout_header == str(timeout_ms)
         assert recorder.timeout is not None
-        assert 0.6 < recorder.timeout <= 0.7
+        assert timeout_ms / 1000 - 0.1 < recorder.timeout <= timeout_ms / 1000
+
+    @pytest.mark.parametrize("timeout_ms", BAD_CALL_TIMEOUTS_MS)
+    @pytest.mark.parametrize("kind", KINDS)
+    def test_bad_call_timeout_is_refused(self, kind: str, timeout_ms: float) -> None:
+        client, recorder = _sync_client()
+        with pytest.raises(ValueError, match=_refused("timeout_ms")):
+            _invoke_sync(client, kind, timeout_ms)
+        assert recorder.timeout_header is None, "nothing is sent"
 
 
-class TestTimeoutValidation:
+class TestTimeoutOptions:
+    @pytest.mark.parametrize("value", BAD_TIMEOUTS_S)
+    @pytest.mark.parametrize("option", ["timeout", "stream_timeout"])
     @pytest.mark.parametrize("factory", [new_service_client, new_service_client_sync])
-    @pytest.mark.parametrize("timeout", [0, -1.0])
-    def test_timeout_must_be_positive(self, factory, timeout: float) -> None:
-        with pytest.raises(ValueError, match="timeout must be greater than zero"):
-            factory(PRIVATE_KEY, _Client, timeout=timeout)
-
-    @pytest.mark.parametrize("factory", [new_service_client, new_service_client_sync])
-    def test_stream_timeout_must_not_be_negative(self, factory) -> None:
-        with pytest.raises(ValueError, match="stream_timeout must not be negative"):
-            factory(PRIVATE_KEY, _Client, stream_timeout=-1.0)
+    def test_bad_value_is_refused(self, factory, option: str, value: object) -> None:
+        with pytest.raises(ValueError, match=_refused(option)):
+            factory(PRIVATE_KEY, _Client, **{option: value})
 
     @pytest.mark.asyncio
-    async def test_zero_stream_timeout_means_none(self) -> None:
-        client, recorder = _async_client(stream_timeout=0)
+    async def test_largest_value_is_accepted(self) -> None:
+        client, recorder = _async_client(stream_timeout=2_147_483)
         await _call(client, "client_stream")
-        assert recorder.timeout_header is None
+        assert recorder.timeout_header == "2147483000"
+
+    @pytest.mark.asyncio
+    async def test_largest_call_timeout_is_accepted(self) -> None:
+        client, recorder = _async_client()
+        await _call(client, "unary", timeout_ms=2**31 - 1)
+        assert recorder.timeout_header == "2147483647"
 
     @pytest.mark.asyncio
     async def test_sub_millisecond_timeout_is_not_dropped(self) -> None:

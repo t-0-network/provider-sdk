@@ -14,13 +14,16 @@ from connectrpc.code import Code
 from connectrpc.errors import ConnectError
 
 from t0_provider_sdk.crypto.signer import new_signer_from_hex
-from t0_provider_sdk.network.options import DEFAULT_BASE_URL, DEFAULT_TIMEOUT
+from t0_provider_sdk.network.options import DEFAULT_BASE_URL, DEFAULT_STREAM_TIMEOUT, DEFAULT_TIMEOUT
 from t0_provider_sdk.network.signing import SigningClient, SigningSyncClient
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
 T = TypeVar("T")
+
+# The largest timeout every SDK accepts: 2^31 - 1 ms, about 24.8 days.
+MAX_TIMEOUT_MS = 2**31 - 1
 
 # (execute method, streams?). gRPC unary goes out through stream() but enters through execute_unary.
 _EXECUTE_METHODS = (
@@ -36,7 +39,7 @@ def new_service_client(
     *,
     base_url: str = DEFAULT_BASE_URL,
     timeout: float = DEFAULT_TIMEOUT,
-    stream_timeout: float | None = None,
+    stream_timeout: float = DEFAULT_STREAM_TIMEOUT,
 ) -> T:
     """Create an async ConnectRPC client with signing transport.
 
@@ -48,11 +51,12 @@ def new_service_client(
         private_key: Hex-encoded secp256k1 private key (with or without 0x prefix).
         client_class: Generated ConnectRPC async client class (e.g. NetworkServiceClient).
         base_url: Base URL of the T-0 Network API.
-        timeout: Default timeout of unary calls in seconds. Must be greater than zero.
-        stream_timeout: Default timeout of client- and server-streaming calls in seconds,
-            including the wait for the first request message. None (or 0) means no timeout.
+        timeout: Timeout of unary calls in seconds, 15 by default.
+        stream_timeout: Timeout of client- and server-streaming calls in seconds, including the
+            wait for the first request message, 300 by default.
 
-    A call's own ``timeout_ms`` overrides either default.
+    Each timeout must be positive and at most 2147483647 ms; there is no way to turn one off. A
+    call's own ``timeout_ms`` (same bounds) replaces the default, whether shorter or longer.
 
     Returns:
         An instance of client_class configured with signing transport.
@@ -72,7 +76,7 @@ def new_service_client_sync(
     *,
     base_url: str = DEFAULT_BASE_URL,
     timeout: float = DEFAULT_TIMEOUT,
-    stream_timeout: float | None = None,
+    stream_timeout: float = DEFAULT_STREAM_TIMEOUT,
 ) -> T:
     """Create a sync ConnectRPC client with signing transport.
 
@@ -82,9 +86,8 @@ def new_service_client_sync(
         private_key: Hex-encoded secp256k1 private key (with or without 0x prefix).
         client_class: Generated ConnectRPC sync client class (e.g. NetworkServiceClientSync).
         base_url: Base URL of the T-0 Network API.
-        timeout: Default timeout of unary calls in seconds. Must be greater than zero.
-        stream_timeout: Default timeout of client- and server-streaming calls in seconds. None
-            (or 0) means no timeout.
+        timeout: Timeout of unary calls in seconds, 15 by default.
+        stream_timeout: Timeout of client- and server-streaming calls in seconds, 300 by default.
 
     Returns:
         An instance of client_class configured with signing transport.
@@ -98,18 +101,20 @@ def new_service_client_sync(
     return client
 
 
-def _default_timeouts_ms(timeout: float, stream_timeout: float | None) -> tuple[int, int | None]:
-    if timeout <= 0:
-        raise ValueError("timeout must be greater than zero")
-    if stream_timeout is not None and stream_timeout < 0:
-        raise ValueError("stream_timeout must not be negative")
-    # At least 1 ms: connectrpc reads a timeout_ms of 0 as "no timeout".
-    unary_ms = max(1, round(timeout * 1000))
-    stream_ms = max(1, round(stream_timeout * 1000)) if stream_timeout else None
-    return unary_ms, stream_ms
+def _default_timeouts_ms(timeout: float, stream_timeout: float) -> tuple[int, int]:
+    return _timeout_ms("timeout", timeout, 1000), _timeout_ms("stream_timeout", stream_timeout, 1000)
 
 
-def _set_default_timeouts(client: object, unary_ms: int, stream_ms: int | None) -> None:
+def _timeout_ms(name: str, value: object, ms_per_unit: int) -> int:
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        ms = value * ms_per_unit
+        if 0 < ms <= MAX_TIMEOUT_MS:  # False for NaN too
+            # At least 1 ms: connectrpc reads a timeout_ms of 0 as "no timeout".
+            return max(1, round(ms))
+    raise ValueError(f"{name} must be a positive duration of at most {MAX_TIMEOUT_MS} ms")
+
+
+def _set_default_timeouts(client: object, unary_ms: int, stream_ms: int) -> None:
     """A ConnectRPC client has one timeout_ms for every call, so each execute method fills in its own."""
     for name, streaming in _EXECUTE_METHODS:
         execute = getattr(client, name, None)
@@ -128,10 +133,11 @@ def _bidi_stream_unsupported(*args: Any, **kwargs: Any) -> NoReturn:
     raise ConnectError(Code.UNIMPLEMENTED, "bidirectional streams are not supported")
 
 
-def _with_default_timeout(execute: Callable[..., Any], default_ms: int | None) -> Callable[..., Any]:
+def _with_default_timeout(execute: Callable[..., Any], default_ms: int) -> Callable[..., Any]:
     @functools.wraps(execute)
     def execute_with_default_timeout(*args: Any, timeout_ms: int | None = None, **kwargs: Any) -> Any:
-        # Like connectrpc, which falls back to the client's timeout when timeout_ms is falsy.
-        return execute(*args, timeout_ms=timeout_ms or default_ms, **kwargs)
+        # Checked here: connectrpc would read 0 as "use the client's timeout" and pass on a negative one.
+        timeout_ms = default_ms if timeout_ms is None else _timeout_ms("timeout_ms", timeout_ms, 1)
+        return execute(*args, timeout_ms=timeout_ms, **kwargs)
 
     return execute_with_default_timeout

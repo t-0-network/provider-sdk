@@ -76,7 +76,7 @@ The sync variant uses `payment_sync.py` -- implement the same RPC methods as reg
 
 ## Network Client Timeouts and Streaming
 
-`new_service_client()` / `new_service_client_sync()` sign every request. Unary calls time out after `timeout` (15 seconds by default); client- and server-streaming calls have no timeout unless you set `stream_timeout`. A call's own `timeout_ms` overrides either default.
+`new_service_client()` / `new_service_client_sync()` sign every request. Unary calls time out after `timeout` (15 seconds by default), and client- and server-streaming calls after `stream_timeout` (5 minutes by default, including the wait for the first message). A call's own `timeout_ms` replaces the default, shorter or longer. Every timeout must be positive and at most 2147483647 ms; none can be turned off.
 
 ```python
 network_client = new_service_client(
@@ -84,7 +84,7 @@ network_client = new_service_client(
     NetworkServiceClient,
     base_url=config.tzero_endpoint,
     timeout=15.0,  # unary calls, seconds
-    stream_timeout=300.0,  # streaming calls, seconds; None (default) = no timeout
+    stream_timeout=600.0,  # streaming calls, seconds (default 300)
 )
 ```
 

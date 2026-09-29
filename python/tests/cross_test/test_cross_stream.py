@@ -32,7 +32,7 @@ from connectrpc.protocol import ProtocolType
 from google.protobuf.wrappers_pb2 import StringValue
 from grpc_health.v1 import health_pb2
 from t0_provider_sdk.crypto.signer import new_signer_from_hex
-from t0_provider_sdk.network import signing
+from t0_provider_sdk.network import DEFAULT_STREAM_TIMEOUT, signing
 from t0_provider_sdk.network.client import new_service_client, new_service_client_sync
 from t0_provider_sdk.network.signing import SigningClient, SigningSyncClient
 from t0_provider_sdk.provider.health import HEALTH_SERVICE_FQN, HealthClient, HealthClientSync
@@ -293,12 +293,12 @@ def _async_client(
     base_url: str,
     protocol: str,
     private_key: str = CLIENT_PRIVATE_KEY,
-    stream_timeout: float | None = None,
+    stream_timeout: float = DEFAULT_STREAM_TIMEOUT,
 ):
     if protocol == "connect":
         return new_service_client(private_key, client_class, base_url=base_url, stream_timeout=stream_timeout)
     http_client = SigningClient(new_signer_from_hex(private_key), transport=_transport(protocol, sync=False))
-    timeout_ms = round(stream_timeout * 1000) if stream_timeout else None
+    timeout_ms = round(stream_timeout * 1000)
     return client_class(base_url, protocol=ProtocolType.GRPC, http_client=http_client, timeout_ms=timeout_ms)
 
 
@@ -307,12 +307,12 @@ def _sync_client(
     base_url: str,
     protocol: str,
     private_key: str = CLIENT_PRIVATE_KEY,
-    stream_timeout: float | None = None,
+    stream_timeout: float = DEFAULT_STREAM_TIMEOUT,
 ):
     if protocol == "connect":
         return new_service_client_sync(private_key, client_class, base_url=base_url, stream_timeout=stream_timeout)
     http_client = SigningSyncClient(new_signer_from_hex(private_key), transport=_transport(protocol, sync=True))
-    timeout_ms = round(stream_timeout * 1000) if stream_timeout else None
+    timeout_ms = round(stream_timeout * 1000)
     return client_class(base_url, protocol=ProtocolType.GRPC, http_client=http_client, timeout_ms=timeout_ms)
 
 
