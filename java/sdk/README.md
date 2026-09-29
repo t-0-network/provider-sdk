@@ -58,7 +58,7 @@ Handles outbound requests to the t-0 Network with automatic request signing.
 - Automatic request signing via `SigningClientInterceptor`
 - Default deadlines per call type: 15 seconds for unary calls, 5 minutes for streaming calls (configurable per client and per stub)
 - Streaming calls: only the first request message is signed
-- Endpoint parsing (supports `https://host`, `http://host:port`, `host:port`)
+- Base URL with an `http` or `https` scheme (`https://host`, `http://host:port`); `null` selects `https://api.t-0.network`
 - Graceful shutdown with 5-second timeout
 
 ### 2. Server Layer (`network.t0.sdk.provider`)

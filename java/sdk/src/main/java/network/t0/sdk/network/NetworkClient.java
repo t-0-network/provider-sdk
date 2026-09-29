@@ -364,13 +364,15 @@ public abstract class NetworkClient implements Closeable {
             // The network accepts no bidi streams, and with the deferred start a bidi caller that
             // awaits a response before sending would hang: fail fast.
             if (method.getType() == MethodDescriptor.MethodType.BIDI_STREAMING) {
-                return new RefusedCall<>(Status.UNIMPLEMENTED.withDescription("bidirectional streams are not supported"));
+                return new RefusedCall<>(Status.UNIMPLEMENTED.withDescription("bidirectional streams are not supported"),
+                        callOptions);
             }
             // The signature covers the message as serialized here, and a compressor would change the
             // bytes on the wire after that, so the network would refuse the call: refuse it first.
             String compressor = callOptions.getCompressor();
             if (compressor != null && !"identity".equals(compressor)) {
-                return new RefusedCall<>(Status.UNIMPLEMENTED.withDescription("compressed requests are not supported"));
+                return new RefusedCall<>(Status.UNIMPLEMENTED.withDescription("compressed requests are not supported"),
+                        callOptions);
             }
 
             // Create a method descriptor that accepts raw bytes for the request.
@@ -462,7 +464,8 @@ public abstract class NetworkClient implements Closeable {
                     }
 
                     // Only the first message is signed; later stream messages go out as-is.
-                    if (claimStart(messageBytes)) {
+                    if (claimStart()) {
+                        signOrRelease(messageBytes);
                         startRawCall();
                     }
 
@@ -474,7 +477,8 @@ public abstract class NetworkClient implements Closeable {
                 @Override
                 public void halfClose() {
                     // If no message was sent, start with empty body signature
-                    if (claimStart(new byte[0])) {
+                    if (claimStart()) {
+                        signOrRelease(new byte[0]);
                         startRawCall();
                     }
                     rawCall.halfClose();
@@ -503,7 +507,7 @@ public abstract class NetworkClient implements Closeable {
                     synchronized (lock) {
                         startCalled = responseListener != null;
                     }
-                    if (startCalled && claimStart(null)) {
+                    if (startCalled && claimStart()) {
                         callContext.cancel(Status.CANCELLED
                                 .withDescription(message)
                                 .withCause(cause)
@@ -531,28 +535,21 @@ public abstract class NetworkClient implements Closeable {
                 }
 
                 /**
-                 * Returns true if the caller is to start rawCall, with the headers signed over
-                 * {@code signed} (unsigned if null). Otherwise rawCall has started, if need be after
-                 * waiting for the thread that claimed it.
+                 * Returns true if the caller is to start rawCall (after signing it, if it has a message).
+                 * Otherwise rawCall has started, if need be after waiting for the thread that claimed it.
                  */
-                private boolean claimStart(byte[] signed) {
+                private boolean claimStart() {
                     synchronized (lock) {
-                        if (started) {
-                            return false;
-                        }
-                        if (!starting) {
-                            if (signed != null) {
-                                addSignatureHeaders(signed, clock.millis());
-                            }
-                            starting = true;
-                            starter = Thread.currentThread();
-                            return true;
-                        }
-                        // grpc may run a listener inline in rawCall.start(): that thread must not wait for itself.
-                        if (starter == Thread.currentThread()) {
-                            return false;
-                        }
                         while (!started) {
+                            if (!starting) {
+                                starting = true;
+                                starter = Thread.currentThread();
+                                return true;
+                            }
+                            // grpc may run a listener inline in rawCall.start(): that thread must not wait for itself.
+                            if (starter == Thread.currentThread()) {
+                                return false;
+                            }
                             try {
                                 lock.wait();
                             } catch (InterruptedException e) {
@@ -564,6 +561,26 @@ public abstract class NetworkClient implements Closeable {
                             }
                         }
                         return false;
+                    }
+                }
+
+                // Signs outside the lock, so that a slow signer holds up only this thread: the claim keeps
+                // every other start out. If signing fails, the claim is given back, so that cancel() can
+                // still close the call, and a deadline or context that ended meanwhile starts it unsigned.
+                private void signOrRelease(byte[] signed) {
+                    try {
+                        addSignatureHeaders(signed, clock.millis());
+                    } catch (RuntimeException | Error e) {
+                        synchronized (lock) {
+                            starting = false;
+                            starter = null;
+                            lock.notifyAll();
+                        }
+                        Deadline deadline = callOptions.getDeadline();
+                        if (context.isCancelled() || (deadline != null && deadline.isExpired())) {
+                            startUnsigned();
+                        }
+                        throw e;
                     }
                 }
 
@@ -640,7 +657,7 @@ public abstract class NetworkClient implements Closeable {
                     }
                 }
 
-                // Under the lock, before start: once started, the headers belong to the transport.
+                // By the thread that claimed the start, before it: once started, the headers belong to the transport.
                 private void addSignatureHeaders(byte[] messageBytes, long timestampMs) {
                     byte[] timestampBytes = Headers.encodeTimestamp(timestampMs);
                     byte[] digest = Keccak256.hash(messageBytes, timestampBytes);
@@ -660,20 +677,25 @@ public abstract class NetworkClient implements Closeable {
         }
 
         /**
-         * Handed out for calls the SDK does not send: closes its listener with {@code status} on start,
+         * Handed out for calls the SDK does not send: closes its listener with {@code status} once started,
          * before anything is sent, and ignores everything else.
          */
         private static final class RefusedCall<ReqT, RespT> extends ClientCall<ReqT, RespT> {
 
             private final Status status;
+            private final Executor executor;
+            private final Context context = Context.current();
 
-            RefusedCall(Status status) {
+            RefusedCall(Status status, CallOptions callOptions) {
                 this.status = status;
+                this.executor = callOptions.getExecutor() != null ? callOptions.getExecutor() : CALLBACK_EXECUTOR;
             }
 
+            // On the call's executor, as for any other call: an async caller's onError must not run
+            // inside the call that started it.
             @Override
             public void start(Listener<RespT> responseListener, Metadata headers) {
-                responseListener.onClose(status, new Metadata());
+                executor.execute(context.wrap(() -> responseListener.onClose(status, new Metadata())));
             }
 
             @Override

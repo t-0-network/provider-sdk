@@ -202,6 +202,83 @@ class SigningClientInterceptorStreamingTest {
         assertThat(verifies(channel.lastCall().headers, bytes("m1"))).isTrue();
     }
 
+    @Test
+    @DisplayName("A slow signer holds up only the thread that sends the first message")
+    void slowSignerHoldsUpOnlyTheSender() throws Exception {
+        CountDownLatch signing = new CountDownLatch(1);
+        CountDownLatch release = new CountDownLatch(1);
+        DigestSigner slow = new DigestSigner() {
+            @Override
+            public SignResult sign(byte[] digest) {
+                signing.countDown();
+                awaitQuietly(release);
+                return signer.sign(digest);
+            }
+
+            @Override
+            public byte[] getPublicKey() {
+                return signer.getPublicKey();
+            }
+        };
+        Clock clock = Clock.fixed(Instant.ofEpochMilli(FIXED_TIMESTAMP_MS), ZoneOffset.UTC);
+        ClientCall<StringValue, StringValue> call = ClientInterceptors
+                .intercept(channel, new NetworkClient.SigningClientInterceptor(slow, clock))
+                .newCall(CLIENT_STREAM, callOptions());
+        call.start(new RecordingListener<>(), new Metadata());
+
+        Thread sender = new Thread(() -> call.sendMessage(value("m1")));
+        sender.setDaemon(true); // a hang must not keep the test JVM alive
+        Thread requester = new Thread(() -> call.request(1));
+        requester.setDaemon(true);
+        try {
+            sender.start();
+            assertThat(signing.await(5, TimeUnit.SECONDS)).as("signer entered").isTrue();
+            requester.start();
+            requester.join(2_000);
+            assertThat(requester.isAlive()).as("request() returned while the signer runs").isFalse();
+        } finally {
+            release.countDown();
+        }
+        sender.join(5_000);
+
+        RecordingCall raw = channel.lastCall();
+        awaitEvents(raw, "start", "request:1", "send");
+        assertThat(verifies(raw.headers, bytes("m1"))).isTrue();
+    }
+
+    @Test
+    @DisplayName("A signer that throws: sendMessage throws it, nothing starts, and cancel() still closes the listener")
+    void throwingSignerLeavesTheCallCancellable() {
+        IllegalStateException failure = new IllegalStateException("signer unavailable");
+        DigestSigner failing = new DigestSigner() {
+            @Override
+            public SignResult sign(byte[] digest) {
+                throw failure;
+            }
+
+            @Override
+            public byte[] getPublicKey() {
+                return signer.getPublicKey();
+            }
+        };
+        Clock clock = Clock.fixed(Instant.ofEpochMilli(FIXED_TIMESTAMP_MS), ZoneOffset.UTC);
+        ClientCall<StringValue, StringValue> call = ClientInterceptors
+                .intercept(channel, new NetworkClient.SigningClientInterceptor(failing, clock))
+                .newCall(CLIENT_STREAM, callOptions());
+        RecordingListener<StringValue> listener = new RecordingListener<>();
+        call.start(listener, new Metadata());
+
+        assertThatThrownBy(() -> call.sendMessage(value("m1"))).isSameAs(failure);
+        RecordingCall raw = channel.lastCall();
+        assertThat(raw.events).isEmpty();
+
+        // A stub cancels the call on such an exception.
+        call.cancel("signing failed", failure);
+        assertThat(raw.events).containsExactly("start", "cancel");
+        assertThat(raw.headers.get(SIGNATURE)).isNull();
+        assertThat(listener.closeStatus.getCode()).isEqualTo(Status.Code.CANCELLED);
+    }
+
     // ==================== Server streaming ====================
 
     @Test
@@ -233,6 +310,9 @@ class SigningClientInterceptorStreamingTest {
         ClientCall<StringValue, StringValue> call = intercepted.newCall(BIDI_STREAM, callOptions());
         call.start(listener, new Metadata());
 
+        // Delivered on the call's executor, not inside start().
+        assertThat(listener.closeStatus).isNull();
+        runCallbackTasks();
         assertThat(listener.closeStatus).isNotNull();
         assertThat(listener.closeStatus.getCode()).isEqualTo(Status.Code.UNIMPLEMENTED);
         assertThat(listener.closeStatus.getDescription()).contains("bidirectional");
@@ -260,6 +340,8 @@ class SigningClientInterceptorStreamingTest {
         call.sendMessage(value("m1"));
         call.halfClose();
 
+        assertThat(listener.closeStatus).isNull();
+        runCallbackTasks();
         assertThat(listener.closeStatus.getCode()).isEqualTo(Status.Code.UNIMPLEMENTED);
         assertThat(listener.closeStatus.getDescription()).isEqualTo("compressed requests are not supported");
         assertThat(channel.lastCall()).isNull();

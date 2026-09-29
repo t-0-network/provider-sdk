@@ -7,6 +7,9 @@ import network.t0.sdk.common.HexUtils;
  *
  * <p>{@link Signer} implements it with a private key held in memory. Implement it to keep the key
  * elsewhere, for example in a hardware security module or a remote signing service.
+ *
+ * <p>{@link #sign(byte[])} runs on the thread that sends a call's first message and holds up only that
+ * call. It must be thread-safe: calls on one client may sign at the same time.
  */
 public interface DigestSigner {
 

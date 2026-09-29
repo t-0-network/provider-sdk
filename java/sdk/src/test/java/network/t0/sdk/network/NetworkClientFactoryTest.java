@@ -1,5 +1,8 @@
 package network.t0.sdk.network;
 
+import io.grpc.Channel;
+import io.grpc.StatusRuntimeException;
+import io.grpc.health.v1.HealthCheckRequest;
 import io.grpc.health.v1.HealthGrpc;
 import network.t0.sdk.crypto.DigestSigner;
 import network.t0.sdk.crypto.SignResult;
@@ -10,6 +13,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.time.Duration;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -77,6 +81,31 @@ class NetworkClientFactoryTest {
                 .isInstanceOf(IllegalArgumentException.class).hasMessage("stubFactory must not be null");
         assertThatThrownBy(() -> BlockingNetworkClient.create(endpoint, null, HealthGrpc::newBlockingStub))
                 .isInstanceOf(IllegalArgumentException.class).hasMessage("signer must not be null");
+    }
+
+    @Test
+    @DisplayName("A stub factory that throws leaves no channel open, in every client")
+    void throwingStubFactoryShutsTheChannelDown() {
+        IllegalStateException failure = new IllegalStateException("no stub");
+        AtomicReference<Channel> built = new AtomicReference<>();
+        String endpoint = "http://localhost:1";
+
+        assertThatThrownBy(() -> BlockingNetworkClient.<HealthGrpc.HealthBlockingStub>create(endpoint, SIGNER,
+                channel -> { built.set(channel); throw failure; })).isSameAs(failure);
+        assertShutDown(built.get());
+        assertThatThrownBy(() -> AsyncNetworkClient.<HealthGrpc.HealthStub>create(endpoint, SIGNER,
+                channel -> { built.set(channel); throw failure; })).isSameAs(failure);
+        assertShutDown(built.get());
+        assertThatThrownBy(() -> FutureNetworkClient.<HealthGrpc.HealthFutureStub>create(endpoint, SIGNER,
+                channel -> { built.set(channel); throw failure; })).isSameAs(failure);
+        assertShutDown(built.get());
+    }
+
+    /** A call on a shut-down channel fails at once, naming the shutdown, without trying to connect. */
+    private static void assertShutDown(Channel channel) {
+        assertThatThrownBy(() -> HealthGrpc.newBlockingStub(channel).check(HealthCheckRequest.getDefaultInstance()))
+                .isInstanceOfSatisfying(StatusRuntimeException.class, e ->
+                        assertThat(e.getStatus().getDescription()).contains("shutdown"));
     }
 
     @Test

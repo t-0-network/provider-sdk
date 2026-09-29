@@ -99,7 +99,13 @@ public final class BlockingNetworkClient<S extends AbstractBlockingStub<S>> exte
             throw new IllegalArgumentException("stubFactory must not be null");
         }
         ChannelPair pair = createChannel(endpoint, signer, timeout, streamTimeout);
-        S stub = stubFactory.apply(pair.interceptedChannel());
+        S stub;
+        try {
+            stub = stubFactory.apply(pair.interceptedChannel());
+        } catch (RuntimeException | Error e) {
+            pair.channel().shutdownNow(); // nobody else holds the channel to close it
+            throw e;
+        }
         return new BlockingNetworkClient<>(pair.channel(), pair.interceptedChannel(), stub);
     }
 
