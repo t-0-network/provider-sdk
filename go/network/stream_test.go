@@ -288,6 +288,14 @@ func testContext(t *testing.T) context.Context {
 	return ctx
 }
 
+// noDeadline is a context without a deadline, so the client's timeouts apply.
+func noDeadline(t *testing.T) context.Context {
+	t.Helper()
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	return ctx
+}
+
 func TestStream_ClientStreamSignsFirstEnvelope(t *testing.T) {
 	for _, p := range streamProtocols {
 		t.Run(p.name, func(t *testing.T) {
@@ -667,21 +675,34 @@ func TestStream_Timeouts(t *testing.T) {
 
 			t.Run("unary timeout applies to unary calls", func(t *testing.T) {
 				client := newStreamClient(t, srv, key, WithConnectOptions(p.opts...), WithTimeout(100*time.Millisecond))
-				_, err := client.unary.CallUnary(testContext(t), connect.NewRequest(wrapperspb.String("ping")))
+				_, err := client.unary.CallUnary(noDeadline(t), connect.NewRequest(wrapperspb.String("ping")))
 				require.Equal(t, connect.CodeDeadlineExceeded, connect.CodeOf(err), "error: %v", err)
 			})
 
-			t.Run("streams have no timeout by default", func(t *testing.T) {
+			t.Run("the unary timeout does not apply to streams", func(t *testing.T) {
 				client := newStreamClient(t, srv, key, WithConnectOptions(p.opts...), WithTimeout(100*time.Millisecond))
-				got, err := receiveAll(testContext(t), client, "hello")
+				got, err := receiveAll(noDeadline(t), client, "hello")
 				require.NoError(t, err)
 				require.Len(t, got, 3)
 			})
 
 			t.Run("stream timeout applies to streams", func(t *testing.T) {
 				client := newStreamClient(t, srv, key, WithConnectOptions(p.opts...), WithStreamTimeout(100*time.Millisecond))
-				_, err := receiveAll(testContext(t), client, "hello")
+				_, err := receiveAll(noDeadline(t), client, "hello")
 				require.Equal(t, connect.CodeDeadlineExceeded, connect.CodeOf(err), "error: %v", err)
+			})
+
+			t.Run("a longer deadline of the caller replaces the unary timeout", func(t *testing.T) {
+				client := newStreamClient(t, srv, key, WithConnectOptions(p.opts...), WithTimeout(100*time.Millisecond))
+				_, err := client.unary.CallUnary(testContext(t), connect.NewRequest(wrapperspb.String("ping")))
+				require.NoError(t, err)
+			})
+
+			t.Run("a longer deadline of the caller replaces the stream timeout", func(t *testing.T) {
+				client := newStreamClient(t, srv, key, WithConnectOptions(p.opts...), WithStreamTimeout(100*time.Millisecond))
+				got, err := receiveAll(testContext(t), client, "hello")
+				require.NoError(t, err)
+				require.Len(t, got, 3)
 			})
 
 			t.Run("a client stream may outlast the unary timeout", func(t *testing.T) {
@@ -705,7 +726,7 @@ func TestStream_StreamTimeoutBeforeFirstMessage(t *testing.T) {
 			srv := newStreamTestServer(t, key.publicKey)
 			client := newStreamClient(t, srv, key, WithConnectOptions(p.opts...), WithStreamTimeout(100*time.Millisecond))
 
-			stream := client.clientStream.CallClientStream(testContext(t))
+			stream := client.clientStream.CallClientStream(noDeadline(t))
 			time.Sleep(300 * time.Millisecond)
 			_ = stream.Send(wrapperspb.String("too late")) // the error is reported by CloseAndReceive
 			_, err := stream.CloseAndReceive()
@@ -724,9 +745,8 @@ func TestStream_DeadlinesAreSent(t *testing.T) {
 			key := newTestKey(t)
 			srv := newStreamTestServer(t, key.publicKey)
 
-			// No deadline of the caller's own: only the client's timeouts may set one.
-			ctx, cancel := context.WithCancel(context.Background())
-			defer cancel()
+			// No deadline of the caller's own: only the client's timeouts set one.
+			ctx := noDeadline(t)
 
 			client := newStreamClient(t, srv, key, WithConnectOptions(p.opts...))
 			_, err := client.unary.CallUnary(ctx, connect.NewRequest(wrapperspb.String("ping")))
@@ -738,16 +758,57 @@ func TestStream_DeadlinesAreSent(t *testing.T) {
 			_, err = stream.CloseAndReceive()
 			require.NoError(t, err)
 
-			bounded := newStreamClient(t, srv, key, WithConnectOptions(p.opts...), WithStreamTimeout(time.Minute))
-			_, err = receiveAll(ctx, bounded, "hello")
-			require.NoError(t, err)
-
 			headers := srv.deadlineHeaders()
-			require.Len(t, headers, 4)
+			require.Len(t, headers, 3)
 			require.Regexp(t, "^"+procUnary+" [0-9]+", headers[0], "the unary timeout is sent")
-			require.Equal(t, procServerStream+" ", headers[1], "a stream has no deadline by default")
-			require.Equal(t, procClientStream+" ", headers[2], "a stream has no deadline by default")
-			require.Regexp(t, "^"+procServerStream+" [0-9]+", headers[3], "the stream timeout is sent")
+			require.Regexp(t, "^"+procServerStream+" [0-9]+", headers[1], "the stream timeout is sent")
+			require.Regexp(t, "^"+procClientStream+" [0-9]+", headers[2], "the stream timeout is sent")
+		})
+	}
+}
+
+// The defaults apply only to a call without a deadline of its own, which replaces them both ways.
+func TestCallTimeouts_CallerDeadlineReplacesDefault(t *testing.T) {
+	timeouts := callTimeouts{unary: defaultClientOptions.timeout, stream: defaultClientOptions.streamTimeout}
+	require.Equal(t, 15*time.Second, timeouts.unary)
+	require.Equal(t, 5*time.Minute, timeouts.stream)
+
+	calls := []struct {
+		name         string
+		defaultValue time.Duration
+		deadlineOf   func(ctx context.Context) (time.Time, bool)
+	}{
+		{"unary", timeouts.unary, func(ctx context.Context) (deadline time.Time, ok bool) {
+			_, _ = timeouts.WrapUnary(func(ctx context.Context, _ connect.AnyRequest) (connect.AnyResponse, error) {
+				deadline, ok = ctx.Deadline()
+				return nil, nil
+			})(ctx, nil)
+			return deadline, ok
+		}},
+		{"stream", timeouts.stream, func(ctx context.Context) (deadline time.Time, ok bool) {
+			conn := timeouts.WrapStreamingClient(func(ctx context.Context, spec connect.Spec) connect.StreamingClientConn {
+				deadline, ok = ctx.Deadline()
+				return &unsupportedConn{spec: spec, header: http.Header{}}
+			})(ctx, connect.Spec{StreamType: connect.StreamTypeServer})
+			_ = conn.CloseResponse()
+			return deadline, ok
+		}},
+	}
+	for _, call := range calls {
+		t.Run(call.name, func(t *testing.T) {
+			before := time.Now()
+			got, ok := call.deadlineOf(context.Background())
+			require.True(t, ok, "the default applies without a deadline")
+			require.WithinRange(t, got, before.Add(call.defaultValue), time.Now().Add(call.defaultValue))
+
+			for _, own := range []time.Duration{time.Second, time.Hour} {
+				want := time.Now().Add(own)
+				ctx, cancel := context.WithDeadline(context.Background(), want)
+				got, ok := call.deadlineOf(ctx)
+				cancel()
+				require.True(t, ok)
+				require.True(t, want.Equal(got), "a deadline of %v replaces the default, got %v", own, got.Sub(want))
+			}
 		})
 	}
 }

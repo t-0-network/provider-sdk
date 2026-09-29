@@ -203,17 +203,17 @@ func isEnveloped(req *http.Request) bool {
 	return strings.HasPrefix(mt, "application/connect+") || isGRPCMediaType(mt)
 }
 
-// callTimeouts sets each call's deadline from its stream type; zero means none. It is an
-// interceptor because the transport cannot tell gRPC unary from gRPC server-streaming requests.
+// callTimeouts gives each call whose context has no deadline the timeout of its stream type. It is
+// an interceptor because the transport cannot tell gRPC unary from gRPC server-streaming requests.
 type callTimeouts struct {
 	unary, stream time.Duration
 }
 
 func (c callTimeouts) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
-	if c.unary <= 0 {
-		return next
-	}
 	return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
+		if _, ok := ctx.Deadline(); ok {
+			return next(ctx, req)
+		}
 		ctx, cancel := context.WithTimeout(ctx, c.unary)
 		defer cancel()
 		return next(ctx, req)
@@ -221,10 +221,10 @@ func (c callTimeouts) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
 }
 
 func (c callTimeouts) WrapStreamingClient(next connect.StreamingClientFunc) connect.StreamingClientFunc {
-	if c.stream <= 0 {
-		return next
-	}
 	return func(ctx context.Context, spec connect.Spec) connect.StreamingClientConn {
+		if _, ok := ctx.Deadline(); ok {
+			return next(ctx, spec)
+		}
 		ctx, cancel := context.WithTimeout(ctx, c.stream)
 		return &cancelOnCloseConn{StreamingClientConn: next(ctx, spec), cancel: cancel}
 	}

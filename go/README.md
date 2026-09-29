@@ -142,7 +142,7 @@ _, err = networkClient.GetQuote(ctx, connect.NewRequest(&networkproto.GetQuoteRe
 _, err = networkClient.CreatePayment(ctx, connect.NewRequest(&networkproto.CreatePaymentRequest{...}))
 ```
 
-**Client options:** `WithBaseURL` (default: `https://api.t-0.network`), `WithTimeout` (unary calls, default: 15s), `WithStreamTimeout` (streaming calls, default: none), `WithSignatureFunction`, `WithConnectOptions`, `WithHTTPTransport`.
+**Client options:** `WithBaseURL` (default: `https://api.t-0.network`), `WithTimeout` (unary calls, default: 15s), `WithStreamTimeout` (streaming calls, default: 5 min), `WithSignatureFunction`, `WithConnectOptions`, `WithHTTPTransport`.
 
 #### Streaming calls
 
@@ -156,7 +156,7 @@ resp, err := stream.CloseAndReceive()
 ```
 
 - Send the first message (or call `CloseAndReceive`) before waiting for a response.
-- Streams have no timeout by default: bound one with its context or `WithStreamTimeout`.
+- A stream ends after 5 minutes unless `WithStreamTimeout` or its context sets another deadline; a deadline on the context replaces the default.
 - Bidirectional-streaming calls fail with `CodeUnimplemented` and send nothing.
 
 Details: [`docs/STREAMING.md`](../docs/STREAMING.md).

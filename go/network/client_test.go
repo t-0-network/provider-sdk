@@ -3,6 +3,7 @@ package network
 import (
 	"encoding/binary"
 	"encoding/hex"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -222,20 +223,23 @@ func TestNewServiceClient_ValidationErrors(t *testing.T) {
 		require.ErrorIs(t, err, ErrEmptyBaseURL)
 	})
 
-	t.Run("zero timeout", func(t *testing.T) {
-		_, err := NewServiceClient("", factory,
-			WithSignatureFunction(testSignFn(t)),
-			WithTimeout(0),
-		)
-		require.ErrorIs(t, err, ErrInvalidTimeOut)
-	})
+	const maxTimeout = 2147483647 * time.Millisecond
+	for _, bad := range []time.Duration{0, -time.Second, maxTimeout + time.Millisecond} {
+		t.Run(fmt.Sprintf("timeout %v is refused", bad), func(t *testing.T) {
+			_, err := NewServiceClient("", factory, WithSignatureFunction(testSignFn(t)), WithTimeout(bad))
+			require.ErrorIs(t, err, ErrInvalidTimeOut)
+			require.EqualError(t, err, "WithTimeout must be a positive duration of at most 2147483647 ms")
 
-	t.Run("negative stream timeout", func(t *testing.T) {
-		_, err := NewServiceClient("", factory,
-			WithSignatureFunction(testSignFn(t)),
-			WithStreamTimeout(-time.Second),
-		)
-		require.ErrorIs(t, err, ErrInvalidStreamTimeout)
+			_, err = NewServiceClient("", factory, WithSignatureFunction(testSignFn(t)), WithStreamTimeout(bad))
+			require.ErrorIs(t, err, ErrInvalidStreamTimeout)
+			require.EqualError(t, err, "WithStreamTimeout must be a positive duration of at most 2147483647 ms")
+		})
+	}
+
+	t.Run("the largest timeouts are accepted", func(t *testing.T) {
+		_, err := NewServiceClient("", factory, WithSignatureFunction(testSignFn(t)),
+			WithTimeout(maxTimeout), WithStreamTimeout(maxTimeout))
+		require.NoError(t, err)
 	})
 
 	t.Run("empty key and no signFn", func(t *testing.T) {

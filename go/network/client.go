@@ -29,7 +29,7 @@ func NewServiceClient[T any](
 	var t T
 
 	if err := options.validate(); err != nil {
-		return t, fmt.Errorf("validating client options: %w", err)
+		return t, err
 	}
 
 	if options.signFn == nil {
