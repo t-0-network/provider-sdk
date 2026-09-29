@@ -1,10 +1,7 @@
 """Cross-language streaming tests: Python client -> Go server.
 
-The Go helper serves test.v1.StreamTest (cross_test/stream_test.proto) behind a verifier that
-checks a streaming request's signature the way the T-0 Network does: over the first request
-envelope only, when the headers and that envelope have arrived. It answers HTTP 401 to anything
-else, and logs what it verified or why it rejected a request; the tests read that log. The client
-is built by hand on google.protobuf.StringValue, as generated code would build it.
+The Go helper verifies test.v1.StreamTest requests over their first envelope, as the network does,
+and logs each verdict to stderr; the tests assert on that log. See docs/python/STREAMING.md.
 
 Requires the Go helper binary to be built:
     cd cross_test/go_helper && go build -o go_helper .
@@ -201,10 +198,7 @@ class _JsonStreamTestClientSync(_StreamTestClientSync):
 
 
 class _GoServer:
-    """`go_helper serve`, shared by the tests of this module, and the log it writes to stderr.
-
-    A test calls mark() before its requests and looks only at the lines logged after the mark.
-    """
+    """`go_helper serve` and its stderr log. A test looks only at lines logged after its mark()."""
 
     def __init__(self, proc: subprocess.Popen[bytes], port: int) -> None:
         self.url = f"http://127.0.0.1:{port}"
@@ -236,11 +230,8 @@ class _GoServer:
         return None
 
     def mark(self) -> int:
-        """The position in the log where the calling test's lines start.
-
-        A request answered earlier may not have reached the log reader yet, so the mark is taken
-        after the line of a request of its own: the server wrote every earlier line before it.
-        """
+        """Sends a request of its own and waits for its line, so that late lines of earlier requests
+        land before the mark."""
         path = f"{STREAM_TEST_PREFIX}Mark{next(self._marks)}"
         conn = http.client.HTTPConnection("127.0.0.1", self._port, timeout=5)
         try:
@@ -456,7 +447,6 @@ class TestPythonAsyncClientGoServerStream:
         go_server.wait_for_log(SERVER_STREAM_VERIFIED, since=mark)
 
     async def test_client_stream_is_sent_before_its_second_message(self, go_server: _GoServer, protocol: str) -> None:
-        """The server verifies the first message while the client still holds the second."""
         client = _async_client(_StreamTestClient, go_server.url, protocol)
         mark = go_server.mark()
 
@@ -682,8 +672,7 @@ class TestPythonSyncClientGoServerStream:
         assert response.status == health_pb2.HealthCheckResponse.SERVING
 
 
-# The signature covers the bytes as sent, whatever the codec: Connect JSON streams are signed over
-# their first envelope and verified by the Go helper like binary ones.
+# The codec does not matter: Connect JSON streams are signed over their first envelope as sent.
 
 
 @pytest.mark.asyncio

@@ -76,7 +76,7 @@ The sync variant uses `payment_sync.py` -- implement the same RPC methods as reg
 
 ## Network Client Timeouts and Streaming
 
-`new_service_client()` / `new_service_client_sync()` sign every request. Unary calls time out after `timeout` (15 seconds by default). Client- and server-streaming calls have no timeout unless you set `stream_timeout`, because a stream runs as long as its upload or download takes. A call's own `timeout_ms` overrides either default.
+`new_service_client()` / `new_service_client_sync()` sign every request. Unary calls time out after `timeout` (15 seconds by default); client- and server-streaming calls have no timeout unless you set `stream_timeout`. A call's own `timeout_ms` overrides either default.
 
 ```python
 network_client = new_service_client(
@@ -88,7 +88,7 @@ network_client = new_service_client(
 )
 ```
 
-A streaming call is signed over its first request message only, and the request is sent as soon as that message is available. For a client stream, send a message (or close the stream) before waiting for a response. Bidirectional streams are not supported: a client built by `new_service_client()` / `new_service_client_sync()` raises `ConnectError` with `Code.UNIMPLEMENTED` when one is called, before anything is sent.
+A streaming call is signed over its first request message and sent as soon as that message is available: for a client stream, send a message (or close the stream) before waiting for a response. Bidirectional streams are not supported (`ConnectError` with `Code.UNIMPLEMENTED`). Details: [`docs/python/STREAMING.md`](../docs/python/STREAMING.md).
 
 ## Available Commands
 

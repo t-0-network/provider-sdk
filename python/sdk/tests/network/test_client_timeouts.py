@@ -1,8 +1,7 @@
 """Tests for the unary and stream default timeouts of the client factories.
 
-Each call goes through the real ConnectRPC client and the signing transport down to a fake
-pyqwest client, which records the timeout the call carries (the connect-timeout-ms or
-grpc-timeout header, and for sync calls the pyqwest timeout) and then fails the call.
+Calls go through the real ConnectRPC client and signing transport to a fake pyqwest client, which
+records the timeout header (and the sync pyqwest timeout) and fails the call.
 """
 
 from __future__ import annotations
@@ -142,7 +141,6 @@ async def _messages():
 
 
 async def _call(client, kind: str, timeout_ms: int | None = None) -> None:
-    """Makes one call of the given kind, which the recorder fails once it has seen the request."""
     with pytest.raises(ConnectError) as exc_info:
         match kind:
             case "unary":

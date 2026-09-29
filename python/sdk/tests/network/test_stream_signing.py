@@ -1,7 +1,6 @@
 """Tests for the streaming paths of the signing transport.
 
-Each test replaces the wrapped pyqwest client with a fake that records what it is asked to send
-and reads the request body the way pyqwest does, closing it at the end.
+The fake pyqwest clients read the request body the way pyqwest does and close it at the end.
 """
 
 from __future__ import annotations
@@ -30,8 +29,7 @@ CONNECT_STREAM = "application/connect+proto"
 GRPC = "application/grpc+proto"
 GRPC_WEB = "application/grpc-web+proto"
 
-# The media type decides, parameters dropped and case ignored.
-# Any codec: Connect JSON streams are envelopes too.
+# Any codec: Connect JSON streams are enveloped too.
 ENVELOPED_CONTENT_TYPES = [
     CONNECT_STREAM,
     "application/connect+json",
@@ -146,14 +144,12 @@ def _send_sync(fake: _FakeSyncClient, content_type: str, content, timeout: float
         assert resp == "response"
 
 
-# (chunks the source yields, what the signature covers). connectrpc yields one envelope per chunk.
+# (chunks the source yields, bytes signed)
 CHUNKINGS = {
     "one envelope per chunk": ([ENV1, ENV2, ENV3], ENV1),
     "empty stream": ([], b""),
 }
 
-# First chunks that are not one complete envelope: the call fails and nothing is sent, rather than
-# signing bytes that are not the first envelope.
 BAD_FIRST_CHUNKS = {
     "first envelope split across chunks": [ENV1[:7], ENV1[7:], ENV2],
     "first envelope merged with the next": [ENV1 + ENV2, ENV3],
@@ -161,8 +157,6 @@ BAD_FIRST_CHUNKS = {
     "empty first chunk": [b"", ENV1],
 }
 
-
-# Enveloped bytes bodies that end inside their first envelope: the call fails and nothing is sent.
 TRUNCATED_BODIES = {
     "partial prefix": ENV1[:3],
     "partial payload": ENV1[:-1],
@@ -285,8 +279,7 @@ class TestSigningClientStream:
 
     @pytest.mark.parametrize("content_type", WHOLE_BODY_CONTENT_TYPES)
     async def test_other_iterator_is_signed_whole(self, content_type: str) -> None:
-        """connectrpc passes gRPC-Web bodies as an iterator of envelopes too, but the content type
-        decides: the whole body is read, signed and sent as bytes."""
+        """connectrpc hands gRPC-Web bodies over as envelope iterators too; the content type decides."""
         events: list[str] = []
         fake = _FakeClient(events)
         await _send(fake, content_type, _closing_asource([ENV1, ENV2], events))

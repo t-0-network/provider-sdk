@@ -1,8 +1,4 @@
-"""Tests for the rejection of bidirectional streams by the client factories.
-
-Each call goes through the real ConnectRPC client down to a fake pyqwest client that records any
-request it is asked to send.
-"""
+"""Tests for the rejection of bidirectional streams by the client factories."""
 
 from __future__ import annotations
 

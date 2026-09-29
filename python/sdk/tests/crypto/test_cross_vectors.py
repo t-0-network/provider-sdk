@@ -113,7 +113,6 @@ class TestCrossVectorsSignatureVerification:
 
 
 def _first_envelope(body: bytes) -> bytes:
-    """The envelope a body starts with: flags, big-endian uint32 length, payload."""
     if not body:
         return b""
     assert len(body) >= 5
@@ -168,9 +167,8 @@ def _assert_signed_like_vector(vec, recorder):
 
 
 class TestCrossVectorsStreamSigningCases:
-    """Streaming requests are signed over their first message only: first_envelope is the
-    envelope as sent, prefix included; first_payload is the same message without its 5-byte
-    prefix, what a signer above the gRPC framer (Java) covers."""
+    """first_envelope covers the first envelope as sent; first_payload the same message without its
+    5-byte prefix, as a signer above the gRPC framer (Java) signs it."""
 
     def test_all_cases(self):
         cases = VECTORS["stream_signing_cases"]

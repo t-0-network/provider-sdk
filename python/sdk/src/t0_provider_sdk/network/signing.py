@@ -4,21 +4,8 @@ These wrappers intercept outgoing requests to add T-0 Network signature headers
 before delegating to the underlying pyqwest client. ConnectRPC uses exactly
 three methods on the client: get(), post(), and stream().
 
-What is signed depends on the request's content type -- its media type, parameters dropped and
-case ignored -- as in every SDK, whatever form the body comes in:
-
-- Enveloped requests, a sequence of envelopes: Connect streaming (``application/connect+*``) and
-  gRPC (``application/grpc`` and ``application/grpc+*``). Only the first envelope is signed,
-  exactly as sent -- flags, 4-byte big-endian length and payload. connectrpc hands these bodies
-  over as an iterator yielding one envelope per message: the request goes out as soon as the first
-  envelope is available, and later messages are forwarded as they come, not covered by the
-  signature. A gRPC unary request is a single envelope, so for it this is the whole body. An
-  enveloped body given as bytes is signed over the first envelope cut from it by its length prefix.
-- Everything else: the whole body. That is Connect unary (``application/proto`` and
-  ``application/json``, bytes), GET (no body) and gRPC-Web (``application/grpc-web*``), whose
-  iterator body is read to its end, signed and sent as bytes.
-
-Bidirectional streams are not supported; the clients built by network.client reject them.
+The content type decides what is signed: enveloped requests (Connect streaming, gRPC) over their
+first envelope as sent, everything else over the whole body. See docs/python/STREAMING.md.
 
 Go equivalent: network/signing_transport.go → SigningTransport.RoundTrip(req)
 """
@@ -71,8 +58,7 @@ def _sign_request(
     4. signature, public_key = sign(digest)
     5. Set X-Public-Key, X-Signature, X-Signature-Timestamp headers
 
-    body is whatever the request's signature covers: the whole body, or the first envelope of a
-    streaming request.
+    body is what the signature covers: the whole body, or an enveloped request's first envelope.
     """
     timestamp_ms = _timestamp_ms()
     timestamp_bytes = struct.pack("<Q", timestamp_ms)
@@ -88,11 +74,7 @@ def _sign_request(
 
 
 def _is_enveloped(headers: pyqwest.Headers | None) -> bool:
-    """Whether the request body is a sequence of envelopes, of which only the first is signed.
-
-    pyqwest.Headers looks names up case-insensitively. gRPC-Web (application/grpc-web*) is not
-    enveloped here: the network signs and verifies its whole body.
-    """
+    """Whether only the first envelope is signed. Not for gRPC-Web: the network verifies its whole body."""
     content_type = headers.get("content-type") if headers is not None else None
     media_type = (content_type or "").partition(";")[0].strip().lower()
     return (
@@ -103,9 +85,6 @@ def _is_enveloped(headers: pyqwest.Headers | None) -> bool:
 
 
 def _first_envelope(body: bytes) -> bytes:
-    """The first envelope of an enveloped body given as bytes; b"" for an empty body, as for a
-    client stream closed before its first message. A body that ends inside its first envelope
-    fails the call rather than being signed over bytes that are not that envelope."""
     if not body:
         return b""
     size = _ENVELOPE_PREFIX_SIZE + int.from_bytes(body[1:_ENVELOPE_PREFIX_SIZE], "big")
@@ -115,17 +94,15 @@ def _first_envelope(body: bytes) -> bytes:
 
 
 def _require_one_envelope(chunk: bytes) -> None:
-    """connectrpc yields one complete envelope per chunk, so the first chunk is the first envelope.
-    It is checked rather than trusted: a change in that framing must fail the call, never sign bytes
-    that are not the first envelope."""
+    """connectrpc yields one envelope per chunk. Checked, not trusted: a change in that framing must
+    fail the call, never sign the wrong bytes."""
     size = _ENVELOPE_PREFIX_SIZE + int.from_bytes(chunk[1:_ENVELOPE_PREFIX_SIZE], "big")
     if len(chunk) < _ENVELOPE_PREFIX_SIZE or len(chunk) != size:
         raise ConnectError(Code.INTERNAL, "the first request chunk is not one complete envelope")
 
 
 def _remaining_timeout(timeout: float | None, started: float, waited_for: str) -> float | None:
-    """What is left of a sync call's timeout after waiting since started for its body: the timeout
-    covers that wait too, as it does for async calls."""
+    """A sync call's timeout also covers the wait for its body, as asyncio's does for async calls."""
     if timeout is None:
         return None
     timeout -= time.monotonic() - started
@@ -141,9 +118,8 @@ async def _aclose(source: AsyncIterator[bytes]) -> None:
 
 
 def _close(source: Iterator[bytes]) -> None:
-    # pyqwest writes the body on its own thread and closes it from the caller's. It skips a
-    # generator that is running, since that cannot be closed reliably, but it cannot see the
-    # generator behind the chain, so the chain does the same.
+    # pyqwest closes the body from the caller's thread while its writer thread may be inside the
+    # generator. It skips a running generator but cannot see the one behind the chain, so do it here.
     if isinstance(source, types.GeneratorType) and inspect.getgeneratorstate(source) == inspect.GEN_RUNNING:
         return
     close = getattr(source, "close", None)
@@ -152,11 +128,8 @@ def _close(source: Iterator[bytes]) -> None:
 
 
 class _AsyncChain:
-    """Request body: the first envelope, already read from source, then the rest of source as it
-    comes.
-
-    pyqwest closes only the iterator it is given, so closing the chain closes source.
-    """
+    """The first envelope, already read, then the rest of source. pyqwest closes only the body it
+    is given, so closing the chain closes source."""
 
     def __init__(self, first: bytes | None, source: AsyncIterator[bytes]) -> None:
         self._first = first
@@ -201,10 +174,9 @@ class SigningClient:
     Passed to ConnectRPC async client via http_client= parameter.
     Intercepts get(), post(), stream() to add signature headers.
 
-    A streaming request is sent only when its first message is available, so send a message (or
-    close the stream) before waiting for a response. Bidirectional streams are not supported: the
-    clients built by new_service_client() reject them, and a client built on this wrapper by hand
-    must not make them.
+    A streaming request is sent once its first message is available: send one (or close the
+    stream) before waiting for a response. Bidirectional streams are not supported; only the
+    factory-built clients reject them. See docs/python/STREAMING.md.
     """
 
     def __init__(self, sign_fn: SignFn, *, transport: Any | None = None) -> None:
@@ -243,8 +215,7 @@ class SigningClient:
         self, method: str, url: str, headers: pyqwest.Headers | None, source: AsyncIterator[bytes]
     ) -> AsyncIterator[pyqwest.Response]:
         try:
-            # A client stream closed before its first message has none: b"" is signed and sent,
-            # and the network rejects it.
+            # An empty client stream is signed over b"" and sent; the network rejects it.
             first = await anext(source, None)
             if first is not None:
                 _require_one_envelope(first)
@@ -275,10 +246,9 @@ class SigningSyncClient:
     Passed to ConnectRPC sync client via http_client= parameter.
     Intercepts get(), post(), stream() to add signature headers.
 
-    A streaming request is sent only when its first message is available, so send a message (or
-    close the stream) before waiting for a response. Bidirectional streams are not supported: the
-    clients built by new_service_client_sync() reject them, and a client built on this wrapper by
-    hand must not make them.
+    A streaming request is sent once its first message is available: send one (or close the
+    stream) before waiting for a response. Bidirectional streams are not supported; only the
+    factory-built clients reject them. See docs/python/STREAMING.md.
     """
 
     def __init__(self, sign_fn: SignFn, *, transport: Any | None = None) -> None:

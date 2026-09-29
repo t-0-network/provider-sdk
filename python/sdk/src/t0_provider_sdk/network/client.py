@@ -22,9 +22,7 @@ if TYPE_CHECKING:
 
 T = TypeVar("T")
 
-# The ConnectClient / ConnectClientSync entry points of each call type, and whether the call
-# streams. gRPC unary calls go out through stream() but still enter through execute_unary.
-# execute_bidi_stream is not here: bidirectional calls are rejected instead.
+# (execute method, streams?). gRPC unary goes out through stream() but enters through execute_unary.
 _EXECUTE_METHODS = (
     ("execute_unary", False),
     ("execute_client_stream", True),
@@ -42,20 +40,17 @@ def new_service_client(
 ) -> T:
     """Create an async ConnectRPC client with signing transport.
 
-    Unary calls are signed over the whole request body. Client- and server-streaming calls are
-    signed over their first request message only, and the request goes out as soon as that
-    message is available: send a message (or close the stream) before waiting for a response.
-    Bidirectional streams are not supported: calling one raises ConnectError UNIMPLEMENTED, and
-    nothing is sent.
+    Streaming calls are signed over their first request message and sent as soon as it is
+    available: send one (or close the stream) before waiting for a response. Bidirectional calls
+    raise ConnectError UNIMPLEMENTED. See docs/python/STREAMING.md.
 
     Args:
         private_key: Hex-encoded secp256k1 private key (with or without 0x prefix).
         client_class: Generated ConnectRPC async client class (e.g. NetworkServiceClient).
         base_url: Base URL of the T-0 Network API.
         timeout: Default timeout of unary calls in seconds. Must be greater than zero.
-        stream_timeout: Default timeout of client- and server-streaming calls in seconds, from
-            waiting for the first request message to reading the end of the response. None (or
-            0) means no timeout: a stream can run as long as an upload or a download takes.
+        stream_timeout: Default timeout of client- and server-streaming calls in seconds,
+            including the wait for the first request message. None (or 0) means no timeout.
 
     A call's own ``timeout_ms`` overrides either default.
 
@@ -115,11 +110,7 @@ def _default_timeouts_ms(timeout: float, stream_timeout: float | None) -> tuple[
 
 
 def _set_default_timeouts(client: object, unary_ms: int, stream_ms: int | None) -> None:
-    """Gives each call type its own default timeout.
-
-    A ConnectRPC client has a single timeout_ms for every call, so the client is built without
-    one and each of its execute methods fills in the default of its call type instead.
-    """
+    """A ConnectRPC client has one timeout_ms for every call, so each execute method fills in its own."""
     for name, streaming in _EXECUTE_METHODS:
         execute = getattr(client, name, None)
         if execute is not None:
@@ -127,19 +118,13 @@ def _set_default_timeouts(client: object, unary_ms: int, stream_ms: int | None) 
 
 
 def _reject_bidi_streams(client: object) -> None:
-    """Makes the client's bidirectional calls fail at once, before anything is sent.
-
-    A policy, not a limit of the signing: the network does not accept bidirectional streams
-    (#370), and the signing transport sends a stream only once its first message is signed, so a
-    bidi caller that waited for a response first would block. Failing here is clearer than either.
-    """
+    """A policy, not a signing limit: the network does not accept bidirectional streams (#370)."""
     if getattr(client, "execute_bidi_stream", None) is not None:
         setattr(client, "execute_bidi_stream", _bidi_stream_unsupported)  # noqa: B010
 
 
 def _bidi_stream_unsupported(*args: Any, **kwargs: Any) -> NoReturn:
-    # Raised at the call, for the async client too: its execute_bidi_stream is a plain def that
-    # returns the response iterator.
+    # Raised at the call for the async client too: its execute_bidi_stream is a plain def.
     raise ConnectError(Code.UNIMPLEMENTED, "bidirectional streams are not supported")
 
 
