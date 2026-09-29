@@ -8,7 +8,6 @@ using T0.ProviderSdk.Crypto;
 using T0.ProviderSdk.Network;
 using PaymentApi = T0.ProviderSdk.Api.Tzero.V1.Payment;
 using PaymentIntentApi = T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.Provider;
-using PaymentMethodType = T0.ProviderSdk.Api.Tzero.V1.Common.PaymentMethodType;
 using StringValue = Google.Protobuf.WellKnownTypes.StringValue;
 
 namespace T0.ProviderSdk.Tests.Network;
@@ -210,7 +209,7 @@ public class DefaultDeadlineInterceptorTests
     }
 
     [Fact]
-    public async Task Helpers_SendTheDefaultOrTheConfiguredTimeout()
+    public async Task Helpers_SendTheDefaultOrTheConfiguredTimeout_WithoutValidatingTheRequest()
     {
         var timeouts = new List<string?>();
         var (app, baseUrl) = await StartTimeoutRecorderAsync(timeouts);
@@ -230,14 +229,11 @@ public class DefaultDeadlineInterceptorTests
                 () => payment.UpdateQuoteAsync(new PaymentApi.UpdateQuoteRequest()).ResponseAsync);
             Assert.Equal(StatusCode.Unimplemented, ex.StatusCode);
 
+            // Fails buf.validate (payment_intent_id 0), and is sent all the same: the network validates.
             var paymentIntent = NetworkClient.CreatePaymentIntentNetworkServiceClient(
                 new NetworkClientOptions { BaseUrl = baseUrl, Timeout = TimeSpan.FromSeconds(9) }, signer);
             ex = await Assert.ThrowsAsync<RpcException>(
-                () => paymentIntent.ConfirmPaymentAsync(new PaymentIntentApi.ConfirmPaymentRequest
-                {
-                    PaymentIntentId = 1,
-                    PaymentMethod = PaymentMethodType.Sepa,
-                }).ResponseAsync);
+                () => paymentIntent.ConfirmPaymentAsync(new PaymentIntentApi.ConfirmPaymentRequest()).ResponseAsync);
             Assert.Equal(StatusCode.Unimplemented, ex.StatusCode);
 
             Assert.Equal(3, timeouts.Count);

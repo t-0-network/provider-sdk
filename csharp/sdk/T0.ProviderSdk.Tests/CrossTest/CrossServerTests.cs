@@ -375,9 +375,9 @@ public class CrossServerTests
         }
 
         await using var server = await GoStreamServer.StartAsync(GoHelperPath);
-        // The signing handler plus a header recorder below it; the default
+        // The SDK's signing handler and transport with a header recorder between them; the default
         // GrpcChannelOptions include the gzip provider.
-        var recorder = new HeaderRecorder { InnerHandler = new HttpClientHandler() };
+        var recorder = new HeaderRecorder { InnerHandler = NetworkClient.CreateTransport() };
         using var channel = GrpcChannel.ForAddress(server.BaseUrl, new GrpcChannelOptions
         {
             HttpClient = new HttpClient(new SigningDelegatingHandler(Signer.FromHex(PrivateKey)) { InnerHandler = recorder }),
@@ -413,7 +413,7 @@ public class CrossServerTests
         var signer = new SigningDelegatingHandler(
             Signer.FromHex(PrivateKey), new FixedTimeProvider(DateTimeOffset.UtcNow.AddMinutes(-2)))
         {
-            InnerHandler = new HttpClientHandler()
+            InnerHandler = NetworkClient.CreateTransport()
         };
         using var channel = GrpcChannel.ForAddress(server.BaseUrl, new GrpcChannelOptions
         {

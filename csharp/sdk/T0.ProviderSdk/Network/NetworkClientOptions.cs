@@ -1,3 +1,5 @@
+using System.Diagnostics.CodeAnalysis;
+
 namespace T0.ProviderSdk.Network;
 
 /// <summary>
@@ -5,15 +7,25 @@ namespace T0.ProviderSdk.Network;
 /// </summary>
 public sealed class NetworkClientOptions
 {
+    private const string DefaultBaseUrl = "https://api.t-0.network";
     private const long MaxTimeoutMs = int.MaxValue;
 
+    private string _baseUrl = DefaultBaseUrl;
     private TimeSpan _timeout = TimeSpan.FromSeconds(15);
     private TimeSpan _streamTimeout = TimeSpan.FromMinutes(5);
 
     /// <summary>
-    /// Base URL of the T-0 Network API.
+    /// Base URL of the T-0 Network API, <c>https://api.t-0.network</c> by default or when set to null.
     /// </summary>
-    public string BaseUrl { get; set; } = "https://api.t-0.network";
+    /// <exception cref="ArgumentException">
+    /// The value is empty, or is not an absolute http or https URL with a host.
+    /// </exception>
+    [AllowNull]
+    public string BaseUrl
+    {
+        get => _baseUrl;
+        set => _baseUrl = value is null ? DefaultBaseUrl : ValidateBaseUrl(value);
+    }
 
     /// <summary>
     /// Deadline of a unary call that sets none of its own. Defaults to 15 seconds.
@@ -38,6 +50,17 @@ public sealed class NetworkClientOptions
     {
         get => _streamTimeout;
         set => _streamTimeout = Validate(value, nameof(StreamTimeout));
+    }
+
+    private static string ValidateBaseUrl(string value)
+    {
+        if (value.Length == 0)
+            throw new ArgumentException("base URL is not set", nameof(BaseUrl));
+        if (!Uri.TryCreate(value, UriKind.Absolute, out var uri)
+            || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)
+            || uri.Host.Length == 0)
+            throw new ArgumentException("base URL is not valid", nameof(BaseUrl));
+        return value;
     }
 
     // A timeout cannot be turned off, so Timeout.InfiniteTimeSpan is refused like any other negative value.

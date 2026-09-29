@@ -2,7 +2,6 @@ using Grpc.Core;
 using Grpc.Core.Interceptors;
 using ProtoValidate;
 using T0.ProviderSdk.Api.Tzero.V1.Payment;
-using T0.ProviderSdk.Network;
 using T0.ProviderSdk.Provider;
 using ProtoDecimal = T0.ProviderSdk.Api.Tzero.V1.Common.Decimal;
 
@@ -183,48 +182,6 @@ public class ValidationTests
         Assert.Equal(2, result.Exponent);
     }
 
-    // ==================== Client Interceptor Tests ====================
-
-    [Fact]
-    public void ClientInterceptor_InvalidRequest_ThrowsInvalidArgument()
-    {
-        var interceptor = new RequestValidationInterceptor();
-
-        var ex = Assert.Throws<RpcException>(() =>
-            interceptor.AsyncUnaryCall(
-                new ProtoDecimal { Exponent = 100 }, // invalid
-                TestClientInterceptorContext<ProtoDecimal, ProtoDecimal>.Create(),
-                (req, ctx) => throw new InvalidOperationException("should not be called")));
-
-        Assert.Equal(StatusCode.InvalidArgument, ex.StatusCode);
-        Assert.Contains("request validation failed", ex.Status.Detail);
-    }
-
-    [Fact]
-    public void ClientInterceptor_ValidRequest_CallsContinuation()
-    {
-        var interceptor = new RequestValidationInterceptor();
-        var called = false;
-
-        interceptor.AsyncUnaryCall(
-            new ProtoDecimal { Exponent = 2 }, // valid
-            TestClientInterceptorContext<ProtoDecimal, ProtoDecimal>.Create(),
-            (req, ctx) =>
-            {
-                called = true;
-                var tcs = new TaskCompletionSource<ProtoDecimal>();
-                tcs.SetResult(new ProtoDecimal { Exponent = 2 });
-                return new AsyncUnaryCall<ProtoDecimal>(
-                    tcs.Task,
-                    Task.FromResult(new Metadata()),
-                    () => Status.DefaultSuccess,
-                    () => new Metadata(),
-                    () => { });
-            });
-
-        Assert.True(called);
-    }
-
     // ==================== Test Helpers ====================
 
     private class TestServerCallContext : ServerCallContext
@@ -244,21 +201,5 @@ public class ValidationTests
         protected override Status StatusCore { get; set; }
         protected override WriteOptions? WriteOptionsCore { get; set; }
         protected override AuthContext AuthContextCore => null!;
-    }
-
-    private class TestClientInterceptorContext<TRequest, TResponse>
-        where TRequest : class
-        where TResponse : class
-    {
-        public static ClientInterceptorContext<TRequest, TResponse> Create()
-        {
-            var method = new Method<TRequest, TResponse>(
-                MethodType.Unary,
-                "test.Service",
-                "Method",
-                Marshallers.Create<TRequest>((_ => Array.Empty<byte>()), (_ => default!)),
-                Marshallers.Create<TResponse>((_ => Array.Empty<byte>()), (_ => default!)));
-            return new ClientInterceptorContext<TRequest, TResponse>(method, null, new CallOptions());
-        }
     }
 }

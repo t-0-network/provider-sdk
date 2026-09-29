@@ -62,7 +62,7 @@ public static class NetworkClient
     {
         var signingHandler = new SigningDelegatingHandler(signer)
         {
-            InnerHandler = new HttpClientHandler()
+            InnerHandler = CreateTransport()
         };
 
         // Deadlines come from the call: HttpClient.Timeout only runs until the response headers,
@@ -73,23 +73,27 @@ public static class NetworkClient
         };
     }
 
+    // Pings find a dead HTTP/2 connection while a call waits on it, such as a stream between messages.
+    internal static SocketsHttpHandler CreateTransport() => new()
+    {
+        KeepAlivePingDelay = TimeSpan.FromSeconds(30),
+        KeepAlivePingTimeout = TimeSpan.FromSeconds(10),
+        KeepAlivePingPolicy = HttpKeepAlivePingPolicy.WithActiveRequests,
+    };
+
     /// <summary>
-    /// Creates a Payment NetworkService client with auto-signing transport, request validation and
-    /// default deadlines.
+    /// Creates a Payment NetworkService client; see <see cref="Create{TClient}"/>.
     /// </summary>
     public static PaymentApi.NetworkService.NetworkServiceClient CreateNetworkServiceClient(
         NetworkClientOptions options,
         ISigner signer) =>
-        Create(options, signer, invoker =>
-            new PaymentApi.NetworkService.NetworkServiceClient(invoker.Intercept(new RequestValidationInterceptor())));
+        Create(options, signer, invoker => new PaymentApi.NetworkService.NetworkServiceClient(invoker));
 
     /// <summary>
-    /// Creates a PaymentIntent NetworkService client with auto-signing transport, request validation
-    /// and default deadlines.
+    /// Creates a PaymentIntent NetworkService client; see <see cref="Create{TClient}"/>.
     /// </summary>
     public static PaymentIntentApi.NetworkService.NetworkServiceClient CreatePaymentIntentNetworkServiceClient(
         NetworkClientOptions options,
         ISigner signer) =>
-        Create(options, signer, invoker =>
-            new PaymentIntentApi.NetworkService.NetworkServiceClient(invoker.Intercept(new RequestValidationInterceptor())));
+        Create(options, signer, invoker => new PaymentIntentApi.NetworkService.NetworkServiceClient(invoker));
 }
