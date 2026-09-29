@@ -3,6 +3,8 @@ package network
 import (
 	"bytes"
 	"context"
+	cryptorand "crypto/rand"
+	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
@@ -32,12 +34,14 @@ const (
 	procClientStream = "/test.v1.StreamTest/ClientStream"
 	procServerStream = "/test.v1.StreamTest/ServerStream"
 	procUnary        = "/test.v1.StreamTest/Unary"
+	procBidi         = "/test.v1.StreamTest/Bidi"
 )
 
 type streamTestClient struct {
 	clientStream *connect.Client[wrapperspb.StringValue, wrapperspb.StringValue]
 	serverStream *connect.Client[wrapperspb.StringValue, wrapperspb.StringValue]
 	unary        *connect.Client[wrapperspb.StringValue, wrapperspb.StringValue]
+	bidi         *connect.Client[wrapperspb.StringValue, wrapperspb.StringValue]
 }
 
 // newStreamTestClient has the shape of a generated client constructor, so it can be passed to
@@ -47,6 +51,7 @@ func newStreamTestClient(httpClient connect.HTTPClient, baseURL string, opts ...
 		clientStream: connect.NewClient[wrapperspb.StringValue, wrapperspb.StringValue](httpClient, baseURL+procClientStream, opts...),
 		serverStream: connect.NewClient[wrapperspb.StringValue, wrapperspb.StringValue](httpClient, baseURL+procServerStream, opts...),
 		unary:        connect.NewClient[wrapperspb.StringValue, wrapperspb.StringValue](httpClient, baseURL+procUnary, opts...),
+		bidi:         connect.NewClient[wrapperspb.StringValue, wrapperspb.StringValue](httpClient, baseURL+procBidi, opts...),
 	}
 }
 
@@ -74,6 +79,9 @@ type streamTestServer struct {
 	mu       sync.Mutex
 	accepted []verified
 	rejected []string
+	// deadlines has the deadline header of every request (Connect-Timeout-Ms or grpc-timeout),
+	// by procedure; empty when the request had none.
+	deadlines []string
 }
 
 func newStreamTestServer(t *testing.T, publicKey []byte) *streamTestServer {
@@ -135,6 +143,7 @@ func (s *streamTestServer) verify(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		v, err := s.checkSignature(r)
 		s.mu.Lock()
+		s.deadlines = append(s.deadlines, r.URL.Path+" "+r.Header.Get("Connect-Timeout-Ms")+r.Header.Get("Grpc-Timeout"))
 		if err != nil {
 			s.rejected = append(s.rejected, err.Error())
 		} else {
@@ -217,6 +226,12 @@ func (s *streamTestServer) results() ([]verified, []string) {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return append([]verified(nil), s.accepted...), append([]string(nil), s.rejected...)
+}
+
+func (s *streamTestServer) deadlineHeaders() []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return append([]string(nil), s.deadlines...)
 }
 
 func digestOf(signed []byte, timestampMs int64) []byte {
@@ -349,7 +364,17 @@ func TestStream_ClientStreamIsNotBuffered(t *testing.T) {
 	}
 }
 
-// A first message larger than one HTTP/2 DATA frame (16 KiB).
+// incompressible returns a random string of n bytes, which stays larger than several HTTP/2 DATA
+// frames (16 KiB) after gzip.
+func incompressible(t *testing.T, n int) string {
+	t.Helper()
+	raw := make([]byte, n*3/4)
+	_, err := cryptorand.Read(raw)
+	require.NoError(t, err)
+	return base64.StdEncoding.EncodeToString(raw)
+}
+
+// A first message larger than one HTTP/2 DATA frame (16 KiB), compressed or not.
 func TestStream_LargeFirstMessage(t *testing.T) {
 	for _, p := range streamProtocols {
 		t.Run(p.name, func(t *testing.T) {
@@ -357,7 +382,7 @@ func TestStream_LargeFirstMessage(t *testing.T) {
 			srv := newStreamTestServer(t, key.publicKey)
 			client := newStreamClient(t, srv, key, WithConnectOptions(p.opts...))
 
-			large := strings.Repeat("0123456789abcdef", 4096) // 64 KiB
+			large := incompressible(t, 64<<10)
 			stream := client.clientStream.CallClientStream(testContext(t))
 			require.NoError(t, stream.Send(wrapperspb.String(large)))
 			require.NoError(t, stream.Send(wrapperspb.String("tail")))
@@ -542,6 +567,61 @@ func TestSigningTransport_FirstEnvelopeDoesNotModifyRequest(t *testing.T) {
 	require.Equal(t, append(first, rest...), forwarded, "the body is forwarded unchanged")
 }
 
+// A body that is not enveloped (Connect unary, gRPC-Web) is signed whole, and the caller's request
+// is not modified either.
+func TestSigningTransport_WholeBodyDoesNotModifyRequest(t *testing.T) {
+	key := newTestKey(t)
+	var sent *http.Request
+	recorder := roundTripperFunc(func(r *http.Request) (*http.Response, error) {
+		sent = r
+		return &http.Response{StatusCode: http.StatusOK, Body: http.NoBody}, nil
+	})
+	st := NewSigningTransport(key.sign, time.Now, WithTransport(recorder))
+
+	// Two gRPC-Web envelopes: an enveloped content type would be signed over the first only.
+	whole := []byte{0, 0, 0, 0, 2, 0x0a, 0x00, 0, 0, 0, 0, 2, 0x0a, 0x00}
+	body := io.NopCloser(bytes.NewReader(whole))
+	req := newStreamRequest(t, context.Background(), body)
+	req.Header.Set("Content-Type", "application/grpc-web+proto")
+	req.Body = body
+
+	resp, err := st.RoundTrip(req)
+	require.NoError(t, err)
+	resp.Body.Close()
+
+	require.Empty(t, req.Header.Get(common.SignatureHeader), "the caller's headers must not change")
+	require.True(t, req.Body == body, "the caller's body must not change")
+	require.NotSame(t, req, sent)
+	require.Equal(t, int64(len(whole)), sent.ContentLength)
+	forwarded, err := io.ReadAll(sent.Body)
+	require.NoError(t, err)
+	require.Equal(t, whole, forwarded)
+	replayed, err := sent.GetBody()
+	require.NoError(t, err)
+	again, err := io.ReadAll(replayed)
+	require.NoError(t, err)
+	require.Equal(t, whole, again, "GetBody replays the signed body")
+
+	timestamp, err := strconv.ParseInt(sent.Header.Get(common.SignatureTimestampHeader), 10, 64)
+	require.NoError(t, err)
+	signature, err := hex.DecodeString(strings.TrimPrefix(sent.Header.Get(common.SignatureHeader), "0x"))
+	require.NoError(t, err)
+	pubKey, err := crypto.GetPublicKeyFromBytes(key.publicKey)
+	require.NoError(t, err)
+	require.True(t, crypto.VerifySignature(pubKey, digestOf(whole, timestamp), signature), "signed over the whole body")
+}
+
+func TestSigningTransport_WholeBodyReadErrorClosesBody(t *testing.T) {
+	body := &errReadCloser{err: connect.NewError(connect.CodePermissionDenied, errors.New("caller refused"))}
+	st := NewSigningTransport(newTestKey(t).sign, time.Now, WithTransport(unexpectedRoundTrip(t)))
+
+	req := newStreamRequest(t, context.Background(), body)
+	req.Header.Set("Content-Type", "application/proto")
+	_, err := st.RoundTrip(req)
+	require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err), "error: %v", err)
+	require.True(t, body.closed, "the body must be closed")
+}
+
 // A client stream waits for its first message; the call's context ends the wait.
 func TestSigningTransport_ContextEndsWaitForFirstMessage(t *testing.T) {
 	pr, pw := io.Pipe()
@@ -567,9 +647,12 @@ func TestSigningTransport_ContextEndsWaitForFirstMessage(t *testing.T) {
 
 func TestSigningTransport_TimestampTakenAfterFirstMessage(t *testing.T) {
 	pr, pw := io.Pipe()
-	var sent atomic.Bool
+	var sent, signedEarly atomic.Bool
+	// The clock runs in RoundTrip's goroutine, where require must not fail the test: it records.
 	clock := func() time.Time {
-		require.True(t, sent.Load(), "signed before the first message arrived")
+		if !sent.Load() {
+			signedEarly.Store(true)
+		}
 		return time.Now()
 	}
 	recorder := roundTripperFunc(func(r *http.Request) (*http.Response, error) {
@@ -590,6 +673,7 @@ func TestSigningTransport_TimestampTakenAfterFirstMessage(t *testing.T) {
 	_, err := pw.Write([]byte{0, 0, 0, 0, 0})
 	require.NoError(t, err)
 	require.NoError(t, <-done)
+	require.False(t, signedEarly.Load(), "signed before the first message arrived")
 }
 
 func TestStream_Timeouts(t *testing.T) {
@@ -618,6 +702,95 @@ func TestStream_Timeouts(t *testing.T) {
 				_, err := receiveAll(testContext(t), client, "hello")
 				require.Equal(t, connect.CodeDeadlineExceeded, connect.CodeOf(err), "error: %v", err)
 			})
+
+			t.Run("a client stream may outlast the unary timeout", func(t *testing.T) {
+				client := newStreamClient(t, srv, key, WithConnectOptions(p.opts...), WithTimeout(100*time.Millisecond))
+				stream := client.clientStream.CallClientStream(testContext(t))
+				require.NoError(t, stream.Send(wrapperspb.String("m1")))
+				time.Sleep(300 * time.Millisecond)
+				require.NoError(t, stream.Send(wrapperspb.String("m2")))
+				resp, err := stream.CloseAndReceive()
+				require.NoError(t, err)
+				require.Equal(t, "m1,m2", resp.Msg.GetValue())
+			})
+		})
+	}
+}
+
+// The stream timeout also ends a client stream that never gets its first message; nothing is sent.
+func TestStream_StreamTimeoutBeforeFirstMessage(t *testing.T) {
+	for _, p := range streamProtocols {
+		t.Run(p.name, func(t *testing.T) {
+			key := newTestKey(t)
+			srv := newStreamTestServer(t, key.publicKey)
+			client := newStreamClient(t, srv, key, WithConnectOptions(p.opts...), WithStreamTimeout(100*time.Millisecond))
+
+			stream := client.clientStream.CallClientStream(testContext(t))
+			time.Sleep(300 * time.Millisecond)
+			_ = stream.Send(wrapperspb.String("too late")) // the error is reported by CloseAndReceive
+			_, err := stream.CloseAndReceive()
+			require.Equal(t, connect.CodeDeadlineExceeded, connect.CodeOf(err), "error: %v", err)
+
+			accepted, rejected := srv.results()
+			require.Empty(t, accepted)
+			require.Empty(t, rejected, "nothing reaches the server")
+		})
+	}
+}
+
+// Timeouts are call deadlines, which connect-go sends to the server: unary calls always have one,
+// streams only with WithStreamTimeout.
+func TestStream_DeadlinesAreSent(t *testing.T) {
+	for _, p := range streamProtocols {
+		t.Run(p.name, func(t *testing.T) {
+			key := newTestKey(t)
+			srv := newStreamTestServer(t, key.publicKey)
+
+			// No deadline of the caller's own: only the client's timeouts may set one.
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+
+			client := newStreamClient(t, srv, key, WithConnectOptions(p.opts...))
+			_, err := client.unary.CallUnary(ctx, connect.NewRequest(wrapperspb.String("ping")))
+			require.NoError(t, err)
+			_, err = receiveAll(ctx, client, "hello")
+			require.NoError(t, err)
+			stream := client.clientStream.CallClientStream(ctx)
+			require.NoError(t, stream.Send(wrapperspb.String("m1")))
+			_, err = stream.CloseAndReceive()
+			require.NoError(t, err)
+
+			bounded := newStreamClient(t, srv, key, WithConnectOptions(p.opts...), WithStreamTimeout(time.Minute))
+			_, err = receiveAll(ctx, bounded, "hello")
+			require.NoError(t, err)
+
+			headers := srv.deadlineHeaders()
+			require.Len(t, headers, 4)
+			require.Regexp(t, "^"+procUnary+" [0-9]+", headers[0], "the unary timeout is sent")
+			require.Equal(t, procServerStream+" ", headers[1], "a stream has no deadline by default")
+			require.Equal(t, procClientStream+" ", headers[2], "a stream has no deadline by default")
+			require.Regexp(t, "^"+procServerStream+" [0-9]+", headers[3], "the stream timeout is sent")
+		})
+	}
+}
+
+// A bidirectional stream fails before anything is sent.
+func TestStream_BidiIsRejected(t *testing.T) {
+	for _, p := range streamProtocols {
+		t.Run(p.name, func(t *testing.T) {
+			key := newTestKey(t)
+			srv := newStreamTestServer(t, key.publicKey)
+			client := newStreamClient(t, srv, key, WithConnectOptions(p.opts...))
+
+			stream := client.bidi.CallBidiStream(testContext(t))
+			err := stream.Send(wrapperspb.String("m1"))
+			require.Equal(t, connect.CodeUnimplemented, connect.CodeOf(err), "error: %v", err)
+			_, err = stream.Receive()
+			require.Equal(t, connect.CodeUnimplemented, connect.CodeOf(err), "error: %v", err)
+			require.NoError(t, stream.CloseRequest())
+			require.NoError(t, stream.CloseResponse())
+
+			require.Empty(t, srv.deadlineHeaders(), "nothing reaches the server")
 		})
 	}
 }
@@ -642,6 +815,7 @@ func TestIsEnveloped(t *testing.T) {
 		"application/grpc":               true,
 		"application/grpc+proto":         true,
 		"Application/GRPC+proto; x=y":    true,
+		"APPLICATION/CONNECT+proto; x=y": true,
 		"application/grpc-web":           false,
 		"application/grpc-web+proto":     false,
 		"application/grpc-web-text":      false,

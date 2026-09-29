@@ -21,7 +21,8 @@ type ClientFactory[T any] func(httpClient connect.HTTPClient, baseURL string, op
 // are signed over their first request message only, and the request goes out as soon as that
 // message is sent: see SigningTransport. Unary calls time out after WithTimeout (15 seconds by
 // default); streaming calls have no timeout unless WithStreamTimeout is set. The timeout is the
-// call's deadline, which connect-go also sends to the server.
+// call's deadline, which connect-go also sends to the server. A bidirectional-streaming call fails
+// with connect.CodeUnimplemented and sends nothing.
 func NewServiceClient[T any](
 	privateKey PrivateKeyHexed, clientFactory ClientFactory[T], opts ...ClientOption,
 ) (T, error) {
@@ -58,7 +59,7 @@ func NewServiceClient[T any](
 	}
 
 	connectOptions := append(slices.Clone(options.connectOptions),
-		connect.WithInterceptors(callTimeouts{unary: options.timeout, stream: options.streamTimeout}))
+		connect.WithInterceptors(rejectBidi{}, callTimeouts{unary: options.timeout, stream: options.streamTimeout}))
 
 	return clientFactory(&client, options.baseURL, connectOptions...), nil
 }

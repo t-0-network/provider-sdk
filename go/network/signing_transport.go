@@ -58,7 +58,7 @@ func NewSigningTransport(signFn crypto.SignFn, timeNow func() time.Time, opts ..
 // For a client-streaming call the request is sent only when the first message is available, so
 // send a message (or close the stream) before waiting for a response. A stream closed before its
 // first message is signed over empty bytes and sent; the network rejects it. Bidirectional streams
-// are not supported.
+// are not supported: NewServiceClient fails them before they reach the transport.
 type SigningTransport struct {
 	transport http.RoundTripper
 	sign      crypto.SignFn
@@ -73,22 +73,29 @@ func (t *SigningTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 }
 
 func (t *SigningTransport) signWholeBody(req *http.Request) (*http.Response, error) {
+	hasBody := req.Body != nil && req.Body != http.NoBody
 	var body []byte
-	if req.Body != nil && req.Body != http.NoBody {
+	if hasBody {
 		var err error
 		body, err = io.ReadAll(req.Body)
+		closeRequestBody(req)
 		if err != nil {
 			return nil, fmt.Errorf("reading request body: %w", err)
 		}
-		req.Body.Close()
-		req.Body = io.NopCloser(bytes.NewReader(body))
 	}
 
-	if err := t.setSignatureHeaders(req.Header, body); err != nil {
+	// The caller's request is not modified, as the http.RoundTripper contract requires.
+	signed := req.Clone(req.Context())
+	if hasBody {
+		signed.Body = io.NopCloser(bytes.NewReader(body))
+		signed.ContentLength = int64(len(body))
+		signed.GetBody = func() (io.ReadCloser, error) { return io.NopCloser(bytes.NewReader(body)), nil }
+	}
+	if err := t.setSignatureHeaders(signed.Header, body); err != nil {
 		return nil, err
 	}
 
-	return t.transport.RoundTrip(req)
+	return t.transport.RoundTrip(signed)
 }
 
 func (t *SigningTransport) signFirstEnvelope(req *http.Request) (*http.Response, error) {
@@ -249,6 +256,49 @@ func (c callTimeouts) WrapStreamingClient(next connect.StreamingClientFunc) conn
 func (callTimeouts) WrapStreamingHandler(next connect.StreamingHandlerFunc) connect.StreamingHandlerFunc {
 	return next
 }
+
+// rejectBidi fails a bidirectional-streaming call before anything is sent, with
+// connect.CodeUnimplemented. The network accepts client- and server-streaming calls only, and
+// SigningTransport sends a stream only once its first message is signed, so a bidi caller that
+// waited for a response first would block until its deadline.
+type rejectBidi struct{}
+
+func (rejectBidi) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
+	return next
+}
+
+func (rejectBidi) WrapStreamingClient(next connect.StreamingClientFunc) connect.StreamingClientFunc {
+	return func(ctx context.Context, spec connect.Spec) connect.StreamingClientConn {
+		if spec.StreamType == connect.StreamTypeBidi {
+			return &unsupportedConn{spec: spec, header: http.Header{}}
+		}
+		return next(ctx, spec)
+	}
+}
+
+func (rejectBidi) WrapStreamingHandler(next connect.StreamingHandlerFunc) connect.StreamingHandlerFunc {
+	return next
+}
+
+// unsupportedConn is a stream that is never opened: every send and receive fails.
+type unsupportedConn struct {
+	spec   connect.Spec
+	header http.Header
+}
+
+func errBidiUnsupported() error {
+	return connect.NewError(connect.CodeUnimplemented, errors.New("bidirectional streams are not supported"))
+}
+
+func (c *unsupportedConn) Spec() connect.Spec           { return c.spec }
+func (c *unsupportedConn) Peer() connect.Peer           { return connect.Peer{} }
+func (c *unsupportedConn) Send(any) error               { return errBidiUnsupported() }
+func (c *unsupportedConn) RequestHeader() http.Header   { return c.header }
+func (c *unsupportedConn) CloseRequest() error          { return nil }
+func (c *unsupportedConn) Receive(any) error            { return errBidiUnsupported() }
+func (c *unsupportedConn) ResponseHeader() http.Header  { return http.Header{} }
+func (c *unsupportedConn) ResponseTrailer() http.Header { return http.Header{} }
+func (c *unsupportedConn) CloseResponse() error         { return nil }
 
 // cancelOnCloseConn releases a stream's deadline when the stream is closed.
 type cancelOnCloseConn struct {

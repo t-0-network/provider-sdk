@@ -181,8 +181,9 @@ func TestSigningTransport_NilAndNoBodyProduceSameSignature(t *testing.T) {
 	fixedTime := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 	signFn := testSignFn(t)
 
-	var sigNil, sigNoBody string
+	var signatures []string
 	recorder := roundTripperFunc(func(r *http.Request) (*http.Response, error) {
+		signatures = append(signatures, r.Header.Get(common.SignatureHeader))
 		return &http.Response{
 			StatusCode: http.StatusOK,
 			Body:       io.NopCloser(strings.NewReader("")),
@@ -196,16 +197,16 @@ func TestSigningTransport_NilAndNoBodyProduceSameSignature(t *testing.T) {
 	resp, err := st.RoundTrip(reqNil)
 	require.NoError(t, err)
 	resp.Body.Close()
-	sigNil = reqNil.Header.Get(common.SignatureHeader)
 
 	reqNoBody, err := http.NewRequest("POST", "http://localhost/test", http.NoBody)
 	require.NoError(t, err)
 	resp, err = st.RoundTrip(reqNoBody)
 	require.NoError(t, err)
 	resp.Body.Close()
-	sigNoBody = reqNoBody.Header.Get(common.SignatureHeader)
 
-	require.Equal(t, sigNil, sigNoBody, "nil body and http.NoBody must produce identical signatures")
+	require.Len(t, signatures, 2)
+	require.NotEmpty(t, signatures[0])
+	require.Equal(t, signatures[0], signatures[1], "nil body and http.NoBody must produce identical signatures")
 }
 
 func TestNewServiceClient_ValidationErrors(t *testing.T) {
