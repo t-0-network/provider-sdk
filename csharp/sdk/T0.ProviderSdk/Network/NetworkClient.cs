@@ -77,8 +77,10 @@ public static class NetworkClient
         new(signer) { InnerHandler = SharedTransport };
 
     // Pings find a dead HTTP/2 connection while a call waits on it, such as a stream between messages.
+    // A redirect is not followed: it would send the signed request to another server.
     internal static SocketsHttpHandler CreateTransport() => new()
     {
+        AllowAutoRedirect = false,
         KeepAlivePingDelay = TimeSpan.FromMinutes(5),
         KeepAlivePingTimeout = TimeSpan.FromSeconds(10),
         KeepAlivePingPolicy = HttpKeepAlivePingPolicy.WithActiveRequests,

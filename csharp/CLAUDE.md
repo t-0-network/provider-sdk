@@ -61,7 +61,7 @@ csharp/
 - **DelegatingHandler pattern**: `SigningDelegatingHandler` wraps HttpClient to auto-sign outgoing requests
 - **First-envelope signing**: for `application/grpc`, `application/grpc+*` and `application/connect+*` the handler signs only the first envelope as sent and pipes the rest unbuffered (`FirstFrameThenPipeContent`); a client stream goes out once its first message is written
 - **Deadlines, not HttpClient.Timeout**: every `NetworkClient` factory installs the internal `DefaultDeadlineInterceptor`, which gives a call without its own deadline the default for its kind and refuses bidirectional streams
-- **Transport**: one process-wide `SocketsHttpHandler` shared by every client (each client has its own `SigningDelegatingHandler` on top), with HTTP/2 keepalive pings every 5 min (10 s timeout) while a call is open; clients need no disposing; no client-side request validation
+- **Transport**: one process-wide `SocketsHttpHandler` shared by every client (each client has its own `SigningDelegatingHandler` on top), with HTTP/2 keepalive pings every 5 min (10 s timeout) while a call is open and no redirect following (a redirect would re-send the signed request elsewhere); clients need no disposing; no client-side request validation
 - Streaming, signing and timeout rules: [`docs/STREAMING.md`](../docs/STREAMING.md)
 - **Interfaces for testability**: `ISigner` and `ISignatureVerifier` enable mocking without real crypto
 - **BackgroundService pattern**: `QuotePublisherService` provides periodic timer with error handling

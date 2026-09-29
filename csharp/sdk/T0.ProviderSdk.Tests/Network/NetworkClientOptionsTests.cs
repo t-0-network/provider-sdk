@@ -1,5 +1,11 @@
+using Grpc.Core;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.Server.Kestrel.Core;
 using T0.ProviderSdk.Crypto;
 using T0.ProviderSdk.Network;
+using PaymentApi = T0.ProviderSdk.Api.Tzero.V1.Payment;
 
 namespace T0.ProviderSdk.Tests.Network;
 
@@ -62,6 +68,69 @@ public class NetworkClientOptionsTests
         Assert.Equal(TimeSpan.FromMinutes(5), transport.KeepAlivePingDelay);
         Assert.Equal(TimeSpan.FromSeconds(10), transport.KeepAlivePingTimeout);
         Assert.Equal(HttpKeepAlivePingPolicy.WithActiveRequests, transport.KeepAlivePingPolicy);
+        Assert.False(transport.AllowAutoRedirect);
+    }
+
+    // A redirect would send the signed request to another server.
+    [Theory]
+    [InlineData(302)]
+    [InlineData(307)]
+    public async Task Redirect_IsNotFollowed(int status)
+    {
+        var targetHits = 0;
+        var (target, targetUrl) = await StartServerAsync(context =>
+        {
+            Interlocked.Increment(ref targetHits);
+            context.Response.ContentType = "application/grpc";
+            context.Response.Headers["grpc-status"] = "0";
+            return Task.CompletedTask;
+        });
+        var (redirector, redirectorUrl) = await StartServerAsync(context =>
+        {
+            context.Response.StatusCode = status;
+            context.Response.Headers.Location = targetUrl + context.Request.Path;
+            return Task.CompletedTask;
+        });
+
+        try
+        {
+            var client = NetworkClient.CreateNetworkServiceClient(
+                new NetworkClientOptions { BaseUrl = redirectorUrl }, Signer.FromHex(Key));
+
+            await Assert.ThrowsAsync<RpcException>(
+                () => client.UpdateQuoteAsync(new PaymentApi.UpdateQuoteRequest()).ResponseAsync);
+            Assert.Equal(0, Volatile.Read(ref targetHits));
+        }
+        finally
+        {
+            await redirector.DisposeAsync();
+            await target.DisposeAsync();
+        }
+    }
+
+    /// <summary>
+    /// HTTP/2 cleartext server on a free port.
+    /// </summary>
+    private static async Task<(WebApplication App, string BaseUrl)> StartServerAsync(RequestDelegate handler)
+    {
+        var port = TestPorts.FindFreePort();
+        var builder = WebApplication.CreateBuilder();
+        builder.WebHost.ConfigureKestrel(options =>
+            options.ListenLocalhost(port, listenOptions => listenOptions.Protocols = HttpProtocols.Http2));
+        var app = builder.Build();
+        app.Run(handler);
+
+        try
+        {
+            await app.StartAsync();
+            await TestPorts.WaitForPortAsync(port, TimeSpan.FromSeconds(10));
+            return (app, $"http://127.0.0.1:{port}");
+        }
+        catch
+        {
+            await app.DisposeAsync();
+            throw;
+        }
     }
 
     [Fact]
