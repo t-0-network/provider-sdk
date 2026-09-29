@@ -272,8 +272,11 @@ public abstract class NetworkClient implements Closeable {
      */
     protected record EndpointInfo(String host, int port, boolean usePlaintext) {}
 
-    // A host name, or an IPv4 address; IPv6 addresses come in brackets.
-    private static final Pattern HOST_NAME = Pattern.compile("[A-Za-z0-9.-]+");
+    // A host is an IPv4 address, an IPv6 address in brackets, or a name: labels of letters, digits and
+    // inner '-', joined by '.', the last one starting with a letter.
+    private static final Pattern IPV4 = Pattern.compile("[0-9]{1,3}(\\.[0-9]{1,3}){3}");
+    private static final Pattern HOST_NAME = Pattern.compile(
+            "([A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?\\.)*[A-Za-z]([A-Za-z0-9-]*[A-Za-z0-9])?");
     private static final Pattern IPV6_LITERAL = Pattern.compile("\\[[0-9A-Fa-f:.]+]");
     private static final Pattern PORT = Pattern.compile("[0-9]{1,5}");
 
@@ -311,7 +314,14 @@ public abstract class NetworkClient implements Closeable {
             colon = -1;
         }
         String host = colon < 0 ? authority : authority.substring(0, colon);
-        if (!HOST_NAME.matcher(host).matches() && !IPV6_LITERAL.matcher(host).matches()) {
+        boolean ipv4 = IPV4.matcher(host).matches();
+        if (ipv4) {
+            for (String octet : host.split("\\.")) {
+                if (Integer.parseInt(octet) > 255) {
+                    throw invalidBaseUrl();
+                }
+            }
+        } else if (!HOST_NAME.matcher(host).matches() && !IPV6_LITERAL.matcher(host).matches()) {
             throw invalidBaseUrl();
         }
         int port = usePlaintext ? 80 : 443;
