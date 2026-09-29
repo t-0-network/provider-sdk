@@ -370,14 +370,7 @@ boolean valid = SignatureVerifier.verify(publicKey, digest, signature);
 
 ## Dependencies
 
-| Dependency | Version | Purpose |
-|------------|---------|---------|
-| gRPC (netty-shaded) | 1.78.0 | Server transport |
-| gRPC (okhttp) | 1.78.0 | Client transport |
-| gRPC (protobuf) | 1.78.0 | Protobuf integration |
-| Protobuf Java | 4.33.4 | Message serialization |
-| BouncyCastle | 1.83 | Cryptography (secp256k1, Keccak-256) |
-| SLF4J | 2.0.17 | Logging abstraction |
+gRPC (Netty server transport, OkHttp client transport), Protobuf Java, BouncyCastle (secp256k1, Keccak-256) and SLF4J. Versions: [`build.gradle.kts`](build.gradle.kts).
 
 ---
 

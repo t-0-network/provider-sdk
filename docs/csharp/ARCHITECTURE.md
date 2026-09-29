@@ -118,11 +118,6 @@ headers = {
 
 ## Dependencies
 
-| Package | Version | Purpose |
-|---------|---------|---------|
-| BouncyCastle.Cryptography | 2.6.2 | secp256k1, ECDSA, Keccak-256 |
-| Google.Protobuf | 3.34.0 | Protobuf runtime |
-| Grpc.AspNetCore | 2.76.0 | gRPC server |
-| Grpc.Net.Client | 2.76.0 | gRPC client |
+BouncyCastle.Cryptography (secp256k1, ECDSA, Keccak-256), Google.Protobuf, Grpc.AspNetCore (server) and Grpc.Net.Client (client). Versions: [`T0.ProviderSdk.csproj`](../../csharp/sdk/T0.ProviderSdk/T0.ProviderSdk.csproj).
 
 Target: .NET 10.0

@@ -79,11 +79,13 @@ headers = { X-Public-Key: "0x...", X-Signature: "0x...", X-Signature-Timestamp: 
 
 ## Dependencies
 
-- **BouncyCastle.Cryptography** (2.6.2) — secp256k1, ECDSA, Keccak-256
-- **Google.Protobuf** (3.34.0) — Protobuf runtime
-- **Grpc.AspNetCore** (2.76.0) — gRPC server
-- **Grpc.Net.Client** (2.76.0) — gRPC client
+- **BouncyCastle.Cryptography** — secp256k1, ECDSA, Keccak-256
+- **Google.Protobuf** — Protobuf runtime
+- **Grpc.AspNetCore** — gRPC server
+- **Grpc.Net.Client** — gRPC client
 - **Target**: .NET 10.0
+
+Versions: `sdk/T0.ProviderSdk/T0.ProviderSdk.csproj`.
 
 ## Go SDK Mapping
 
