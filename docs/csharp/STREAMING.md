@@ -41,7 +41,8 @@ digest = Keccak256(signed_bytes || LE_uint64(timestamp_ms))
 Details:
 
 - **A client stream goes out only once its first message is written** (or the stream is completed). Write
-  the first message before awaiting `ResponseHeadersAsync`, or the call waits until its deadline.
+  the first message before awaiting `ResponseHeadersAsync`, or the call waits until its deadline (without
+  one, until it is cancelled).
 - **Large first frames**: bytes are consumed as they are copied into the frame buffer, so a frame larger
   than the pipe's pause threshold (64 KiB by default) does not stall the writer.
 - **Headers**: copied from the original content except `Content-Length`, which `TryComputeLength` reports

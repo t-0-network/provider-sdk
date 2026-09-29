@@ -1,11 +1,8 @@
-using System.Net;
-using System.Net.Sockets;
 using Google.Protobuf;
 using Grpc.Core;
 using Grpc.Core.Interceptors;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using T0.ProviderSdk.Crypto;
 using T0.ProviderSdk.Network;
@@ -164,7 +161,7 @@ public class DefaultDeadlineInterceptorTests
         // the first message.
         var options = new NetworkClientOptions
         {
-            BaseUrl = $"http://127.0.0.1:{FindFreePort()}",
+            BaseUrl = $"http://127.0.0.1:{TestPorts.FindFreePort()}",
             StreamTimeout = TimeSpan.FromMilliseconds(300),
         };
         using var channel = NetworkClient.Create(options, Signer.FromHex(PrivateKey));
@@ -246,7 +243,7 @@ public class DefaultDeadlineInterceptorTests
     /// </summary>
     private static async Task<(WebApplication App, string BaseUrl)> StartTimeoutRecorderAsync(List<string?> timeouts)
     {
-        var port = FindFreePort();
+        var port = TestPorts.FindFreePort();
         var builder = WebApplication.CreateBuilder();
         builder.WebHost.ConfigureKestrel(options =>
             options.ListenLocalhost(port, listenOptions => listenOptions.Protocols = HttpProtocols.Http2));
@@ -264,7 +261,7 @@ public class DefaultDeadlineInterceptorTests
         try
         {
             await app.StartAsync();
-            await WaitForPortAsync(port, TimeSpan.FromSeconds(10));
+            await TestPorts.WaitForPortAsync(port, TimeSpan.FromSeconds(10));
             return (app, $"http://127.0.0.1:{port}");
         }
         catch
@@ -288,34 +285,6 @@ public class DefaultDeadlineInterceptorTests
             'n' => TimeSpan.FromTicks(amount / 100),
             _ => throw new FormatException($"invalid grpc-timeout {value}"),
         };
-    }
-
-    private static int FindFreePort()
-    {
-        var listener = new TcpListener(IPAddress.Loopback, 0);
-        listener.Start();
-        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
-        listener.Stop();
-        return port;
-    }
-
-    private static async Task WaitForPortAsync(int port, TimeSpan timeout)
-    {
-        var deadline = DateTime.UtcNow + timeout;
-        while (DateTime.UtcNow < deadline)
-        {
-            try
-            {
-                using var client = new TcpClient();
-                await client.ConnectAsync(IPAddress.Loopback, port);
-                return;
-            }
-            catch (SocketException)
-            {
-                await Task.Delay(100);
-            }
-        }
-        throw new TimeoutException($"Port {port} not ready after {timeout.TotalSeconds}s");
     }
 
     /// <summary>

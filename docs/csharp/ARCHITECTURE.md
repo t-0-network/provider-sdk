@@ -49,7 +49,7 @@ csharp/
 **CRITICAL**: Protobuf encoding is not canonical. Re-encoding a deserialized message produces different bytes. All signing and verification operates on original wire bytes:
 
 - **Server-side**: `SignatureVerificationMiddleware` reads `Request.Body` as raw bytes BEFORE gRPC deserialization
-- **Client-side**: `SigningDelegatingHandler` reads `request.Content` bytes BEFORE sending. For gRPC content it signs only the first frame as sent and pipes the rest through unbuffered (`FirstFrameThenPipeContent`); see [STREAMING.md](STREAMING.md).
+- **Client-side**: `SigningDelegatingHandler` signs `request.Content` bytes as sent. For gRPC content it signs only the first frame and pipes the rest through unbuffered (`FirstFrameThenPipeContent`); other content is read whole before sending. See [STREAMING.md](STREAMING.md).
 
 ### Deadlines
 
