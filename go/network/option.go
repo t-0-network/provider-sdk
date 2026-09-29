@@ -3,9 +3,11 @@ package network
 import (
 	"errors"
 	"math"
+	"net"
 	"net/http"
 	"net/url"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/t-0-network/provider-sdk/go/crypto"
@@ -66,10 +68,12 @@ func (c *clientOptions) validate() error {
 	return nil
 }
 
-// validBaseURL accepts http:// or https://, a host name and, if given, a port in 1..65535.
+// validBaseURL accepts http:// or https://, a host and, if given, a port in 1..65535. The host is
+// an IP literal or a name of ASCII letters, digits, '-' and '.': gRPC clients cannot reach a name
+// with other characters, such as '_'.
 func validBaseURL(raw string) bool {
 	u, err := url.Parse(raw)
-	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Hostname() == "" {
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || !validHost(u) {
 		return false
 	}
 	if port := u.Port(); port != "" {
@@ -77,6 +81,14 @@ func validBaseURL(raw string) bool {
 		return err == nil && n >= 1 && n <= 65535
 	}
 	return true
+}
+
+func validHost(u *url.URL) bool {
+	host := u.Hostname()
+	if strings.HasPrefix(u.Host, "[") {
+		return net.ParseIP(host) != nil
+	}
+	return host != "" && strings.Trim(host, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-.") == ""
 }
 
 var defaultClientOptions = clientOptions{
