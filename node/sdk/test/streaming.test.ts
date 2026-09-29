@@ -13,7 +13,7 @@ import { createTransport } from '@connectrpc/connect/protocol-connect';
 import { universalRequestFromNodeRequest, universalResponseToNodeResponse } from '@connectrpc/connect-node';
 import { createClient } from '../src/client/client.js';
 import { CreateSigner } from '../src/client/signer.js';
-import { streamTransportOptions } from '../src/common/client/client.js';
+import { transportOptions } from '../src/common/client/client.js';
 import { computeDigest, NetworkHeaders, parsePublicKey, publicKeysEqual, verifySignature } from '../src/crypto/index.js';
 import { StreamTest, bufferingFetchClient, newKeypair, stringValues } from './stream_helpers.js';
 
@@ -282,7 +282,7 @@ describe('Streaming calls are signed over the first request envelope', { timeout
   it('an unsigned stream request is rejected', async () => {
     await withServer(async (srv) => {
       const signer = CreateSigner(newKeypair().privateKeyHex);
-      const transport = createTransport({ ...streamTransportOptions(signer, srv.url), httpClient: bufferingFetchClient() });
+      const transport = createTransport({ ...transportOptions(signer, srv.url), httpClient: bufferingFetchClient() });
       const client = createConnectClient(StreamTest, transport);
       await assert.rejects(client.clientStream(stringValues('m1', 'm2')), isCode(Code.Unauthenticated));
 
@@ -294,7 +294,7 @@ describe('Streaming calls are signed over the first request envelope', { timeout
   it('a stream signed over its whole body is rejected', async () => {
     await withServer(async (srv, key) => {
       const signer = CreateSigner(key.privateKeyHex);
-      const transport = createTransport({ ...streamTransportOptions(signer, srv.url), httpClient: bufferingFetchClient(signer) });
+      const transport = createTransport({ ...transportOptions(signer, srv.url), httpClient: bufferingFetchClient(signer) });
       const client = createConnectClient(StreamTest, transport);
       await assert.rejects(client.clientStream(stringValues('m1', 'm2')), isCode(Code.Unauthenticated));
       assert.equal(srv.checks[0].valid, false);
@@ -303,7 +303,7 @@ describe('Streaming calls are signed over the first request envelope', { timeout
 });
 
 describe('createClient routes unary and streaming calls to their own transport', { timeout: 20_000 }, () => {
-  it('unary calls keep Connect JSON, signed over the whole body', async () => {
+  it('unary calls use Connect in binary, signed over the whole body', async () => {
     await withServer(async (srv, key) => {
       const client = createClient(key.privateKeyHex, srv.url, StreamTest);
       const resp = await client.unary({ value: 'hello' });
@@ -313,8 +313,8 @@ describe('createClient routes unary and streaming calls to their own transport',
       assert.equal(srv.checks.length, 2);
       const [unary, stream] = srv.checks;
       assert.equal(unary.procedure, '/test.v1.StreamTest/Unary');
-      assert.equal(unary.contentType, 'application/json');
-      assert.equal(unary.signed.toString(), '"hello"');
+      assert.equal(unary.contentType, 'application/proto');
+      assert.equal(unary.signed.toString('hex'), '0a0568656c6c6f');
       assert.equal(unary.valid, true);
       assert.equal(stream.contentType, 'application/connect+proto');
       assert.equal(stream.valid, true);
@@ -365,15 +365,16 @@ describe('createClient routes unary and streaming calls to their own transport',
   });
 });
 
-// streamTransportOptions fills connect-es's CommonTransportOptions, which is internal API that does
+// transportOptions fills connect-es's CommonTransportOptions, which is internal API that does
 // not follow semantic versioning. The build type-checks the object against it; this checks that a
 // transport made from it still works end to end.
-describe('streamTransportOptions guard', { timeout: 20_000 }, () => {
+describe('transportOptions guard', { timeout: 20_000 }, () => {
   it('builds a working Connect transport', async () => {
     await withServer(async (srv, key) => {
-      const transport = createTransport(streamTransportOptions(CreateSigner(key.privateKeyHex), srv.url));
+      const transport = createTransport(transportOptions(CreateSigner(key.privateKeyHex), srv.url));
       const client = createConnectClient(StreamTest, transport);
 
+      assert.equal((await client.unary({ value: 'guard' })).value, 'guard');
       const got: string[] = [];
       for await (const resp of client.serverStream({ value: 'guard' })) {
         got.push(resp.value);

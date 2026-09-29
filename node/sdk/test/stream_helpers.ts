@@ -13,8 +13,8 @@ import { signatureHeaders } from '../src/common/client/sign.js';
 import type { SignerFunction } from '../src/common/client/client.js';
 
 // test.v1.StreamTest (cross_test/stream_test.proto), built by hand on google.protobuf.StringValue
-// so that no code has to be generated for it. Unary is served only by the local test server in
-// streaming.test.ts, to check that unary calls on the same client keep whole-body signing.
+// so that no code has to be generated for it. Unary is not served by the Go helper, only by the
+// local test servers in streaming.test.ts and unary_wire.test.ts, which check unary calls.
 const streamTestFile = createFileRegistry(
   create(FileDescriptorProtoSchema, {
     name: 'test/v1/stream_test.proto',

@@ -9,7 +9,7 @@ import { Code, ConnectError, createClient as createConnectClient } from '@connec
 import { createTransport } from '@connectrpc/connect/protocol-connect';
 import { createClient } from '../src/client/client.js';
 import { CreateSigner } from '../src/client/signer.js';
-import { streamTransportOptions } from '../src/common/client/client.js';
+import { transportOptions } from '../src/common/client/client.js';
 import { StreamTest, bufferingFetchClient, stringValues } from './stream_helpers.js';
 
 const GO_HELPER = path.resolve(import.meta.dirname, '..', '..', '..', 'cross_test', 'go_helper', 'go_helper');
@@ -101,7 +101,7 @@ describe('Cross-language streaming: Node client → Go server', { skip: !goAvail
 
   it('a client stream signed over its whole body is rejected', async () => {
     const signer = CreateSigner(CLIENT_PRIVATE_KEY);
-    const transport = createTransport({ ...streamTransportOptions(signer, url), httpClient: bufferingFetchClient(signer) });
+    const transport = createTransport({ ...transportOptions(signer, url), httpClient: bufferingFetchClient(signer) });
     const client = createConnectClient(StreamTest, transport);
     await assert.rejects(client.clientStream(stringValues('m1', 'm2', 'm3')), isCode(Code.Unauthenticated));
   });
