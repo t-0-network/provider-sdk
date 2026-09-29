@@ -65,6 +65,9 @@ Every client factory takes two timeouts.
 - The stream timeout covers the whole call, including the wait for the first message. A stream that
   runs longer than 5 minutes ends with `deadline exceeded` unless the caller passes a longer
   `streamTimeout`.
+- A synchronous client (Python's sync client) cannot interrupt a request source that blocks: it
+  checks the deadline each time the source yields a message, and sends nothing if the time is up.
+  A source that blocks forever keeps the call waiting, so bound the blocking reads in such a source.
 - A deadline that the caller sets on a call replaces the default, whether it is shorter or longer.
 - A timeout must be a positive duration of at most 2147483647 ms. Zero, a negative value, a larger
   value, no value (`null`, `None`, `Infinity`, `InfiniteTimeSpan`) and a value that is not a number
