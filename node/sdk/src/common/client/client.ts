@@ -16,7 +16,7 @@ export function createClient<T extends DescService>(signer: string | Buffer | ((
 
     const wireFormat = opts?.wireFormat === undefined ? WireFormat.Binary : opts.wireFormat;
     if (wireFormat !== WireFormat.Binary && wireFormat !== WireFormat.Json) {
-        throw new RangeError("wireFormat must be WireFormat.Binary or WireFormat.Json");
+        throw new Error("wireFormat must be WireFormat.Binary or WireFormat.Json");
     }
     const unaryTimeoutMs = timeout("timeoutMs", opts?.timeoutMs) ?? DEFAULT_TIMEOUT_MS;
     const streamTimeoutMs = timeout("streamTimeoutMs", opts?.streamTimeoutMs) ?? DEFAULT_STREAM_TIMEOUT_MS;

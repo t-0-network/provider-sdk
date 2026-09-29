@@ -6,7 +6,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { create, fromBinary, fromJsonString, toBinary } from '@bufbuild/protobuf';
 import { StringValueSchema } from '@bufbuild/protobuf/wkt';
-import { createClient as createConnectClient } from '@connectrpc/connect';
+import { Code, ConnectError, createClient as createConnectClient } from '@connectrpc/connect';
 import type { UniversalClientFn } from '@connectrpc/connect/protocol';
 import { createTransport } from '@connectrpc/connect/protocol-connect';
 import { createClient, WireFormat } from '../src/client/client.js';
@@ -170,6 +170,21 @@ describe('The signing HTTP client signs a body whole unless its content type is 
     assert.equal(s.hasBody, false);
     assert.equal(s.header.get('Content-Length'), null);
     assertSignedOverBody(s);
+  });
+
+  it('refuses a GET with unimplemented and sends nothing', async (t) => {
+    t.mock.method(Date, 'now', () => TIMESTAMP_MS);
+    const sent: Sent[] = [];
+    await assert.rejects(
+      createSigningHttpClient(signer, recordingClient(sent))({
+        url: `${BASE_URL}/test.v1.StreamTest/Unary?message=CgVoZWxsbw`,
+        method: 'GET',
+        header: new Headers({ 'Content-Type': 'application/proto' }),
+        body: undefined,
+      }),
+      (err: unknown) => err instanceof ConnectError && err.code === Code.Unimplemented && err.rawMessage === 'GET requests are not supported',
+    );
+    assert.equal(sent.length, 0);
   });
 
   // Two envelopes in one chunk: signed whole, unless the content type is enveloped and the call fails.

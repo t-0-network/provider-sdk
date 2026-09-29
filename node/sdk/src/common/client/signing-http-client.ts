@@ -12,6 +12,10 @@ import type {SignerFunction} from "./client.js";
  */
 export function createSigningHttpClient(signer: SignerFunction, httpClient: UniversalClientFn = createNodeHttpClient({httpVersion: "1.1"})): UniversalClientFn {
     return async (req) => {
+        // A GET carries its message in the URL, which the signature would not cover.
+        if (req.method.toUpperCase() === "GET") {
+            throw new ConnectError("GET requests are not supported", Code.Unimplemented);
+        }
         const it = (req.body ?? emptyBody)[Symbol.asyncIterator]();
         const enveloped = isEnveloped(req.header.get("Content-Type"));
 
