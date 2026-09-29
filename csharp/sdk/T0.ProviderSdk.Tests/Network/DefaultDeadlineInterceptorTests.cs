@@ -24,10 +24,6 @@ public class DefaultDeadlineInterceptorTests
     private static Method<StringValue, StringValue> NewMethod(MethodType type) =>
         new(type, "test.v1.StreamTest", type.ToString(), Marshaller, Marshaller);
 
-    /// <summary>
-    /// Makes one call of <paramref name="type"/> through the interceptor and returns the deadline
-    /// the call reached the invoker with.
-    /// </summary>
     private static DateTime? DeadlineOf(MethodType type, NetworkClientOptions options, CallOptions callOptions = default)
     {
         var inner = new CapturingInvoker();
@@ -161,14 +157,11 @@ public class DefaultDeadlineInterceptorTests
         Assert.Equal(Timeout.InfiniteTimeSpan, httpClient.Timeout);
     }
 
-    /// <summary>
-    /// The stream deadline also bounds the wait for a client stream's first message, which the
-    /// signing handler needs before it can send the request at all.
-    /// </summary>
     [Fact]
     public async Task ClientStream_WithoutAFirstMessage_FailsAtTheStreamDeadline()
     {
-        // Nothing listens there: the request never gets past the signing handler.
+        // Nothing listens there: the request never gets past the signing handler, which waits for
+        // the first message.
         var options = new NetworkClientOptions
         {
             BaseUrl = $"http://127.0.0.1:{FindFreePort()}",
@@ -183,10 +176,6 @@ public class DefaultDeadlineInterceptorTests
         Assert.Equal(StatusCode.DeadlineExceeded, ex.StatusCode);
     }
 
-    /// <summary>
-    /// The service-client helpers send the unary default as grpc-timeout; a raw channel from
-    /// NetworkClient.Create sends none, and no HttpClient timeout cuts it short either.
-    /// </summary>
     [Fact]
     public async Task ServiceClientHelper_SendsTheDefaultDeadline_RawChannelDoesNot()
     {
@@ -219,10 +208,6 @@ public class DefaultDeadlineInterceptorTests
         }
     }
 
-    /// <summary>
-    /// A client stream through the interceptor the helpers install sends StreamTimeout as
-    /// grpc-timeout, and none without it.
-    /// </summary>
     [Fact]
     public async Task ClientStream_SendsTheStreamDeadline_OnlyWhenStreamTimeoutIsSet()
     {
@@ -257,8 +242,7 @@ public class DefaultDeadlineInterceptorTests
     }
 
     /// <summary>
-    /// Starts an HTTP/2 server that records each request's grpc-timeout and answers UNIMPLEMENTED
-    /// without reading the request body.
+    /// HTTP/2 server that records each request's grpc-timeout and answers UNIMPLEMENTED unread.
     /// </summary>
     private static async Task<(WebApplication App, string BaseUrl)> StartTimeoutRecorderAsync(List<string?> timeouts)
     {
@@ -290,9 +274,6 @@ public class DefaultDeadlineInterceptorTests
         }
     }
 
-    /// <summary>
-    /// grpc-timeout: an integer followed by a unit (H, M, S, m, u, n).
-    /// </summary>
     private static TimeSpan ParseGrpcTimeout(string? value)
     {
         Assert.NotNull(value);

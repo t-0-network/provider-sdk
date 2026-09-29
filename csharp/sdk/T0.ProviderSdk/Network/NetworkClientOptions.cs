@@ -11,17 +11,15 @@ public sealed class NetworkClientOptions
     public string BaseUrl { get; set; } = "https://api.t-0.network";
 
     /// <summary>
-    /// Default deadline of each unary call, from sending the request to reading the end of the
-    /// response. Applied by <see cref="DefaultDeadlineInterceptor"/>, which the
-    /// <c>NetworkClient.Create*ServiceClient</c> helpers install; a deadline set on the call wins.
+    /// Default deadline of a unary call that sets none, applied by <see cref="DefaultDeadlineInterceptor"/>.
     /// <see cref="System.Threading.Timeout.InfiniteTimeSpan"/> means none.
     /// </summary>
     public TimeSpan Timeout { get; set; } = TimeSpan.FromSeconds(15);
 
     /// <summary>
-    /// Default deadline of each client-streaming and server-streaming call, from starting the call
-    /// to reading the end of the response. Null (the default) means none. Applied like
-    /// <see cref="Timeout"/>.
+    /// Default deadline of a client- or server-streaming call that sets none; null (the default)
+    /// means none. Applied like <see cref="Timeout"/>.
     /// </summary>
+    /// <remarks>See docs/csharp/STREAMING.md.</remarks>
     public TimeSpan? StreamTimeout { get; set; }
 }

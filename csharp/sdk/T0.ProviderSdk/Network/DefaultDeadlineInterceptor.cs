@@ -4,17 +4,12 @@ using Grpc.Core.Interceptors;
 namespace T0.ProviderSdk.Network;
 
 /// <summary>
-/// gRPC client interceptor that gives each call without a deadline a default one, picked by the
-/// call's type: unary calls get <see cref="NetworkClientOptions.Timeout"/>; client-streaming and
-/// server-streaming calls get <see cref="NetworkClientOptions.StreamTimeout"/>, or no deadline
-/// when it is null. A deadline set in the call's <see cref="CallOptions"/> is kept.
-///
-/// The deadline bounds the whole call, from the start of the request to the end of the response,
-/// and is sent to the server as <c>grpc-timeout</c>.
-///
-/// Bidirectional (duplex) streams are not supported: a duplex call throws an
-/// <see cref="RpcException"/> with <see cref="StatusCode.Unimplemented"/> before anything is sent.
+/// gRPC client interceptor that gives a call without a deadline a default one:
+/// <see cref="NetworkClientOptions.Timeout"/> for unary calls,
+/// <see cref="NetworkClientOptions.StreamTimeout"/> for client and server streams. Bidirectional
+/// streams fail with <see cref="StatusCode.Unimplemented"/> before anything is sent.
 /// </summary>
+/// <remarks>See docs/csharp/STREAMING.md.</remarks>
 public sealed class DefaultDeadlineInterceptor : Interceptor
 {
     private readonly TimeSpan? _unaryTimeout;
@@ -58,8 +53,7 @@ public sealed class DefaultDeadlineInterceptor : Interceptor
         AsyncClientStreamingCallContinuation<TRequest, TResponse> continuation) =>
         continuation(WithDefaultDeadline(context));
 
-    // Bidirectional streams are not supported in any SDK: fail before anything is sent rather
-    // than partway through the call, or after it waited unsent for a first message.
+    // A policy, not a signing limit: the network does not accept bidirectional streams (#370).
     public override AsyncDuplexStreamingCall<TRequest, TResponse> AsyncDuplexStreamingCall<TRequest, TResponse>(
         ClientInterceptorContext<TRequest, TResponse> context,
         AsyncDuplexStreamingCallContinuation<TRequest, TResponse> continuation) =>

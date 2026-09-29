@@ -6,8 +6,7 @@ using T0.ProviderSdk.Crypto;
 namespace T0.ProviderSdk.Tests.Network;
 
 /// <summary>
-/// Push-style request content, like grpc-dotnet's: it writes to the transport's stream when it is
-/// sent and decides itself when (and whether) to write the next frame.
+/// Push-style request content like grpc-dotnet's: it decides when (and whether) to write each frame.
 /// </summary>
 internal sealed class PushContent : HttpContent
 {
@@ -38,8 +37,7 @@ internal sealed class PushContent : HttpContent
 }
 
 /// <summary>
-/// Inner handler that records the request as it arrives and then reads its body the way a
-/// transport does, into a <see cref="RecordingStream"/>.
+/// Inner handler that records the request, then reads its body as a transport does.
 /// </summary>
 internal sealed class RecordingHandler : HttpMessageHandler
 {
@@ -144,9 +142,6 @@ internal static class StreamingTestHelpers
 
     public static byte[] Frame(string payload) => Frame(System.Text.Encoding.UTF8.GetBytes(payload));
 
-    /// <summary>
-    /// Whether the request's signature headers verify over <paramref name="signed"/>.
-    /// </summary>
     public static bool SignatureCovers(HttpRequestMessage request, byte[] signed)
     {
         var publicKey = HeaderBytes(request, Headers.PublicKey);

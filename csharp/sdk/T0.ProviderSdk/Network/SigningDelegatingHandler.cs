@@ -4,25 +4,16 @@ using T0.ProviderSdk.Crypto;
 namespace T0.ProviderSdk.Network;
 
 /// <summary>
-/// HTTP message handler that signs outgoing requests with secp256k1.
-/// Computes digest = Keccak256(signed_bytes || LE_uint64(timestamp_ms)), signs it, and adds
-/// X-Signature, X-Public-Key, X-Signature-Timestamp headers.
-///
-/// What it signs depends on the request's content type:
-/// <list type="bullet">
-/// <item>gRPC (<c>application/grpc</c>, <c>application/grpc+*</c>): the first request frame
-/// exactly as sent, <c>flags(1) || uint32be(length) || payload</c>, compressed payload included.
-/// The request is sent as soon as that frame is available and later frames are forwarded
-/// unbuffered. Unary and server-streaming requests are one frame, so this is the whole body. A
-/// client stream completed before its first message signs empty bytes.</item>
-/// <item>Anything else: the whole body.</item>
-/// </list>
-///
-/// A client-streaming request is sent only once its first message is written (or the stream is
-/// completed), so write before awaiting the response headers.
-///
-/// Port of Go's SigningTransport (go/network/signing_transport.go).
+/// HTTP message handler that signs outgoing requests with secp256k1:
+/// digest = Keccak256(signed_bytes || LE_uint64(timestamp_ms)), sent as X-Public-Key,
+/// X-Signature and X-Signature-Timestamp.
 /// </summary>
+/// <remarks>
+/// It sits below the gRPC framer, so for <c>application/grpc</c> and <c>application/grpc+*</c> it
+/// signs the first request frame exactly as sent, prefix included, and sends the request as soon
+/// as that frame exists: a client stream goes out only once its first message is written. Other
+/// content is signed over the whole body. See docs/csharp/STREAMING.md.
+/// </remarks>
 public sealed class SigningDelegatingHandler : DelegatingHandler
 {
     private readonly Signer _signer;
@@ -62,7 +53,6 @@ public sealed class SigningDelegatingHandler : DelegatingHandler
     private async Task<HttpResponseMessage> SendSignedOverFirstFrameAsync(
         HttpRequestMessage request, HttpContent source, CancellationToken cancellationToken)
     {
-        // Waits for the first frame only; for a client stream that is the first written message.
         var content = await FirstFrameThenPipeContent.CreateAsync(source, cancellationToken).ConfigureAwait(false);
         try
         {
@@ -77,37 +67,26 @@ public sealed class SigningDelegatingHandler : DelegatingHandler
         }
     }
 
-    /// <summary>
-    /// Signs <paramref name="signed"/> with the current timestamp and sets the signature headers:
-    /// digest = Keccak256(signed || LE_uint64(timestamp_ms)).
-    /// </summary>
     private void AddSignatureHeaders(HttpRequestMessage request, byte[] signed)
     {
-        // Get current timestamp in milliseconds
         var timestampMs = _timeProvider.GetUtcNow().ToUnixTimeMilliseconds();
-
-        // Compute digest = Keccak256(signed || LE_uint64(timestamp_ms))
         var digest = Keccak256.Hash(signed, Headers.EncodeTimestamp(timestampMs));
-
-        // Sign the digest
         var result = _signer.Sign(digest);
 
-        // Set signature headers, replacing any the caller set (e.g. as call metadata):
-        // TryAddWithoutValidation appends, and a second value makes the request unverifiable.
         SetHeader(request, Headers.PublicKey, result.PublicKeyHex);
         SetHeader(request, Headers.Signature, result.SignatureHex);
         SetHeader(request, Headers.SignatureTimestamp, timestampMs.ToString());
     }
 
+    // Replaces a value the caller set (e.g. as call metadata): TryAddWithoutValidation appends,
+    // and a second value makes the request unverifiable.
     private static void SetHeader(HttpRequestMessage request, string name, string value)
     {
         request.Headers.Remove(name);
         request.Headers.TryAddWithoutValidation(name, value);
     }
 
-    /// <summary>
-    /// <c>application/grpc</c> and <c>application/grpc+*</c>; not gRPC-Web.
-    /// </summary>
+    // Not application/grpc-web: gRPC-Web is signed over the whole body.
     private static bool IsGrpc(HttpContent content)
     {
         var mediaType = content.Headers.ContentType?.MediaType;

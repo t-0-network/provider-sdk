@@ -172,11 +172,9 @@ public class CrossTestVectors
     }
 
     /// <summary>
-    /// Streaming requests are signed over their first message only. <c>first_envelope</c> covers
-    /// the first frame with its 5-byte prefix (what a signer below the gRPC framer, like
-    /// <see cref="SigningDelegatingHandler"/>, sees); <c>first_payload</c> covers the message
-    /// without it (Java's signer above the framer). The first_envelope cases also go through the
-    /// handler with the vector's timestamp.
+    /// <c>first_envelope</c> includes the 5-byte prefix (a signer below the gRPC framer, like
+    /// <see cref="SigningDelegatingHandler"/>); <c>first_payload</c> does not. The first_envelope
+    /// cases also run through the handler.
     /// </summary>
     [Fact]
     public async Task StreamSigningCases_ShouldMatchVectorBytes()
@@ -211,8 +209,7 @@ public class CrossTestVectors
             if (covers != "first_envelope")
                 continue;
 
-            // The C# client speaks gRPC only. A Connect envelope has the gRPC frame's layout, so
-            // the Connect cases go through the handler as gRPC.
+            // The C# client speaks gRPC only; a Connect envelope has the gRPC frame's layout.
             var contentType = vec.GetProperty("content_type").GetString()!;
             if (!contentType.StartsWith("application/grpc", StringComparison.Ordinal))
                 contentType = "application/grpc";
@@ -238,10 +235,6 @@ public class CrossTestVectors
         }
     }
 
-    /// <summary>
-    /// The first frame of a gRPC or Connect streaming body: flags(1) || uint32be(length) ||
-    /// payload. Empty for an empty body.
-    /// </summary>
     private static byte[] FirstEnvelope(byte[] body)
     {
         if (body.Length == 0)

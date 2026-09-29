@@ -49,13 +49,11 @@ csharp/
 **CRITICAL**: Protobuf encoding is not canonical. Re-encoding a deserialized message produces different bytes. All signing and verification operates on original wire bytes:
 
 - **Server-side**: `SignatureVerificationMiddleware` reads `Request.Body` as raw bytes BEFORE gRPC deserialization
-- **Client-side**: `SigningDelegatingHandler` reads `request.Content` bytes BEFORE sending. For gRPC content (`application/grpc`, `application/grpc+*`) it reads only the first frame: it starts the original content writing into a pipe, takes `flags || uint32be len || payload` exactly as written (compressed bytes if flag bit 0 is set), signs it, and sends at once. `FirstFrameThenPipeContent` writes that frame and then forwards the rest of the pipe chunk by chunk, so a client stream is never buffered. Other content is signed and sent whole.
-
-Sending waits for the first frame, so a client-streaming call goes out when its first message is written (or the stream is completed, which signs empty bytes; the network rejects that call). Write before awaiting response headers.
+- **Client-side**: `SigningDelegatingHandler` reads `request.Content` bytes BEFORE sending. For gRPC content it signs only the first frame as sent and pipes the rest through unbuffered (`FirstFrameThenPipeContent`); see [STREAMING.md](STREAMING.md).
 
 ### Deadlines
 
-`HttpClient.Timeout` only runs until response headers arrive, which for a client stream is the whole upload, so `NetworkClient.Create` sets it to infinite. Timeouts are gRPC deadlines instead: `DefaultDeadlineInterceptor` sets `CallOptions.Deadline` on calls that have none, from `NetworkClientOptions.Timeout` (unary, default 15 s) or `NetworkClientOptions.StreamTimeout` (client and server streaming, default none). It also rejects a bidirectional (duplex) call with `Unimplemented` before anything is sent. The `Create*ServiceClient` helpers install it. A raw `GrpcChannel` from `Create`/`CreateChannel` cannot carry an interceptor, so set deadlines per call or use `channel.Intercept(new DefaultDeadlineInterceptor(options))`.
+Timeouts are gRPC deadlines set by `DefaultDeadlineInterceptor` (unary 15 s, streams none), which also refuses bidirectional streams; `HttpClient.Timeout` is infinite. The `Create*ServiceClient` helpers install the interceptor, raw channels must be wrapped. See [STREAMING.md](STREAMING.md#deadlines).
 
 ### Two-Phase Server Architecture
 
@@ -98,7 +96,7 @@ headers = {
 }
 ```
 
-- **body_bytes**: for gRPC requests, the first request frame as sent, 5-byte prefix included (unary and server streaming: the whole body; a client stream completed without a message: empty); otherwise the whole body. Bidirectional streaming is not supported: `DefaultDeadlineInterceptor` rejects it.
+- **body_bytes**: for gRPC requests, the first request frame as sent, 5-byte prefix included; otherwise the whole body ([STREAMING.md](STREAMING.md#what-is-signed))
 - **Hash**: Keccak-256 (legacy, NOT NIST SHA-3)
 - **Curve**: secp256k1 (same as Ethereum)
 - **Nonce**: RFC 6979 deterministic (HMAC-SHA256)

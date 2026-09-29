@@ -6,10 +6,6 @@ using static T0.ProviderSdk.Tests.Network.StreamingTestHelpers;
 
 namespace T0.ProviderSdk.Tests.Network;
 
-/// <summary>
-/// gRPC requests are signed over their first frame and sent as soon as it is available.
-/// Mirrors go/network/stream_test.go.
-/// </summary>
 public class SigningDelegatingHandlerStreamTests
 {
     private const string TestPrivateKey = "6b30303de7b26bfb1222b317a52113357f8bb06de00160b4261a2fef9c8b9bd8";
@@ -50,7 +46,6 @@ public class SigningDelegatingHandlerStreamTests
 
         var send = client.SendAsync(Post(source));
 
-        // The request and its first frame reach the transport while frame 2 is still unwritten.
         var request = await inner.Received.Task.WithTimeout();
         await inner.Body.WaitForLengthAsync(frame1.Length).WithTimeout();
         Assert.False(send.IsCompleted);
@@ -67,15 +62,14 @@ public class SigningDelegatingHandlerStreamTests
         Assert.Equal("application/grpc", request.Content!.Headers.ContentType!.MediaType);
         Assert.Null(request.Content.Headers.ContentLength);
 
-        // Later frames were forwarded, not kept: the body cannot be sent a second time.
+        // Later frames were forwarded, not kept, so the body cannot be sent again.
         await Assert.ThrowsAsync<InvalidOperationException>(() => request.Content.CopyToAsync(new MemoryStream()));
     }
 
     [Fact]
     public async Task FirstFrameLargerThanAPipeSegment_IsSignedWhole()
     {
-        // Larger than a pipe segment (4 KiB) and than its pause threshold (64 KiB), with a
-        // big-endian length that uses three bytes.
+        // Over a pipe segment (4 KiB) and the pause threshold (64 KiB); the length needs three bytes.
         var payload = new byte[100_000];
         Random.Shared.NextBytes(payload);
         var frame1 = Frame(payload);
@@ -96,7 +90,7 @@ public class SigningDelegatingHandlerStreamTests
         var frame2 = Frame("m2");
         var source = new PushContent(async stream =>
         {
-            // Two bytes of the prefix, the rest of it, then the payload in two pieces.
+            // Split inside the prefix and inside the payload.
             foreach (var (start, end) in new[] { (0, 2), (2, 5), (5, 12), (12, frame1.Length) })
             {
                 await stream.WriteAsync(frame1.AsMemory(start..end));
@@ -230,7 +224,7 @@ public class SigningDelegatingHandlerStreamTests
     [Fact]
     public async Task FirstFrameTooLargeToSign_Fails()
     {
-        // A length of 0xFFFFFFFF, over what a byte array can hold: failing beats waiting for 4 GiB.
+        // Length 0xFFFFFFFF: more than a byte array can hold.
         byte[] body = [0, 0xFF, 0xFF, 0xFF, 0xFF, .. Encoding.UTF8.GetBytes("m1")];
         var (client, inner) = NewClient();
 
@@ -283,7 +277,7 @@ public class SigningDelegatingHandlerStreamTests
         var source = new ByteArrayContent(body);
         source.Headers.TryAddWithoutValidation("Content-Type", contentType);
         var request = Post(source);
-        // As gRPC call metadata would add them: lower-case names, values the SDK must not keep.
+        // As call metadata adds them: lower-case names.
         request.Headers.TryAddWithoutValidation(Headers.PublicKey.ToLowerInvariant(), "0x04");
         request.Headers.TryAddWithoutValidation(Headers.Signature.ToLowerInvariant(), "0x00");
         request.Headers.TryAddWithoutValidation(Headers.SignatureTimestamp.ToLowerInvariant(), "1");

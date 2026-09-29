@@ -286,9 +286,7 @@ public class CrossServerTests
         }
     }
 
-    // test.v1.StreamTest (cross_test/stream_test.proto), built by hand on StringValue. The Go
-    // helper serves it behind a verifier that checks the signature over the first request frame
-    // only and answers 401 otherwise.
+    // test.v1.StreamTest (cross_test/stream_test.proto), built by hand on StringValue.
     private static readonly Marshaller<StringValue> StringValueMarshaller =
         Marshallers.Create(value => value.ToByteArray(), StringValue.Parser.ParseFrom);
 
@@ -300,10 +298,6 @@ public class CrossServerTests
 
     private static CallOptions StreamCallOptions() => new(deadline: DateTime.UtcNow.AddSeconds(30));
 
-    /// <summary>
-    /// C# client streams three messages to the Go server over gRPC; Go verifies the signature
-    /// over the first frame.
-    /// </summary>
     [Fact]
     public async Task CSharpClient_GoServer_ClientStream()
     {
@@ -330,10 +324,6 @@ public class CrossServerTests
             .WaitAsync(TimeSpan.FromSeconds(10));
     }
 
-    /// <summary>
-    /// The request goes out with its first message: the Go server has read and verified message 1
-    /// before messages 2 and 3 are written.
-    /// </summary>
     [Fact]
     public async Task CSharpClient_GoServer_ClientStream_VerifiedBeforeLaterMessagesAreWritten()
     {
@@ -362,9 +352,6 @@ public class CrossServerTests
         Assert.Equal("m1,m2,m3", (await call.ResponseAsync).Value);
     }
 
-    /// <summary>
-    /// C# server-streaming call to the Go server over gRPC: one signed request, three replies.
-    /// </summary>
     [Fact]
     public async Task CSharpClient_GoServer_ServerStream()
     {
@@ -391,10 +378,6 @@ public class CrossServerTests
             .WaitAsync(TimeSpan.FromSeconds(10));
     }
 
-    /// <summary>
-    /// A client stream completed before its first message is sent signed over empty bytes, and
-    /// the Go server, like the network, rejects it.
-    /// </summary>
     [Fact]
     public async Task CSharpClient_GoServer_EmptyClientStream_IsRejected()
     {
@@ -419,10 +402,6 @@ public class CrossServerTests
             .WaitAsync(TimeSpan.FromSeconds(10));
     }
 
-    /// <summary>
-    /// A first message larger than the pipe's segments and pause threshold, and incompressible, is
-    /// signed whole and verified.
-    /// </summary>
     [Fact]
     public async Task CSharpClient_GoServer_ClientStream_LargeFirstMessage()
     {
@@ -437,7 +416,7 @@ public class CrossServerTests
         using var channel = NetworkClient.Create(
             new NetworkClientOptions { BaseUrl = server.BaseUrl }, Signer.FromHex(PrivateKey));
         var invoker = channel.CreateCallInvoker();
-        var large = Convert.ToBase64String(RandomNumberGenerator.GetBytes(192 * 1024)); // 256 KiB
+        var large = Convert.ToBase64String(RandomNumberGenerator.GetBytes(192 * 1024)); // 256 KiB, over the pipe's pause threshold
 
         using var call = invoker.AsyncClientStreamingCall(ClientStreamMethod, null, StreamCallOptions());
         await call.RequestStream.WriteAsync(new StringValue { Value = large });
@@ -449,9 +428,6 @@ public class CrossServerTests
             .WaitAsync(TimeSpan.FromSeconds(10));
     }
 
-    /// <summary>
-    /// A gzip-compressed first message is signed as sent, compressed, and verified.
-    /// </summary>
     [Fact]
     public async Task CSharpClient_GoServer_ClientStream_GzipFirstMessage()
     {
@@ -463,8 +439,8 @@ public class CrossServerTests
         }
 
         await using var server = await GoStreamServer.StartAsync(GoHelperPath);
-        // NetworkClient.Create's pipeline, with the headers recorded below the signer to show the
-        // request was compressed (the default GrpcChannelOptions include the gzip provider).
+        // NetworkClient.Create's pipeline plus a header recorder below the signer; the default
+        // GrpcChannelOptions include the gzip provider.
         var recorder = new HeaderRecorder { InnerHandler = new HttpClientHandler() };
         using var channel = GrpcChannel.ForAddress(server.BaseUrl, new GrpcChannelOptions
         {
@@ -486,10 +462,6 @@ public class CrossServerTests
             .WaitAsync(TimeSpan.FromSeconds(10));
     }
 
-    /// <summary>
-    /// A client stream signed over its whole body, as a signer that buffers it would, is rejected:
-    /// the network verifies over the first message only.
-    /// </summary>
     [Fact]
     public async Task CSharpClient_GoServer_ClientStream_SignedOverTheWholeBody_IsRejected()
     {
@@ -531,9 +503,6 @@ public class CrossServerTests
             .WaitAsync(TimeSpan.FromSeconds(10));
     }
 
-    /// <summary>
-    /// The timestamp is checked when the headers arrive; one outside the ±60 s window is rejected.
-    /// </summary>
     [Fact]
     public async Task CSharpClient_GoServer_ClientStream_StaleTimestamp_IsRejected()
     {
@@ -579,9 +548,6 @@ public class CrossServerTests
             .WaitAsync(TimeSpan.FromSeconds(10));
     }
 
-    /// <summary>
-    /// Writes m1, m2, m3, completes the stream and returns the call's failure.
-    /// </summary>
     private static async Task<RpcException> CompleteClientStreamAsync(GrpcChannel channel)
     {
         using var call = channel.CreateCallInvoker().AsyncClientStreamingCall(ClientStreamMethod, null, StreamCallOptions());
@@ -591,10 +557,7 @@ public class CrossServerTests
         return await Assert.ThrowsAsync<RpcException>(() => call.ResponseAsync);
     }
 
-    /// <summary>
-    /// Writes m1, which sends the request, and returns the call's failure. Later writes could race
-    /// the rejection, so there are none.
-    /// </summary>
+    // Only m1: later writes could race the rejection.
     private static async Task<RpcException> FirstMessageOnlyClientStreamAsync(GrpcChannel channel)
     {
         using var call = channel.CreateCallInvoker().AsyncClientStreamingCall(ClientStreamMethod, null, StreamCallOptions());
@@ -602,10 +565,6 @@ public class CrossServerTests
         return await Assert.ThrowsAsync<RpcException>(() => call.ResponseAsync);
     }
 
-    /// <summary>
-    /// A channel like NetworkClient.Create's whose requests go out only once their whole body is
-    /// written, signed over all of it by <paramref name="signer"/>, or unsigned without one.
-    /// </summary>
     private static GrpcChannel BufferingChannel(string baseUrl, Signer? signer) =>
         GrpcChannel.ForAddress(baseUrl, new GrpcChannelOptions
         {
@@ -614,8 +573,7 @@ public class CrossServerTests
         });
 
     /// <summary>
-    /// Buffers the whole request body and signs it: digest = Keccak256(body || LE_uint64(ts_ms)).
-    /// With no signer it only buffers.
+    /// Buffers the whole request body and signs it, or only buffers without a signer.
     /// </summary>
     private sealed class WholeBodySigningHandler(Signer? signer) : DelegatingHandler
     {
@@ -640,9 +598,6 @@ public class CrossServerTests
         }
     }
 
-    /// <summary>
-    /// Passes each request on and keeps the headers of the last one.
-    /// </summary>
     private sealed class HeaderRecorder : DelegatingHandler
     {
         public HttpRequestHeaders? Sent { get; private set; }
@@ -656,8 +611,8 @@ public class CrossServerTests
     }
 
     /// <summary>
-    /// <c>go_helper serve</c> on a free port, with its output collected so a test can wait for
-    /// what the server logged.
+    /// <c>go_helper serve</c> on a free port. Its output is read asynchronously, so tests wait for
+    /// a log line rather than read it.
     /// </summary>
     private sealed class GoStreamServer : IAsyncDisposable
     {

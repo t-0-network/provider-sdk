@@ -15,12 +15,9 @@ public static class NetworkClient
     /// Creates a gRPC channel with auto-signing transport.
     /// </summary>
     /// <remarks>
-    /// The channel applies no default deadline: <see cref="NetworkClientOptions.Timeout"/> and
-    /// <see cref="NetworkClientOptions.StreamTimeout"/> take effect through
-    /// <see cref="DefaultDeadlineInterceptor"/>, so either set <c>CallOptions.Deadline</c> on
-    /// each call or wrap the channel:
-    /// <c>channel.Intercept(new DefaultDeadlineInterceptor(options))</c>. The interceptor also
-    /// rejects bidirectional streaming calls, which are not supported, before anything is sent.
+    /// <see cref="NetworkClientOptions.Timeout"/> and <see cref="NetworkClientOptions.StreamTimeout"/>
+    /// apply only through <c>channel.Intercept(new DefaultDeadlineInterceptor(options))</c>, which also
+    /// rejects bidirectional streams. See docs/csharp/STREAMING.md.
     /// </remarks>
     public static GrpcChannel Create(
         NetworkClientOptions options,
@@ -46,9 +43,6 @@ public static class NetworkClient
         }
     }
 
-    /// <summary>
-    /// The channel's HttpClient: signs each request and never times it out itself.
-    /// </summary>
     internal static HttpClient CreateHttpClient(Signer signer, TimeProvider? timeProvider)
     {
         var signingHandler = new SigningDelegatingHandler(signer, timeProvider)
@@ -56,8 +50,8 @@ public static class NetworkClient
             InnerHandler = new HttpClientHandler()
         };
 
-        // Deadlines come from the call, never from HttpClient: its Timeout only runs until the
-        // response headers, which for a client stream is the whole upload.
+        // Deadlines come from the call: HttpClient.Timeout only runs until the response headers,
+        // which for a client stream is the whole upload.
         return new HttpClient(signingHandler)
         {
             Timeout = Timeout.InfiniteTimeSpan
@@ -67,10 +61,7 @@ public static class NetworkClient
     /// <summary>
     /// Creates a gRPC channel with auto-signing transport from a private key hex string.
     /// </summary>
-    /// <remarks>
-    /// Like <see cref="Create"/>, the channel applies no default deadline and does not reject
-    /// bidirectional streaming calls unless wrapped with <see cref="DefaultDeadlineInterceptor"/>.
-    /// </remarks>
+    /// <remarks>Like <see cref="Create"/>, timeouts apply only through <see cref="DefaultDeadlineInterceptor"/>.</remarks>
     public static GrpcChannel CreateChannel(
         string privateKeyHex,
         NetworkClientOptions? options = null,
@@ -83,9 +74,8 @@ public static class NetworkClient
     }
 
     /// <summary>
-    /// Creates a Payment NetworkService client with auto-signing transport, request validation,
-    /// and the default deadlines of <see cref="NetworkClientOptions"/>. Bidirectional streaming
-    /// calls fail with <see cref="Grpc.Core.StatusCode.Unimplemented"/> before anything is sent.
+    /// Creates a Payment NetworkService client with auto-signing transport, request validation and
+    /// <see cref="DefaultDeadlineInterceptor"/>.
     /// </summary>
     public static PaymentApi.NetworkService.NetworkServiceClient CreateNetworkServiceClient(
         string baseUrl,
@@ -100,9 +90,7 @@ public static class NetworkClient
 
     /// <summary>
     /// Creates a PaymentIntent NetworkService client with auto-signing transport, request
-    /// validation, and the default deadlines of <see cref="NetworkClientOptions"/>. Bidirectional
-    /// streaming calls fail with <see cref="Grpc.Core.StatusCode.Unimplemented"/> before anything
-    /// is sent.
+    /// validation and <see cref="DefaultDeadlineInterceptor"/>.
     /// </summary>
     public static PaymentIntentApi.NetworkService.NetworkServiceClient CreatePaymentIntentNetworkServiceClient(
         string baseUrl,

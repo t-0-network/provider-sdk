@@ -6,16 +6,13 @@ using System.Net;
 namespace T0.ProviderSdk.Network;
 
 /// <summary>
-/// Request content for a gRPC call whose signature covers only the first request frame.
-///
-/// <see cref="CreateAsync"/> starts the original content writing into a pipe and waits for the
-/// first frame, <c>flags(1) || uint32be(length) || payload</c>, exactly as written. The returned
-/// content sends that frame and then forwards the rest of the pipe as it arrives, flushing each
-/// chunk, so a client stream is never buffered.
-///
-/// It can be sent again (as SocketsHttpHandler does when an HTTP/2 stream is refused) as long as
-/// nothing after the first frame has been forwarded yet.
+/// Request content that sends the first gRPC frame, read ahead for signing, then forwards the rest
+/// of the original content through a pipe as it is written, unbuffered.
 /// </summary>
+/// <remarks>
+/// Can be sent again (SocketsHttpHandler does on a refused HTTP/2 stream) only while nothing after
+/// the first frame has been forwarded. See docs/csharp/STREAMING.md.
+/// </remarks>
 internal sealed class FirstFrameThenPipeContent : HttpContent
 {
     private const int FramePrefixLength = 5;
@@ -27,7 +24,7 @@ internal sealed class FirstFrameThenPipeContent : HttpContent
     private readonly byte[] _firstFrame;
     private readonly long? _length;
 
-    // The rest of the body. Null when it is known to be empty.
+    // Null when nothing follows the first frame, which keeps the content re-sendable.
     private volatile PipeReader? _rest;
     private int _state;
 
@@ -46,15 +43,12 @@ internal sealed class FirstFrameThenPipeContent : HttpContent
     }
 
     /// <summary>
-    /// The first frame, prefix included, exactly as the original content wrote it. Empty when the
-    /// content ended before writing anything (a client stream completed without a message).
+    /// The first frame, prefix included, as written; empty for a client stream completed without a message.
     /// </summary>
     public byte[] FirstFrame => _firstFrame;
 
     /// <summary>
-    /// Starts <paramref name="source"/> writing and returns once its first frame is available.
-    /// A fault in the source, before or after the first frame, surfaces from this call or from
-    /// sending the returned content.
+    /// Starts <paramref name="source"/> writing into a pipe and returns once its first frame is available.
     /// </summary>
     public static async Task<FirstFrameThenPipeContent> CreateAsync(HttpContent source, CancellationToken cancellationToken)
     {
@@ -79,8 +73,8 @@ internal sealed class FirstFrameThenPipeContent : HttpContent
     }
 
     /// <summary>
-    /// Releases the pipe when the request fails before the rest of the body started to send, so
-    /// the original content's writes fail instead of waiting for a reader.
+    /// Called when the request fails before the rest is forwarded, so the original content's writes
+    /// fail instead of waiting for a reader.
     /// </summary>
     public void Abort(Exception exception)
     {
@@ -128,14 +122,14 @@ internal sealed class FirstFrameThenPipeContent : HttpContent
         }
         catch (Exception ex) when (rest is not null)
         {
-            // The request is gone: fail the original content's pending and later writes.
+            // Fail the original content's pending and later writes.
             await rest.CompleteAsync(ex).ConfigureAwait(false);
             throw;
         }
 
         await rest.CompleteAsync().ConfigureAwait(false);
         if (!forwardedRest)
-            _rest = null; // Nothing followed the first frame, so the body can be sent again.
+            _rest = null;
     }
 
     protected override bool TryComputeLength(out long length)
@@ -166,10 +160,8 @@ internal sealed class FirstFrameThenPipeContent : HttpContent
         await writer.CompleteAsync().ConfigureAwait(false);
     }
 
-    /// <summary>
-    /// Reads exactly one frame and consumes nothing after it. Bytes are consumed as they are
-    /// copied, so a frame larger than the pipe's pause threshold does not stall the writer.
-    /// </summary>
+    // Consumes the frame's bytes as it copies them, so a frame over the pipe's pause threshold
+    // does not stall the writer; bytes after the frame stay in the pipe.
     private static async Task<(byte[] Frame, bool RestIsEmpty)> ReadFirstFrameAsync(
         PipeReader reader, CancellationToken cancellationToken)
     {
@@ -207,7 +199,6 @@ internal sealed class FirstFrameThenPipeContent : HttpContent
 
             if (filled == frame.Length)
             {
-                // Later messages stay in the pipe for SerializeToStreamAsync.
                 reader.AdvanceTo(remaining.Start);
                 return (frame, result.IsCompleted && remaining.IsEmpty);
             }

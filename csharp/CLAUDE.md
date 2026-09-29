@@ -58,8 +58,9 @@ csharp/
 - **Two-phase server build**: `T0ProviderServer` collects service registrations, then `RunAsync()` calls `Build()` + middleware + `MapGrpcService<T>()`
 - **Raw bytes signing**: `SignatureVerificationMiddleware` reads body bytes BEFORE gRPC deserialization
 - **DelegatingHandler pattern**: `SigningDelegatingHandler` wraps HttpClient to auto-sign outgoing requests
-- **First-frame signing for gRPC**: for `application/grpc` / `application/grpc+*` the handler signs only the first request frame as sent (`flags || uint32be len || payload`) and sends as soon as it is available; later frames are piped through unbuffered (`FirstFrameThenPipeContent`). Signature headers already on the request (e.g. from call metadata) are replaced, not appended to. Unary and server streaming are one frame, so nothing changes for them. Other content types sign the whole body. A client stream goes out only once its first message is written (or it is completed), so write before awaiting response headers. Completed with no message: signs empty bytes and sends; the network rejects it.
-- **Deadlines, not HttpClient.Timeout**: `NetworkClient.Create` sets `HttpClient.Timeout` to infinite (it runs only until response headers, i.e. the whole upload of a client stream). `DefaultDeadlineInterceptor` sets `CallOptions.Deadline` when the call has none: `Timeout` (15 s) for unary, `StreamTimeout` (null = none) for streams. The `Create*ServiceClient` helpers install it; a raw channel from `Create`/`CreateChannel` does not, so set deadlines per call or `channel.Intercept(new DefaultDeadlineInterceptor(options))`. The interceptor also rejects bidirectional (duplex) calls with `Unimplemented` before anything is sent, so the helpers do, and so does a raw channel wrapped as above.
+- **First-frame signing for gRPC**: the handler signs only the first request frame as sent and pipes the rest unbuffered (`FirstFrameThenPipeContent`); a client stream goes out once its first message is written
+- **Deadlines, not HttpClient.Timeout**: `DefaultDeadlineInterceptor` (installed by the `Create*ServiceClient` helpers) sets per-call deadlines and refuses bidirectional streams; raw channels must be wrapped
+- Streaming, signing and deadline details: [`docs/csharp/STREAMING.md`](../docs/csharp/STREAMING.md)
 - **Interfaces for testability**: `ISigner` and `ISignatureVerifier` enable mocking without real crypto
 - **BackgroundService pattern**: `QuotePublisherService` provides periodic timer with error handling
 
@@ -103,7 +104,7 @@ Template files live in `starter/template/` as a buildable standalone project usi
 
 **Test vectors:** `CrossTestVectors.cs` validates crypto against shared `cross_test/test_vectors.json` (Keccak-256, key derivation, request hash, sign/verify round-trips, and `stream_signing_cases`, whose first-envelope cases also run through `SigningDelegatingHandler`).
 
-**Server-to-server:** `CrossTest/CrossServerTests.cs` exercises health check round-trips (both directions), Go→C# PayOut, and C#→Go client and server streaming (`test.v1.StreamTest`, built by hand on `StringValue`; large and gzip first messages, and rejection of empty, whole-body-signed, unsigned, stale and other-key streams) between C# and Go using the shared helper at `cross_test/go_helper/`. Build it first:
+**Server-to-server:** `CrossTest/CrossServerTests.cs` exercises health check round-trips (both directions), Go→C# PayOut, and C#→Go client and server streaming ([cases](../docs/csharp/STREAMING.md#testing)) between C# and Go using the shared helper at `cross_test/go_helper/`. Build it first:
 
 ```bash
 cd ../cross_test/go_helper && go build -o go_helper . && cd ../../csharp
@@ -117,3 +118,4 @@ CI builds the Go helper automatically. Tests fail (not skip) in CI if the helper
 Docs live in [`docs/csharp/`](../docs/csharp/):
 - [`ARCHITECTURE.md`](../docs/csharp/ARCHITECTURE.md) — Architecture and design decisions
 - [`QUICKSTART.md`](../docs/csharp/QUICKSTART.md) — Getting started guide
+- [`STREAMING.md`](../docs/csharp/STREAMING.md) — Streaming signing, deadlines, bidirectional refusal, and how they are tested
