@@ -1,8 +1,8 @@
 """Signing HTTP transport wrappers for pyqwest Client and SyncClient.
 
-These wrappers intercept outgoing requests to add T-0 Network signature headers
-before delegating to the underlying pyqwest client. ConnectRPC uses exactly
-three methods on the client: get(), post(), and stream().
+These wrappers add T-0 Network signature headers to outgoing requests before
+delegating to the underlying pyqwest client. ConnectRPC uses exactly three methods
+on the client: get(), post(), and stream(); get() is refused.
 
 The content type decides what is signed: enveloped requests (Connect streaming, gRPC) over their
 first envelope as sent, everything else over the whole body. See docs/STREAMING.md.
@@ -80,12 +80,16 @@ def _is_enveloped(headers: pyqwest.Headers | None) -> bool:
     return media_type == "application/grpc" or media_type.startswith(("application/connect+", "application/grpc+"))
 
 
+def _broken_first_message() -> ConnectError:
+    return ConnectError(Code.INVALID_ARGUMENT, "streaming request ends inside its first message")
+
+
 def _first_envelope(body: bytes) -> bytes:
     if not body:
         return b""
     size = _ENVELOPE_PREFIX_SIZE + int.from_bytes(body[1:_ENVELOPE_PREFIX_SIZE], "big")
     if len(body) < _ENVELOPE_PREFIX_SIZE or len(body) < size:
-        raise ConnectError(Code.INTERNAL, "the request body ends inside its first envelope")
+        raise _broken_first_message()
     return body[:size]
 
 
@@ -93,8 +97,15 @@ def _require_one_envelope(chunk: bytes) -> None:
     """connectrpc yields one envelope per chunk. Checked, not trusted: a change in that framing must
     fail the call, never sign the wrong bytes."""
     size = _ENVELOPE_PREFIX_SIZE + int.from_bytes(chunk[1:_ENVELOPE_PREFIX_SIZE], "big")
-    if len(chunk) < _ENVELOPE_PREFIX_SIZE or len(chunk) != size:
+    if len(chunk) < _ENVELOPE_PREFIX_SIZE or len(chunk) < size:
+        raise _broken_first_message()
+    if len(chunk) != size:
         raise ConnectError(Code.INTERNAL, "the first request chunk is not one complete envelope")
+
+
+def _get_unsupported() -> ConnectError:
+    # A GET carries its message in the URL, which the signature would not cover.
+    return ConnectError(Code.UNIMPLEMENTED, "GET requests are not supported")
 
 
 def _remaining_timeout(timeout: float | None, started: float, waited_for: str) -> float | None:
@@ -169,7 +180,7 @@ class SigningClient:
     """Async signing wrapper for pyqwest.Client.
 
     Passed to ConnectRPC async client via http_client= parameter.
-    Intercepts get(), post(), stream() to add signature headers.
+    Signs post() and stream(); get() is refused, since a GET has no body to sign.
 
     A streaming request is sent once its first message is available: send one (or close the
     stream) before waiting for a response. Bidirectional streams are not supported; only the
@@ -181,8 +192,7 @@ class SigningClient:
         self._sign_fn = sign_fn
 
     async def get(self, url: str, headers: pyqwest.Headers | None = None) -> Any:
-        headers = _sign_request(self._sign_fn, b"", headers)
-        return await self._inner.get(url, headers=headers)
+        raise _get_unsupported()
 
     async def post(self, url: str, headers: pyqwest.Headers | None = None, content: bytes | None = None) -> Any:
         body = content or b""
@@ -241,7 +251,7 @@ class SigningSyncClient:
     """Sync signing wrapper for pyqwest.SyncClient.
 
     Passed to ConnectRPC sync client via http_client= parameter.
-    Intercepts get(), post(), stream() to add signature headers.
+    Signs post() and stream(); get() is refused, since a GET has no body to sign.
 
     A streaming request is sent once its first message is available: send one (or close the
     stream) before waiting for a response. Bidirectional streams are not supported; only the
@@ -258,8 +268,7 @@ class SigningSyncClient:
         self._sign_fn = sign_fn
 
     def get(self, url: str, headers: pyqwest.Headers | None = None, timeout: float | None = None) -> Any:
-        headers = _sign_request(self._sign_fn, b"", headers)
-        return self._inner.get(url, headers=headers, timeout=timeout)
+        raise _get_unsupported()
 
     def post(
         self,

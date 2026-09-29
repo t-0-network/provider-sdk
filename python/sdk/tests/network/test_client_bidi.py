@@ -1,4 +1,4 @@
-"""Tests for the rejection of bidirectional streams by the client factories."""
+"""Tests for the calls the client factories refuse: bidirectional streams and GET requests."""
 
 from __future__ import annotations
 
@@ -8,9 +8,8 @@ from connectrpc.code import Code
 from connectrpc.compat import google_protobuf_binary_codec
 from connectrpc.errors import ConnectError
 from connectrpc.method import IdempotencyLevel, MethodInfo
-from connectrpc.protocol import ProtocolType
 from google.protobuf.wrappers_pb2 import StringValue
-from t0_provider_sdk.network.client import new_service_client, new_service_client_sync
+from t0_provider_sdk.network import Protocol, new_service_client, new_service_client_sync
 
 PRIVATE_KEY = "0x6b30303de7b26bfb1222b317a52113357f8bb06de00160b4261a2fef9c8b9bd8"
 BASE_URL = "http://example.test"
@@ -22,6 +21,13 @@ BIDI_STREAM = MethodInfo(
     output=StringValue,
     idempotency_level=IdempotencyLevel.UNKNOWN,
 )
+NO_SIDE_EFFECTS = MethodInfo(
+    name="Get",
+    service_name="test.v1.StreamTest",
+    input=StringValue,
+    output=StringValue,
+    idempotency_level=IdempotencyLevel.NO_SIDE_EFFECTS,
+)
 
 
 class _Client(ConnectClient):
@@ -31,10 +37,8 @@ class _Client(ConnectClient):
     def bidi_stream(self, request, *, timeout_ms=None):
         return self.execute_bidi_stream(request=request, method=BIDI_STREAM, timeout_ms=timeout_ms)
 
-
-class _GRPCClient(_Client):
-    def __init__(self, address: str, **kwargs) -> None:
-        super().__init__(address, protocol=ProtocolType.GRPC, **kwargs)
+    async def get(self, request):
+        return await self.execute_unary(request=request, method=NO_SIDE_EFFECTS, use_get=True)
 
 
 class _SyncClient(ConnectClientSync):
@@ -44,10 +48,8 @@ class _SyncClient(ConnectClientSync):
     def bidi_stream(self, request, *, timeout_ms=None):
         return self.execute_bidi_stream(request=request, method=BIDI_STREAM, timeout_ms=timeout_ms)
 
-
-class _GRPCSyncClient(_SyncClient):
-    def __init__(self, address: str, **kwargs) -> None:
-        super().__init__(address, protocol=ProtocolType.GRPC, **kwargs)
+    def get(self, request):
+        return self.execute_unary(request=request, method=NO_SIDE_EFFECTS, use_get=True)
 
 
 class _RecordingClient:
@@ -70,8 +72,8 @@ class _RecordingClient:
 
 
 class TestBidiStreamsAreRejected:
-    @pytest.mark.parametrize("client_class", [_Client, _GRPCClient])
-    def test_async_client(self, client_class) -> None:
+    @pytest.mark.parametrize("protocol", [Protocol.CONNECT, Protocol.GRPC])
+    def test_async_client(self, protocol: Protocol) -> None:
         """The async execute_bidi_stream returns the response iterator, so the call itself fails."""
         read: list[str] = []
 
@@ -79,7 +81,7 @@ class TestBidiStreamsAreRejected:
             read.append("m1")
             yield StringValue(value="m1")
 
-        client = new_service_client(PRIVATE_KEY, client_class, base_url=BASE_URL, stream_timeout=30)
+        client = new_service_client(PRIVATE_KEY, _Client, base_url=BASE_URL, protocol=protocol)
         recorder = client._http_client._inner = _RecordingClient()
 
         with pytest.raises(ConnectError) as exc_info:
@@ -89,15 +91,15 @@ class TestBidiStreamsAreRejected:
         assert recorder.calls == []
         assert read == []
 
-    @pytest.mark.parametrize("client_class", [_SyncClient, _GRPCSyncClient])
-    def test_sync_client(self, client_class) -> None:
+    @pytest.mark.parametrize("protocol", [Protocol.CONNECT, Protocol.GRPC])
+    def test_sync_client(self, protocol: Protocol) -> None:
         read: list[str] = []
 
         def messages():
             read.append("m1")
             yield StringValue(value="m1")
 
-        client = new_service_client_sync(PRIVATE_KEY, client_class, base_url=BASE_URL, stream_timeout=30)
+        client = new_service_client_sync(PRIVATE_KEY, _SyncClient, base_url=BASE_URL, protocol=protocol)
         recorder = client._http_client._inner = _RecordingClient()
 
         with pytest.raises(ConnectError) as exc_info:
@@ -105,3 +107,28 @@ class TestBidiStreamsAreRejected:
         assert exc_info.value.code == Code.UNIMPLEMENTED
         assert recorder.calls == []
         assert read == []
+
+
+class TestGetRequestsAreRefused:
+    """A GET carries its message in the URL, outside the signature."""
+
+    @pytest.mark.asyncio
+    async def test_async_client(self) -> None:
+        client = new_service_client(PRIVATE_KEY, _Client, base_url=BASE_URL)
+        recorder = client._http_client._inner = _RecordingClient()
+
+        with pytest.raises(ConnectError) as exc_info:
+            await client.get(StringValue(value="m1"))
+        assert exc_info.value.code == Code.UNIMPLEMENTED
+        assert exc_info.value.message == "GET requests are not supported"
+        assert recorder.calls == []
+
+    def test_sync_client(self) -> None:
+        client = new_service_client_sync(PRIVATE_KEY, _SyncClient, base_url=BASE_URL)
+        recorder = client._http_client._inner = _RecordingClient()
+
+        with pytest.raises(ConnectError) as exc_info:
+            client.get(StringValue(value="m1"))
+        assert exc_info.value.code == Code.UNIMPLEMENTED
+        assert exc_info.value.message == "GET requests are not supported"
+        assert recorder.calls == []

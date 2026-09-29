@@ -21,20 +21,16 @@ import time
 from pathlib import Path
 from typing import TYPE_CHECKING
 
-import pyqwest
 import pytest
 from connectrpc.client import ConnectClient, ConnectClientSync
 from connectrpc.code import Code
-from connectrpc.compat import google_protobuf_binary_codec, google_protobuf_json_codec
+from connectrpc.compat import google_protobuf_binary_codec
 from connectrpc.errors import ConnectError
 from connectrpc.method import IdempotencyLevel, MethodInfo
-from connectrpc.protocol import ProtocolType
 from google.protobuf.wrappers_pb2 import StringValue
 from grpc_health.v1 import health_pb2
-from t0_provider_sdk.crypto.signer import new_signer_from_hex
-from t0_provider_sdk.network import DEFAULT_STREAM_TIMEOUT, signing
+from t0_provider_sdk.network import DEFAULT_STREAM_TIMEOUT, Protocol, WireFormat, signing
 from t0_provider_sdk.network.client import new_service_client, new_service_client_sync
-from t0_provider_sdk.network.signing import SigningClient, SigningSyncClient
 from t0_provider_sdk.provider.health import HEALTH_SERVICE_FQN, HealthClient, HealthClientSync
 
 if TYPE_CHECKING:
@@ -114,7 +110,8 @@ _SERVER_STREAM = MethodInfo(
 
 class _StreamTestClient(ConnectClient):
     def __init__(self, address: str, **kwargs: object) -> None:
-        super().__init__(address, codec=google_protobuf_binary_codec(), **kwargs)  # type: ignore[arg-type]
+        kwargs.setdefault("codec", google_protobuf_binary_codec())
+        super().__init__(address, **kwargs)  # type: ignore[arg-type]
 
     async def client_stream(
         self,
@@ -141,7 +138,8 @@ class _StreamTestClient(ConnectClient):
 
 class _StreamTestClientSync(ConnectClientSync):
     def __init__(self, address: str, **kwargs: object) -> None:
-        super().__init__(address, codec=google_protobuf_binary_codec(), **kwargs)  # type: ignore[arg-type]
+        kwargs.setdefault("codec", google_protobuf_binary_codec())
+        super().__init__(address, **kwargs)  # type: ignore[arg-type]
 
     def client_stream(
         self,
@@ -164,32 +162,6 @@ class _StreamTestClientSync(ConnectClientSync):
         return self.execute_server_stream(
             request=request, method=_SERVER_STREAM, headers=headers, timeout_ms=timeout_ms
         )
-
-
-# connectrpc gzips every request message by default (envelope flag 0x01); these send them as is.
-
-
-class _UncompressedStreamTestClient(_StreamTestClient):
-    def __init__(self, address: str, **kwargs: object) -> None:
-        super().__init__(address, send_compression=None, **kwargs)
-
-
-class _UncompressedStreamTestClientSync(_StreamTestClientSync):
-    def __init__(self, address: str, **kwargs: object) -> None:
-        super().__init__(address, send_compression=None, **kwargs)
-
-
-# Connect JSON (application/connect+json), uncompressed so that the test can read the signed bytes.
-
-
-class _JsonStreamTestClient(_StreamTestClient):
-    def __init__(self, address: str, **kwargs: object) -> None:
-        ConnectClient.__init__(self, address, codec=google_protobuf_json_codec(), send_compression=None, **kwargs)  # type: ignore[arg-type]
-
-
-class _JsonStreamTestClientSync(_StreamTestClientSync):
-    def __init__(self, address: str, **kwargs: object) -> None:
-        ConnectClientSync.__init__(self, address, codec=google_protobuf_json_codec(), send_compression=None, **kwargs)  # type: ignore[arg-type]
 
 
 # -- The Go server and its log --
@@ -276,44 +248,39 @@ def go_server() -> Iterator[_GoServer]:
 
 # -- Clients --
 
-# The factory speaks Connect over the default HTTP/1.1 transport. gRPC needs HTTP/2, h2c here,
-# so gRPC clients are built on the signing wrapper directly.
-
-
-def _transport(protocol: str, *, sync: bool) -> pyqwest.HTTPTransport | pyqwest.SyncHTTPTransport | None:
-    if protocol == "connect":
-        return None
-    if sync:
-        return pyqwest.SyncHTTPTransport(http_version=pyqwest.HTTPVersion.HTTP2)
-    return pyqwest.HTTPTransport(http_version=pyqwest.HTTPVersion.HTTP2)
-
 
 def _async_client(
     client_class,
     base_url: str,
     protocol: str,
-    private_key: str = CLIENT_PRIVATE_KEY,
     stream_timeout: float = DEFAULT_STREAM_TIMEOUT,
+    wire_format: WireFormat = WireFormat.BINARY,
 ):
-    if protocol == "connect":
-        return new_service_client(private_key, client_class, base_url=base_url, stream_timeout=stream_timeout)
-    http_client = SigningClient(new_signer_from_hex(private_key), transport=_transport(protocol, sync=False))
-    timeout_ms = round(stream_timeout * 1000)
-    return client_class(base_url, protocol=ProtocolType.GRPC, http_client=http_client, timeout_ms=timeout_ms)
+    return new_service_client(
+        CLIENT_PRIVATE_KEY,
+        client_class,
+        base_url=base_url,
+        stream_timeout=stream_timeout,
+        wire_format=wire_format,
+        protocol=Protocol(protocol),
+    )
 
 
 def _sync_client(
     client_class,
     base_url: str,
     protocol: str,
-    private_key: str = CLIENT_PRIVATE_KEY,
     stream_timeout: float = DEFAULT_STREAM_TIMEOUT,
+    wire_format: WireFormat = WireFormat.BINARY,
 ):
-    if protocol == "connect":
-        return new_service_client_sync(private_key, client_class, base_url=base_url, stream_timeout=stream_timeout)
-    http_client = SigningSyncClient(new_signer_from_hex(private_key), transport=_transport(protocol, sync=True))
-    timeout_ms = round(stream_timeout * 1000)
-    return client_class(base_url, protocol=ProtocolType.GRPC, http_client=http_client, timeout_ms=timeout_ms)
+    return new_service_client_sync(
+        CLIENT_PRIVATE_KEY,
+        client_class,
+        base_url=base_url,
+        stream_timeout=stream_timeout,
+        wire_format=wire_format,
+        protocol=Protocol(protocol),
+    )
 
 
 def _record_signed(monkeypatch: pytest.MonkeyPatch) -> list[bytes]:
@@ -329,8 +296,8 @@ def _record_signed(monkeypatch: pytest.MonkeyPatch) -> list[bytes]:
     return signed
 
 
-def _assert_one_envelope_flagged(signed: bytes, flags: int) -> None:
-    assert signed[0] == flags
+def _assert_one_uncompressed_envelope(signed: bytes) -> None:
+    assert signed[0] == 0x00
     assert len(signed) == 5 + int.from_bytes(signed[1:5], "big")
 
 
@@ -339,7 +306,7 @@ def _stale_timestamps(monkeypatch: pytest.MonkeyPatch) -> None:
 
 
 def _large_value() -> str:
-    # 256 KiB that gzip cannot shrink much, so the first envelope stays large when compressed.
+    # 256 KiB: the first envelope spans many reads and writes of the transport.
     return base64.b64encode(os.urandom(192 * 1024)).decode()
 
 
@@ -358,24 +325,13 @@ def _json_envelope(value: str) -> bytes:
     return bytes([0]) + len(payload).to_bytes(4, "big") + payload
 
 
-COMPRESSION = pytest.mark.parametrize(
-    ("compressed", "flags"),
-    [(True, 0x01), (False, 0x00)],
-    ids=["gzip", "uncompressed"],
-)
-
-
 @pytest.mark.asyncio
 @pytest.mark.parametrize("protocol", ["connect", "grpc"])
 class TestPythonAsyncClientGoServerStream:
     """Python async client -> Go server."""
 
-    @COMPRESSION
-    async def test_client_stream(
-        self, go_server: _GoServer, protocol: str, compressed: bool, flags: int, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        client_class = _StreamTestClient if compressed else _UncompressedStreamTestClient
-        client = _async_client(client_class, go_server.url, protocol)
+    async def test_client_stream(self, go_server: _GoServer, protocol: str, monkeypatch: pytest.MonkeyPatch) -> None:
+        client = _async_client(_StreamTestClient, go_server.url, protocol)
         signed = _record_signed(monkeypatch)
         mark = go_server.mark()
 
@@ -384,7 +340,7 @@ class TestPythonAsyncClientGoServerStream:
         assert response.value == ",".join(MESSAGES)
         go_server.wait_for_log(CLIENT_STREAM_VERIFIED, since=mark)
         assert len(signed) == 1
-        _assert_one_envelope_flagged(signed[0], flags)
+        _assert_one_uncompressed_envelope(signed[0])
 
     async def test_server_stream(self, go_server: _GoServer, protocol: str) -> None:
         client = _async_client(_StreamTestClient, go_server.url, protocol)
@@ -462,12 +418,8 @@ class TestPythonAsyncClientGoServerStream:
 class TestPythonSyncClientGoServerStream:
     """Python sync client -> Go server."""
 
-    @COMPRESSION
-    def test_client_stream(
-        self, go_server: _GoServer, protocol: str, compressed: bool, flags: int, monkeypatch: pytest.MonkeyPatch
-    ) -> None:
-        client_class = _StreamTestClientSync if compressed else _UncompressedStreamTestClientSync
-        client = _sync_client(client_class, go_server.url, protocol)
+    def test_client_stream(self, go_server: _GoServer, protocol: str, monkeypatch: pytest.MonkeyPatch) -> None:
+        client = _sync_client(_StreamTestClientSync, go_server.url, protocol)
         signed = _record_signed(monkeypatch)
         mark = go_server.mark()
 
@@ -476,7 +428,7 @@ class TestPythonSyncClientGoServerStream:
         assert response.value == ",".join(MESSAGES)
         go_server.wait_for_log(CLIENT_STREAM_VERIFIED, since=mark)
         assert len(signed) == 1
-        _assert_one_envelope_flagged(signed[0], flags)
+        _assert_one_uncompressed_envelope(signed[0])
 
     def test_server_stream(self, go_server: _GoServer, protocol: str) -> None:
         client = _sync_client(_StreamTestClientSync, go_server.url, protocol)
@@ -570,7 +522,7 @@ def test_sync_grpc_unary_health_check(go_server: _GoServer) -> None:
 
 @pytest.mark.asyncio
 async def test_async_connect_json_streams(go_server: _GoServer, monkeypatch: pytest.MonkeyPatch) -> None:
-    client = _JsonStreamTestClient(go_server.url, http_client=SigningClient(new_signer_from_hex(CLIENT_PRIVATE_KEY)))
+    client = _async_client(_StreamTestClient, go_server.url, "connect", wire_format=WireFormat.JSON)
     signed = _record_signed(monkeypatch)
     mark = go_server.mark()
 
@@ -586,9 +538,7 @@ async def test_async_connect_json_streams(go_server: _GoServer, monkeypatch: pyt
 
 
 def test_sync_connect_json_streams(go_server: _GoServer, monkeypatch: pytest.MonkeyPatch) -> None:
-    client = _JsonStreamTestClientSync(
-        go_server.url, http_client=SigningSyncClient(new_signer_from_hex(CLIENT_PRIVATE_KEY))
-    )
+    client = _sync_client(_StreamTestClientSync, go_server.url, "connect", wire_format=WireFormat.JSON)
     signed = _record_signed(monkeypatch)
     mark = go_server.mark()
 

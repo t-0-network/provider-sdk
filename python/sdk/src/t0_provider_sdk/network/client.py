@@ -9,12 +9,22 @@ from __future__ import annotations
 
 import functools
 from typing import TYPE_CHECKING, Any, NoReturn, TypeVar
+from urllib.parse import urlsplit
 
+import pyqwest
 from connectrpc.code import Code
+from connectrpc.compat import google_protobuf_json_codec
 from connectrpc.errors import ConnectError
+from connectrpc.protocol import ProtocolType
 
 from t0_provider_sdk.crypto.signer import new_signer_from_hex
-from t0_provider_sdk.network.options import DEFAULT_BASE_URL, DEFAULT_STREAM_TIMEOUT, DEFAULT_TIMEOUT
+from t0_provider_sdk.network.options import (
+    DEFAULT_BASE_URL,
+    DEFAULT_STREAM_TIMEOUT,
+    DEFAULT_TIMEOUT,
+    Protocol,
+    WireFormat,
+)
 from t0_provider_sdk.network.signing import SigningClient, SigningSyncClient
 
 if TYPE_CHECKING:
@@ -40,6 +50,8 @@ def new_service_client(
     base_url: str = DEFAULT_BASE_URL,
     timeout: float = DEFAULT_TIMEOUT,
     stream_timeout: float = DEFAULT_STREAM_TIMEOUT,
+    wire_format: WireFormat = WireFormat.BINARY,
+    protocol: Protocol = Protocol.CONNECT,
 ) -> T:
     """Create an async ConnectRPC client with signing transport.
 
@@ -54,6 +66,9 @@ def new_service_client(
         timeout: Timeout of unary calls in seconds, 15 by default.
         stream_timeout: Timeout of client- and server-streaming calls in seconds, including the
             wait for the first request message, 300 by default.
+        wire_format: WireFormat.BINARY (default) or WireFormat.JSON.
+        protocol: Protocol.CONNECT (default) or Protocol.GRPC. gRPC on an http:// base URL uses
+            HTTP/2 without TLS.
 
     Each timeout must be positive and at most 2147483647 ms; there is no way to turn one off. A
     call's own ``timeout_ms`` (same bounds) replaces the default, whether shorter or longer.
@@ -62,9 +77,10 @@ def new_service_client(
         An instance of client_class configured with signing transport.
     """
     unary_ms, stream_ms = _default_timeouts_ms(timeout, stream_timeout)
-    sign_fn = new_signer_from_hex(private_key)
-    signing_client = SigningClient(sign_fn)
-    client = client_class(base_url, http_client=signing_client, timeout_ms=None)  # type: ignore[call-arg]
+    protocol = Protocol(protocol)
+    transport = _transport(base_url, protocol, sync=False)
+    signing_client = SigningClient(new_signer_from_hex(private_key), transport=transport)
+    client = client_class(base_url, http_client=signing_client, **_client_kwargs(wire_format, protocol))  # type: ignore[call-arg]
     _set_default_timeouts(client, unary_ms, stream_ms)
     _reject_bidi_streams(client)
     return client
@@ -77,6 +93,8 @@ def new_service_client_sync(
     base_url: str = DEFAULT_BASE_URL,
     timeout: float = DEFAULT_TIMEOUT,
     stream_timeout: float = DEFAULT_STREAM_TIMEOUT,
+    wire_format: WireFormat = WireFormat.BINARY,
+    protocol: Protocol = Protocol.CONNECT,
 ) -> T:
     """Create a sync ConnectRPC client with signing transport.
 
@@ -88,17 +106,43 @@ def new_service_client_sync(
         base_url: Base URL of the T-0 Network API.
         timeout: Timeout of unary calls in seconds, 15 by default.
         stream_timeout: Timeout of client- and server-streaming calls in seconds, 300 by default.
+        wire_format: WireFormat.BINARY (default) or WireFormat.JSON.
+        protocol: Protocol.CONNECT (default) or Protocol.GRPC.
 
     Returns:
         An instance of client_class configured with signing transport.
     """
     unary_ms, stream_ms = _default_timeouts_ms(timeout, stream_timeout)
-    sign_fn = new_signer_from_hex(private_key)
-    signing_client = SigningSyncClient(sign_fn)
-    client = client_class(base_url, http_client=signing_client, timeout_ms=None)  # type: ignore[call-arg]
+    protocol = Protocol(protocol)
+    transport = _transport(base_url, protocol, sync=True)
+    signing_client = SigningSyncClient(new_signer_from_hex(private_key), transport=transport)
+    client = client_class(base_url, http_client=signing_client, **_client_kwargs(wire_format, protocol))  # type: ignore[call-arg]
     _set_default_timeouts(client, unary_ms, stream_ms)
     _reject_bidi_streams(client)
     return client
+
+
+def _client_kwargs(wire_format: WireFormat, protocol: Protocol) -> dict[str, Any]:
+    kwargs: dict[str, Any] = {
+        "protocol": ProtocolType.GRPC if protocol is Protocol.GRPC else ProtocolType.CONNECT,
+        # Requests go out uncompressed; the generated classes would gzip every message.
+        "send_compression": None,
+        # Each call gets its default from _set_default_timeouts.
+        "timeout_ms": None,
+    }
+    if WireFormat(wire_format) is WireFormat.JSON:
+        # The generated classes use google.protobuf messages; binary is their own default codec.
+        kwargs["codec"] = google_protobuf_json_codec()
+    return kwargs
+
+
+def _transport(base_url: str, protocol: Protocol, *, sync: bool) -> Any | None:
+    # gRPC needs HTTP/2, and pyqwest speaks HTTP/1.1 on a plain http:// connection unless told.
+    if protocol is not Protocol.GRPC or urlsplit(base_url).scheme != "http":
+        return None
+    if sync:
+        return pyqwest.SyncHTTPTransport(http_version=pyqwest.HTTPVersion.HTTP2)
+    return pyqwest.HTTPTransport(http_version=pyqwest.HTTPVersion.HTTP2)
 
 
 def _default_timeouts_ms(timeout: float, stream_timeout: float) -> tuple[int, int]:

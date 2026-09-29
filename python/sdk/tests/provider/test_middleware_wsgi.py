@@ -100,6 +100,28 @@ class TestSignatureVerificationMiddlewareWSGI:
         error, _ = _run_middleware(environ)
         assert error is None
 
+    def test_request_without_length_has_an_empty_body(self):
+        """No CONTENT_LENGTH and an unterminated input: nothing is read, the body is empty."""
+
+        class _OpenConnection:
+            def read(self, *args):
+                raise AssertionError("reading would wait for the connection to close")
+
+        environ = _make_signed_environ(body=b"")
+        del environ["CONTENT_LENGTH"]
+        environ["wsgi.input"] = _OpenConnection()
+        error, body = _run_middleware(environ)
+        assert error is None
+        assert body == b""
+
+    def test_terminated_input_without_length_is_read_to_its_end(self):
+        environ = _make_signed_environ(body=b"chunked body")
+        del environ["CONTENT_LENGTH"]
+        environ["wsgi.input_terminated"] = True
+        error, body = _run_middleware(environ)
+        assert error is None
+        assert body == b"chunked body"
+
     def test_missing_public_key(self):
         """Missing X-Public-Key -> error."""
         environ = _make_signed_environ()

@@ -15,9 +15,8 @@ from connectrpc.code import Code
 from connectrpc.compat import google_protobuf_binary_codec
 from connectrpc.errors import ConnectError
 from connectrpc.method import IdempotencyLevel, MethodInfo
-from connectrpc.protocol import ProtocolType
 from google.protobuf.wrappers_pb2 import StringValue
-from t0_provider_sdk.network.client import new_service_client, new_service_client_sync
+from t0_provider_sdk.network import Protocol, new_service_client, new_service_client_sync
 
 PRIVATE_KEY = "0x6b30303de7b26bfb1222b317a52113357f8bb06de00160b4261a2fef9c8b9bd8"
 BASE_URL = "http://example.test"
@@ -52,11 +51,6 @@ class _Client(ConnectClient):
         return self.execute_server_stream(request=request, method=SERVER_STREAM, timeout_ms=timeout_ms)
 
 
-class _GRPCClient(_Client):
-    def __init__(self, address: str, **kwargs) -> None:
-        super().__init__(address, protocol=ProtocolType.GRPC, **kwargs)
-
-
 class _SyncClient(ConnectClientSync):
     def __init__(self, address: str, **kwargs) -> None:
         super().__init__(address, codec=google_protobuf_binary_codec(), **kwargs)
@@ -69,11 +63,6 @@ class _SyncClient(ConnectClientSync):
 
     def server_stream(self, request, *, timeout_ms=None):
         return self.execute_server_stream(request=request, method=SERVER_STREAM, timeout_ms=timeout_ms)
-
-
-class _GRPCSyncClient(_SyncClient):
-    def __init__(self, address: str, **kwargs) -> None:
-        super().__init__(address, protocol=ProtocolType.GRPC, **kwargs)
 
 
 class _SentError(Exception):
@@ -201,7 +190,7 @@ class TestAsyncClientTimeouts:
 
     async def test_grpc_unary_gets_the_unary_default(self) -> None:
         """gRPC unary goes out through stream(), but it is still a unary call."""
-        client, recorder = _async_client(_GRPCClient, stream_timeout=30)
+        client, recorder = _async_client(protocol=Protocol.GRPC, stream_timeout=30)
         await _call(client, "unary")
         assert recorder.timeout_header == "15000m"
 
@@ -219,7 +208,7 @@ class TestAsyncClientTimeouts:
 
     @pytest.mark.parametrize("kind", STREAMS)
     async def test_grpc_streams_get_the_stream_timeout_option(self, kind: str) -> None:
-        client, recorder = _async_client(_GRPCClient, stream_timeout=30)
+        client, recorder = _async_client(protocol=Protocol.GRPC, stream_timeout=30)
         await _call(client, kind)
         assert recorder.timeout_header == "30000m"
 
@@ -249,7 +238,7 @@ class TestSyncClientTimeouts:
         assert 14.0 < recorder.timeout <= 15.0
 
     def test_grpc_unary_gets_the_unary_default(self) -> None:
-        client, recorder = _sync_client(_GRPCSyncClient, stream_timeout=30)
+        client, recorder = _sync_client(protocol=Protocol.GRPC, stream_timeout=30)
         _call_sync(client, "unary")
         assert recorder.timeout_header == "15000m"
         assert recorder.timeout is not None

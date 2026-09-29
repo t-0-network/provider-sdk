@@ -144,11 +144,15 @@ def _send_sync(fake: _FakeSyncClient, content_type: str, content, timeout: float
         assert resp == "response"
 
 
+BROKEN_FIRST_MESSAGE = "streaming request ends inside its first message"
+
+# A first chunk that ends early is a broken first message; one that holds more than an envelope
+# means the library's framing changed. Neither is signed.
 BAD_FIRST_CHUNKS = {
-    "first envelope split across chunks": [ENV1[:7], ENV1[7:], ENV2],
-    "first envelope merged with the next": [ENV1 + ENV2, ENV3],
-    "partial prefix": [ENV1[:3]],
-    "empty first chunk": [b"", ENV1],
+    "first envelope split across chunks": ([ENV1[:7], ENV1[7:], ENV2], Code.INVALID_ARGUMENT),
+    "first envelope merged with the next": ([ENV1 + ENV2, ENV3], Code.INTERNAL),
+    "partial prefix": ([ENV1[:3]], Code.INVALID_ARGUMENT),
+    "empty first chunk": ([b"", ENV1], Code.INVALID_ARGUMENT),
 }
 
 TRUNCATED_BODIES = {
@@ -187,8 +191,10 @@ class TestSigningClientStream:
         events: list[str] = []
         fake = _FakeClient(events)
         with pytest.raises(ConnectError) as exc:
-            await _send(fake, CONNECT_STREAM, _closing_asource(BAD_FIRST_CHUNKS[chunking], events))
-        assert exc.value.code == Code.INTERNAL
+            await _send(fake, CONNECT_STREAM, _closing_asource(BAD_FIRST_CHUNKS[chunking][0], events))
+        assert exc.value.code == BAD_FIRST_CHUNKS[chunking][1]
+        if exc.value.code == Code.INVALID_ARGUMENT:
+            assert exc.value.message == BROKEN_FIRST_MESSAGE
         assert events == ["source closed"], "nothing is sent and the source is closed"
 
     async def test_sends_before_the_second_message(self) -> None:
@@ -323,7 +329,8 @@ class TestSigningClientStream:
         fake = _FakeClient()
         with pytest.raises(ConnectError) as exc:
             await _send(fake, CONNECT_STREAM, TRUNCATED_BODIES[body])
-        assert exc.value.code == Code.INTERNAL
+        assert exc.value.code == Code.INVALID_ARGUMENT
+        assert exc.value.message == BROKEN_FIRST_MESSAGE
         assert fake.events == [], "nothing is sent"
 
 
@@ -341,8 +348,10 @@ class TestSigningSyncClientStream:
         events: list[str] = []
         fake = _FakeSyncClient(events)
         with pytest.raises(ConnectError) as exc:
-            _send_sync(fake, CONNECT_STREAM, _closing_source(BAD_FIRST_CHUNKS[chunking], events))
-        assert exc.value.code == Code.INTERNAL
+            _send_sync(fake, CONNECT_STREAM, _closing_source(BAD_FIRST_CHUNKS[chunking][0], events))
+        assert exc.value.code == BAD_FIRST_CHUNKS[chunking][1]
+        if exc.value.code == Code.INVALID_ARGUMENT:
+            assert exc.value.message == BROKEN_FIRST_MESSAGE
         assert events == ["source closed"], "nothing is sent and the source is closed"
 
     def test_sends_before_the_second_message(self) -> None:
@@ -554,5 +563,6 @@ class TestSigningSyncClientStream:
         fake = _FakeSyncClient()
         with pytest.raises(ConnectError) as exc:
             _send_sync(fake, CONNECT_STREAM, TRUNCATED_BODIES[body])
-        assert exc.value.code == Code.INTERNAL
+        assert exc.value.code == Code.INVALID_ARGUMENT
+        assert exc.value.message == BROKEN_FIRST_MESSAGE
         assert fake.events == [], "nothing is sent"
