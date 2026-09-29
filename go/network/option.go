@@ -69,9 +69,7 @@ func (c *clientOptions) validate() error {
 }
 
 // validBaseURL accepts http:// or https://, a host without user info, if given a port in 1..65535,
-// and at most a trailing "/": no path, query or fragment. The host is an IP literal or a name of
-// ASCII letters, digits, '-' and '.': gRPC clients cannot reach a name with other characters, such
-// as '_'.
+// and at most a trailing "/": no path, query or fragment.
 func validBaseURL(raw string) bool {
 	u, err := url.Parse(raw)
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.User != nil || !validHost(u) {
@@ -87,12 +85,40 @@ func validBaseURL(raw string) bool {
 	return true
 }
 
+// validHost accepts an IPv4 address, an IPv6 address in brackets, or a name of labels made of
+// ASCII letters, digits and inner '-', whose last label starts with a letter. gRPC clients cannot
+// connect to other names, such as ones with '_' or an empty label.
 func validHost(u *url.URL) bool {
 	host := u.Hostname()
 	if strings.HasPrefix(u.Host, "[") {
-		return net.ParseIP(host) != nil
+		return strings.Contains(host, ":") && net.ParseIP(host) != nil
 	}
-	return host != "" && strings.Trim(host, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789-.") == ""
+	if ip := net.ParseIP(host); ip != nil {
+		return ip.To4() != nil
+	}
+	labels := strings.Split(host, ".")
+	for _, label := range labels {
+		if !validLabel(label) {
+			return false
+		}
+	}
+	return isASCIILetter(labels[len(labels)-1][0])
+}
+
+func validLabel(label string) bool {
+	if label == "" || label[0] == '-' || label[len(label)-1] == '-' {
+		return false
+	}
+	for i := 0; i < len(label); i++ {
+		if c := label[i]; !isASCIILetter(c) && (c < '0' || c > '9') && c != '-' {
+			return false
+		}
+	}
+	return true
+}
+
+func isASCIILetter(c byte) bool {
+	return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z')
 }
 
 var defaultClientOptions = clientOptions{
