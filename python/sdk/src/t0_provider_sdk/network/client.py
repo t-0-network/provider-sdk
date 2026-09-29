@@ -33,9 +33,11 @@ if TYPE_CHECKING:
 
 T = TypeVar("T")
 
-# A host name of ASCII letters, digits, '-' and '.'. Other names (with '_', say) are refused: not
-# every client this network talks to can connect to them.
-_HOST_NAME = re.compile(r"[A-Za-z0-9.-]+")
+# A host name: dot-separated labels of ASCII letters, digits and inner '-', none empty, the last one
+# starting with a letter (so "1.2.3" is not taken for a name). Other names ("my_host", "a..b",
+# "-foo") are refused: not every client this network talks to can connect to them.
+_HOST_LABEL = r"[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?"
+_HOST_NAME = re.compile(rf"(?:{_HOST_LABEL}\.)*[A-Za-z](?:[A-Za-z0-9-]*[A-Za-z0-9])?")
 
 # The largest timeout every SDK accepts: 2^31 - 1 ms, about 24.8 days.
 MAX_TIMEOUT_MS = 2**31 - 1
@@ -69,10 +71,11 @@ def new_service_client(
         private_key: Hex-encoded secp256k1 private key: 64 hex digits, optionally after 0x or 0X.
             Ignored when sign_fn is given.
         client_class: Generated ConnectRPC async client class (e.g. NetworkServiceClient).
-        base_url: Base URL of the T-0 Network API: http:// or https://, a host (ASCII letters,
-            digits, '-' and '.', or an IP literal) without user info, a port of 1..65535 if one
-            is given, and no path, query or fragment (a single trailing "/" is allowed). None
-            means the default; an empty string raises ValueError.
+        base_url: Base URL of the T-0 Network API: http:// or https://, a host (an IP literal, or
+            dot-separated labels of ASCII letters, digits and inner '-', the last one starting
+            with a letter) without user info, a port of 1..65535 if one is given, and no path,
+            query or fragment (a single trailing "/" is allowed). None means the default; an
+            empty string raises ValueError.
         timeout: Timeout of unary calls in seconds, 15 by default.
         stream_timeout: Timeout of client- and server-streaming calls in seconds, including the
             wait for the first request message, 300 by default.
@@ -177,7 +180,11 @@ def _is_valid_base_url(base_url: str) -> bool:
         except ValueError:
             return False
         return True
-    return _HOST_NAME.fullmatch(host) is not None
+    try:
+        ipaddress.IPv4Address(host)
+    except ValueError:
+        return _HOST_NAME.fullmatch(host) is not None
+    return True
 
 
 def _check_enums(wire_format: WireFormat, protocol: Protocol) -> None:

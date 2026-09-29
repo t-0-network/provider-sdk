@@ -224,6 +224,7 @@ func TestNewServiceClient_ValidationErrors(t *testing.T) {
 		"http://user@h", "http://h:", "http://bücher.example",
 		"https://api.t-0.network/v1", "https://api.t-0.network?x", "https://api.t-0.network#x",
 		"http://[:::]:8080", "http://a..b", "http://-foo", "http://foo-", "http://1.2.3",
+		"http://localhost.", "http://256.1.1.1", "http://a.1b",
 	} {
 		t.Run(fmt.Sprintf("base URL %q is refused", bad), func(t *testing.T) {
 			_, err := NewServiceClient("", factory, WithSignatureFunction(testSignFn(t)), WithBaseURL(bad))
@@ -235,7 +236,7 @@ func TestNewServiceClient_ValidationErrors(t *testing.T) {
 	t.Run("base URLs that are accepted", func(t *testing.T) {
 		for _, good := range []string{
 			"https://api.t-0.network", "http://localhost:8080", "http://127.0.0.1:1234", "http://[::1]:8080",
-			"http://my-host:8080", "http://a1.b2.example",
+			"http://my-host:8080", "http://a1.b2.example", "http://h",
 			"https://api.t-0.network/", "HTTPS://api.t-0.network",
 		} {
 			_, err := NewServiceClient("", factory, WithSignatureFunction(testSignFn(t)), WithBaseURL(good))
