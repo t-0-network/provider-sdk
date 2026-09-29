@@ -1,14 +1,15 @@
-import { describe, it, assert } from 'node:test';
+import { describe, it } from 'node:test';
 import * as nodeAssert from 'node:assert/strict';
 import { keccak_256 } from '@noble/hashes/sha3.js';
 import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { CreateSigner } from '../src/client/signer.js';
-import { verifySignature, keccak256, computeDigest, parsePublicKey, publicKeyFromPrivateKey, publicKeysEqual, createRequestVerifier, DEFAULT_TOLERANCE_MS, NetworkHeaders } from '../src/crypto/index.js';
+import { verifySignature, keccak256, computeDigest, parsePublicKey, publicKeyFromPrivateKey, publicKeysEqual, createRequestVerifier, NetworkHeaders } from '../src/crypto/index.js';
 import * as sdk from '../src/index.js';
 import type { VerifyRequest } from '../src/crypto/index.js';
 import type { TestContext } from 'node:test';
 import { Code, ConnectError } from '@connectrpc/connect';
-import { createSigningFetchClient } from '../src/common/client/signing-http-client.js';
+import type { UniversalClientFn } from '@connectrpc/connect/protocol';
+import { createSigningHttpClient } from '../src/common/client/signing-http-client.js';
 import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -947,19 +948,21 @@ function splitEnvelopes(body: Buffer): Buffer[] {
 
 interface SentRequest {
   headers: Headers;
-  body: Buffer;
-  duplex: unknown;
+  chunks: Buffer[];
 }
 
 async function sendThroughSigningClient(t: TestContext, vec: any, chunks: Uint8Array[]): Promise<SentRequest | undefined> {
   t.mock.method(Date, 'now', () => vec.timestamp_ms);
   let sent: SentRequest | undefined;
-  const fakeFetch = async (_url: string | URL | Request, init?: RequestInit) => {
-    const body = Buffer.from(await new Response(init?.body).arrayBuffer());
-    sent = { headers: new Headers(init?.headers), body, duplex: (init as { duplex?: unknown }).duplex };
-    return new Response(null, { status: 200 });
+  const recording: UniversalClientFn = async (req) => {
+    const got: Buffer[] = [];
+    for await (const chunk of req.body ?? []) {
+      got.push(Buffer.from(chunk));
+    }
+    sent = { headers: req.header, chunks: got };
+    return { status: 200, header: new Headers(), body: (async function* () {})(), trailer: new Headers() };
   };
-  const httpClient = createSigningFetchClient(CreateSigner(vectors.keys.private_key), fakeFetch);
+  const httpClient = createSigningHttpClient(CreateSigner(vectors.keys.private_key), recording);
   await httpClient({
     url: 'http://127.0.0.1/test.v1.StreamTest/ClientStream',
     method: 'POST',
@@ -988,15 +991,15 @@ describe('Stream signing cases', () => {
 
   for (const vec of firstEnvelopeCases) {
     it(`${vec.name}: the streaming HTTP client sends the vector signature and the body as given`, async (t) => {
-      const body = Buffer.from(vec.body_hex, 'hex');
-      const sent = await sendThroughSigningClient(t, vec, splitEnvelopes(body));
+      const envelopes = splitEnvelopes(Buffer.from(vec.body_hex, 'hex'));
+      const sent = await sendThroughSigningClient(t, vec, envelopes);
       nodeAssert.ok(sent, 'the request is sent');
 
       nodeAssert.equal(sent.headers.get(NetworkHeaders.Signature), '0x' + vec.expected_signature);
       nodeAssert.equal(sent.headers.get(NetworkHeaders.PublicKey), '0x' + vectors.keys.public_key);
       nodeAssert.equal(sent.headers.get(NetworkHeaders.SignatureTimestamp), String(vec.timestamp_ms));
-      nodeAssert.equal(sent.body.toString('hex'), vec.body_hex);
-      nodeAssert.equal(sent.duplex, 'half');
+      nodeAssert.equal((sent.chunks[0] ?? Buffer.alloc(0)).toString('hex'), vec.signed_hex, 'the first chunk is the signed envelope');
+      nodeAssert.deepEqual(sent.chunks.map((c) => c.toString('hex')), envelopes.map((e) => e.toString('hex')));
     });
   }
 

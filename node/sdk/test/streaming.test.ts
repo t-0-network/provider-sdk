@@ -14,7 +14,7 @@ import { createClient } from '../src/client/client.js';
 import { CreateSigner } from '../src/client/signer.js';
 import { transportOptions } from '../src/common/client/client.js';
 import { computeDigest, NetworkHeaders, parsePublicKey, publicKeysEqual, verifySignature } from '../src/crypto/index.js';
-import { StreamTest, bufferingFetchClient, isCode, newKeypair, stringValues } from './stream_helpers.js';
+import { StreamTest, bufferingHttpClient, isCode, newKeypair, stringValues } from './stream_helpers.js';
 
 interface Check {
   procedure: string;
@@ -270,7 +270,7 @@ describe('Streaming calls are signed over the first request envelope', { timeout
   it('an unsigned stream request is rejected', async () => {
     await withServer(async (srv) => {
       const signer = CreateSigner(newKeypair().privateKeyHex);
-      const transport = createTransport({ ...transportOptions(signer, srv.url), httpClient: bufferingFetchClient() });
+      const transport = createTransport({ ...transportOptions(signer, srv.url), httpClient: bufferingHttpClient() });
       const client = createConnectClient(StreamTest, transport);
       await assert.rejects(client.clientStream(stringValues('m1', 'm2')), isCode(Code.Unauthenticated));
 
@@ -282,7 +282,7 @@ describe('Streaming calls are signed over the first request envelope', { timeout
   it('a stream signed over its whole body is rejected', async () => {
     await withServer(async (srv, key) => {
       const signer = CreateSigner(key.privateKeyHex);
-      const transport = createTransport({ ...transportOptions(signer, srv.url), httpClient: bufferingFetchClient(signer) });
+      const transport = createTransport({ ...transportOptions(signer, srv.url), httpClient: bufferingHttpClient(signer) });
       const client = createConnectClient(StreamTest, transport);
       await assert.rejects(client.clientStream(stringValues('m1', 'm2')), isCode(Code.Unauthenticated));
       assert.equal(srv.checks[0].valid, false);
@@ -346,14 +346,30 @@ describe('createClient routes unary and streaming calls to their own transport',
     });
   });
 
-  it('no timeouts by default', async () => {
+  it('by default unary calls time out after 15 s and streams do not', async () => {
     await withServer(async (srv, key) => {
       const client = createClient(key.privateKeyHex, srv.url, StreamTest);
       await client.unary({ value: 'u' });
       await client.clientStream(stringValues('c'));
 
+      assert.deepEqual(srv.checks.map((c) => c.timeoutMs), ['15000', null]);
+    });
+  });
+
+  it('a timeout of 0 is none', async () => {
+    await withServer(async (srv, key) => {
+      const client = createClient(key.privateKeyHex, srv.url, StreamTest, { unaryTimeoutMs: 0, streamTimeoutMs: 0 });
+      await client.unary({ value: 'u' });
+      await client.clientStream(stringValues('c'));
+
       assert.deepEqual(srv.checks.map((c) => c.timeoutMs), [null, null]);
     });
+  });
+
+  it('a negative or NaN timeout is refused', () => {
+    for (const opts of [{ unaryTimeoutMs: -1 }, { streamTimeoutMs: -1 }, { unaryTimeoutMs: NaN }]) {
+      assert.throws(() => createClient(newKeypair().privateKeyHex, 'http://127.0.0.1:9', StreamTest, opts), RangeError);
+    }
   });
 
   it('the stream timeout covers the wait for the first message', async () => {

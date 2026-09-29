@@ -11,7 +11,7 @@ import { createTransport } from '@connectrpc/connect/protocol-connect';
 import { createClient } from '../src/client/client.js';
 import { CreateSigner } from '../src/client/signer.js';
 import { transportOptions } from '../src/common/client/client.js';
-import { StreamTest, bufferingFetchClient, isCode, stringValues } from './stream_helpers.js';
+import { StreamTest, bufferingHttpClient, isCode, stringValues } from './stream_helpers.js';
 
 const GO_HELPER = path.resolve(import.meta.dirname, '..', '..', '..', 'cross_test', 'go_helper', 'go_helper');
 
@@ -161,7 +161,7 @@ describe('Cross-language streaming: Node client → Go server', { skip: !goAvail
 
   it('an unsigned client stream is rejected', async () => {
     const mark = log.length;
-    const transport = createTransport({ ...transportOptions(CreateSigner(CLIENT_PRIVATE_KEY), url), httpClient: bufferingFetchClient() });
+    const transport = createTransport({ ...transportOptions(CreateSigner(CLIENT_PRIVATE_KEY), url), httpClient: bufferingHttpClient() });
     const client = createConnectClient(StreamTest, transport);
     await assert.rejects(client.clientStream(stringValues('m1', 'm2')), isCode(Code.Unauthenticated));
     await waitForLog('/test.v1.StreamTest/ClientStream rejected: unknown public key', mark);
@@ -170,7 +170,7 @@ describe('Cross-language streaming: Node client → Go server', { skip: !goAvail
   it('a client stream signed over its whole body is rejected', async () => {
     const mark = log.length;
     const signer = CreateSigner(CLIENT_PRIVATE_KEY);
-    const transport = createTransport({ ...transportOptions(signer, url), httpClient: bufferingFetchClient(signer) });
+    const transport = createTransport({ ...transportOptions(signer, url), httpClient: bufferingHttpClient(signer) });
     const client = createConnectClient(StreamTest, transport);
     await assert.rejects(client.clientStream(stringValues('m1', 'm2', 'm3')), isCode(Code.Unauthenticated));
     await waitForLog('/test.v1.StreamTest/ClientStream rejected: signature does not verify over the first message', mark);

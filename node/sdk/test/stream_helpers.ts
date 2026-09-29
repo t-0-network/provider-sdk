@@ -8,7 +8,8 @@ import {
   type StringValueSchema,
 } from '@bufbuild/protobuf/wkt';
 import { Code, ConnectError } from '@connectrpc/connect';
-import { universalClientResponseFromFetch, type UniversalClientFn } from '@connectrpc/connect/protocol';
+import type { UniversalClientFn } from '@connectrpc/connect/protocol';
+import { createNodeHttpClient } from '@connectrpc/connect-node';
 import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { signatureHeaders } from '../src/common/client/sign.js';
 import type { SignerFunction } from '../src/common/client/client.js';
@@ -57,7 +58,8 @@ export async function* stringValues(...values: string[]) {
 }
 
 /** Buffers the whole request body; signs it whole with a signer, else sends it unsigned. */
-export function bufferingFetchClient(signer?: SignerFunction): UniversalClientFn {
+export function bufferingHttpClient(signer?: SignerFunction): UniversalClientFn {
+  const httpClient = createNodeHttpClient({ httpVersion: '1.1' });
   return async (req) => {
     const chunks: Uint8Array[] = [];
     for await (const chunk of req.body ?? []) {
@@ -69,8 +71,7 @@ export function bufferingFetchClient(signer?: SignerFunction): UniversalClientFn
         req.header.set(name, value);
       }
     }
-    const res = await fetch(req.url, { method: req.method, headers: req.header, body, signal: req.signal });
-    return universalClientResponseFromFetch(res);
+    return httpClient({ ...req, body: (async function* () { yield body; })() });
   };
 }
 

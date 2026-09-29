@@ -1,5 +1,6 @@
 import {Code, ConnectError} from "@connectrpc/connect";
-import {universalClientResponseFromFetch, type UniversalClientFn, type UniversalClientResponse} from "@connectrpc/connect/protocol";
+import type {UniversalClientFn} from "@connectrpc/connect/protocol";
+import {createNodeHttpClient} from "@connectrpc/connect-node";
 import {signatureHeaders} from "./sign.js";
 import type {SignerFunction} from "./client.js";
 
@@ -7,15 +8,15 @@ import type {SignerFunction} from "./client.js";
  * The transport's HTTP client: signs an enveloped body (Connect streaming, gRPC) over its first
  * envelope as sent and sends it at once, any other body whole. See docs/node/STREAMING.md.
  *
- * @param fetchFn defaults to the global fetch at the time of each call.
+ * @param httpClient sends the signed request; connect-node's HTTP/1.1 client unless a test injects one.
  */
-export function createSigningFetchClient(signer: SignerFunction, fetchFn?: typeof globalThis.fetch): UniversalClientFn {
+export function createSigningHttpClient(signer: SignerFunction, httpClient: UniversalClientFn = createNodeHttpClient({httpVersion: "1.1"})): UniversalClientFn {
     return async (req) => {
         const it = (req.body ?? emptyBody)[Symbol.asyncIterator]();
         const enveloped = isEnveloped(req.header.get("Content-Type"));
 
         let first: Uint8Array | undefined;
-        let whole: Uint8Array<ArrayBuffer> | undefined;
+        let whole: Uint8Array | undefined;
         let headers: [string, string][];
         try {
             if (enveloped) {
@@ -38,34 +39,15 @@ export function createSigningFetchClient(signer: SignerFunction, fetchFn?: typeo
             req.header.set(name, value);
         }
 
-        const init: RequestInit & {duplex?: "half"} = {
-            method: req.method,
-            headers: req.header,
-            redirect: "error",
-            signal: req.signal,
-        };
+        let body: AsyncIterable<Uint8Array> | undefined;
         if (enveloped) {
-            init.body = bodyStream(first, it);
-            init.duplex = "half";
-        } else if (req.body !== undefined) {
-            init.body = whole;
+            body = firstThenRest(first, it);
+        } else if (whole !== undefined && req.body !== undefined) {
+            req.header.set("Content-Length", String(whole.byteLength));
+            body = firstThenRest(whole, emptyBody[Symbol.asyncIterator]());
         }
-        const res = await (fetchFn ?? globalThis.fetch)(req.url, init);
-        return decodedResponse(res);
+        return httpClient({...req, body});
     };
-}
-
-// fetch decodes a compressed response but keeps its Content-Encoding and Content-Length. connect
-// would take the former for a compression it never negotiated and fail the call.
-function decodedResponse(res: Response): UniversalClientResponse {
-    const uRes = universalClientResponseFromFetch(res);
-    if (!res.headers.has("Content-Encoding")) {
-        return uRes;
-    }
-    const header = new Headers(res.headers);
-    header.delete("Content-Encoding");
-    header.delete("Content-Length");
-    return {...uRes, header};
 }
 
 // gRPC-Web does not match: it is signed whole.
@@ -88,7 +70,7 @@ function requireOneEnvelope(chunk: Uint8Array): void {
 }
 
 // connect-es sends a unary body as one chunk, but that is not relied on.
-async function readAll(it: AsyncIterator<Uint8Array>): Promise<Uint8Array<ArrayBuffer>> {
+async function readAll(it: AsyncIterator<Uint8Array>): Promise<Uint8Array> {
     const chunks: Uint8Array[] = [];
     let size = 0;
     for (let r = await it.next(); r.done !== true; r = await it.next()) {
@@ -104,28 +86,23 @@ async function readAll(it: AsyncIterator<Uint8Array>): Promise<Uint8Array<ArrayB
     return body;
 }
 
-function bodyStream(first: Uint8Array | undefined, it: AsyncIterator<Uint8Array>): ReadableStream<Uint8Array> {
+// `first` (if any), then the rest of `it`. Not an async generator: connect-node closes or throws
+// into the body while a next() may be pending, and a generator would queue that behind it.
+function firstThenRest(first: Uint8Array | undefined, it: AsyncIterator<Uint8Array>): AsyncIterable<Uint8Array> {
     let pending = first;
-    let done = first === undefined;
-    return new ReadableStream<Uint8Array>({
-        async pull(controller) {
-            if (pending !== undefined) {
-                controller.enqueue(pending);
-                pending = undefined;
-                return;
+    const rest: AsyncIterator<Uint8Array> = {
+        next() {
+            if (pending === undefined) {
+                return it.next();
             }
-            const r = done ? undefined : await it.next();
-            if (r === undefined || r.done === true) {
-                done = true;
-                controller.close();
-                return;
-            }
-            controller.enqueue(r.value);
+            const value = pending;
+            pending = undefined;
+            return Promise.resolve({done: false, value});
         },
-        async cancel() {
-            await it.return?.();
-        },
-    });
+        return: it.return?.bind(it),
+        throw: it.throw?.bind(it),
+    };
+    return {[Symbol.asyncIterator]: () => rest};
 }
 
 function untilAborted<T>(promise: Promise<T>, signal: AbortSignal | undefined): Promise<T> {

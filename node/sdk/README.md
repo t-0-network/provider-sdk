@@ -216,12 +216,12 @@ const quote = await networkClient.getQuote({
 });
 ```
 
-Options go in the fourth argument. Timeouts are off by default, and a call's own `timeoutMs` overrides them:
+Options go in the fourth argument. Unary calls time out after 15 s by default, streaming calls have no timeout; `0` turns a timeout off, and a call's own `timeoutMs` overrides both:
 
 ```ts
 const client = createClient(privateKey, endpoint, NetworkService, {
-  unaryTimeoutMs: 15_000,  // each unary call
-  streamTimeoutMs: 60_000, // each streaming call, from waiting for the first message to the end of the response
+  unaryTimeoutMs: 15_000,  // each unary call (the default)
+  streamTimeoutMs: 60_000, // each streaming call, from waiting for the first message to the end of the response (default: none)
   useBinaryFormat: true,   // the default; false for Connect JSON
 });
 ```

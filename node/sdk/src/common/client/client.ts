@@ -2,7 +2,7 @@ import {Code, ConnectError, createClient as createConnectClient} from "@connectr
 import {validateReadWriteMaxBytes, type CommonTransportOptions} from "@connectrpc/connect/protocol";
 import {createTransport} from "@connectrpc/connect/protocol-connect";
 import CreateSigner from "./signer.js";
-import {createSigningFetchClient} from "./signing-http-client.js";
+import {createSigningHttpClient} from "./signing-http-client.js";
 import {DescService} from "@bufbuild/protobuf";
 
 /**
@@ -14,13 +14,15 @@ export function createClient<T extends DescService>(signer: string | Buffer | ((
     const sign: SignerFunction = typeof signer === "string" || Buffer.isBuffer(signer) ? CreateSigner(signer) : signer;
 
     const useBinaryFormat = opts?.useBinaryFormat ?? true;
-    const unaryTransport = createTransport(transportOptions(sign, endpoint, opts?.unaryTimeoutMs, useBinaryFormat));
-    const streamTransport = createTransport(transportOptions(sign, endpoint, opts?.streamTimeoutMs, useBinaryFormat));
+    const unaryTimeoutMs = timeoutOption("unaryTimeoutMs", opts?.unaryTimeoutMs, DEFAULT_UNARY_TIMEOUT_MS);
+    const streamTimeoutMs = timeoutOption("streamTimeoutMs", opts?.streamTimeoutMs, undefined);
+    const unaryTransport = createTransport(transportOptions(sign, endpoint, unaryTimeoutMs, useBinaryFormat));
+    const streamTransport = createTransport(transportOptions(sign, endpoint, streamTimeoutMs, useBinaryFormat));
 
     return createConnectClient(svc, {
         unary: unaryTransport.unary.bind(unaryTransport),
         stream: (method, signal, timeoutMs, header, input, contextValues) => {
-            // fetch streams the request half-duplex, so a bidi call could not interleave the two.
+            // Policy: the network accepts no bidi streams (#370); over HTTP/1.1 they could not interleave anyway.
             if (method.methodKind === "bidi_streaming") {
                 return Promise.reject(new ConnectError("bidirectional streams are not supported", Code.Unimplemented));
             }
@@ -37,7 +39,7 @@ export function createClient<T extends DescService>(signer: string | Buffer | ((
  */
 export function transportOptions(signer: SignerFunction, endpoint: string, timeoutMs?: number, useBinaryFormat = true): CommonTransportOptions {
     return {
-        httpClient: createSigningFetchClient(signer),
+        httpClient: createSigningHttpClient(signer),
         baseUrl: endpoint,
         useBinaryFormat,
         interceptors: [],
@@ -48,15 +50,32 @@ export function transportOptions(signer: SignerFunction, endpoint: string, timeo
     };
 }
 
+// As in the other SDKs.
+const DEFAULT_UNARY_TIMEOUT_MS = 15_000;
+
+// undefined: the default; 0: no timeout.
+function timeoutOption(name: string, ms: number | undefined, byDefault: number | undefined): number | undefined {
+    if (ms === undefined) {
+        return byDefault;
+    }
+    if (!(ms >= 0)) {
+        throw new RangeError(`${name} must be 0 (no timeout) or a positive number of milliseconds, got ${ms}`);
+    }
+    return ms === 0 ? undefined : ms;
+}
+
 /**
  * Options for createClient. See docs/node/STREAMING.md.
  */
 export interface ClientOptions {
-    /** Deadline of each unary call in ms; a call's own `timeoutMs` overrides it. Default: none. */
+    /**
+     * Deadline of each unary call in ms; `0` for none. A call's own `timeoutMs` overrides it.
+     * Default: 15_000.
+     */
     unaryTimeoutMs?: number;
     /**
      * Deadline of each client- or server-streaming call in ms, including the wait for the first
-     * request message; a call's own `timeoutMs` overrides it. Default: none.
+     * request message; `0` for none. A call's own `timeoutMs` overrides it. Default: none.
      */
     streamTimeoutMs?: number;
     /** Binary Protobuf (default) or, when false, Connect JSON. Either is signed over the bytes as sent. */
