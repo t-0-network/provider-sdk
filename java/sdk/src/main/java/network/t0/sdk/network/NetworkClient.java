@@ -24,6 +24,8 @@ import org.slf4j.LoggerFactory;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
+import java.net.URI;
+import java.net.URISyntaxException;
 import java.time.Clock;
 import java.time.Duration;
 import java.util.concurrent.Executor;
@@ -323,6 +325,13 @@ public abstract class NetworkClient implements Closeable {
                 throw invalidBaseUrl();
             }
         }
+        // The check grpc makes when it builds the channel ("[:::]", "a..b", "-foo" fail it): a host it
+        // cannot take is refused here with our message, not later with grpc's.
+        try {
+            new URI(null, null, host, port, null, null, null);
+        } catch (URISyntaxException e) {
+            throw invalidBaseUrl();
+        }
         return new EndpointInfo(host, port, usePlaintext);
     }
 
@@ -443,6 +452,7 @@ public abstract class NetworkClient implements Closeable {
                 private boolean starting = false;
                 private Thread starter; // the thread in rawCall.start(), while starting
                 private int pendingRequests = 0;
+                private volatile Thread firstSender; // the thread sending the signed first message, until it is out
                 private ScheduledFuture<?> deadlineTimer;
                 private final Context.CancellationListener contextListener = cancelled -> startUnsigned();
                 // The listener's callbacks, one at a time: its onReady before the first message (see
@@ -494,13 +504,23 @@ public abstract class NetworkClient implements Closeable {
                         throw new RuntimeException("Failed to serialize message for signing", e);
                     }
 
-                    // Only the first message is signed; later stream messages go out as-is.
-                    if (claimStart(messageBytes)) {
-                        startRawCall();
-                    }
-
                     // CRITICAL: Send the EXACT bytes we signed, not the original message.
                     // This prevents double-serialization which would produce different bytes.
+                    // Only the first message is signed; later stream messages go out as-is.
+                    if (claimStart(messageBytes)) {
+                        // rawCall may call the listener back inside start() on this thread (a direct
+                        // executor): such callbacks wait until the signed message is out, so that
+                        // nothing they send overtakes it.
+                        firstSender = Thread.currentThread();
+                        try {
+                            startRawCall();
+                            rawCall.sendMessage(messageBytes);
+                        } finally {
+                            firstSender = null;
+                            callbacks.drain();
+                        }
+                        return;
+                    }
                     rawCall.sendMessage(messageBytes);
                 }
 
@@ -633,22 +653,22 @@ public abstract class NetworkClient implements Closeable {
                     Listener<RespT> inCallerContext = new Listener<RespT>() {
                         @Override
                         public void onHeaders(Metadata responseHeaders) {
-                            callbacks.execute(context.wrap(() -> listener.onHeaders(responseHeaders)));
+                            deliver(() -> listener.onHeaders(responseHeaders));
                         }
 
                         @Override
                         public void onMessage(RespT message) {
-                            callbacks.execute(context.wrap(() -> listener.onMessage(message)));
+                            deliver(() -> listener.onMessage(message));
                         }
 
                         @Override
                         public void onClose(Status status, Metadata trailers) {
-                            callbacks.execute(context.wrap(() -> listener.onClose(status, trailers)));
+                            deliver(() -> listener.onClose(status, trailers));
                         }
 
                         @Override
                         public void onReady() {
-                            callbacks.execute(context.wrap(listener::onReady));
+                            deliver(listener::onReady);
                         }
                     };
                     // Started in callContext too, so a call that is created only now cannot open a
@@ -670,6 +690,17 @@ public abstract class NetworkClient implements Closeable {
                     // Flush any pending request() calls that happened before start
                     if (requests > 0) {
                         rawCall.request(requests);
+                    }
+                }
+
+                // One of rawCall's callbacks, in the caller's context; on the thread sending the signed first
+                // message it waits until that message is out (see sendMessage).
+                private void deliver(Runnable callback) {
+                    Runnable task = context.wrap(callback);
+                    if (firstSender == Thread.currentThread()) {
+                        callbacks.executeLater(task);
+                    } else {
+                        callbacks.execute(task);
                     }
                 }
 

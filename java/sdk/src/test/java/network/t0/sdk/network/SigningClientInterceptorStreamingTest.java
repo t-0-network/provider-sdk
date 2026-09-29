@@ -134,6 +134,28 @@ class SigningClientInterceptorStreamingTest {
     }
 
     @Test
+    @DisplayName("A message sent from an onReady run inside start() goes out after the signed first message")
+    void messageSentFromAnInlineOnReadyFollowsTheSignedMessage() {
+        channel.readyOnStart();
+        RecordingListener<StringValue> listener = new RecordingListener<>();
+        ClientCall<StringValue, StringValue> call = intercepted.newCall(CLIENT_STREAM, callOptions());
+        boolean[] sentFromOnReady = {false};
+        listener.onReadyAction = () -> {
+            if (!sentFromOnReady[0]) {
+                sentFromOnReady[0] = true;
+                call.sendMessage(value("m2"));
+            }
+        };
+        call.start(listener, new Metadata());
+        call.sendMessage(value("m1"));
+
+        RecordingCall raw = channel.lastCall();
+        assertThat(sentFromOnReady[0]).as("onReady sent m2").isTrue();
+        assertThat(raw.sent).containsExactly(bytes("m1"), bytes("m2"));
+        assertThat(verifies(raw.headers, bytes("m1"))).isTrue();
+    }
+
+    @Test
     @DisplayName("Client stream: headers are set once, before start, with no duplicate X-Signature")
     void clientStreamSetsHeadersOnce() {
         Metadata headers = new Metadata();
@@ -727,6 +749,28 @@ class SigningClientInterceptorStreamingTest {
         listener.onCloseAction = () -> call.cancel("closed", null);
         call.start(listener, new Metadata());
 
+        // An empty stream: its start runs the listener inline (a first message's start defers it).
+        Thread closer = new Thread(call::halfClose);
+        closer.setDaemon(true); // a hang must not keep the test JVM alive
+        closer.start();
+        closer.join(5_000);
+
+        assertThat(closer.isAlive()).as("halfClose returned").isFalse();
+        RecordingCall raw = channel.lastCall();
+        assertThat(raw.starts).isEqualTo(1);
+        assertThat(raw.events()).containsExactly("start", "cancel", "halfClose");
+        assertThat(listener.closeStatus.getCode()).isEqualTo(Status.Code.UNAVAILABLE);
+    }
+
+    @Test
+    @DisplayName("An onClose grpc runs inside the first message's start() comes after that message is sent")
+    void onCloseRunInsideTheFirstMessagesStartComesAfterTheSend() throws Exception {
+        channel.closeOnStart(Status.UNAVAILABLE);
+        RecordingListener<StringValue> listener = new RecordingListener<>();
+        ClientCall<StringValue, StringValue> call = intercepted.newCall(CLIENT_STREAM, callOptions());
+        listener.onCloseAction = () -> call.cancel("closed", null);
+        call.start(listener, new Metadata());
+
         Thread sender = new Thread(() -> call.sendMessage(value("m1")));
         sender.setDaemon(true); // a hang must not keep the test JVM alive
         sender.start();
@@ -735,7 +779,7 @@ class SigningClientInterceptorStreamingTest {
         assertThat(sender.isAlive()).as("sendMessage returned").isFalse();
         RecordingCall raw = channel.lastCall();
         assertThat(raw.starts).isEqualTo(1);
-        assertThat(raw.events()).containsExactly("start", "cancel", "send");
+        assertThat(raw.events()).containsExactly("start", "send", "cancel");
         assertThat(listener.closeStatus.getCode()).isEqualTo(Status.Code.UNAVAILABLE);
     }
 
@@ -913,6 +957,7 @@ class SigningClientInterceptorStreamingTest {
     static final class FakeChannel extends Channel {
         private volatile RecordingCall lastCall;
         private boolean blockStarts;
+        private boolean readyOnStart;
         private Status closeOnStart;
 
         RecordingCall lastCall() {
@@ -929,12 +974,18 @@ class SigningClientInterceptorStreamingTest {
             blockStarts = true;
         }
 
+        /** Calls handed out from now on report onReady inside start(), as a ready stream on a direct executor. */
+        void readyOnStart() {
+            readyOnStart = true;
+        }
+
         @Override
         @SuppressWarnings("unchecked")
         public <ReqT, RespT> ClientCall<ReqT, RespT> newCall(
                 MethodDescriptor<ReqT, RespT> method, CallOptions callOptions) {
             lastCall = new RecordingCall(method, blockStarts);
             lastCall.closeOnStart = closeOnStart;
+            lastCall.readyOnStart = readyOnStart;
             return (ClientCall<ReqT, RespT>) lastCall;
         }
 
@@ -963,6 +1014,7 @@ class SigningClientInterceptorStreamingTest {
         volatile boolean contextCancelledAtStart;
         volatile boolean closed;
         Status closeOnStart;
+        boolean readyOnStart;
         // Like a real call, the call belongs to the context it is created in.
         private final Context context = Context.current();
 
@@ -1007,6 +1059,8 @@ class SigningClientInterceptorStreamingTest {
             if (close != null) {
                 closed = true;
                 context.run(() -> responseListener.onClose(close, new Metadata()));
+            } else if (readyOnStart) {
+                context.run(responseListener::onReady);
             }
         }
 

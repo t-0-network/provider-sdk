@@ -70,7 +70,8 @@ class NetworkClientFactoryTest {
             "http:foo", "http://h:99999", "http://h:0", "not a url", "https://", "http:///path",
             "https://api t-0.network", " ", "http://h:", "http://user@h", "http://b\u00fccher.example",
             "https://api.t-0.network/v1", "https://api.t-0.network?x", "https://api.t-0.network#x",
-            "https://api.t-0.network/v1/", "https://api.t-0.network//"})
+            "https://api.t-0.network/v1/", "https://api.t-0.network//", "http://[:::]:8080", "http://[1::2::3]",
+            "http://a..b", "http://-foo"})
     @DisplayName("A base URL without an http or https scheme or without a host is refused, not repaired")
     void invalidBaseUrlIsRefused(String endpoint) {
         assertThatThrownBy(() -> NetworkClient.parseEndpoint(endpoint))
