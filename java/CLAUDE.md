@@ -20,7 +20,7 @@ verifySignature(rawBytes, signature);
 
 `SignatureVerificationInterceptor.verifySignature` accepts signatures over **either** unframed protobuf **or** the 5-byte-gRPC-framed body. Both paths are load-bearing in production:
 
-- **Unframed path** — Java SDK's own `NetworkClient` (signs above the gRPC framer), Connect-protocol callers in Go / Node / Python (no frame exists), and the T-0 Network when configured to call this provider via Connect protocol.
+- **Unframed path** — Java SDK's own `NetworkClient` (signs above the gRPC framer), unary Connect-protocol calls from Go / Node / Python (a unary Connect body has no frame), and the T-0 Network when configured to call this provider via Connect protocol.
 - **gRPC-framed path** — T-0 Network when configured to call this provider via gRPC protocol. The signer sits below the gRPC framer, so the signed payload covers the 5-byte frame prefix (1 byte compressed flag + 4 bytes big-endian length) followed by the protobuf message bytes.
 
 Removing either path silently breaks one class of caller with `UNAUTHENTICATED` errors.
@@ -29,7 +29,7 @@ GitHub issue #89 raised concern that the framed path looked like dead code — i
 
 ## Streaming Calls & Deadlines (client side)
 
-`SigningClientInterceptor` signs only the first message of a client/server stream (unframed) and defers the call's start until then (or until it is cancelled or its deadline or context ends), giving the listener one `onReady` before it; bidi is refused with `UNIMPLEMENTED`. `DefaultDeadlineInterceptor`: unary 15 s, streams 5 min, unless the caller set a deadline on the call or its `Context`. Read [`docs/STREAMING.md`](../docs/STREAMING.md) before touching either.
+`SigningClientInterceptor` signs only the first message of a client/server stream (unframed) and defers the call's start until then (or until it is cancelled or its deadline or context ends, then unsigned and without sending anything), giving the listener one `onReady` before it; bidi and calls with a compressor are refused with `UNIMPLEMENTED`. `DefaultDeadlineInterceptor`: unary 15 s, streams 5 min, unless the caller set a deadline on the call or its `Context`. Read [`docs/STREAMING.md`](../docs/STREAMING.md) before touching either.
 
 ---
 

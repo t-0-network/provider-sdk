@@ -285,7 +285,7 @@ class SigningClientInterceptorStreamingTest {
         ClientCall<StringValue, StringValue> call = intercepted.newCall(CLIENT_STREAM, callOptions());
         call.start(new RecordingListener<>(), new Metadata());
 
-        // The fake throws on isReady() before start, like ClientCallImpl.
+        // The fake throws on isReady() before start, like a real call.
         assertThat(call.isReady()).isTrue();
         assertThat(channel.lastCall().events).isEmpty();
 
@@ -437,7 +437,7 @@ class SigningClientInterceptorStreamingTest {
     }
 
     @Test
-    @DisplayName("A listener callback that throws cancels the call, as in ClientCallImpl")
+    @DisplayName("A listener callback that throws cancels the call")
     @SuppressWarnings("unchecked") // the fake's listener is raw
     void throwingCallbackCancelsTheCall() {
         IllegalStateException failure = new IllegalStateException("listener failed");
@@ -494,7 +494,7 @@ class SigningClientInterceptorStreamingTest {
     @Test
     @DisplayName("A listener run by one call's pre-start deadline does not hold up the deadline of another")
     void preStartDeadlineCallbacksDoNotHoldUpOtherCalls() throws Exception {
-        // As ClientCallImpl with a direct executor: the expired call closes its listener inside start().
+        // As a real call with a direct executor: the expired call closes its listener inside start().
         channel.closeOnStart(Status.DEADLINE_EXCEEDED);
         CountDownLatch inSlowCallback = new CountDownLatch(1);
         CountDownLatch release = new CountDownLatch(1);
@@ -624,7 +624,7 @@ class SigningClientInterceptorStreamingTest {
     @Test
     @DisplayName("A listener that cancels from an onClose grpc runs inside start() does not wait for itself")
     void cancelFromAnOnCloseRunInsideStart() throws Exception {
-        // As ClientCallImpl on a shut-down channel with a direct executor: start() closes the call inline.
+        // As a real call on a shut-down channel with a direct executor: start() closes the call inline.
         channel.closeOnStart(Status.UNAVAILABLE);
         RecordingListener<StringValue> listener = new RecordingListener<>();
         ClientCall<StringValue, StringValue> call = intercepted.newCall(CLIENT_STREAM, callOptions());
@@ -837,7 +837,7 @@ class SigningClientInterceptorStreamingTest {
 
     /**
      * Minimal ClientCall fake that records what the interceptor does to the underlying call. Like
-     * ClientCallImpl, it refuses a second start().
+     * a real call, it refuses a second start().
      */
     @SuppressWarnings({"rawtypes", "unchecked"})
     static final class RecordingCall extends ClientCall<Object, Object> {
@@ -853,7 +853,7 @@ class SigningClientInterceptorStreamingTest {
         volatile boolean ready;
         volatile boolean contextCancelledAtStart;
         Status closeOnStart;
-        // Like ClientCallImpl, the call belongs to the context it is created in.
+        // Like a real call, the call belongs to the context it is created in.
         private final Context context = Context.current();
 
         RecordingCall(MethodDescriptor<?, ?> method, boolean blockStart) {
@@ -904,7 +904,7 @@ class SigningClientInterceptorStreamingTest {
         @Override
         public void cancel(String message, Throwable cause) {
             events.add("cancel");
-            // Like ClientCallImpl, only a started call reports its cancellation to the listener.
+            // Like a real call, only a started call reports its cancellation to the listener.
             if (listener != null) {
                 listener.onClose(Status.CANCELLED.withDescription(message).withCause(cause), new Metadata());
             }
@@ -923,7 +923,7 @@ class SigningClientInterceptorStreamingTest {
 
         @Override
         public boolean isReady() {
-            // ClientCallImpl throws a NullPointerException here before start.
+            // A real call throws here before start.
             if (listener == null) {
                 throw new IllegalStateException("isReady() called before start()");
             }

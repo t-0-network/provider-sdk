@@ -299,7 +299,7 @@ class CrossServerTests {
         }
     }
 
-    /** A sender that sends only on onReady, the first message included (grpc-java's ClientCall example). */
+    /** A sender that sends only on onReady, the first message included. */
     @Test
     @Timeout(30)
     void javaClient_goServer_clientStream_readinessDrivenSender() throws Exception {
@@ -335,7 +335,7 @@ class CrossServerTests {
         }
     }
 
-    /** grpc-java enforces a deadline only from the start, which waits for the first message. */
+    /** The stream timeout also covers the wait for the first message. */
     @Test
     @Timeout(30)
     void javaClient_goServer_streamTimeoutBeforeTheFirstMessage() throws Exception {

@@ -69,7 +69,7 @@ The network's verification logic on its own ingress mirrors this dual-path with 
 
 ## Streaming calls (client side)
 
-For client- and server-streaming calls `NetworkClient` signs **only the first request message**, unframed as for unary calls; the network accepts the first frame with or without its prefix over gRPC, like the unary dual-path above. The provider-side verifier described here still checks every inbound message; providers serve no streams. Details: [`docs/STREAMING.md`](../STREAMING.md).
+For client- and server-streaming calls `NetworkClient` signs **only the first request message**, unframed as for unary calls; the network accepts the first frame with or without its prefix over gRPC, like the unary dual-path above. A call with a compressor is refused before it is sent, since the signature would not cover the compressed bytes. The provider-side verifier described here still checks every inbound message; providers serve no streams. Details: [`docs/STREAMING.md`](../STREAMING.md).
 
 ## CRITICAL: do not remove either path
 
@@ -83,7 +83,7 @@ GitHub issue [#89](https://github.com/t-0-network/provider-sdk/issues/89) raised
 
 A single canonical framing could be enforced only if **all** signing parties that talk to a Java provider can be confirmed to sign at the same layer. That confirmation must include:
 
-- All five SDK clients in this repo (Java signs unframed; C# signs framed; Go/Node/Python use Connect protocol with no frame).
+- All five SDK clients in this repo (Java signs unframed; C# signs framed; Go / Node / Python sign a unary Connect call unframed, and Go / Python sign a unary gRPC call framed).
 - The network for every transport configuration it can be set to use against the provider.
 - Any third-party client built directly on a gRPC framework, where the integrator chose where to wire signing.
 

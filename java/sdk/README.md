@@ -11,7 +11,7 @@ This document provides detailed technical documentation for developers who need 
 - [Critical: Raw Payload Bytes](#critical-raw-payload-bytes)
 - [Signature Format and Headers](#signature-format-and-headers)
 - [Accepted Signature Payload Formats](#accepted-signature-payload-formats)
-- [Streaming Calls](#streaming-calls)
+- [Streaming and timeouts](#streaming-and-timeouts)
 - [Thread Safety](#thread-safety)
 - [Usage Examples](#usage-examples)
 - [Error Handling](#error-handling)
@@ -214,16 +214,16 @@ The interceptor tries the unframed payload first, then reconstructs the gRPC fra
 
 ---
 
-## Streaming Calls
+## Streaming and timeouts
 
-For client- and server-streaming calls, `SigningClientInterceptor` signs **only the first request message** (unframed, as for unary calls); later messages are sent unsigned. The call starts when that first message is sent. Bidirectional streaming is not supported: such a call closes with `UNIMPLEMENTED` and nothing is sent.
-
-Streaming calls get a default deadline of 5 minutes, which includes the wait for the first message. Set other values per client, or per stub with `stub(timeout, unit)`; a deadline set on the stub or on the caller's `Context` replaces the default, shorter or longer:
+Client- and server-streaming calls are signed over their first request message only, and the call goes out as soon as that message is sent. Unary calls get a default deadline of 15 seconds and streaming calls one of 5 minutes, which includes the wait for the first message. A deadline set on the stub or on the caller's `Context` replaces the default, shorter or longer. Bidirectional streams and calls with a compressor are refused with `UNIMPLEMENTED` before anything is sent.
 
 ```java
-// 15 s for unary calls, 10 min for streaming calls
-AsyncNetworkClient.create(endpoint, signer, NetworkServiceGrpc::newStub,
-        Duration.ofSeconds(15), Duration.ofMinutes(10));
+// 30 s for unary calls, 30 min for streaming calls; each at most 2147483647 ms
+try (var client = AsyncNetworkClient.create("https://api.t-0.network", signer,
+        NetworkServiceGrpc::newStub, Duration.ofSeconds(30), Duration.ofMinutes(30))) {
+    client.stub(2, TimeUnit.MINUTES).updateQuote(request, responseObserver); // this call only
+}
 ```
 
 The rules shared by every SDK: [`docs/STREAMING.md`](../../docs/STREAMING.md).
@@ -267,6 +267,8 @@ try (var client = BlockingNetworkClient.create(
     var response = client.stub().updateQuote(request);
 }
 ```
+
+The base URL needs an `http` or `https` scheme; `null` selects `https://api.t-0.network`. The signer is any `DigestSigner`: `Signer` holds the key in memory, and an implementation of your own can keep it elsewhere (an HSM or a signing service).
 
 ### Creating an Async Client
 

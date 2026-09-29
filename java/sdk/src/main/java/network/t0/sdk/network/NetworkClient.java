@@ -326,7 +326,7 @@ public abstract class NetworkClient implements Closeable {
         private static final Metadata.Key<String> SIGNATURE_TIMESTAMP_KEY =
                 Metadata.Key.of(Headers.SIGNATURE_TIMESTAMP, Metadata.ASCII_STRING_MARSHALLER);
 
-        // Deadlines of calls still waiting for their first message; grpc keeps the ones of started calls.
+        // Deadlines of calls still waiting for their first message; a started call enforces its own.
         // One thread for every call in the JVM, so it only hands the start on to CALLBACK_EXECUTOR.
         private static final ScheduledExecutorService DEADLINE_TIMER = newDeadlineTimer();
         // Runs the first onReady of calls whose CallOptions have no executor, and the unsigned start of
@@ -410,7 +410,7 @@ public abstract class NetworkClient implements Closeable {
                 private ScheduledFuture<?> deadlineTimer;
                 private final Context.CancellationListener contextListener = cancelled -> startUnsigned();
                 // The listener's callbacks, one at a time: its onReady before the first message (see
-                // start()) and rawCall's. One that throws cancels the call, as in ClientCallImpl.
+                // start()) and rawCall's. One that throws cancels the call.
                 private final SynchronizationContext callbacks = new SynchronizationContext((thread, e) -> {
                     log.warn("Call listener threw", e);
                     cancel("Call listener threw", e);
