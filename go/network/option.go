@@ -2,10 +2,10 @@ package network
 
 import (
 	"errors"
-	"fmt"
 	"math"
 	"net/http"
 	"net/url"
+	"strconv"
 	"time"
 
 	"github.com/t-0-network/provider-sdk/go/crypto"
@@ -43,7 +43,7 @@ func (c *clientOptions) validate() error {
 		return ErrEmptyBaseURL
 	}
 
-	if u, err := url.Parse(c.baseURL); err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Hostname() == "" {
+	if !validBaseURL(c.baseURL) {
 		return ErrInvalidBaseURL
 	}
 
@@ -56,14 +56,27 @@ func (c *clientOptions) validate() error {
 	}
 
 	if c.wireFormat != WireFormatBinary && c.wireFormat != WireFormatJSON {
-		return fmt.Errorf("unknown wire format %d", c.wireFormat)
+		return errors.New("WithWireFormat must be WireFormatBinary or WireFormatJSON")
 	}
 
 	if c.protocol != ProtocolConnect && c.protocol != ProtocolGRPC {
-		return fmt.Errorf("unknown protocol %d", c.protocol)
+		return errors.New("WithProtocol must be ProtocolConnect or ProtocolGRPC")
 	}
 
 	return nil
+}
+
+// validBaseURL accepts http:// or https://, a host name and, if given, a port in 1..65535.
+func validBaseURL(raw string) bool {
+	u, err := url.Parse(raw)
+	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Hostname() == "" {
+		return false
+	}
+	if port := u.Port(); port != "" {
+		n, err := strconv.Atoi(port)
+		return err == nil && n >= 1 && n <= 65535
+	}
+	return true
 }
 
 var defaultClientOptions = clientOptions{

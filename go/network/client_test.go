@@ -218,7 +218,10 @@ func TestNewServiceClient_ValidationErrors(t *testing.T) {
 		require.EqualError(t, err, "base URL is not set")
 	})
 
-	for _, bad := range []string{"api.t-0.network", "ftp://api.t-0.network", "https://", "http:///path", "http://:8080", "https://:443/x", "://api.t-0.network"} {
+	for _, bad := range []string{
+		"api.t-0.network", "api.t-0.network:443", "ftp://h", "http://", "http://:8080",
+		"http:foo", "http://h:99999", "http://h:0", "not a url",
+	} {
 		t.Run(fmt.Sprintf("base URL %q is refused", bad), func(t *testing.T) {
 			_, err := NewServiceClient("", factory, WithSignatureFunction(testSignFn(t)), WithBaseURL(bad))
 			require.ErrorIs(t, err, ErrInvalidBaseURL)
@@ -226,8 +229,11 @@ func TestNewServiceClient_ValidationErrors(t *testing.T) {
 		})
 	}
 
-	t.Run("http and https base URLs are accepted", func(t *testing.T) {
-		for _, good := range []string{"http://localhost:8080", "HTTPS://api.t-0.network/"} {
+	t.Run("base URLs that are accepted", func(t *testing.T) {
+		for _, good := range []string{
+			"https://api.t-0.network", "http://localhost:8080", "http://127.0.0.1:1234", "http://my_host:8080",
+			"HTTPS://api.t-0.network/path",
+		} {
 			_, err := NewServiceClient("", factory, WithSignatureFunction(testSignFn(t)), WithBaseURL(good))
 			require.NoError(t, err, good)
 		}
@@ -253,9 +259,9 @@ func TestNewServiceClient_ValidationErrors(t *testing.T) {
 
 	t.Run("unknown wire format and protocol", func(t *testing.T) {
 		_, err := NewServiceClient("", factory, WithSignatureFunction(testSignFn(t)), WithWireFormat(WireFormat(7)))
-		require.EqualError(t, err, "unknown wire format 7")
+		require.EqualError(t, err, "WithWireFormat must be WireFormatBinary or WireFormatJSON")
 		_, err = NewServiceClient("", factory, WithSignatureFunction(testSignFn(t)), WithProtocol(Protocol(7)))
-		require.EqualError(t, err, "unknown protocol 7")
+		require.EqualError(t, err, "WithProtocol must be ProtocolConnect or ProtocolGRPC")
 	})
 
 	t.Run("the largest timeouts are accepted", func(t *testing.T) {
