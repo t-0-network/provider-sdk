@@ -35,7 +35,7 @@ node/
 
 `@connectrpc/connect` and `@connectrpc/connect-node` are pinned to one exact version (no `^`) and bumped together as a Tier 3 update ([`.claude/skills/dependency-update/SKILL.md`](../.claude/skills/dependency-update/SKILL.md)): the client signs the bytes connect-es builds, relies on connect-es's `@private` `CommonTransportOptions`, and sends through connect-node's `@private` `createNodeHttpClient`.
 
-The client transport, what it signs, and what the streaming tests cover: [`docs/node/STREAMING.md`](../docs/node/STREAMING.md).
+What the client signs, when it sends, timeouts and refused calls: [`docs/STREAMING.md`](../docs/STREAMING.md).
 
 ## Versioning
 

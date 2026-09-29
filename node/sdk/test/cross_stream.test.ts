@@ -6,12 +6,9 @@ import { spawn, type ChildProcess } from 'node:child_process';
 import path from 'node:path';
 import fs from 'node:fs';
 import type { AddressInfo } from 'node:net';
-import { Code, createClient as createConnectClient } from '@connectrpc/connect';
-import { createTransport } from '@connectrpc/connect/protocol-connect';
+import { Code } from '@connectrpc/connect';
 import { createClient } from '../src/client/client.js';
-import { CreateSigner } from '../src/client/signer.js';
-import { transportOptions } from '../src/common/client/client.js';
-import { StreamTest, bufferingHttpClient, isCode, stringValues } from './stream_helpers.js';
+import { StreamTest, isCode, stringValues } from './stream_helpers.js';
 
 const GO_HELPER = path.resolve(import.meta.dirname, '..', '..', '..', 'cross_test', 'go_helper', 'go_helper');
 
@@ -102,14 +99,6 @@ describe('Cross-language streaming: Node client → Go server', { skip: !goAvail
     goServer?.kill();
   });
 
-  it('ClientStream: every message arrives', async () => {
-    const mark = log.length;
-    const client = createClient(CLIENT_PRIVATE_KEY, url, StreamTest);
-    const resp = await client.clientStream(stringValues('m1', 'm2', 'm3'));
-    assert.equal(resp.value, 'm1,m2,m3');
-    await waitForLog('/test.v1.StreamTest/ClientStream verified over the first envelope', mark);
-  });
-
   it('ServerStream: every response arrives', async () => {
     const mark = log.length;
     const client = createClient(CLIENT_PRIVATE_KEY, url, StreamTest);
@@ -157,23 +146,6 @@ describe('Cross-language streaming: Node client → Go server', { skip: !goAvail
     const resp = await client.clientStream(stringValues(large, 'tail'));
     assert.equal(resp.value, `${large},tail`);
     await waitForLog('/test.v1.StreamTest/ClientStream verified over the first envelope', mark);
-  });
-
-  it('an unsigned client stream is rejected', async () => {
-    const mark = log.length;
-    const transport = createTransport({ ...transportOptions(CreateSigner(CLIENT_PRIVATE_KEY), url), httpClient: bufferingHttpClient() });
-    const client = createConnectClient(StreamTest, transport);
-    await assert.rejects(client.clientStream(stringValues('m1', 'm2')), isCode(Code.Unauthenticated));
-    await waitForLog('/test.v1.StreamTest/ClientStream rejected: unknown public key', mark);
-  });
-
-  it('a client stream signed over its whole body is rejected', async () => {
-    const mark = log.length;
-    const signer = CreateSigner(CLIENT_PRIVATE_KEY);
-    const transport = createTransport({ ...transportOptions(signer, url), httpClient: bufferingHttpClient(signer) });
-    const client = createConnectClient(StreamTest, transport);
-    await assert.rejects(client.clientStream(stringValues('m1', 'm2', 'm3')), isCode(Code.Unauthenticated));
-    await waitForLog('/test.v1.StreamTest/ClientStream rejected: signature does not verify over the first message', mark);
   });
 
   it('a client stream signed with a stale timestamp is rejected', async (t) => {

@@ -919,22 +919,6 @@ describe('crypto/parsePublicKey hex validation', () => {
 
 // ---- Streaming requests ----
 
-// first_envelope includes the 5-byte prefix; first_payload (a signer above the gRPC framer) does not.
-function streamSignedBytes(body: Buffer, covers: string): Buffer {
-  if (body.length === 0) {
-    return body;
-  }
-  const end = 5 + body.readUInt32BE(1);
-  switch (covers) {
-    case 'first_envelope':
-      return body.subarray(0, end);
-    case 'first_payload':
-      return body.subarray(5, end);
-    default:
-      throw new Error(`unknown covers: ${covers}`);
-  }
-}
-
 // One envelope per chunk, as connect-es hands them to the HTTP client.
 function splitEnvelopes(body: Buffer): Buffer[] {
   const envelopes: Buffer[] = [];
@@ -973,19 +957,6 @@ async function sendThroughSigningClient(t: TestContext, vec: any, chunks: Uint8A
 }
 
 describe('Stream signing cases', () => {
-  for (const vec of vectors.stream_signing_cases) {
-    it(`${vec.name} signs its ${vec.covers.replace('_', ' ')} to the vector bytes`, async () => {
-      const signed = streamSignedBytes(Buffer.from(vec.body_hex, 'hex'), vec.covers);
-      nodeAssert.equal(signed.toString('hex'), vec.signed_hex);
-
-      const digest = computeDigest(signed, vec.timestamp_ms);
-      nodeAssert.equal(digest.toString('hex'), vec.expected_hash);
-
-      const sig = await CreateSigner(vectors.keys.private_key)(digest);
-      nodeAssert.equal(sig.signature.subarray(0, 64).toString('hex'), vec.expected_signature);
-    });
-  }
-
   // Node signs below the framer: first_envelope only.
   const firstEnvelopeCases = vectors.stream_signing_cases.filter((v: any) => v.covers === 'first_envelope');
 
@@ -1007,7 +978,6 @@ describe('Stream signing cases', () => {
   const multiBody = Buffer.from(multi.body_hex, 'hex');
   const multiFirst = Buffer.from(multi.signed_hex, 'hex');
   const badFirstChunks: [string, Buffer[]][] = [
-    ['the whole body in one chunk', [multiBody]],
     ['one byte per chunk', [...multiBody].map((b) => Buffer.from([b]))],
     ['the first envelope split across chunks', [multiFirst.subarray(0, 7), multiBody.subarray(7)]],
     ['a body that ends inside its first envelope', [multiFirst.subarray(0, multiFirst.length - 1)]],

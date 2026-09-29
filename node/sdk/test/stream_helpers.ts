@@ -8,11 +8,7 @@ import {
   type StringValueSchema,
 } from '@bufbuild/protobuf/wkt';
 import { Code, ConnectError } from '@connectrpc/connect';
-import type { UniversalClientFn } from '@connectrpc/connect/protocol';
-import { createNodeHttpClient } from '@connectrpc/connect-node';
 import { secp256k1 } from '@noble/curves/secp256k1.js';
-import { signatureHeaders } from '../src/common/client/sign.js';
-import type { SignerFunction } from '../src/common/client/client.js';
 
 // test.v1.StreamTest (cross_test/stream_test.proto), described by hand so nothing is generated.
 // Unary and Bidi are Node-only additions; go_helper serves neither.
@@ -55,24 +51,6 @@ export async function* stringValues(...values: string[]) {
   for (const value of values) {
     yield { value };
   }
-}
-
-/** Buffers the whole request body; signs it whole with a signer, else sends it unsigned. */
-export function bufferingHttpClient(signer?: SignerFunction): UniversalClientFn {
-  const httpClient = createNodeHttpClient({ httpVersion: '1.1' });
-  return async (req) => {
-    const chunks: Uint8Array[] = [];
-    for await (const chunk of req.body ?? []) {
-      chunks.push(chunk);
-    }
-    const body = Buffer.concat(chunks);
-    if (signer) {
-      for (const [name, value] of await signatureHeaders(signer, body)) {
-        req.header.set(name, value);
-      }
-    }
-    return httpClient({ ...req, body: (async function* () { yield body; })() });
-  };
 }
 
 // For assert.rejects: the error is a ConnectError with this code.

@@ -8,7 +8,7 @@ import {DescService} from "@bufbuild/protobuf";
 /**
  * Creates a Connect client for a T-0 Network service that signs every request: a unary call over
  * its whole body, a client- or server-streaming call over its first request envelope. Bidirectional
- * streams fail with `unimplemented`. See docs/node/STREAMING.md.
+ * streams fail with `unimplemented`. See docs/STREAMING.md.
  */
 export function createClient<T extends DescService>(signer: string | Buffer | ((data: Buffer) => Promise<Signature>) | Buffer<ArrayBufferLike>, endpoint: string, svc: T, opts?: ClientOptions) {
     const sign: SignerFunction = typeof signer === "string" || Buffer.isBuffer(signer) ? CreateSigner(signer) : signer;
@@ -19,14 +19,16 @@ export function createClient<T extends DescService>(signer: string | Buffer | ((
     const unaryTransport = createTransport(transportOptions(sign, endpoint, unaryTimeoutMs, useBinaryFormat));
     const streamTransport = createTransport(transportOptions(sign, endpoint, streamTimeoutMs, useBinaryFormat));
 
+    // async: a refused call fails where the call's result is awaited, and nothing is sent.
     return createConnectClient(svc, {
-        unary: unaryTransport.unary.bind(unaryTransport),
-        stream: (method, signal, timeoutMs, header, input, contextValues) => {
+        unary: async (method, signal, timeoutMs, header, input, contextValues) =>
+            unaryTransport.unary(method, signal, callTimeout(timeoutMs), header, input, contextValues),
+        stream: async (method, signal, timeoutMs, header, input, contextValues) => {
             // Policy: the network accepts no bidi streams (#370); over HTTP/1.1 they could not interleave anyway.
             if (method.methodKind === "bidi_streaming") {
-                return Promise.reject(new ConnectError("bidirectional streams are not supported", Code.Unimplemented));
+                throw new ConnectError("bidirectional streams are not supported", Code.Unimplemented);
             }
-            return streamTransport.stream(method, signal, timeoutMs, header, input, contextValues);
+            return streamTransport.stream(method, signal, callTimeout(timeoutMs), header, input, contextValues);
         },
     });
 }
@@ -60,14 +62,24 @@ function timeoutOption(name: string, ms: number | undefined, byDefault: number |
     if (ms === undefined) {
         return byDefault;
     }
-    if (!(ms >= 0 && ms <= MAX_TIMEOUT_MS)) {
+    return checkTimeout(name, ms) === 0 ? undefined : ms;
+}
+
+// A call's own timeoutMs: undefined keeps the transport's default.
+function callTimeout(ms: number | undefined): number | undefined {
+    return ms === undefined ? undefined : checkTimeout("timeoutMs", ms);
+}
+
+// typeof: null from JavaScript would pass the comparisons and end every call at once.
+function checkTimeout(name: string, ms: number): number {
+    if (typeof ms !== "number" || !(ms >= 0 && ms <= MAX_TIMEOUT_MS)) {
         throw new RangeError(`${name} must be 0 (no timeout) or a number of milliseconds up to ${MAX_TIMEOUT_MS}, got ${ms}`);
     }
-    return ms === 0 ? undefined : ms;
+    return ms;
 }
 
 /**
- * Options for createClient. See docs/node/STREAMING.md.
+ * Options for createClient. See docs/STREAMING.md.
  */
 export interface ClientOptions {
     /**

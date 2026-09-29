@@ -6,7 +6,7 @@ import type {SignerFunction} from "./client.js";
 
 /**
  * The transport's HTTP client: signs an enveloped body (Connect streaming, gRPC) over its first
- * envelope as sent and sends it at once, any other body whole. See docs/node/STREAMING.md.
+ * envelope as sent and sends it at once, any other body whole. See docs/STREAMING.md.
  *
  * @param httpClient sends the signed request; connect-node's HTTP/1.1 client unless a test injects one.
  */

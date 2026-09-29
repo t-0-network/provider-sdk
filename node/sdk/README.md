@@ -228,7 +228,7 @@ const client = createClient(privateKey, endpoint, NetworkService, {
 
 #### Streaming calls
 
-Client-streaming and server-streaming methods work on the same client. A streaming call is signed over its **first request message only** (the first envelope exactly as sent) and goes out as soon as that message is available; later messages are streamed unsigned. A client stream with no messages is still sent, and the network rejects it. Bidirectional streams fail with `unimplemented`. Details: [`docs/node/STREAMING.md`](../../docs/node/STREAMING.md).
+Client-streaming and server-streaming methods work on the same client. A streaming call is signed over its **first request message only** (the first envelope exactly as sent) and goes out as soon as that message is available; later messages are streamed unsigned. A client stream with no messages is still sent, and the network rejects it. Bidirectional streams fail with `unimplemented`. Details: [`docs/STREAMING.md`](../../docs/STREAMING.md).
 
 ## Development
 

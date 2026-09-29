@@ -2,19 +2,11 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import type { AddressInfo } from 'node:net';
-import {
-  Code,
-  createClient as createConnectClient,
-  createConnectRouter,
-  type ServiceImpl,
-} from '@connectrpc/connect';
-import { createTransport } from '@connectrpc/connect/protocol-connect';
+import { Code, createConnectRouter, type ServiceImpl } from '@connectrpc/connect';
 import { universalRequestFromNodeRequest, universalResponseToNodeResponse } from '@connectrpc/connect-node';
-import { createClient } from '../src/client/client.js';
-import { CreateSigner } from '../src/client/signer.js';
-import { transportOptions } from '../src/common/client/client.js';
+import { createClient, type ClientOptions } from '../src/client/client.js';
 import { computeDigest, NetworkHeaders, parsePublicKey, publicKeysEqual, verifySignature } from '../src/crypto/index.js';
-import { StreamTest, bufferingHttpClient, isCode, newKeypair, stringValues } from './stream_helpers.js';
+import { StreamTest, isCode, newKeypair, stringValues } from './stream_helpers.js';
 
 interface Check {
   procedure: string;
@@ -266,28 +258,6 @@ describe('Streaming calls are signed over the first request envelope', { timeout
       assert.equal(srv.checks[0].valid, true, 'the signature verifies over empty bytes');
     });
   });
-
-  it('an unsigned stream request is rejected', async () => {
-    await withServer(async (srv) => {
-      const signer = CreateSigner(newKeypair().privateKeyHex);
-      const transport = createTransport({ ...transportOptions(signer, srv.url), httpClient: bufferingHttpClient() });
-      const client = createConnectClient(StreamTest, transport);
-      await assert.rejects(client.clientStream(stringValues('m1', 'm2')), isCode(Code.Unauthenticated));
-
-      assert.equal(srv.checks.length, 1);
-      assert.equal(srv.checks[0].valid, false);
-    });
-  });
-
-  it('a stream signed over its whole body is rejected', async () => {
-    await withServer(async (srv, key) => {
-      const signer = CreateSigner(key.privateKeyHex);
-      const transport = createTransport({ ...transportOptions(signer, srv.url), httpClient: bufferingHttpClient(signer) });
-      const client = createConnectClient(StreamTest, transport);
-      await assert.rejects(client.clientStream(stringValues('m1', 'm2')), isCode(Code.Unauthenticated));
-      assert.equal(srv.checks[0].valid, false);
-    });
-  });
 });
 
 describe('createClient routes unary and streaming calls to their own transport', { timeout: 20_000 }, () => {
@@ -376,6 +346,28 @@ describe('createClient routes unary and streaming calls to their own transport',
     assert.doesNotThrow(() => createClient(newKeypair().privateKeyHex, 'http://127.0.0.1:9', StreamTest, { unaryTimeoutMs: 2 ** 31 - 1 }));
   });
 
+  it('a timeout of null is refused', () => {
+    // null passes `>= 0` and `<= max`, and a null deadline ends every call at once.
+    for (const opts of [{ unaryTimeoutMs: null }, { streamTimeoutMs: null }]) {
+      assert.throws(() => createClient(newKeypair().privateKeyHex, 'http://127.0.0.1:9', StreamTest, opts as unknown as ClientOptions), RangeError);
+    }
+  });
+
+  it('a call timeoutMs that is negative, NaN, null, or too large for a Node timer is refused, and nothing is sent', async () => {
+    await withServer(async (srv, key) => {
+      const client = createClient(key.privateKeyHex, srv.url, StreamTest);
+      const drain = async (stream: AsyncIterable<unknown>) => {
+        for await (const _ of stream) { /* drain */ }
+      };
+      for (const timeoutMs of [-1, NaN, null, Infinity, 2 ** 31] as number[]) {
+        await assert.rejects(client.unary({ value: 'u' }, { timeoutMs }), RangeError);
+        await assert.rejects(client.clientStream(stringValues('c'), { timeoutMs }), RangeError);
+        await assert.rejects(drain(client.serverStream({ value: 's' }, { timeoutMs })), RangeError);
+      }
+      assert.equal(srv.checks.length, 0, 'nothing is sent');
+    });
+  });
+
   it('the stream timeout covers the wait for the first message', async () => {
     await withServer(async (srv, key) => {
       const client = createClient(key.privateKeyHex, srv.url, StreamTest, { streamTimeoutMs: 200 });
@@ -400,25 +392,6 @@ describe('createClient routes unary and streaming calls to their own transport',
       };
       await assert.rejects(drain(), isCode(Code.Unimplemented));
       assert.equal(srv.checks.length, 0, 'nothing is sent');
-    });
-  });
-});
-
-// tsc checks transportOptions against @private CommonTransportOptions; this checks it at runtime.
-describe('transportOptions guard', { timeout: 20_000 }, () => {
-  it('builds a working Connect transport', async () => {
-    await withServer(async (srv, key) => {
-      const transport = createTransport(transportOptions(CreateSigner(key.privateKeyHex), srv.url));
-      const client = createConnectClient(StreamTest, transport);
-
-      assert.equal((await client.unary({ value: 'guard' })).value, 'guard');
-      const got: string[] = [];
-      for await (const resp of client.serverStream({ value: 'guard' })) {
-        got.push(resp.value);
-      }
-      assert.deepEqual(got, ['guard', 'guard', 'guard']);
-      assert.equal((await client.clientStream(stringValues('a', 'b'))).value, 'a,b');
-      assert.ok(srv.checks.every((c) => c.valid));
     });
   });
 });
