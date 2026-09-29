@@ -1,5 +1,5 @@
 export { verifySignature, keccak256, computeDigest, parsePublicKey, publicKeyFromPrivateKey, publicKeysEqual, createRequestVerifier, createRequestDecoder, DEFAULT_TOLERANCE_MS, rejectRequest } from "./crypto/index.js"
-export type { CreateVerifierOptions, VerifyRequest, VerifyRequestResult, VerifyRequestFailure, RequestVerifier, RejectedRequest, CreateDecoderOptions, IncomingHeaders, IncomingRequest, WireFormat, DecodeRequestFailure, Violation, WireResponse, DecodeError, DecodeRequestResult, RequestDecoder } from "./crypto/index.js"
+export type { CreateVerifierOptions, VerifyRequest, VerifyRequestResult, VerifyRequestFailure, RequestVerifier, RejectedRequest, CreateDecoderOptions, IncomingHeaders, IncomingRequest, DecodeRequestFailure, Violation, WireResponse, DecodeError, DecodeRequestResult, RequestDecoder } from "./crypto/index.js"
 export * from "./client/client.js"
 export * from "./service/service.js"
 export * from "./common/validation.js"

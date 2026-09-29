@@ -7,7 +7,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import type { AddressInfo } from 'node:net';
 import { Code } from '@connectrpc/connect';
-import { createClient } from '../src/client/client.js';
+import { createClient, WireFormat } from '../src/client/client.js';
 import { StreamTest, isCode, stringValues } from './stream_helpers.js';
 
 const GO_HELPER = path.resolve(import.meta.dirname, '..', '..', '..', 'cross_test', 'go_helper', 'go_helper');
@@ -112,7 +112,7 @@ describe('Cross-language streaming: Node client → Go server', { skip: !goAvail
 
   it('Connect JSON: client and server streams are verified over the first envelope', async () => {
     const mark = log.length;
-    const client = createClient(CLIENT_PRIVATE_KEY, url, StreamTest, { useBinaryFormat: false });
+    const client = createClient(CLIENT_PRIVATE_KEY, url, StreamTest, { wireFormat: WireFormat.Json });
     const resp = await client.clientStream(stringValues('m1', 'm2', 'm3'));
     assert.equal(resp.value, 'm1,m2,m3');
     await waitForLog('/test.v1.StreamTest/ClientStream verified over the first envelope', mark);

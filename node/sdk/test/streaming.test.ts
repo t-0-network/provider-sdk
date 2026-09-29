@@ -4,7 +4,7 @@ import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { Code, createConnectRouter, type ServiceImpl } from '@connectrpc/connect';
 import { universalRequestFromNodeRequest, universalResponseToNodeResponse } from '@connectrpc/connect-node';
-import { createClient } from '../src/client/client.js';
+import { createClient, WireFormat } from '../src/client/client.js';
 import { computeDigest, NetworkHeaders, parsePublicKey, publicKeysEqual, verifySignature } from '../src/crypto/index.js';
 import { StreamTest, isCode, newKeypair, stringValues } from './stream_helpers.js';
 
@@ -279,9 +279,9 @@ describe('createClient routes unary and streaming calls to their own transport',
     });
   });
 
-  it('with useBinaryFormat: false, calls use Connect JSON, signed the same way', async () => {
+  it('with WireFormat.Json, calls use Connect JSON, signed the same way', async () => {
     await withServer(async (srv, key) => {
-      const client = createClient(key.privateKeyHex, srv.url, StreamTest, { useBinaryFormat: false });
+      const client = createClient(key.privateKeyHex, srv.url, StreamTest, { wireFormat: WireFormat.Json });
       assert.equal((await client.unary({ value: 'hello' })).value, 'hello');
       assert.equal((await client.clientStream(stringValues('m1', 'm2', 'm3'))).value, 'm1,m2,m3');
       const got: string[] = [];
@@ -377,6 +377,15 @@ describe('createClient routes unary and streaming calls to their own transport',
       }
       assert.equal(srv.checks.length, 0, 'nothing is sent');
     });
+  });
+
+  it('a wireFormat other than WireFormat.Binary or WireFormat.Json is refused', () => {
+    for (const wireFormat of ['binary', 'JSON', null] as unknown as WireFormat[]) {
+      assert.throws(() => createClient(newKeypair().privateKeyHex, 'http://127.0.0.1:9', StreamTest, { wireFormat }), {
+        name: 'RangeError',
+        message: 'wireFormat must be WireFormat.Binary or WireFormat.Json',
+      });
+    }
   });
 
   it('the stream timeout covers the wait for the first message', async () => {

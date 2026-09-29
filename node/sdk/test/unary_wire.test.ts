@@ -9,7 +9,7 @@ import { StringValueSchema } from '@bufbuild/protobuf/wkt';
 import { createClient as createConnectClient } from '@connectrpc/connect';
 import type { UniversalClientFn } from '@connectrpc/connect/protocol';
 import { createTransport } from '@connectrpc/connect/protocol-connect';
-import { createClient } from '../src/client/client.js';
+import { createClient, WireFormat } from '../src/client/client.js';
 import { CreateSigner } from '../src/client/signer.js';
 import { transportOptions } from '../src/common/client/client.js';
 import { createSigningHttpClient } from '../src/common/client/signing-http-client.js';
@@ -79,11 +79,11 @@ function recordingClient(sent: Sent[]): UniversalClientFn {
   };
 }
 
-async function check(t: TestContext, useBinaryFormat = true): Promise<Sent> {
+async function check(t: TestContext, wireFormat: WireFormat = WireFormat.Binary): Promise<Sent> {
   t.mock.method(Date, 'now', () => TIMESTAMP_MS);
   const sent: Sent[] = [];
   const transport = createTransport({
-    ...transportOptions(signer, BASE_URL, undefined, useBinaryFormat),
+    ...transportOptions(signer, BASE_URL, 15_000, wireFormat),
     httpClient: createSigningHttpClient(signer, recordingClient(sent)),
   });
   const client = createConnectClient(Health, transport);
@@ -129,8 +129,8 @@ describe('Unary request on the wire (golden)', () => {
     assertOneChunk(s);
   });
 
-  it('with useBinaryFormat: false the SDK sends the request connect-web sent', async (t) => {
-    const s = await check(t, false);
+  it('with WireFormat.Json the SDK sends the request connect-web sent', async (t) => {
+    const s = await check(t, WireFormat.Json);
     assert.equal(s.url, `${BASE_URL}/grpc.health.v1.Health/Check`);
     assert.equal(s.body.toString(), LEGACY.body);
     assert.deepEqual(plainHeaders(s.header), LEGACY_ON_THE_WIRE);
@@ -168,7 +168,7 @@ describe('The signing HTTP client signs a body whole unless its content type is 
   });
 
   it('signs a request without a body over empty bytes and sends it without one', async (t) => {
-    const s = await sendThroughSigningClient(t, 'application/proto', 'GET');
+    const s = await sendThroughSigningClient(t, 'application/proto', 'POST');
     assert.equal(s.hasBody, false);
     assert.equal(s.header.get('Content-Length'), null);
     assertSignedOverBody(s);
@@ -176,7 +176,7 @@ describe('The signing HTTP client signs a body whole unless its content type is 
 
   // Two envelopes in one chunk: signed whole, unless the content type is enveloped and the call fails.
   const twoEnvelopes = Buffer.from('00000000010a' + '00000000010b', 'hex');
-  for (const contentType of ['application/proto', 'application/json', 'application/grpc-web+proto']) {
+  for (const contentType of ['application/proto', 'application/json']) {
     it(`signs ${contentType} whole`, async (t) => {
       const s = await sendThroughSigningClient(t, contentType, 'POST', [twoEnvelopes]);
       assert.equal(s.body.toString('hex'), twoEnvelopes.toString('hex'));

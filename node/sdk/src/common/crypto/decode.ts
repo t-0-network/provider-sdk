@@ -5,6 +5,7 @@ import { createRequestVerifier, rejectRequest } from './request.js';
 import type { CreateVerifierOptions, RejectedRequest } from './request.js';
 import NetworkHeaders from '../headers.js';
 import type { Logger } from '../logger.js';
+import type { WireFormat } from '../wire-format.js';
 import { defaultLogger } from '../logger.js';
 
 export interface CreateDecoderOptions extends CreateVerifierOptions {
@@ -22,7 +23,7 @@ export interface IncomingRequest {
   headers: IncomingHeaders;
 }
 
-export type WireFormat = 'json' | 'proto';
+export type { WireFormat };
 
 export interface Violation {
   field: string;

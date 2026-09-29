@@ -3,6 +3,7 @@ import {validateReadWriteMaxBytes, type CommonTransportOptions} from "@connectrp
 import {createTransport} from "@connectrpc/connect/protocol-connect";
 import CreateSigner from "./signer.js";
 import {createSigningHttpClient} from "./signing-http-client.js";
+import {WireFormat} from "../wire-format.js";
 import {DescService} from "@bufbuild/protobuf";
 
 /**
@@ -13,11 +14,14 @@ import {DescService} from "@bufbuild/protobuf";
 export function createClient<T extends DescService>(signer: string | Buffer | ((data: Buffer) => Promise<Signature>) | Buffer<ArrayBufferLike>, endpoint: string, svc: T, opts?: ClientOptions) {
     const sign: SignerFunction = typeof signer === "string" || Buffer.isBuffer(signer) ? CreateSigner(signer) : signer;
 
-    const useBinaryFormat = opts?.useBinaryFormat ?? true;
+    const wireFormat = opts?.wireFormat === undefined ? WireFormat.Binary : opts.wireFormat;
+    if (wireFormat !== WireFormat.Binary && wireFormat !== WireFormat.Json) {
+        throw new RangeError("wireFormat must be WireFormat.Binary or WireFormat.Json");
+    }
     const unaryTimeoutMs = timeout("timeoutMs", opts?.timeoutMs) ?? DEFAULT_TIMEOUT_MS;
     const streamTimeoutMs = timeout("streamTimeoutMs", opts?.streamTimeoutMs) ?? DEFAULT_STREAM_TIMEOUT_MS;
-    const unaryTransport = createTransport(transportOptions(sign, endpoint, unaryTimeoutMs, useBinaryFormat));
-    const streamTransport = createTransport(transportOptions(sign, endpoint, streamTimeoutMs, useBinaryFormat));
+    const unaryTransport = createTransport(transportOptions(sign, endpoint, unaryTimeoutMs, wireFormat));
+    const streamTransport = createTransport(transportOptions(sign, endpoint, streamTimeoutMs, wireFormat));
 
     // async: a refused call fails where the call's result is awaited, and nothing is sent.
     return createConnectClient(svc, {
@@ -39,11 +43,11 @@ export function createClient<T extends DescService>(signer: string | Buffer | ((
  *
  * @internal
  */
-export function transportOptions(signer: SignerFunction, endpoint: string, timeoutMs?: number, useBinaryFormat = true): CommonTransportOptions {
+export function transportOptions(signer: SignerFunction, endpoint: string, timeoutMs: number, wireFormat: WireFormat): CommonTransportOptions {
     return {
         httpClient: createSigningHttpClient(signer),
         baseUrl: endpoint,
-        useBinaryFormat,
+        useBinaryFormat: wireFormat === WireFormat.Binary,
         interceptors: [],
         acceptCompression: [],
         sendCompression: null,
@@ -89,8 +93,8 @@ export interface ClientOptions {
      * Default: 300_000 (5 minutes).
      */
     streamTimeoutMs?: number;
-    /** Binary Protobuf (default) or, when false, Connect JSON. Either is signed over the bytes as sent. */
-    useBinaryFormat?: boolean;
+    /** `WireFormat.Binary` (default) or `WireFormat.Json`. Either is signed over the bytes as sent. */
+    wireFormat?: WireFormat;
 }
 
 /**

@@ -984,11 +984,12 @@ describe('Stream signing cases', () => {
     ['an empty first chunk', [Buffer.alloc(0), multiBody]],
   ];
   for (const [name, chunks] of badFirstChunks) {
-    it(`the streaming HTTP client refuses a first chunk that is not one envelope: ${name}`, async (t) => {
+    it(`the streaming HTTP client refuses a first chunk shorter than its envelope: ${name}`, async (t) => {
       let sent: SentRequest | undefined;
       await nodeAssert.rejects(
         async () => { sent = await sendThroughSigningClient(t, multi, chunks); },
-        (err: unknown) => err instanceof ConnectError && err.code === Code.Internal,
+        (err: unknown) => err instanceof ConnectError && err.code === Code.InvalidArgument
+          && err.rawMessage === 'streaming request ends inside its first message',
       );
       nodeAssert.equal(sent, undefined, 'nothing is sent');
     });

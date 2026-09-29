@@ -8,5 +8,6 @@ export function createClient<T extends DescService>(signer: string | Buffer | ((
 }
 
 export type { ClientOptions, Signature, SignerFunction } from "../common/client/client.js";
+export { WireFormat } from "../common/wire-format.js";
 
 export default createClient;

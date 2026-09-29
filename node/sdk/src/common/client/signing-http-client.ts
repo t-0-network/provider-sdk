@@ -50,7 +50,6 @@ export function createSigningHttpClient(signer: SignerFunction, httpClient: Univ
     };
 }
 
-// gRPC-Web does not match: it is signed whole.
 function isEnveloped(contentType: string | null): boolean {
     const mediaType = (contentType ?? "").split(";")[0].trim().toLowerCase();
     return mediaType.startsWith("application/connect+")
@@ -58,13 +57,16 @@ function isEnveloped(contentType: string | null): boolean {
         || mediaType.startsWith("application/grpc+");
 }
 
-// connect-es yields one complete envelope per chunk (transformJoinEnvelopes). Checked, not trusted:
-// if that ever changes, the call fails instead of signing bytes that are not the first envelope.
+// The first chunk is signed as the first envelope, so it must be exactly one: the call fails
+// instead of signing other bytes. connect-es yields one complete envelope per chunk; checked, not trusted.
 function requireOneEnvelope(chunk: Uint8Array): void {
     const size = chunk.byteLength >= 5
         ? 5 + new DataView(chunk.buffer, chunk.byteOffset, chunk.byteLength).getUint32(1)
-        : -1;
-    if (size !== chunk.byteLength) {
+        : Infinity;
+    if (size > chunk.byteLength) {
+        throw new ConnectError("streaming request ends inside its first message", Code.InvalidArgument);
+    }
+    if (size < chunk.byteLength) {
         throw new ConnectError("the first request chunk is not one complete envelope", Code.Internal);
     }
 }
