@@ -46,9 +46,6 @@ public class DefaultDeadlineInterceptorTests
             case MethodType.ClientStreaming:
                 invoker.AsyncClientStreamingCall(method, null, callOptions);
                 break;
-            case MethodType.DuplexStreaming:
-                invoker.AsyncDuplexStreamingCall(method, null, callOptions);
-                break;
         }
 
         Assert.Equal(type, inner.Type);
@@ -95,7 +92,6 @@ public class DefaultDeadlineInterceptorTests
     [Theory]
     [InlineData(MethodType.ServerStreaming)]
     [InlineData(MethodType.ClientStreaming)]
-    [InlineData(MethodType.DuplexStreaming)]
     public void Streams_GetStreamTimeout(MethodType type)
     {
         var options = new NetworkClientOptions { Timeout = TimeSpan.FromSeconds(7), StreamTimeout = TimeSpan.FromMinutes(2) };
@@ -107,7 +103,6 @@ public class DefaultDeadlineInterceptorTests
     [Theory]
     [InlineData(MethodType.ServerStreaming)]
     [InlineData(MethodType.ClientStreaming)]
-    [InlineData(MethodType.DuplexStreaming)]
     public void Streams_WithoutStreamTimeout_GetNoDeadline(MethodType type)
     {
         Assert.Null(DeadlineOf(type, new NetworkClientOptions()));
@@ -123,13 +118,27 @@ public class DefaultDeadlineInterceptorTests
     [InlineData(MethodType.Unary)]
     [InlineData(MethodType.ServerStreaming)]
     [InlineData(MethodType.ClientStreaming)]
-    [InlineData(MethodType.DuplexStreaming)]
     public void DeadlineOnTheCall_IsKept(MethodType type)
     {
         var deadline = DateTime.UtcNow.AddHours(1);
         var options = new NetworkClientOptions { StreamTimeout = TimeSpan.FromMinutes(2) };
 
         Assert.Equal(deadline, DeadlineOf(type, options, new CallOptions(deadline: deadline)));
+    }
+
+    [Fact]
+    public void DuplexStream_IsRejected_WithoutReachingTheInvoker()
+    {
+        var inner = new CapturingInvoker();
+        var invoker = inner.Intercept(
+            new DefaultDeadlineInterceptor(new NetworkClientOptions { StreamTimeout = TimeSpan.FromMinutes(2) }));
+
+        var ex = Assert.Throws<RpcException>(
+            () => invoker.AsyncDuplexStreamingCall(NewMethod(MethodType.DuplexStreaming), null, default));
+
+        Assert.Equal(StatusCode.Unimplemented, ex.StatusCode);
+        Assert.Equal("bidirectional streams are not supported", ex.Status.Detail);
+        Assert.Null(inner.Type);
     }
 
     [Theory]
@@ -144,6 +153,36 @@ public class DefaultDeadlineInterceptorTests
             () => new DefaultDeadlineInterceptor(new NetworkClientOptions { StreamTimeout = timeout }));
     }
 
+    [Fact]
+    public void ChannelHttpClient_HasNoTimeout()
+    {
+        using var httpClient = NetworkClient.CreateHttpClient(Signer.FromHex(PrivateKey), timeProvider: null);
+
+        Assert.Equal(Timeout.InfiniteTimeSpan, httpClient.Timeout);
+    }
+
+    /// <summary>
+    /// The stream deadline also bounds the wait for a client stream's first message, which the
+    /// signing handler needs before it can send the request at all.
+    /// </summary>
+    [Fact]
+    public async Task ClientStream_WithoutAFirstMessage_FailsAtTheStreamDeadline()
+    {
+        // Nothing listens there: the request never gets past the signing handler.
+        var options = new NetworkClientOptions
+        {
+            BaseUrl = $"http://127.0.0.1:{FindFreePort()}",
+            StreamTimeout = TimeSpan.FromMilliseconds(300),
+        };
+        using var channel = NetworkClient.Create(options, Signer.FromHex(PrivateKey));
+        var invoker = channel.Intercept(new DefaultDeadlineInterceptor(options));
+
+        using var call = invoker.AsyncClientStreamingCall(NewMethod(MethodType.ClientStreaming), null, default);
+        var ex = await Assert.ThrowsAsync<RpcException>(() => call.ResponseAsync).WaitAsync(TimeSpan.FromSeconds(2));
+
+        Assert.Equal(StatusCode.DeadlineExceeded, ex.StatusCode);
+    }
+
     /// <summary>
     /// The service-client helpers send the unary default as grpc-timeout; a raw channel from
     /// NetworkClient.Create sends none, and no HttpClient timeout cuts it short either.
@@ -151,28 +190,11 @@ public class DefaultDeadlineInterceptorTests
     [Fact]
     public async Task ServiceClientHelper_SendsTheDefaultDeadline_RawChannelDoesNot()
     {
-        var port = FindFreePort();
         var timeouts = new List<string?>();
-
-        var builder = WebApplication.CreateBuilder();
-        builder.WebHost.ConfigureKestrel(options =>
-            options.ListenLocalhost(port, listenOptions => listenOptions.Protocols = HttpProtocols.Http2));
-        var app = builder.Build();
-        app.Run(context =>
-        {
-            lock (timeouts)
-                timeouts.Add(context.Request.Headers["grpc-timeout"].SingleOrDefault());
-            // Trailers-only response: UNIMPLEMENTED.
-            context.Response.ContentType = "application/grpc";
-            context.Response.Headers["grpc-status"] = "12";
-            return Task.CompletedTask;
-        });
+        var (app, baseUrl) = await StartTimeoutRecorderAsync(timeouts);
 
         try
         {
-            await app.StartAsync();
-            await WaitForPortAsync(port, TimeSpan.FromSeconds(10));
-            var baseUrl = $"http://127.0.0.1:{port}";
             var signer = Signer.FromHex(PrivateKey);
 
             var helperClient = NetworkClient.CreateNetworkServiceClient(baseUrl, signer);
@@ -194,6 +216,77 @@ public class DefaultDeadlineInterceptorTests
         {
             await app.StopAsync();
             await app.DisposeAsync();
+        }
+    }
+
+    /// <summary>
+    /// A client stream through the interceptor the helpers install sends StreamTimeout as
+    /// grpc-timeout, and none without it.
+    /// </summary>
+    [Fact]
+    public async Task ClientStream_SendsTheStreamDeadline_OnlyWhenStreamTimeoutIsSet()
+    {
+        var timeouts = new List<string?>();
+        var (app, baseUrl) = await StartTimeoutRecorderAsync(timeouts);
+
+        try
+        {
+            foreach (var streamTimeout in new TimeSpan?[] { TimeSpan.FromMinutes(2), null })
+            {
+                var options = new NetworkClientOptions { BaseUrl = baseUrl, StreamTimeout = streamTimeout };
+                using var channel = NetworkClient.Create(options, Signer.FromHex(PrivateKey));
+                var invoker = channel.Intercept(new DefaultDeadlineInterceptor(options));
+
+                using var call = invoker.AsyncClientStreamingCall(NewMethod(MethodType.ClientStreaming), null, default);
+                // The request goes out with its first message.
+                await call.RequestStream.WriteAsync(new StringValue { Value = "m1" });
+                var ex = await Assert.ThrowsAsync<RpcException>(() => call.ResponseAsync)
+                    .WaitAsync(TimeSpan.FromSeconds(10));
+                Assert.Equal(StatusCode.Unimplemented, ex.StatusCode);
+            }
+
+            Assert.Equal(2, timeouts.Count);
+            Assert.InRange(ParseGrpcTimeout(timeouts[0]), TimeSpan.FromSeconds(110), TimeSpan.FromMinutes(2));
+            Assert.Null(timeouts[1]);
+        }
+        finally
+        {
+            await app.StopAsync();
+            await app.DisposeAsync();
+        }
+    }
+
+    /// <summary>
+    /// Starts an HTTP/2 server that records each request's grpc-timeout and answers UNIMPLEMENTED
+    /// without reading the request body.
+    /// </summary>
+    private static async Task<(WebApplication App, string BaseUrl)> StartTimeoutRecorderAsync(List<string?> timeouts)
+    {
+        var port = FindFreePort();
+        var builder = WebApplication.CreateBuilder();
+        builder.WebHost.ConfigureKestrel(options =>
+            options.ListenLocalhost(port, listenOptions => listenOptions.Protocols = HttpProtocols.Http2));
+        var app = builder.Build();
+        app.Run(context =>
+        {
+            lock (timeouts)
+                timeouts.Add(context.Request.Headers["grpc-timeout"].SingleOrDefault());
+            // Trailers-only response: UNIMPLEMENTED.
+            context.Response.ContentType = "application/grpc";
+            context.Response.Headers["grpc-status"] = "12";
+            return Task.CompletedTask;
+        });
+
+        try
+        {
+            await app.StartAsync();
+            await WaitForPortAsync(port, TimeSpan.FromSeconds(10));
+            return (app, $"http://127.0.0.1:{port}");
+        }
+        catch
+        {
+            await app.DisposeAsync();
+            throw;
         }
     }
 

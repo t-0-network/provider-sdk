@@ -1,16 +1,21 @@
 using System.Diagnostics;
 using System.Net;
+using System.Net.Http.Headers;
 using System.Net.Sockets;
+using System.Security.Cryptography;
 using Google.Protobuf;
 using Grpc.Core;
+using Grpc.Net.Client;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
 using Microsoft.Extensions.DependencyInjection;
 using T0.ProviderSdk.Api.Tzero.V1.Payment;
+using T0.ProviderSdk.Common;
 using T0.ProviderSdk.Crypto;
 using T0.ProviderSdk.Network;
 using T0.ProviderSdk.Provider;
+using T0.ProviderSdk.Tests.Network;
 using StringValue = Google.Protobuf.WellKnownTypes.StringValue;
 
 namespace T0.ProviderSdk.Tests.CrossTest;
@@ -26,6 +31,9 @@ public class CrossServerTests
 {
     private const string PrivateKey = "0x6b30303de7b26bfb1222b317a52113357f8bb06de00160b4261a2fef9c8b9bd8";
     private const string PublicKey = "0x044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0";
+
+    // A key the Go helper does not trust.
+    private const string OtherPrivateKey = "0x4c0883a69102937d6231471b5dbb6204fe5129617082792ae468d01a3f362318";
 
     private static readonly string? GoHelperPath = FindGoHelper();
 
@@ -318,7 +326,8 @@ public class CrossServerTests
 
         var response = await call.ResponseAsync;
         Assert.Equal("m1,m2,m3", response.Value);
-        Assert.Contains("/test.v1.StreamTest/ClientStream verified over the first envelope", server.Log);
+        await server.WaitForLogAsync("/test.v1.StreamTest/ClientStream verified over the first envelope")
+            .WaitAsync(TimeSpan.FromSeconds(10));
     }
 
     /// <summary>
@@ -378,6 +387,8 @@ public class CrossServerTests
             received.Add(call.ResponseStream.Current.Value);
 
         Assert.Equal(["hello", "hello", "hello"], received);
+        await server.WaitForLogAsync("/test.v1.StreamTest/ServerStream verified over the first envelope")
+            .WaitAsync(TimeSpan.FromSeconds(10));
     }
 
     /// <summary>
@@ -409,6 +420,242 @@ public class CrossServerTests
     }
 
     /// <summary>
+    /// A first message larger than the pipe's segments and pause threshold, and incompressible, is
+    /// signed whole and verified.
+    /// </summary>
+    [Fact]
+    public async Task CSharpClient_GoServer_ClientStream_LargeFirstMessage()
+    {
+        if (GoHelperPath is null)
+        {
+            if (Environment.GetEnvironmentVariable("CI") != null)
+                Assert.Fail("Go helper binary required in CI but not found");
+            return;
+        }
+
+        await using var server = await GoStreamServer.StartAsync(GoHelperPath);
+        using var channel = NetworkClient.Create(
+            new NetworkClientOptions { BaseUrl = server.BaseUrl }, Signer.FromHex(PrivateKey));
+        var invoker = channel.CreateCallInvoker();
+        var large = Convert.ToBase64String(RandomNumberGenerator.GetBytes(192 * 1024)); // 256 KiB
+
+        using var call = invoker.AsyncClientStreamingCall(ClientStreamMethod, null, StreamCallOptions());
+        await call.RequestStream.WriteAsync(new StringValue { Value = large });
+        await call.RequestStream.WriteAsync(new StringValue { Value = "tail" });
+        await call.RequestStream.CompleteAsync();
+
+        Assert.Equal($"{large},tail", (await call.ResponseAsync).Value);
+        await server.WaitForLogAsync("/test.v1.StreamTest/ClientStream verified over the first envelope")
+            .WaitAsync(TimeSpan.FromSeconds(10));
+    }
+
+    /// <summary>
+    /// A gzip-compressed first message is signed as sent, compressed, and verified.
+    /// </summary>
+    [Fact]
+    public async Task CSharpClient_GoServer_ClientStream_GzipFirstMessage()
+    {
+        if (GoHelperPath is null)
+        {
+            if (Environment.GetEnvironmentVariable("CI") != null)
+                Assert.Fail("Go helper binary required in CI but not found");
+            return;
+        }
+
+        await using var server = await GoStreamServer.StartAsync(GoHelperPath);
+        // NetworkClient.Create's pipeline, with the headers recorded below the signer to show the
+        // request was compressed (the default GrpcChannelOptions include the gzip provider).
+        var recorder = new HeaderRecorder { InnerHandler = new HttpClientHandler() };
+        using var channel = GrpcChannel.ForAddress(server.BaseUrl, new GrpcChannelOptions
+        {
+            HttpClient = new HttpClient(new SigningDelegatingHandler(Signer.FromHex(PrivateKey)) { InnerHandler = recorder }),
+            DisposeHttpClient = true,
+        });
+        var invoker = channel.CreateCallInvoker();
+        var callOptions = StreamCallOptions().WithHeaders(new Metadata { { "grpc-internal-encoding-request", "gzip" } });
+        var first = new string('m', 1000);
+
+        using var call = invoker.AsyncClientStreamingCall(ClientStreamMethod, null, callOptions);
+        await call.RequestStream.WriteAsync(new StringValue { Value = first });
+        await call.RequestStream.WriteAsync(new StringValue { Value = "tail" });
+        await call.RequestStream.CompleteAsync();
+
+        Assert.Equal($"{first},tail", (await call.ResponseAsync).Value);
+        Assert.Equal("gzip", Assert.Single(recorder.Sent!.GetValues("grpc-encoding")));
+        await server.WaitForLogAsync("/test.v1.StreamTest/ClientStream verified over the first envelope")
+            .WaitAsync(TimeSpan.FromSeconds(10));
+    }
+
+    /// <summary>
+    /// A client stream signed over its whole body, as a signer that buffers it would, is rejected:
+    /// the network verifies over the first message only.
+    /// </summary>
+    [Fact]
+    public async Task CSharpClient_GoServer_ClientStream_SignedOverTheWholeBody_IsRejected()
+    {
+        if (GoHelperPath is null)
+        {
+            if (Environment.GetEnvironmentVariable("CI") != null)
+                Assert.Fail("Go helper binary required in CI but not found");
+            return;
+        }
+
+        await using var server = await GoStreamServer.StartAsync(GoHelperPath);
+        using var channel = BufferingChannel(server.BaseUrl, Signer.FromHex(PrivateKey));
+
+        var ex = await CompleteClientStreamAsync(channel);
+
+        Assert.Equal(StatusCode.Unauthenticated, ex.StatusCode);
+        await server.WaitForLogAsync(
+                "/test.v1.StreamTest/ClientStream rejected: signature does not verify over the first message")
+            .WaitAsync(TimeSpan.FromSeconds(10));
+    }
+
+    [Fact]
+    public async Task CSharpClient_GoServer_ClientStream_Unsigned_IsRejected()
+    {
+        if (GoHelperPath is null)
+        {
+            if (Environment.GetEnvironmentVariable("CI") != null)
+                Assert.Fail("Go helper binary required in CI but not found");
+            return;
+        }
+
+        await using var server = await GoStreamServer.StartAsync(GoHelperPath);
+        using var channel = BufferingChannel(server.BaseUrl, signer: null);
+
+        var ex = await CompleteClientStreamAsync(channel);
+
+        Assert.Equal(StatusCode.Unauthenticated, ex.StatusCode);
+        await server.WaitForLogAsync("/test.v1.StreamTest/ClientStream rejected: unknown public key")
+            .WaitAsync(TimeSpan.FromSeconds(10));
+    }
+
+    /// <summary>
+    /// The timestamp is checked when the headers arrive; one outside the ±60 s window is rejected.
+    /// </summary>
+    [Fact]
+    public async Task CSharpClient_GoServer_ClientStream_StaleTimestamp_IsRejected()
+    {
+        if (GoHelperPath is null)
+        {
+            if (Environment.GetEnvironmentVariable("CI") != null)
+                Assert.Fail("Go helper binary required in CI but not found");
+            return;
+        }
+
+        await using var server = await GoStreamServer.StartAsync(GoHelperPath);
+        using var channel = NetworkClient.Create(
+            new NetworkClientOptions { BaseUrl = server.BaseUrl },
+            Signer.FromHex(PrivateKey),
+            timeProvider: new FixedTimeProvider(DateTimeOffset.UtcNow.AddMinutes(-2)));
+
+        var ex = await FirstMessageOnlyClientStreamAsync(channel);
+
+        Assert.Equal(StatusCode.Unauthenticated, ex.StatusCode);
+        await server.WaitForLogAsync(
+                "/test.v1.StreamTest/ClientStream rejected: timestamp is outside the allowed time window")
+            .WaitAsync(TimeSpan.FromSeconds(10));
+    }
+
+    [Fact]
+    public async Task CSharpClient_GoServer_ClientStream_OtherKey_IsRejected()
+    {
+        if (GoHelperPath is null)
+        {
+            if (Environment.GetEnvironmentVariable("CI") != null)
+                Assert.Fail("Go helper binary required in CI but not found");
+            return;
+        }
+
+        await using var server = await GoStreamServer.StartAsync(GoHelperPath);
+        using var channel = NetworkClient.Create(
+            new NetworkClientOptions { BaseUrl = server.BaseUrl }, Signer.FromHex(OtherPrivateKey));
+
+        var ex = await FirstMessageOnlyClientStreamAsync(channel);
+
+        Assert.Equal(StatusCode.Unauthenticated, ex.StatusCode);
+        await server.WaitForLogAsync("/test.v1.StreamTest/ClientStream rejected: unknown public key")
+            .WaitAsync(TimeSpan.FromSeconds(10));
+    }
+
+    /// <summary>
+    /// Writes m1, m2, m3, completes the stream and returns the call's failure.
+    /// </summary>
+    private static async Task<RpcException> CompleteClientStreamAsync(GrpcChannel channel)
+    {
+        using var call = channel.CreateCallInvoker().AsyncClientStreamingCall(ClientStreamMethod, null, StreamCallOptions());
+        foreach (var value in new[] { "m1", "m2", "m3" })
+            await call.RequestStream.WriteAsync(new StringValue { Value = value });
+        await call.RequestStream.CompleteAsync();
+        return await Assert.ThrowsAsync<RpcException>(() => call.ResponseAsync);
+    }
+
+    /// <summary>
+    /// Writes m1, which sends the request, and returns the call's failure. Later writes could race
+    /// the rejection, so there are none.
+    /// </summary>
+    private static async Task<RpcException> FirstMessageOnlyClientStreamAsync(GrpcChannel channel)
+    {
+        using var call = channel.CreateCallInvoker().AsyncClientStreamingCall(ClientStreamMethod, null, StreamCallOptions());
+        await call.RequestStream.WriteAsync(new StringValue { Value = "m1" });
+        return await Assert.ThrowsAsync<RpcException>(() => call.ResponseAsync);
+    }
+
+    /// <summary>
+    /// A channel like NetworkClient.Create's whose requests go out only once their whole body is
+    /// written, signed over all of it by <paramref name="signer"/>, or unsigned without one.
+    /// </summary>
+    private static GrpcChannel BufferingChannel(string baseUrl, Signer? signer) =>
+        GrpcChannel.ForAddress(baseUrl, new GrpcChannelOptions
+        {
+            HttpClient = new HttpClient(new WholeBodySigningHandler(signer) { InnerHandler = new HttpClientHandler() }),
+            DisposeHttpClient = true,
+        });
+
+    /// <summary>
+    /// Buffers the whole request body and signs it: digest = Keccak256(body || LE_uint64(ts_ms)).
+    /// With no signer it only buffers.
+    /// </summary>
+    private sealed class WholeBodySigningHandler(Signer? signer) : DelegatingHandler
+    {
+        protected override async Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            var source = request.Content!;
+            var body = await source.ReadAsByteArrayAsync(cancellationToken);
+
+            if (signer is not null)
+            {
+                var timestampMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+                var result = signer.Sign(Keccak256.Hash(body, Headers.EncodeTimestamp(timestampMs)));
+                request.Headers.TryAddWithoutValidation(Headers.PublicKey, result.PublicKeyHex);
+                request.Headers.TryAddWithoutValidation(Headers.Signature, result.SignatureHex);
+                request.Headers.TryAddWithoutValidation(Headers.SignatureTimestamp, timestampMs.ToString());
+            }
+
+            request.Content = new ByteArrayContent(body);
+            request.Content.Headers.ContentType = source.Headers.ContentType;
+            return await base.SendAsync(request, cancellationToken);
+        }
+    }
+
+    /// <summary>
+    /// Passes each request on and keeps the headers of the last one.
+    /// </summary>
+    private sealed class HeaderRecorder : DelegatingHandler
+    {
+        public HttpRequestHeaders? Sent { get; private set; }
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Sent = request.Headers;
+            return base.SendAsync(request, cancellationToken);
+        }
+    }
+
+    /// <summary>
     /// <c>go_helper serve</c> on a free port, with its output collected so a test can wait for
     /// what the server logged.
     /// </summary>
@@ -425,15 +672,6 @@ public class CrossServerTests
         }
 
         public string BaseUrl { get; }
-
-        public string Log
-        {
-            get
-            {
-                lock (_lines)
-                    return string.Join("\n", _lines);
-            }
-        }
 
         public static async Task<GoStreamServer> StartAsync(string helperPath)
         {

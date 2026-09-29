@@ -5,12 +5,15 @@ namespace T0.ProviderSdk.Network;
 
 /// <summary>
 /// gRPC client interceptor that gives each call without a deadline a default one, picked by the
-/// call's type: unary calls get <see cref="NetworkClientOptions.Timeout"/>; client-streaming,
-/// server-streaming and duplex calls get <see cref="NetworkClientOptions.StreamTimeout"/>, or no
-/// deadline when it is null. A deadline set in the call's <see cref="CallOptions"/> is kept.
+/// call's type: unary calls get <see cref="NetworkClientOptions.Timeout"/>; client-streaming and
+/// server-streaming calls get <see cref="NetworkClientOptions.StreamTimeout"/>, or no deadline
+/// when it is null. A deadline set in the call's <see cref="CallOptions"/> is kept.
 ///
 /// The deadline bounds the whole call, from the start of the request to the end of the response,
 /// and is sent to the server as <c>grpc-timeout</c>.
+///
+/// Bidirectional (duplex) streams are not supported: a duplex call throws an
+/// <see cref="RpcException"/> with <see cref="StatusCode.Unimplemented"/> before anything is sent.
 /// </summary>
 public sealed class DefaultDeadlineInterceptor : Interceptor
 {
@@ -55,10 +58,12 @@ public sealed class DefaultDeadlineInterceptor : Interceptor
         AsyncClientStreamingCallContinuation<TRequest, TResponse> continuation) =>
         continuation(WithDefaultDeadline(context));
 
+    // Bidirectional streams are not supported in any SDK: fail before anything is sent rather
+    // than partway through the call, or after it waited unsent for a first message.
     public override AsyncDuplexStreamingCall<TRequest, TResponse> AsyncDuplexStreamingCall<TRequest, TResponse>(
         ClientInterceptorContext<TRequest, TResponse> context,
         AsyncDuplexStreamingCallContinuation<TRequest, TResponse> continuation) =>
-        continuation(WithDefaultDeadline(context));
+        throw new RpcException(new Status(StatusCode.Unimplemented, "bidirectional streams are not supported"));
 
     private ClientInterceptorContext<TRequest, TResponse> WithDefaultDeadline<TRequest, TResponse>(
         ClientInterceptorContext<TRequest, TResponse> context)

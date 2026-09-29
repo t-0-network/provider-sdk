@@ -19,8 +19,8 @@ public sealed class NetworkClientOptions
     public TimeSpan Timeout { get; set; } = TimeSpan.FromSeconds(15);
 
     /// <summary>
-    /// Default deadline of each client-streaming, server-streaming and duplex call, from starting
-    /// the call to reading the end of the response. Null (the default) means none. Applied like
+    /// Default deadline of each client-streaming and server-streaming call, from starting the call
+    /// to reading the end of the response. Null (the default) means none. Applied like
     /// <see cref="Timeout"/>.
     /// </summary>
     public TimeSpan? StreamTimeout { get; set; }

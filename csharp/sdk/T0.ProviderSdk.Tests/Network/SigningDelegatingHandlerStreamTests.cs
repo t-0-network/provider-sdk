@@ -214,15 +214,90 @@ public class SigningDelegatingHandlerStreamTests
         Assert.True(SignatureCovers(await inner.Received.Task.WithTimeout(), frame1));
     }
 
-    [Fact]
-    public async Task TruncatedFirstFrame_Fails()
+    [Theory]
+    [InlineData(3)] // inside the prefix
+    [InlineData(6)] // inside the payload
+    public async Task TruncatedFirstFrame_Fails(int length)
     {
         var frame1 = Frame("m1");
         var (client, inner) = NewClient();
 
         await Assert.ThrowsAsync<InvalidOperationException>(
-            () => client.SendAsync(Post(PushContent.Frames(frame1[..^1]))).WithTimeout());
+            () => client.SendAsync(Post(PushContent.Frames(frame1[..length]))).WithTimeout());
         Assert.False(inner.Received.Task.IsCompleted);
+    }
+
+    [Fact]
+    public async Task FirstFrameTooLargeToSign_Fails()
+    {
+        // A length of 0xFFFFFFFF, over what a byte array can hold: failing beats waiting for 4 GiB.
+        byte[] body = [0, 0xFF, 0xFF, 0xFF, 0xFF, .. Encoding.UTF8.GetBytes("m1")];
+        var (client, inner) = NewClient();
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => client.SendAsync(Post(PushContent.Frames(body))).WithTimeout());
+        Assert.False(inner.Received.Task.IsCompleted);
+    }
+
+    [Fact]
+    public async Task TransportFailureBeforeTheBodyIsRead_FailsLaterSourceWrites()
+    {
+        var sourceWrite = new TaskCompletionSource<Exception?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var gate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var source = new PushContent(async stream =>
+        {
+            await stream.WriteAsync(Frame("m1"));
+            await stream.FlushAsync();
+            await gate.Task;
+            try
+            {
+                // Larger than the pipe's pause threshold, so it would wait for a reader forever.
+                await stream.WriteAsync(Frame(new byte[100_000]));
+                await stream.FlushAsync();
+                sourceWrite.SetResult(null);
+            }
+            catch (Exception ex)
+            {
+                sourceWrite.SetResult(ex);
+                throw;
+            }
+        });
+        var handler = new SigningDelegatingHandler(Signer.FromHex(TestPrivateKey), new FixedTimeProvider(FixedTime))
+        {
+            InnerHandler = new FailingHandler()
+        };
+        using var client = new HttpClient(handler);
+
+        await Assert.ThrowsAsync<HttpRequestException>(() => client.SendAsync(Post(source)).WithTimeout());
+
+        gate.SetResult();
+        Assert.IsType<HttpRequestException>(await sourceWrite.Task.WithTimeout());
+    }
+
+    [Theory]
+    [InlineData("application/proto")] // signed over the whole body
+    [InlineData("application/grpc")] // signed over the first frame
+    public async Task SignatureHeadersAlreadyOnTheRequest_AreReplaced(string contentType)
+    {
+        var body = Frame("hello");
+        var source = new ByteArrayContent(body);
+        source.Headers.TryAddWithoutValidation("Content-Type", contentType);
+        var request = Post(source);
+        // As gRPC call metadata would add them: lower-case names, values the SDK must not keep.
+        request.Headers.TryAddWithoutValidation(Headers.PublicKey.ToLowerInvariant(), "0x04");
+        request.Headers.TryAddWithoutValidation(Headers.Signature.ToLowerInvariant(), "0x00");
+        request.Headers.TryAddWithoutValidation(Headers.SignatureTimestamp.ToLowerInvariant(), "1");
+        var (client, inner) = NewClient();
+
+        using var response = await client.SendAsync(request).WithTimeout();
+
+        var sent = await inner.Received.Task.WithTimeout();
+        Assert.Equal(Signer.FromHex(TestPrivateKey).GetPublicKeyHexPrefixed(),
+            Assert.Single(sent.Headers.GetValues(Headers.PublicKey)));
+        Assert.Single(sent.Headers.GetValues(Headers.Signature));
+        Assert.Equal(FixedTime.ToUnixTimeMilliseconds().ToString(),
+            Assert.Single(sent.Headers.GetValues(Headers.SignatureTimestamp)));
+        Assert.True(SignatureCovers(sent, body));
     }
 
     [Fact]
@@ -268,4 +343,14 @@ public class SigningDelegatingHandlerStreamTests
     }
 
     private sealed class SourceFailedException() : Exception("the request content failed");
+
+    /// <summary>
+    /// A transport that fails before reading the request body, as when the connection is refused.
+    /// </summary>
+    private sealed class FailingHandler : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request, CancellationToken cancellationToken) =>
+            Task.FromException<HttpResponseMessage>(new HttpRequestException("connection refused"));
+    }
 }

@@ -92,10 +92,17 @@ public sealed class SigningDelegatingHandler : DelegatingHandler
         // Sign the digest
         var result = _signer.Sign(digest);
 
-        // Set signature headers
-        request.Headers.TryAddWithoutValidation(Headers.PublicKey, result.PublicKeyHex);
-        request.Headers.TryAddWithoutValidation(Headers.Signature, result.SignatureHex);
-        request.Headers.TryAddWithoutValidation(Headers.SignatureTimestamp, timestampMs.ToString());
+        // Set signature headers, replacing any the caller set (e.g. as call metadata):
+        // TryAddWithoutValidation appends, and a second value makes the request unverifiable.
+        SetHeader(request, Headers.PublicKey, result.PublicKeyHex);
+        SetHeader(request, Headers.Signature, result.SignatureHex);
+        SetHeader(request, Headers.SignatureTimestamp, timestampMs.ToString());
+    }
+
+    private static void SetHeader(HttpRequestMessage request, string name, string value)
+    {
+        request.Headers.Remove(name);
+        request.Headers.TryAddWithoutValidation(name, value);
     }
 
     /// <summary>
