@@ -463,7 +463,7 @@ public abstract class NetworkClient implements Closeable {
                 private boolean starting = false;
                 private Thread starter; // the thread in rawCall.start(), while starting
                 private int pendingRequests = 0;
-                private volatile Thread firstSender; // the thread sending the signed first message, until it is out
+                private volatile Thread firstSender; // sending the signed first message, until it is out
                 private ScheduledFuture<?> deadlineTimer;
                 private final Context.CancellationListener contextListener = cancelled -> startUnsigned();
                 // The listener's callbacks, one at a time: its onReady before the first message (see
@@ -494,7 +494,7 @@ public abstract class NetworkClient implements Closeable {
                     // The call is ready for its first message, and only that message starts rawCall: a
                     // sender that sends only on onReady needs this one, or both wait for ever.
                     Executor executor = callOptions.getExecutor() != null ? callOptions.getExecutor() : CALLBACK_EXECUTOR;
-                    executor.execute(() -> callbacks.execute(context.wrap(() -> {
+                    executor.execute(() -> deliver(() -> {
                         boolean waiting;
                         synchronized (lock) {
                             waiting = !started && !starting;
@@ -502,7 +502,7 @@ public abstract class NetworkClient implements Closeable {
                         if (waiting) {
                             responseListener.onReady();
                         }
-                    })));
+                    }));
                 }
 
                 @Override
@@ -519,9 +519,9 @@ public abstract class NetworkClient implements Closeable {
                     // This prevents double-serialization which would produce different bytes.
                     // Only the first message is signed; later stream messages go out as-is.
                     if (claimStart(messageBytes)) {
-                        // rawCall may call the listener back inside start() on this thread (a direct
-                        // executor): such callbacks wait until the signed message is out, so that
-                        // nothing they send overtakes it.
+                        // rawCall may call the listener back before the signed message is out, inside
+                        // start() on this thread (a direct executor) or on another: every callback waits
+                        // until then (see deliver), so that nothing a listener sends overtakes it.
                         firstSender = Thread.currentThread();
                         try {
                             startRawCall();
@@ -704,14 +704,14 @@ public abstract class NetworkClient implements Closeable {
                     }
                 }
 
-                // One of rawCall's callbacks, in the caller's context; on the thread sending the signed first
-                // message it waits until that message is out (see sendMessage).
+                // A listener callback, in the caller's context. While the signed first message is pending
+                // it only queues: the sender runs the queue once the message is out (see sendMessage).
+                // Queued first and the flag read after, so no callback is left behind when the sender
+                // clears the flag and drains between the two.
                 private void deliver(Runnable callback) {
-                    Runnable task = context.wrap(callback);
-                    if (firstSender == Thread.currentThread()) {
-                        callbacks.executeLater(task);
-                    } else {
-                        callbacks.execute(task);
+                    callbacks.executeLater(context.wrap(callback));
+                    if (firstSender == null) {
+                        callbacks.drain();
                     }
                 }
 

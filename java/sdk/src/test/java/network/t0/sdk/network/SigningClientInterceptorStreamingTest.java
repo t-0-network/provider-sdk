@@ -156,6 +156,41 @@ class SigningClientInterceptorStreamingTest {
     }
 
     @Test
+    @DisplayName("An onReady on another thread while the first message goes out waits for that message")
+    void onReadyFromAnotherThreadWaitsForTheFirstMessage() throws Exception {
+        channel.blockFirstSend();
+        RecordingListener<StringValue> listener = new RecordingListener<>();
+        ClientCall<StringValue, StringValue> call = intercepted.newCall(CLIENT_STREAM, callOptions());
+        boolean[] sentFromOnReady = {false};
+        listener.onReadyAction = () -> {
+            if (!sentFromOnReady[0]) {
+                sentFromOnReady[0] = true;
+                call.sendMessage(value("m2"));
+            }
+        };
+        call.start(listener, new Metadata());
+        RecordingCall raw = channel.lastCall();
+
+        Thread sender = new Thread(() -> call.sendMessage(value("m1")));
+        sender.setDaemon(true); // a hang must not keep the test JVM alive
+        sender.start();
+        raw.awaitFirstSendEntered();
+        // As a transport thread with a non-direct executor: the stream turns ready while m1 is going out.
+        Thread transport = new Thread(() -> raw.listener.onReady());
+        transport.setDaemon(true);
+        transport.start();
+        transport.join(5_000);
+        assertThat(transport.isAlive()).as("onReady returned").isFalse();
+        raw.releaseSend();
+        sender.join(5_000);
+
+        assertThat(sender.isAlive()).as("sendMessage returned").isFalse();
+        assertThat(sentFromOnReady[0]).as("onReady sent m2").isTrue();
+        assertThat(raw.sent).containsExactly(bytes("m1"), bytes("m2"));
+        assertThat(verifies(raw.headers, bytes("m1"))).isTrue();
+    }
+
+    @Test
     @DisplayName("Client stream: headers are set once, before start, with no duplicate X-Signature")
     void clientStreamSetsHeadersOnce() {
         Metadata headers = new Metadata();
@@ -958,6 +993,7 @@ class SigningClientInterceptorStreamingTest {
         private volatile RecordingCall lastCall;
         private boolean blockStarts;
         private boolean readyOnStart;
+        private boolean blockFirstSend;
         private Status closeOnStart;
 
         RecordingCall lastCall() {
@@ -979,6 +1015,11 @@ class SigningClientInterceptorStreamingTest {
             readyOnStart = true;
         }
 
+        /** Calls handed out from now on block in their first sendMessage() until {@link RecordingCall#releaseSend()}. */
+        void blockFirstSend() {
+            blockFirstSend = true;
+        }
+
         @Override
         @SuppressWarnings("unchecked")
         public <ReqT, RespT> ClientCall<ReqT, RespT> newCall(
@@ -986,6 +1027,9 @@ class SigningClientInterceptorStreamingTest {
             lastCall = new RecordingCall(method, blockStarts);
             lastCall.closeOnStart = closeOnStart;
             lastCall.readyOnStart = readyOnStart;
+            if (blockFirstSend) {
+                lastCall.firstSendReleased = new CountDownLatch(1);
+            }
             return (ClientCall<ReqT, RespT>) lastCall;
         }
 
@@ -1015,6 +1059,8 @@ class SigningClientInterceptorStreamingTest {
         volatile boolean closed;
         Status closeOnStart;
         boolean readyOnStart;
+        private final CountDownLatch firstSendEntered = new CountDownLatch(1);
+        private CountDownLatch firstSendReleased = new CountDownLatch(0);
         // Like a real call, the call belongs to the context it is created in.
         private final Context context = Context.current();
 
@@ -1085,8 +1131,24 @@ class SigningClientInterceptorStreamingTest {
             events.add("halfClose");
         }
 
+        void awaitFirstSendEntered() throws InterruptedException {
+            assertThat(firstSendEntered.await(5, TimeUnit.SECONDS)).as("sendMessage() entered").isTrue();
+        }
+
+        void releaseSend() {
+            firstSendReleased.countDown();
+        }
+
         @Override
         public void sendMessage(Object message) {
+            if (firstSendEntered.getCount() > 0) {
+                firstSendEntered.countDown();
+                try {
+                    firstSendReleased.await();
+                } catch (InterruptedException e) {
+                    Thread.currentThread().interrupt();
+                }
+            }
             events.add("send");
             sent.add(message);
         }
