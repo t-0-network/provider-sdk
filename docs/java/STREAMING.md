@@ -28,7 +28,7 @@ digest = Keccak256(first_message_bytes || timestamp_le_u64)
 - The first message goes out as soon as it is sent. The stream is never buffered to sign it; the server checks the timestamp when the headers arrive.
 - The underlying call starts exactly once. `cancel()` may come from another thread while the first `sendMessage()` or `halfClose()` is starting the call, so the start is claimed under a lock: the first of them to find the call unstarted claims it (`starting`), signs the headers in that same critical section if it carries the first message, and calls the underlying `start()` outside the lock. The others wait on the lock until the call has started, then go to the started call; they neither start it again nor touch its headers. An interrupt while waiting restores the flag and fails with `CANCELLED`.
 - `request(n)` before the start is buffered and passed on when the call starts. `request()` may come from any thread and never waits: while the call is starting it is buffered too.
-- If the marshaller throws on the first message, the exception reaches the caller and nothing is started or signed; a stub then cancels the call (see [cancel](#cancel-before-the-first-message)).
+- If the marshaller throws on the first message, the exception reaches the caller and nothing is started or signed; a stub then cancels the call (see [ending before the first message](#ending-before-the-first-message)).
 
 ## isReady and onReady
 
@@ -36,10 +36,15 @@ digest = Keccak256(first_message_bytes || timestamp_le_u64)
 - After the start `isReady()` reflects the underlying call.
 - `onReady()` is first delivered after the call starts, i.e. after the first message. A sender driven **only** by `onReady` callbacks never gets its first callback: send the first message directly (for example, run the drain loop once after setting up the call), then continue on `onReady`.
 
-## cancel before the first message
+## Ending before the first message
 
-- After `start()`: `cancel()` starts the underlying call, with nothing signed, and cancels it at once. An unstarted grpc-java call never notifies its listener, so without this the listener would never get `onClose(CANCELLED)`; this way it gets it on the call's executor, as for any cancelled call.
-- Before `start()`: there is no listener to notify; the cancellation just reaches the unstarted underlying call, which the `ClientCall` contract allows.
+An unstarted grpc-java call never notifies its listener, and grpc enforces a call's deadline and its context only from the start. So each of these starts the underlying call, with nothing signed, when it comes before the first message:
+
+- `cancel()` after `start()`: the call is started and cancelled at once; the listener gets `onClose(CANCELLED)` on the call's executor, as for any cancelled call.
+- The call's deadline (from `CallOptions`, e.g. the stream timeout): a timer armed in `start()` (one shared daemon thread, `t0-network-client-deadline`) starts the call when the deadline passes. grpc-java fails a call started after its deadline with `DEADLINE_EXCEEDED` without opening a stream, so nothing is sent.
+- The context the call was created in being cancelled (its deadline included): a listener added in `start()` starts the call, and grpc-java closes it with the context's status (`CANCELLED`, or `DEADLINE_EXCEEDED` for a context deadline), again without a stream.
+
+Once the call has started, the timer is cancelled and the context listener removed: from then on grpc enforces both. `cancel()` before `start()` has no listener to notify; the cancellation just reaches the unstarted underlying call, which the `ClientCall` contract allows.
 
 ## Bidirectional streams
 
@@ -76,7 +81,7 @@ client.stub(2, TimeUnit.MINUTES).someCall(request);
 
 Local (no Go helper), in `java/sdk/src/test/java/network/t0/sdk/`:
 
-- `network/SigningClientInterceptorStreamingTest`: the interceptor over a recording fake `ClientCall` that behaves like `ClientCallImpl` where it matters (throws on `isReady()` before start; only a started call reports a cancellation). It checks the signed bytes (the first message, not a later one, not their concatenation, not the framed message), the order of events reaching the transport, headers set once, the empty stream, bidi refusal, `isReady()`/`cancel()` before start, a failing marshaller, unary unchanged, and that the client emits the `grpc-client-stream-unframed` vector's signature. Concurrent start: the fake's `start()` blocks on a latch and refuses a second call, as `ClientCallImpl` does; a `cancel()` racing the first `sendMessage()` (and the reverse) leaves one start, signed only when the message started it, and the other method reaches the fake only after it.
+- `network/SigningClientInterceptorStreamingTest`: the interceptor over a recording fake `ClientCall` that behaves like `ClientCallImpl` where it matters (throws on `isReady()` before start; only a started call reports a cancellation). It checks the signed bytes (the first message, not a later one, not their concatenation, not the framed message), the order of events reaching the transport, headers set once, the empty stream, bidi refusal, `isReady()`/`cancel()` before start, a failing marshaller, unary unchanged, and that the client emits the `grpc-client-stream-unframed` vector's signature. A deadline or a context cancellation before the first message starts the call unsigned, and neither starts it again after the first message. Concurrent start: the fake's `start()` blocks on a latch and refuses a second call, as `ClientCallImpl` does; a `cancel()` racing the first `sendMessage()` (and the reverse) leaves one start, signed only when the message started it, and the other method reaches the fake only after it.
 - `network/DefaultDeadlineInterceptorTest`: the deadline per call type, an existing deadline kept, per-call computation, validation; and through the clients against an in-process Netty server: the `grpc-timeout` the server sees (15 s for unary, none for a server stream), and `DEADLINE_EXCEEDED` from the unary and the stream timeout.
 - `crypto/CrossVectorTest.streamSigningCases_shouldMatchVectorBytes`: signed bytes, digest and signature of every `stream_signing_cases` vector in `cross_test/test_vectors.json`.
 
@@ -84,7 +89,7 @@ Cross-language, `integration/CrossServerTests` (Java client → `go_helper serve
 
 - The helper serves `test.v1.StreamTest` ([`cross_test/stream_test.proto`](../../cross_test/stream_test.proto)) behind a verifier that checks the signature over the first message only and answers `UNAUTHENTICATED` otherwise. The methods are hand-built `MethodDescriptor`s called on `client.getChannel()`, so the SDK's interceptors apply.
 - The client only sees `UNAUTHENTICATED`, whatever the reason, so the tests read the helper's log (stdout and stderr merged, drained by a daemon thread) for its verdict: `<path> verified over the first payload` (what Java signs; `... envelope` for the framed form) or `<path> rejected: <reason>`.
-- Cases: a client stream of three messages; no buffering (message 2 is sent only after the helper logged message 1 as verified); a 256 KiB random first message (above HTTP/2's 64 KiB initial window, incompressible); `BlockingClientCall.write`; a readiness-driven sender; a server stream; and refusals of an unknown key, an empty stream (`no first message`), an unsigned stream, a signature over the whole stream (hand-built headers over the first message pass as the control), and a stale timestamp (signer clock two minutes behind).
+- Cases: a client stream of three messages; no buffering (message 2 is sent only after the helper logged message 1 as verified); a 256 KiB random first message (above HTTP/2's 64 KiB initial window, incompressible); `BlockingClientCall.write`; a readiness-driven sender; a server stream; and refusals of an unknown key, an empty stream (`no first message`), an unsigned stream, a signature over the whole stream (hand-built headers over the first message pass as the control), and a stale timestamp (signer clock two minutes behind). A stream timeout of 50 ms on a client stream that sends nothing ends the call with `DEADLINE_EXCEEDED`, and the helper logs nothing for it.
 - `SigningInterceptors.withClock` (test sources, `network.t0.sdk.network`) hands the package-private interceptor with a chosen clock to tests in other packages.
 - In CI the tests fail, not skip, if the helper binary is missing.
 

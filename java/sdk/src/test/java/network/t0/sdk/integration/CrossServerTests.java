@@ -382,6 +382,31 @@ class CrossServerTests {
         }
     }
 
+    /** grpc-java enforces a deadline only from the start, which waits for the first message. */
+    @Test
+    @Timeout(30)
+    void javaClient_goServer_streamTimeoutBeforeTheFirstMessage() throws Exception {
+        skipOrFailIfNoHelper();
+        GoServer goServer = startGoServer();
+
+        try (var client = BlockingNetworkClient.create("http://localhost:" + goServer.port(),
+                Signer.fromHex(PRIVATE_KEY), HealthGrpc::newBlockingStub, Duration.ofSeconds(15), Duration.ofMillis(50))) {
+            CompletableFuture<String> result = new CompletableFuture<>();
+            // No message and no half-close: only the stream timeout can end the call.
+            ClientCalls.asyncClientStreamingCall(
+                    client.getChannel().newCall(CLIENT_STREAM, CallOptions.DEFAULT), resultObserver(result));
+
+            ExecutionException thrown = org.junit.jupiter.api.Assertions.assertThrows(
+                    ExecutionException.class, () -> result.get(10, TimeUnit.SECONDS));
+            assertThat(Status.fromThrowable(thrown.getCause()).getCode()).isEqualTo(Status.Code.DEADLINE_EXCEEDED);
+            // Nothing was sent: the helper logs every request it gets for the stream.
+            TimeUnit.MILLISECONDS.sleep(200);
+            assertThat(goServer.logText()).doesNotContain("/test.v1.StreamTest/ClientStream");
+        } finally {
+            stop(goServer);
+        }
+    }
+
     @Test
     @Timeout(30)
     void javaClient_goServer_emptyClientStreamIsRejected() throws Exception {
@@ -511,6 +536,10 @@ class CrossServerTests {
 
         int port() {
             return port;
+        }
+
+        synchronized String logText() {
+            return log.toString();
         }
 
         /** How much has been logged so far: the offset to wait for later lines from. */

@@ -6,6 +6,8 @@ import io.grpc.Channel;
 import io.grpc.ClientCall;
 import io.grpc.ClientInterceptor;
 import io.grpc.ClientInterceptors;
+import io.grpc.Context;
+import io.grpc.Deadline;
 import io.grpc.ManagedChannel;
 import io.grpc.Metadata;
 import io.grpc.MethodDescriptor;
@@ -25,6 +27,9 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.Clock;
 import java.time.Duration;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -280,8 +285,9 @@ public abstract class NetworkClient implements Closeable {
      *
      * <p>Only the first request message is signed, without its 5-byte gRPC prefix (this interceptor
      * sits above the framer); later stream messages are sent unsigned. The underlying call starts on
-     * that first message, since the headers must be complete by then. Bidirectional streams are
-     * refused with {@code UNIMPLEMENTED}. See {@code docs/java/STREAMING.md}.
+     * that first message, since the headers must be complete by then, or unsigned when it is cancelled
+     * or its deadline or context ends first. Bidirectional streams are refused with
+     * {@code UNIMPLEMENTED}. See {@code docs/java/STREAMING.md}.
      *
      * <p>This class is thread-safe. Each call to {@link #interceptCall} creates
      * independent state for that specific call.
@@ -294,6 +300,9 @@ public abstract class NetworkClient implements Closeable {
                 Metadata.Key.of(Headers.PUBLIC_KEY, Metadata.ASCII_STRING_MARSHALLER);
         private static final Metadata.Key<String> SIGNATURE_TIMESTAMP_KEY =
                 Metadata.Key.of(Headers.SIGNATURE_TIMESTAMP, Metadata.ASCII_STRING_MARSHALLER);
+
+        // Deadlines of calls still waiting for their first message; grpc keeps the ones of started calls.
+        private static final ScheduledExecutorService DEADLINE_TIMER = newDeadlineTimer();
 
         private final Signer signer;
         private final Clock clock;
@@ -330,6 +339,8 @@ public abstract class NetworkClient implements Closeable {
 
             // Create the underlying call with the raw method descriptor
             ClientCall<byte[], RespT> rawCall = next.newCall(rawMethod, callOptions);
+            // The context rawCall was created in, which it watches from its start.
+            Context context = Context.current();
 
             // Extend ClientCall directly instead of ForwardingClientCall to avoid
             // the delegate() issue. ForwardingClientCall requires delegate() to return
@@ -346,14 +357,23 @@ public abstract class NetworkClient implements Closeable {
                 private volatile boolean started = false;
                 private boolean starting = false;
                 private int pendingRequests = 0;
+                private ScheduledFuture<?> deadlineTimer;
+                private final Context.CancellationListener contextListener = cancelled -> startUnsigned();
 
                 @Override
                 public void start(Listener<RespT> responseListener, Metadata headers) {
-                    // Delay start until we have the first message and can compute the signature
+                    // Delay start until we have the first message and can compute the signature.
+                    // grpc enforces the deadline and the context only from rawCall's start: until then,
+                    // whichever ends first starts rawCall unsigned, and grpc fails it without sending.
                     synchronized (lock) {
                         this.responseListener = responseListener;
                         this.headers = headers;
+                        Deadline deadline = callOptions.getDeadline();
+                        if (deadline != null) {
+                            deadlineTimer = deadline.runOnExpiration(this::startUnsigned, DEADLINE_TIMER);
+                        }
                     }
+                    context.addListener(contextListener, Runnable::run);
                 }
 
                 @Override
@@ -462,14 +482,31 @@ public abstract class NetworkClient implements Closeable {
                     }
                 }
 
+                // The deadline or the context ended before the first message; a started call has its own.
+                private void startUnsigned() {
+                    synchronized (lock) {
+                        if (started || starting) {
+                            return;
+                        }
+                        starting = true;
+                    }
+                    startRawCall();
+                }
+
                 // Outside the lock: request() from another thread must not block on it meanwhile.
                 private void startRawCall() {
                     Listener<RespT> listener;
                     Metadata startHeaders;
+                    ScheduledFuture<?> timer;
                     synchronized (lock) {
                         listener = responseListener;
                         startHeaders = headers;
+                        timer = deadlineTimer;
                     }
+                    if (timer != null) {
+                        timer.cancel(false);
+                    }
+                    context.removeListener(contextListener);
                     int requests;
                     try {
                         rawCall.start(listener, startHeaders);
@@ -541,6 +578,16 @@ public abstract class NetworkClient implements Closeable {
                 return false;
             }
         }
+    }
+
+    private static ScheduledExecutorService newDeadlineTimer() {
+        ScheduledThreadPoolExecutor timer = new ScheduledThreadPoolExecutor(1, task -> {
+            Thread thread = new Thread(task, "t0-network-client-deadline");
+            thread.setDaemon(true);
+            return thread;
+        });
+        timer.setRemoveOnCancelPolicy(true);
+        return timer;
     }
 
     // --- Default deadlines ---

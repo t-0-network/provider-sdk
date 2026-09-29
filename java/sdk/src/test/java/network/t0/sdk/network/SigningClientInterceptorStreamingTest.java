@@ -7,6 +7,7 @@ import io.grpc.CallOptions;
 import io.grpc.Channel;
 import io.grpc.ClientCall;
 import io.grpc.ClientInterceptors;
+import io.grpc.Context;
 import io.grpc.Metadata;
 import io.grpc.MethodDescriptor;
 import io.grpc.MethodDescriptor.MethodType;
@@ -304,6 +305,62 @@ class SigningClientInterceptorStreamingTest {
         assertThat(raw.headers.get(SIGNATURE)).isNull();
         assertThat(listener.closeStatus.getCode()).isEqualTo(Status.Code.CANCELLED);
         assertThat(listener.closeStatus.getCause()).isSameAs(failure);
+    }
+
+    // ==================== Deadline and context before the first message ====================
+
+    @Test
+    @DisplayName("A deadline passing before the first message starts the call unsigned, and grpc fails it")
+    void deadlineBeforeTheFirstMessageStartsTheCallUnsigned() throws Exception {
+        ClientCall<StringValue, StringValue> call = intercepted.newCall(
+                CLIENT_STREAM, CallOptions.DEFAULT.withDeadlineAfter(50, TimeUnit.MILLISECONDS));
+        call.start(new RecordingListener<>(), new Metadata());
+        call.request(1);
+
+        // No sendMessage(), no halfClose(): the deadline alone.
+        RecordingCall raw = channel.lastCall();
+        raw.awaitStartEntered();
+        assertThat(raw.events()).containsExactly("start", "request:1");
+        assertThat(raw.headers.get(SIGNATURE)).isNull();
+
+        // A message after that goes to the started call, which grpc has already failed.
+        call.sendMessage(value("m1"));
+        assertThat(raw.starts).isEqualTo(1);
+        assertThat(raw.events()).containsExactly("start", "request:1", "send");
+        assertThat(raw.headers.get(SIGNATURE)).isNull();
+    }
+
+    @Test
+    @DisplayName("A context cancelled before the first message starts the call unsigned, and grpc fails it")
+    void contextCancelledBeforeTheFirstMessageStartsTheCallUnsigned() throws Exception {
+        Context.CancellableContext context = Context.current().withCancellation();
+        ClientCall<StringValue, StringValue> call =
+                context.call(() -> intercepted.newCall(CLIENT_STREAM, CallOptions.DEFAULT));
+        call.start(new RecordingListener<>(), new Metadata());
+
+        context.cancel(null);
+
+        RecordingCall raw = channel.lastCall();
+        assertThat(raw.events()).containsExactly("start");
+        assertThat(raw.headers.get(SIGNATURE)).isNull();
+    }
+
+    @Test
+    @DisplayName("After the first message the deadline and the context are grpc's: no second start")
+    void deadlineAndContextAfterTheFirstMessageStartNothing() throws Exception {
+        Context.CancellableContext context = Context.current().withCancellation();
+        ClientCall<StringValue, StringValue> call = context.call(() -> intercepted.newCall(
+                CLIENT_STREAM, CallOptions.DEFAULT.withDeadlineAfter(50, TimeUnit.MILLISECONDS)));
+        call.start(new RecordingListener<>(), new Metadata());
+        call.sendMessage(value("m1"));
+
+        context.cancel(null);
+        TimeUnit.MILLISECONDS.sleep(150);
+
+        RecordingCall raw = channel.lastCall();
+        assertThat(raw.starts).isEqualTo(1);
+        assertThat(raw.events()).containsExactly("start", "send");
+        assertThat(verifies(raw.headers, bytes("m1"))).isTrue();
     }
 
     // ==================== Concurrent start ====================
