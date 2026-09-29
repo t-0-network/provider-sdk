@@ -64,9 +64,11 @@ Streaming runs one way only: providers don't serve streaming RPCs, so there is n
 |---|---|---|
 | Python (async) | `python/tests/cross_test/test_cross_server.py` | Connect |
 | Python (sync) | `python/tests/cross_test/test_cross_server_sync.py` | Connect |
+| Python streaming (async + sync) | `python/tests/cross_test/test_cross_stream.py` | Connect + gRPC |
 | Node | `node/sdk/test/cross_server.test.ts` | Connect |
-| C# | `csharp/sdk/T0.ProviderSdk.Tests/CrossTest/CrossServerTests.cs` | gRPC |
-| Java | `java/sdk/src/test/java/network/t0/sdk/integration/CrossServerTests.java` | gRPC |
+| Node streaming | `node/sdk/test/cross_stream.test.ts` | Connect |
+| C# (incl. streaming) | `csharp/sdk/T0.ProviderSdk.Tests/CrossTest/CrossServerTests.cs` | gRPC |
+| Java (incl. streaming) | `java/sdk/src/test/java/network/t0/sdk/integration/CrossServerTests.java` | gRPC |
 
 ## Dual-framing (gRPC interop)
 

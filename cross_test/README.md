@@ -113,10 +113,10 @@ Default protocol is Connect (HTTP/1.1). Pass `--grpc` for gRPC protocol over h2c
 
 | Language pair | Test file | Protocol |
 |---|---|---|
-| Python ↔ Go | `python/tests/cross_test/test_cross_server.py` (async), `test_cross_server_sync.py` (sync) | Connect |
-| C# ↔ Go | `csharp/sdk/T0.ProviderSdk.Tests/CrossTest/CrossServerTests.cs` | gRPC |
-| Node ↔ Go | `node/sdk/test/cross_server.test.ts` | Connect |
-| Java ↔ Go | `java/sdk/src/test/java/network/t0/sdk/integration/CrossServerTests.java` | gRPC |
+| Python ↔ Go | `python/tests/cross_test/test_cross_server.py` (async), `test_cross_server_sync.py` (sync); streaming: `test_cross_stream.py` | Connect (streaming: Connect + gRPC) |
+| C# ↔ Go | `csharp/sdk/T0.ProviderSdk.Tests/CrossTest/CrossServerTests.cs` (incl. streaming) | gRPC |
+| Node ↔ Go | `node/sdk/test/cross_server.test.ts`; streaming: `cross_stream.test.ts` | Connect |
+| Java ↔ Go | `java/sdk/src/test/java/network/t0/sdk/integration/CrossServerTests.java` (incl. streaming) | gRPC |
 
 Each language also has crypto-level tests (`test_cross_signature.py` for Python) that use
 the `hash`, `sign`, `verify`, and `pubkey` commands.
