@@ -46,6 +46,8 @@ CI builds it automatically (each language's CI workflow sets up Go and builds it
 
 `serve` also mounts `test.v1.StreamTest` ([`cross_test/stream_test.proto`](../cross_test/stream_test.proto), reference only — every SDK builds the two methods by hand on `google.protobuf.StringValue`). Its verifier checks a streaming request the way the T-0 Network does: the signature over the first envelope only (or, for gRPC, its payload without the prefix), before the handler reads the rest.
 
+The verifier logs its verdict to stderr: `<path> verified over the first envelope|payload`, or `<path> rejected: <reason>` with HTTP 401. The streaming cross tests wait for these lines to check the framing, that the request went out with its first message, and why a request was refused. `cd cross_test/go_helper && go test ./...` tests the verifier itself and runs the Go client against it.
+
 Default protocol is Connect (HTTP/1.1). Pass `--grpc` for gRPC protocol over h2c.
 
 ## Server-to-server test matrix
@@ -56,7 +58,7 @@ Default protocol is Connect (HTTP/1.1). Pass `--grpc` for gRPC protocol over h2c
 | **Lang→Go streaming** | Client + server stream (async + sync) | Client + server stream | Client + server stream | Client + server stream |
 | **Go→Lang** | Health (ASGI+WSGI) | Health | Health + PayOut | Health + PayOut |
 
-Streaming runs one way only: providers don't serve streaming RPCs, so there is no Go→Lang streaming test.
+Streaming runs one way only: providers don't serve streaming RPCs, so there is no Go→Lang streaming test. Every SDK's streaming cross tests cover a client stream of several messages and a server stream, each verified over the expected framing; no buffering (message 2 is produced only after the helper logged message 1 as verified); a 256 KiB first message; and refusals of an unsigned stream, one signed over its whole body, a stale timestamp and an empty stream. The Go client runs against the verifier in `cross_test/go_helper/stream_test.go` and, from the CLI, in the Go CI workflow.
 
 ### Test files
 
@@ -83,6 +85,8 @@ Each SDK's CI workflow:
 2. Caches the Go helper binary (keyed on Go sources + go.sum)
 3. Builds the helper
 4. Runs the SDK's tests (which include cross-language tests)
+
+The Go workflow also runs the helper's own tests (`go test -race ./...` in `cross_test/go_helper`) and `call-client-stream` / `call-server-stream` against `serve`, over Connect and gRPC.
 
 Tests **fail** (not skip) if the Go helper binary is missing in CI.
 

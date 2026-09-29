@@ -65,11 +65,14 @@ cd csharp && dotnet test                               # C# ↔ Go (included in 
 cd java && ./gradlew test --tests "*.CrossServerTests" # Java ↔ Go
 ```
 
+The helper's stream verifier logs its verdict on every `test.v1.StreamTest` request to stderr, before the handler reads past the first message: `<path> verified over the first envelope|payload` or `<path> rejected: <reason>`. The streaming cross tests read that log to check which framing was accepted, that a request went out right after its first message (the caller's stream produces message 2 only once the line is there), and why a request was refused. The verifier itself, and the Go client against it, are tested in `cross_test/go_helper` (`go test ./...`).
+
 **When adding a new SDK**, add cross-language server-to-server tests that use `cross_test/go_helper/`:
 1. Create test file(s) that start/call the Go helper for bidirectional health round-trips (with `service` field set for non-empty body)
 2. Add Go setup + helper build to the SDK's CI workflow (see `ci-python.yaml` for pattern)
 3. Add `go/**` and `cross_test/**` to the CI workflow's path triggers
 4. In CI, tests must **fail** (not skip) if the helper binary is missing
+5. Streaming against `go_helper serve`: a client stream of several messages and a server stream, each verified over the expected framing; no buffering (message 2 after the helper logged message 1 as verified); a large first message; and refusals of an unsigned stream, one signed over its whole body, a stale timestamp and an empty stream
 
 ## Definition of Done
 
@@ -77,7 +80,8 @@ Before a change is considered complete, cross-language tests must pass:
 
 ```bash
 cd cross_test/go_helper && go build -o go_helper .   # Rebuild helper
-cd go && go vet ./... && go test ./...                # Go
+cd cross_test/go_helper && go vet ./... && go test ./... # Helper's verifier + Go client against it
+cd go && go vet ./... && go test -race ./...          # Go
 cd node/sdk && npm ci && npm run build && npm test    # Node (includes cross-tests)
 cd python && uv run pytest tests/cross_test/ -v       # Python ↔ Go
 cd csharp && dotnet test --filter "CrossServerTests"  # C# ↔ Go
@@ -106,7 +110,7 @@ Consequently the Java SDK's `SignatureVerificationInterceptor` accepts both fram
 
 For client-streaming (upload) and server-streaming (download) RPCs, `body_bytes` is the **first request envelope exactly as sent**: `flags (1) || uint32be(length) || payload`, compressed bytes as sent when flag bit 0 is set. Later messages are sent unsigned. The server checks the timestamp when the headers arrive, before it reads the body, so a client signs as soon as it has the first message and sends the request at once — never buffer the stream to sign it. Over gRPC the network also accepts the first payload without its 5-byte prefix (the Java SDK signs above the framer, as for unary).
 
-Every SDK client picks what to sign from the content type: `application/connect+*`, `application/grpc` and `application/grpc+*` → first envelope (a gRPC unary body is one envelope, so nothing changes for it); anything else → whole body. Unary and streaming calls have separate timeouts, applied as the call's deadline (so also sent to the server); streams have none by default. Bidirectional streams are not supported. A client stream closed before its first message is signed over empty bytes and sent, in every SDK; the network rejects it. Vectors: `stream_signing_cases` in `cross_test/test_vectors.json`; test service: `cross_test/stream_test.proto`, served by `go_helper serve`.
+Every SDK client picks what to sign from the content type: `application/connect+*`, `application/grpc` and `application/grpc+*` → first envelope (a gRPC unary body is one envelope, so nothing changes for it); anything else → whole body. Unary and streaming calls have separate timeouts, applied as the call's deadline (so also sent to the server); streams have none by default. Bidirectional streams are not supported: every SDK's client fails them with `unimplemented` before anything is sent (Go `NewServiceClient`, Node `createClient`, Python's client factories, Java `SigningClientInterceptor`, C# `DefaultDeadlineInterceptor`, which the `Create*ServiceClient` helpers apply). A client stream closed before its first message is signed over empty bytes and sent, in every SDK; the network rejects it. Vectors: `stream_signing_cases` in `cross_test/test_vectors.json`; test service: `cross_test/stream_test.proto`, served by `go_helper serve`.
 
 ## Releasing
 

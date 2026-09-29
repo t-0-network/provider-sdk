@@ -55,7 +55,7 @@ Sending waits for the first frame, so a client-streaming call goes out when its 
 
 ### Deadlines
 
-`HttpClient.Timeout` only runs until response headers arrive, which for a client stream is the whole upload, so `NetworkClient.Create` sets it to infinite. Timeouts are gRPC deadlines instead: `DefaultDeadlineInterceptor` sets `CallOptions.Deadline` on calls that have none, from `NetworkClientOptions.Timeout` (unary, default 15 s) or `NetworkClientOptions.StreamTimeout` (client, server and duplex streaming, default none). The `Create*ServiceClient` helpers install it. A raw `GrpcChannel` from `Create`/`CreateChannel` cannot carry an interceptor, so set deadlines per call or use `channel.Intercept(new DefaultDeadlineInterceptor(options))`.
+`HttpClient.Timeout` only runs until response headers arrive, which for a client stream is the whole upload, so `NetworkClient.Create` sets it to infinite. Timeouts are gRPC deadlines instead: `DefaultDeadlineInterceptor` sets `CallOptions.Deadline` on calls that have none, from `NetworkClientOptions.Timeout` (unary, default 15 s) or `NetworkClientOptions.StreamTimeout` (client and server streaming, default none). It also rejects a bidirectional (duplex) call with `Unimplemented` before anything is sent. The `Create*ServiceClient` helpers install it. A raw `GrpcChannel` from `Create`/`CreateChannel` cannot carry an interceptor, so set deadlines per call or use `channel.Intercept(new DefaultDeadlineInterceptor(options))`.
 
 ### Two-Phase Server Architecture
 
@@ -98,7 +98,7 @@ headers = {
 }
 ```
 
-- **body_bytes**: for gRPC requests, the first request frame as sent, 5-byte prefix included (unary and server streaming: the whole body; a client stream completed without a message: empty); otherwise the whole body. Bidirectional streaming is out of scope.
+- **body_bytes**: for gRPC requests, the first request frame as sent, 5-byte prefix included (unary and server streaming: the whole body; a client stream completed without a message: empty); otherwise the whole body. Bidirectional streaming is not supported: `DefaultDeadlineInterceptor` rejects it.
 - **Hash**: Keccak-256 (legacy, NOT NIST SHA-3)
 - **Curve**: secp256k1 (same as Ethereum)
 - **Nonce**: RFC 6979 deterministic (HMAC-SHA256)

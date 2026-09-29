@@ -101,6 +101,19 @@ only) behind a verifier that checks the signature over the first request message
 Network does for streaming RPCs. Each SDK's streaming cross test calls it with hand-built methods
 on `google.protobuf.StringValue`.
 
+The verifier logs its verdict on each request to stderr before the handler reads past the first
+message:
+
+- `<path> verified over the first envelope` (or `payload`: gRPC without the prefix, as Java signs)
+- `<path> rejected: <reason>`, answered with HTTP 401. Reasons: `unknown public key`,
+  `timestamp is outside the allowed time window`, `signature does not verify over the first
+  message`, `no first message`, and a few for malformed headers or bodies.
+
+The streaming cross tests wait for these lines: to check the framing, that the request went out
+with its first message (message 2 is produced only once message 1 is logged as verified), and why
+a request was refused. `go test ./...` here tests the verifier and runs the Go client against it;
+Go CI also runs `call-client-stream` and `call-server-stream` against `serve`.
+
 Default protocol is Connect (HTTP/1.1). Pass `--grpc` for gRPC protocol over h2c.
 
 ### Cross-language server tests
