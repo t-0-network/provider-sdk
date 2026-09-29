@@ -140,8 +140,23 @@ describe('CreateSigner', () => {
     );
   });
 
-  it('rejects invalid private key format', () => {
-    nodeAssert.throws(() => CreateSigner('not-a-valid-key'), { message: /Private key must be 64 hex characters/ });
+  it('rejects an empty private key', () => {
+    for (const key of ['', Buffer.alloc(0), null, undefined] as unknown as string[]) {
+      nodeAssert.throws(() => CreateSigner(key), { message: 'private key must not be null or empty' });
+    }
+  });
+
+  it('rejects a private key that is not 32 bytes', () => {
+    const hex = vectors.keys.private_key.replace(/^0x/, '');
+    for (const key of ['not-a-valid-key', '0x', hex.slice(2), hex + '00', 'zz' + hex.slice(2), Buffer.alloc(31, 1), Buffer.alloc(33, 1)]) {
+      nodeAssert.throws(() => CreateSigner(key), { message: 'private key must be 32 bytes (64 hex characters)' });
+    }
+  });
+
+  it('accepts a private key with or without the 0x prefix', () => {
+    const hex = vectors.keys.private_key.replace(/^0x/, '');
+    nodeAssert.doesNotThrow(() => CreateSigner(hex));
+    nodeAssert.doesNotThrow(() => CreateSigner('0x' + hex));
   });
 });
 

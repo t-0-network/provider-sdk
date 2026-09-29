@@ -379,6 +379,24 @@ describe('createClient routes unary and streaming calls to their own transport',
     });
   });
 
+  it('the base URL must be http or https with a host; without one the default applies', () => {
+    const key = newKeypair().privateKeyHex;
+    for (const url of ['', null] as unknown as string[]) {
+      assert.throws(() => createClient(key, url, StreamTest), { message: 'base URL is not set' });
+    }
+    for (const url of ['api.t-0.network', 'ftp://api.t-0.network', 'http://', 'not a url']) {
+      assert.throws(() => createClient(key, url, StreamTest), { message: 'base URL is not valid' });
+    }
+    assert.doesNotThrow(() => createClient(key, undefined, StreamTest));
+    assert.doesNotThrow(() => createClient(key, 'http://127.0.0.1:9', StreamTest));
+  });
+
+  it('a missing private key is refused', () => {
+    for (const key of ['', null, undefined] as unknown as string[]) {
+      assert.throws(() => createClient(key, 'http://127.0.0.1:9', StreamTest), { message: 'private key must not be null or empty' });
+    }
+  });
+
   it('a wireFormat other than WireFormat.Binary or WireFormat.Json is refused', () => {
     for (const wireFormat of ['binary', 'JSON', null] as unknown as WireFormat[]) {
       assert.throws(() => createClient(newKeypair().privateKeyHex, 'http://127.0.0.1:9', StreamTest, { wireFormat }), {

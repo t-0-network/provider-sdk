@@ -12,7 +12,7 @@ import {DescService} from "@bufbuild/protobuf";
  * streams fail with `unimplemented`. See docs/STREAMING.md.
  */
 export function createClient<T extends DescService>(signer: string | Buffer | ((data: Buffer) => Promise<Signature>) | Buffer<ArrayBufferLike>, endpoint: string, svc: T, opts?: ClientOptions) {
-    const sign: SignerFunction = typeof signer === "string" || Buffer.isBuffer(signer) ? CreateSigner(signer) : signer;
+    const sign: SignerFunction = typeof signer === "function" ? signer : CreateSigner(signer);
 
     const wireFormat = opts?.wireFormat === undefined ? WireFormat.Binary : opts.wireFormat;
     if (wireFormat !== WireFormat.Binary && wireFormat !== WireFormat.Json) {
