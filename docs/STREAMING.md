@@ -84,10 +84,18 @@ Go, Node and Python speak ConnectRPC. Java and C# speak gRPC.
 ## Other options
 
 - The base URL defaults to `https://api.t-0.network`. An empty value is refused with "base URL is
-  not set". A value is refused with "base URL is not valid" unless it starts with `http://` or
-  `https://`, has a host and no user info, and has a port from 1 to 65535 when it gives one. The host is an IP address
-  (IPv6 in brackets) or a name made of ASCII letters, digits, `-` and `.`, so a name with `_` is
-  refused. A missing scheme is not added.
+  not set". Any other value is refused with "base URL is not valid" unless all of these hold:
+  - it starts with `http://` or `https://` and has no user info;
+  - the host is an IP address (IPv6 in brackets) or a name made of ASCII letters, digits, `-` and
+    `.`, so a name with `_` is refused;
+  - a port, if given, is from 1 to 65535;
+  - there is no path, query or fragment, though a single `/` may end the value (`https://host/` is
+    accepted, `https://host/v1`, `https://host?x` and `https://host#x` are refused).
+
+  Every client sends a call to `<base URL>/<package.Service>/<Method>`. A missing scheme is not
+  added.
+- No client follows a redirect. A `3xx` answer fails the call, so a signed request is never sent
+  again to another address.
 - The signer is a hex private key or a signing function (in Java and C#, an interface that the
   `Signer` class implements). A `0x` or `0X` prefix is allowed. An empty key is refused with "private
   key must not be null or empty", and anything other than 64 hex characters with "private key must be
