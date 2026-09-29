@@ -708,7 +708,10 @@ The functions check the base URL and the key, create a `SignFn` from the private
 | Constant | Value | Purpose |
 |----------|-------|---------|
 | `DEFAULT_BASE_URL` | `"https://api.t-0.network"` | T-0 Network API endpoint |
-| `DEFAULT_TIMEOUT` | `15.0` | Unary call timeout in seconds (streams have no default timeout) |
+| `DEFAULT_TIMEOUT` | `15.0` | Unary call timeout in seconds |
+| `DEFAULT_STREAM_TIMEOUT` | `300.0` | Client- and server-streaming call timeout in seconds |
+| `WireFormat` | `BINARY`, `JSON` | Enum for the factories' `wire_format` option |
+| `Protocol` | `CONNECT`, `GRPC` | Enum for the factories' `protocol` option |
 
 ### 4.4 Server-Side Framework (`provider/`)
 

@@ -122,6 +122,16 @@ class TestSignatureVerificationMiddlewareWSGI:
         assert error is None
         assert body == b"chunked body"
 
+    def test_terminated_input_is_read_only_past_the_limit(self):
+        body = b"x" * 100
+        environ = _make_signed_environ(body=body)
+        del environ["CONTENT_LENGTH"]
+        environ["wsgi.input_terminated"] = True
+        stream = environ["wsgi.input"]
+        error, _ = _run_middleware(environ, max_body_size=10)
+        assert "max payload size" in str(error)
+        assert stream.tell() == 11, "reads one byte past the limit, not the whole body"
+
     def test_missing_public_key(self):
         """Missing X-Public-Key -> error."""
         environ = _make_signed_environ()

@@ -6,6 +6,7 @@ Proto-agnostic: works with ANY generated ConnectRPC client class.
 from __future__ import annotations
 
 import functools
+import math
 from typing import TYPE_CHECKING, Any, NoReturn, TypeVar
 from urllib.parse import urlsplit
 
@@ -162,6 +163,12 @@ def _transport(base_url: str, protocol: Protocol, *, sync: bool) -> Any | None:
     # gRPC needs HTTP/2, and pyqwest speaks HTTP/1.1 on a plain http:// connection unless told.
     if protocol is not Protocol.GRPC or urlsplit(base_url).scheme != "http":
         return None
+    return _h2c_transport(sync)
+
+
+@functools.cache
+def _h2c_transport(sync: bool) -> Any:
+    """One per kind for the process: a transport holds its connections, and clients never close it."""
     if sync:
         return pyqwest.SyncHTTPTransport(http_version=pyqwest.HTTPVersion.HTTP2)
     return pyqwest.HTTPTransport(http_version=pyqwest.HTTPVersion.HTTP2)
@@ -175,8 +182,9 @@ def _timeout_ms(name: str, value: object, ms_per_unit: int) -> int:
     if isinstance(value, (int, float)) and not isinstance(value, bool):
         ms = value * ms_per_unit
         if 0 < ms <= MAX_TIMEOUT_MS:  # False for NaN too
-            # At least 1 ms: connectrpc reads a timeout_ms of 0 as "no timeout".
-            return max(1, round(ms))
+            # Rounded up: a fraction never shortens the timeout, and never becomes 0, which
+            # connectrpc reads as "no timeout".
+            return math.ceil(ms)
     raise ValueError(f"{name} must be a positive duration of at most {MAX_TIMEOUT_MS} ms")
 
 

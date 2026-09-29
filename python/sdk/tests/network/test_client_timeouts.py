@@ -303,3 +303,11 @@ class TestTimeoutOptions:
         client, recorder = _async_client(timeout=0.0001)
         await _call(client, "unary")
         assert recorder.timeout_header == "1"
+
+    @pytest.mark.asyncio
+    async def test_fractions_of_a_millisecond_round_up(self) -> None:
+        client, recorder = _async_client(timeout=0.9991)
+        await _call(client, "unary")
+        assert recorder.timeout_header == "1000"
+        await _call(client, "unary", timeout_ms=999.1)
+        assert recorder.timeout_header == "1000"

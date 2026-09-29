@@ -1,20 +1,24 @@
 """Key conversion utilities for secp256k1 ECDSA keys."""
 
+import re
+
 from coincurve import PrivateKey, PublicKey
 
-PRIVATE_KEY_HEX_LENGTH = 64
+_PRIVATE_KEY_HEX = re.compile(r"[0-9a-fA-F]{64}")
 
 
 def private_key_from_hex(hex_key: str) -> PrivateKey:
     """Create a PrivateKey from a hex-encoded string of 32 bytes.
 
-    Supports optional '0x' prefix. Raises ValueError for an empty key or one of another length.
+    Supports optional '0x' prefix. Raises ValueError for an empty key and for anything that is not
+    exactly 64 hex digits.
     """
     if not hex_key:
         raise ValueError("private key must not be null or empty")
     cleaned = hex_key.removeprefix("0x")
-    # Checked here: the curve library would accept a shorter key and pad it.
-    if len(cleaned) != PRIVATE_KEY_HEX_LENGTH:
+    # Checked here: bytes.fromhex skips whitespace and the curve library pads a short key, so a
+    # malformed key would otherwise become a different, valid one.
+    if _PRIVATE_KEY_HEX.fullmatch(cleaned) is None:
         raise ValueError("private key must be 32 bytes (64 hex characters)")
     return PrivateKey(bytes.fromhex(cleaned))
 

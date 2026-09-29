@@ -49,9 +49,12 @@ class TestPrivateKeyFromHex:
         with pytest.raises(ValueError, match="^private key must not be null or empty$"):
             private_key_from_hex(key)
 
-    @pytest.mark.parametrize("key", ["0x", "01" * 31, "0x" + "01" * 31, "01" * 33])
-    def test_key_of_another_length_is_refused(self, key):
-        """A 31-byte key would otherwise be padded and accepted."""
+    @pytest.mark.parametrize(
+        "key",
+        ["0x", "01" * 31, "0x" + "01" * 31, "01" * 33, "01" * 31 + "  ", " " + "01" * 31 + " ", "zz" + "01" * 31],
+    )
+    def test_key_that_is_not_64_hex_digits_is_refused(self, key):
+        """A 31-byte key, padded with whitespace or not, would otherwise become a different key."""
         with pytest.raises(ValueError, match=r"^private key must be 32 bytes \(64 hex characters\)$"):
             private_key_from_hex(key)
 

@@ -10,7 +10,8 @@ from connectrpc.method import IdempotencyLevel, MethodInfo
 from google.protobuf.wrappers_pb2 import StringValue
 from t0_provider_sdk.common.headers import PUBLIC_KEY_HEADER
 from t0_provider_sdk.crypto.signer import new_signer_from_hex
-from t0_provider_sdk.network import DEFAULT_BASE_URL, new_service_client, new_service_client_sync
+from t0_provider_sdk.network import DEFAULT_BASE_URL, Protocol, new_service_client, new_service_client_sync
+from t0_provider_sdk.network.client import _transport
 
 PRIVATE_KEY = "0x6b30303de7b26bfb1222b317a52113357f8bb06de00160b4261a2fef9c8b9bd8"
 OTHER_PRIVATE_KEY = "0x691db48202ca70d83cc7f5f3aa219536f9bb2dfe12ebb78a7bb634544858ee92"
@@ -90,3 +91,18 @@ class TestSigner:
     def test_key_is_checked_without_sign_fn(self, factory) -> None:
         with pytest.raises(ValueError, match="^private key must not be null or empty$"):
             factory("", _Client)
+
+
+class TestTransport:
+    @pytest.mark.parametrize("sync", [False, True])
+    def test_grpc_over_http_shares_one_transport(self, sync: bool) -> None:
+        first = _transport("http://a.test", Protocol.GRPC, sync=sync)
+        assert first is not None
+        assert _transport("http://b.test:8080", Protocol.GRPC, sync=sync) is first
+        assert _transport("http://a.test", Protocol.GRPC, sync=not sync) is not first
+
+    @pytest.mark.parametrize(
+        ("base_url", "protocol"), [("https://a.test", Protocol.GRPC), ("http://a.test", Protocol.CONNECT)]
+    )
+    def test_default_transport_otherwise(self, base_url: str, protocol: Protocol) -> None:
+        assert _transport(base_url, protocol, sync=False) is None
