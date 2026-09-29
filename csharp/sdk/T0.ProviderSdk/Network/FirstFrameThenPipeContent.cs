@@ -62,7 +62,9 @@ internal sealed class FirstFrameThenPipeContent : HttpContent
             if (restIsEmpty)
                 await pipe.Reader.CompleteAsync().ConfigureAwait(false);
 
-            return new FirstFrameThenPipeContent(source, firstFrame, restIsEmpty ? null : pipe.Reader, length);
+            // A body of one frame (a unary call) has a known length even when the source had none.
+            return new FirstFrameThenPipeContent(
+                source, firstFrame, restIsEmpty ? null : pipe.Reader, restIsEmpty ? firstFrame.Length : length);
         }
         catch (Exception ex)
         {

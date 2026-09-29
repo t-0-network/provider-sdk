@@ -180,6 +180,20 @@ public class SigningDelegatingHandlerStreamTests
         Assert.True(SignatureCovers(request, body));
     }
 
+    [Fact]
+    public async Task SingleFrameBody_GetsItsLength()
+    {
+        // grpc-dotnet's unary content reports no length; the request had one before it was signed per frame.
+        var frame = Frame("hello");
+        var (client, inner) = NewClient();
+
+        using var response = await client.SendAsync(Post(PushContent.Frames(frame))).WithTimeout();
+
+        var request = await inner.Received.Task.WithTimeout();
+        Assert.Equal(frame.Length, request.Content!.Headers.ContentLength);
+        Assert.Equal(frame, inner.Body.ToArray());
+    }
+
     [Theory]
     [InlineData("application/proto")]
     [InlineData("application/json")]

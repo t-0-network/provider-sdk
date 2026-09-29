@@ -46,7 +46,8 @@ Details:
 - **Large first frames**: bytes are consumed as they are copied into the frame buffer, so a frame larger
   than the pipe's pause threshold (64 KiB by default) does not stall the writer.
 - **Headers**: copied from the original content except `Content-Length`, which `TryComputeLength` reports
-  when the source knew it (e.g. `ByteArrayContent`); otherwise the length is unknown.
+  when the source knew it (e.g. `ByteArrayContent`) or the body is one frame (a unary call; grpc-dotnet's
+  unary content reports no length); otherwise the length is unknown.
 - **Re-send**: `SocketsHttpHandler` serializes content again when an HTTP/2 stream is refused. That works
   until the first frame is written and flushed and forwarding of the rest begins, so a failed write of the
   first frame leaves the content re-sendable. After that, a second send throws `InvalidOperationException`,
@@ -113,7 +114,7 @@ All in `csharp/sdk/T0.ProviderSdk.Tests/`.
 - a client stream reaches the transport, signed over frame 1, before frame 2 is written; it cannot be re-sent
 - a 100 000-byte first message; a first frame split inside its prefix and its payload; an empty stream
 - re-send of a single-frame body, and of a client stream whose first-frame write failed; a known
-  `Content-Length` kept; non-gRPC content types signed whole
+  `Content-Length` kept, and set for a single-frame body; non-gRPC content types signed whole
 - source faults before and after the first frame; truncated prefix or payload; an oversize length
 - transport failure and cancellation make the source's pending writes fail
 - signature headers already on the request are replaced
