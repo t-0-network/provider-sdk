@@ -167,7 +167,7 @@ Message byte layout:
 
 > **CRITICAL INVARIANT:** The body bytes used for signing and verification MUST be the exact bytes from the HTTP request. Re-encoding a deserialized Protobuf message produces different bytes and will cause signature verification to fail.
 
-**Streaming RPCs:** for client- and server-streaming requests the signature covers only the **first request message**. For an enveloped body (Connect streaming, `application/connect+*`; gRPC, `application/grpc` and `application/grpc+*`; not gRPC-Web) `body` is the first envelope exactly as sent: flags (1 byte) ‖ big-endian uint32 length ‖ payload, compressed if flag bit 0 is set. Later messages are not covered. A gRPC unary request is a single envelope, so for it this is the whole body. A client stream closed before its first message is signed over empty bytes; the network rejects it.
+**Streaming RPCs:** for client- and server-streaming requests the signature covers only the **first request message**. For an enveloped body (Connect streaming and gRPC(-Web), which ConnectRPC passes as an iterator) `body` is the first envelope exactly as sent: flags (1 byte) ‖ big-endian uint32 length ‖ payload, compressed if flag bit 0 is set. Later messages are not covered. A gRPC unary request is a single envelope, so for it this is the whole body. A client stream closed before its first message is signed over empty bytes; the network rejects it.
 
 #### 2.1.2 Digest Computation
 
@@ -422,7 +422,7 @@ sequenceDiagram
     CC-->>App: Deserialized response
 ```
 
-**Streaming requests:** for client- and server-streaming calls, and for every gRPC call (unary included), ConnectRPC passes `stream()` an iterator that yields one envelope per message instead of bytes. When the content type is enveloped, the wrapper reads the first envelope as the returned context manager is entered (inside ConnectRPC's call timeout), signs it, and sends the request at once; the body replays that envelope and then forwards the rest of the iterator unbuffered. So a client-streaming request goes out only when its first message is available: send a message (or close the stream) before waiting for a response. Other iterator bodies (gRPC-Web) are read in full and signed whole. Bidirectional streams are not supported.
+**Streaming requests:** for client- and server-streaming calls, and for every gRPC call (unary included), ConnectRPC passes `stream()` an iterator that yields one envelope per message instead of bytes. The wrapper reads the first envelope as the returned context manager is entered (inside ConnectRPC's call timeout), signs it, and sends the request at once; the body replays that envelope and then forwards the rest of the iterator unbuffered. So a client-streaming request goes out only when its first message is available: send a message (or close the stream) before waiting for a response. A gRPC(-Web) unary body is one envelope, so for it the first envelope is the whole body. Bidirectional streams are not supported.
 
 **Wrapper pattern (not subclass):** `pyqwest.Client` is backed by a Rust FFI implementation. Subclassing Rust-backed Python objects is fragile and may produce undefined behavior. The wrapper pattern -- creating a class that holds a reference to the real client and delegates method calls -- is the safe and proven approach. This mirrors Go SDK's `SigningTransport` wrapping `http.RoundTripper`.
 
@@ -675,10 +675,9 @@ What `body` is depends on the call:
 | `get()` | -- | `b""` |
 | `post()` (Connect unary) | bytes | Whole body |
 | `stream()` | bytes | Whole body |
-| `stream()`, enveloped content type (Connect streaming, gRPC incl. unary) | (async) iterator | First envelope as sent |
-| `stream()`, any other content type (gRPC-Web) | (async) iterator | Whole body, read in full |
+| `stream()` (Connect streaming, gRPC(-Web) incl. unary) | (async) iterator | First envelope as sent |
 
-For the enveloped case `stream()` returns a context manager that, on enter, reads the iterator up to the end of its first envelope (ConnectRPC yields one envelope per chunk, but a split or merged chunk is handled), signs it, and enters the inner `stream()` with a body that yields that envelope, any bytes read past it, then the rest of the iterator. pyqwest closes only the body it is given, so closing that body closes ConnectRPC's iterator. A body that ends before its first envelope is complete is signed as it is (`b""` for an empty client stream) and sent; the network rejects it. The sync variant deducts the wait for the first message from the `timeout` it passes on, so the call's deadline covers that wait as asyncio's does in the async variant.
+For an iterator body `stream()` returns a context manager that, on enter, takes the first chunk of the iterator, signs it, and enters the inner `stream()` with a body that yields that chunk, then the rest of the iterator. ConnectRPC yields one complete envelope per chunk; the first chunk is checked to be exactly one envelope (5 + the length in its prefix), and any other first chunk fails the call with `INTERNAL`, the iterator closed and nothing sent, so a change in that framing can never produce a wrong signature. pyqwest closes only the body it is given, so closing that body closes ConnectRPC's iterator. An empty client stream is signed over `b""` and sent; the network rejects it. The sync variant deducts the wait for the first message from the `timeout` it passes on, so the call's deadline covers that wait as asyncio's does in the async variant.
 
 #### 4.3.2 `client.py` -- Generic Client Factory
 
@@ -899,7 +898,7 @@ Tests are organized to mirror the SDK module structure under `sdk/tests/`:
 | `crypto/signer` | `test_signer.py` | 65-byte format, recovery byte range (0-1), sign-verify round-trip, cross-key |
 | `crypto/verifier` | `test_verifier.py` | 64/65-byte signatures, wrong key/digest, tampered signatures |
 | `network/signing` | `test_signing.py` | Header presence/format, signature verifiability, existing header preservation |
-| `network/signing` | `test_stream_signing.py` | Streams signed over the first envelope, sent before message 2, split/merged/empty first envelope, close forwarding, bytes and gRPC-Web bodies signed whole |
+| `network/signing` | `test_stream_signing.py` | Streams signed over the first envelope, sent before message 2, empty stream, first chunks that are not one envelope refused, close forwarding, bytes bodies signed whole |
 | `network/client` | `test_client_timeouts.py` | Unary default (gRPC unary too), stream default or none, per-call `timeout_ms`, validation |
 | `crypto` (vectors) | `test_cross_vectors.py` | Shared `cross_test/test_vectors.json` cases, incl. `stream_signing_cases` driven through both stream wrappers |
 | `provider/middleware` | `test_middleware.py` | All ASGI verification paths: valid, missing headers, invalid encoding, timestamp range, wrong key, bad signature, body size |

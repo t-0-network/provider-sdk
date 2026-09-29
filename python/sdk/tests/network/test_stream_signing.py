@@ -12,13 +12,15 @@ from contextlib import asynccontextmanager, contextmanager
 
 import pyqwest
 import pytest
+from connectrpc.code import Code
+from connectrpc.errors import ConnectError
 from t0_provider_sdk.common.headers import (
     SIGNATURE_HEADER,
     SIGNATURE_TIMESTAMP_HEADER,
 )
 from t0_provider_sdk.crypto.hash import legacy_keccak256
 from t0_provider_sdk.crypto.signer import new_signer_from_hex
-from t0_provider_sdk.network.signing import SigningClient, SigningSyncClient, _is_enveloped
+from t0_provider_sdk.network.signing import SigningClient, SigningSyncClient
 
 PRIVATE_KEY = "0x6b30303de7b26bfb1222b317a52113357f8bb06de00160b4261a2fef9c8b9bd8"
 SIGN_FN = new_signer_from_hex(PRIVATE_KEY)
@@ -131,36 +133,35 @@ def _send_sync(fake: _FakeSyncClient, content_type: str, content, timeout: float
         assert resp == "response"
 
 
-@pytest.mark.parametrize(
-    ("content_type", "enveloped"),
-    [
-        ("application/connect+proto", True),
-        ("application/connect+json", True),
-        ("application/grpc", True),
-        ("application/grpc+proto", True),
-        ("Application/GRPC+proto; charset=utf-8", True),
-        ("application/grpc-web", False),
-        ("application/grpc-web+proto", False),
-        ("application/proto", False),
-        ("application/json", False),
-        ("", False),
-    ],
-)
-def test_is_enveloped(content_type: str, enveloped: bool) -> None:
-    assert _is_enveloped(_headers(content_type)) is enveloped
-
-
-def test_is_enveloped_without_headers() -> None:
-    assert _is_enveloped(None) is False
-
-
-# (chunks the source yields, what the signature covers)
+# (chunks the source yields, what the signature covers). connectrpc yields one envelope per chunk.
 CHUNKINGS = {
     "one envelope per chunk": ([ENV1, ENV2, ENV3], ENV1),
-    "first envelope split across chunks": ([ENV1[:2], ENV1[2:7], ENV1[7:] + ENV2[:3], ENV2[3:], ENV3], ENV1),
-    "first envelope merged with the next": ([ENV1 + ENV2, ENV3], ENV1),
     "empty stream": ([], b""),
 }
+
+# First chunks that are not one complete envelope: the call fails and nothing is sent, rather than
+# signing bytes that are not the first envelope.
+BAD_FIRST_CHUNKS = {
+    "first envelope split across chunks": [ENV1[:7], ENV1[7:], ENV2],
+    "first envelope merged with the next": [ENV1 + ENV2, ENV3],
+    "partial prefix": [ENV1[:3]],
+    "empty first chunk": [b"", ENV1],
+}
+
+
+def _closing_source(chunks: list[bytes], events: list[str]):
+    try:
+        yield from chunks
+    finally:
+        events.append("source closed")
+
+
+async def _closing_asource(chunks: list[bytes], events: list[str]):
+    try:
+        for chunk in chunks:
+            yield chunk
+    finally:
+        events.append("source closed")
 
 
 @pytest.mark.asyncio
@@ -174,6 +175,15 @@ class TestSigningClientStream:
 
         _assert_signed_over(fake.headers, signed)
         assert fake.body == b"".join(chunks)
+
+    @pytest.mark.parametrize("chunking", BAD_FIRST_CHUNKS.keys())
+    async def test_refuses_a_first_chunk_that_is_not_one_envelope(self, chunking: str) -> None:
+        events: list[str] = []
+        fake = _FakeClient(events)
+        with pytest.raises(ConnectError) as exc:
+            await _send(fake, CONNECT_STREAM, _closing_asource(BAD_FIRST_CHUNKS[chunking], events))
+        assert exc.value.code == Code.INTERNAL
+        assert events == ["source closed"], "nothing is sent and the source is closed"
 
     async def test_sends_before_the_second_message(self) -> None:
         events: list[str] = []
@@ -245,12 +255,14 @@ class TestSigningClientStream:
         _assert_signed_over(fake.headers, body)
         assert fake.content is body
 
-    async def test_grpc_web_iterator_is_signed_whole(self) -> None:
+    async def test_any_iterator_body_is_signed_over_its_first_envelope(self) -> None:
+        """connectrpc passes every enveloped body as an iterator, gRPC-Web included; a gRPC-Web
+        unary body is one envelope, so this is the whole body."""
         fake = _FakeClient()
-        await _send(fake, "application/grpc-web+proto", _agen(ENV1, ENV2))
+        await _send(fake, "application/grpc-web+proto", _agen(ENV1))
 
-        _assert_signed_over(fake.headers, ENV1 + ENV2)
-        assert fake.content == ENV1 + ENV2
+        _assert_signed_over(fake.headers, ENV1)
+        assert fake.body == ENV1
 
 
 class TestSigningSyncClientStream:
@@ -263,6 +275,15 @@ class TestSigningSyncClientStream:
 
         _assert_signed_over(fake.headers, signed)
         assert fake.body == b"".join(chunks)
+
+    @pytest.mark.parametrize("chunking", BAD_FIRST_CHUNKS.keys())
+    def test_refuses_a_first_chunk_that_is_not_one_envelope(self, chunking: str) -> None:
+        events: list[str] = []
+        fake = _FakeSyncClient(events)
+        with pytest.raises(ConnectError) as exc:
+            _send_sync(fake, CONNECT_STREAM, _closing_source(BAD_FIRST_CHUNKS[chunking], events))
+        assert exc.value.code == Code.INTERNAL
+        assert events == ["source closed"], "nothing is sent and the source is closed"
 
     def test_sends_before_the_second_message(self) -> None:
         events: list[str] = []
@@ -378,9 +399,9 @@ class TestSigningSyncClientStream:
         assert fake.content is body
         assert fake.timeout == 5.0
 
-    def test_grpc_web_iterator_is_signed_whole(self) -> None:
+    def test_any_iterator_body_is_signed_over_its_first_envelope(self) -> None:
         fake = _FakeSyncClient()
-        _send_sync(fake, "application/grpc-web+proto", iter([ENV1, ENV2]))
+        _send_sync(fake, "application/grpc-web+proto", iter([ENV1]))
 
-        _assert_signed_over(fake.headers, ENV1 + ENV2)
-        assert fake.content == ENV1 + ENV2
+        _assert_signed_over(fake.headers, ENV1)
+        assert fake.body == ENV1
