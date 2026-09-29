@@ -14,21 +14,21 @@ export function createClient<T extends DescService>(signer: string | Buffer | ((
     const sign: SignerFunction = typeof signer === "string" || Buffer.isBuffer(signer) ? CreateSigner(signer) : signer;
 
     const useBinaryFormat = opts?.useBinaryFormat ?? true;
-    const unaryTimeoutMs = timeoutOption("unaryTimeoutMs", opts?.unaryTimeoutMs, DEFAULT_UNARY_TIMEOUT_MS);
-    const streamTimeoutMs = timeoutOption("streamTimeoutMs", opts?.streamTimeoutMs, undefined);
+    const unaryTimeoutMs = timeout("timeoutMs", opts?.timeoutMs) ?? DEFAULT_TIMEOUT_MS;
+    const streamTimeoutMs = timeout("streamTimeoutMs", opts?.streamTimeoutMs) ?? DEFAULT_STREAM_TIMEOUT_MS;
     const unaryTransport = createTransport(transportOptions(sign, endpoint, unaryTimeoutMs, useBinaryFormat));
     const streamTransport = createTransport(transportOptions(sign, endpoint, streamTimeoutMs, useBinaryFormat));
 
     // async: a refused call fails where the call's result is awaited, and nothing is sent.
     return createConnectClient(svc, {
         unary: async (method, signal, timeoutMs, header, input, contextValues) =>
-            unaryTransport.unary(method, signal, callTimeout(timeoutMs), header, input, contextValues),
+            unaryTransport.unary(method, signal, timeout("timeoutMs", timeoutMs), header, input, contextValues),
         stream: async (method, signal, timeoutMs, header, input, contextValues) => {
             // Policy: the network accepts no bidi streams (#370); over HTTP/1.1 they could not interleave anyway.
             if (method.methodKind === "bidi_streaming") {
                 throw new ConnectError("bidirectional streams are not supported", Code.Unimplemented);
             }
-            return streamTransport.stream(method, signal, callTimeout(timeoutMs), header, input, contextValues);
+            return streamTransport.stream(method, signal, timeout("timeoutMs", timeoutMs), header, input, contextValues);
         },
     });
 }
@@ -52,30 +52,26 @@ export function transportOptions(signer: SignerFunction, endpoint: string, timeo
     };
 }
 
-// As in the other SDKs.
-const DEFAULT_UNARY_TIMEOUT_MS = 15_000;
+const DEFAULT_TIMEOUT_MS = 15_000;
+const DEFAULT_STREAM_TIMEOUT_MS = 300_000;
 
-// undefined: the default; 0: no timeout. Node's timers fire at once from 2^31 ms, Infinity included.
+// Node's timers fire at once from 2^31 ms, Infinity included.
 const MAX_TIMEOUT_MS = 2 ** 31 - 1;
 
-function timeoutOption(name: string, ms: number | undefined, byDefault: number | undefined): number | undefined {
+/**
+ * A timeout in ms, or undefined when none is given (the default applies). Anything else that is
+ * not a positive number up to MAX_TIMEOUT_MS is refused: 0, a negative value or null would mean
+ * no deadline, and NaN or a larger value would end the call at once.
+ */
+function timeout(name: string, ms: number | undefined): number | undefined {
     if (ms === undefined) {
-        return byDefault;
+        return undefined;
     }
-    return checkTimeout(name, ms) === 0 ? undefined : ms;
-}
-
-// A call's own timeoutMs: undefined keeps the transport's default.
-function callTimeout(ms: number | undefined): number | undefined {
-    return ms === undefined ? undefined : checkTimeout("timeoutMs", ms);
-}
-
-// typeof: null from JavaScript would pass the comparisons and end every call at once.
-function checkTimeout(name: string, ms: number): number {
-    if (typeof ms !== "number" || !(ms >= 0 && ms <= MAX_TIMEOUT_MS)) {
-        throw new RangeError(`${name} must be 0 (no timeout) or a number of milliseconds up to ${MAX_TIMEOUT_MS}, got ${ms}`);
+    if (typeof ms !== "number" || !(ms > 0 && ms <= MAX_TIMEOUT_MS)) {
+        throw new RangeError(`${name} must be a positive duration of at most ${MAX_TIMEOUT_MS} ms`);
     }
-    return ms;
+    // Connect-Timeout-Ms is a whole number of ms; a server refuses "1000.5".
+    return Math.ceil(ms);
 }
 
 /**
@@ -83,13 +79,14 @@ function checkTimeout(name: string, ms: number): number {
  */
 export interface ClientOptions {
     /**
-     * Deadline of each unary call in ms, at most 2^31 − 1; `0` for none. A call's own `timeoutMs` overrides it.
-     * Default: 15_000.
+     * Deadline of each unary call in ms: greater than 0, at most 2^31 − 1. A call's own `timeoutMs`
+     * replaces it. Default: 15_000.
      */
-    unaryTimeoutMs?: number;
+    timeoutMs?: number;
     /**
      * Deadline of each client- or server-streaming call in ms, including the wait for the first
-     * request message; `0` for none. A call's own `timeoutMs` overrides it. Default: none.
+     * request message: greater than 0, at most 2^31 − 1. A call's own `timeoutMs` replaces it.
+     * Default: 300_000 (5 minutes).
      */
     streamTimeoutMs?: number;
     /** Binary Protobuf (default) or, when false, Connect JSON. Either is signed over the bytes as sent. */

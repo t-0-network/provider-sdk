@@ -4,7 +4,7 @@ import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { Code, createConnectRouter, type ServiceImpl } from '@connectrpc/connect';
 import { universalRequestFromNodeRequest, universalResponseToNodeResponse } from '@connectrpc/connect-node';
-import { createClient, type ClientOptions } from '../src/client/client.js';
+import { createClient } from '../src/client/client.js';
 import { computeDigest, NetworkHeaders, parsePublicKey, publicKeysEqual, verifySignature } from '../src/crypto/index.js';
 import { StreamTest, isCode, newKeypair, stringValues } from './stream_helpers.js';
 
@@ -303,7 +303,7 @@ describe('createClient routes unary and streaming calls to their own transport',
 
   it('timeouts are applied per transport', async () => {
     await withServer(async (srv, key) => {
-      const client = createClient(key.privateKeyHex, srv.url, StreamTest, { unaryTimeoutMs: 4_321, streamTimeoutMs: 8_765 });
+      const client = createClient(key.privateKeyHex, srv.url, StreamTest, { timeoutMs: 4_321, streamTimeoutMs: 8_765 });
       await client.unary({ value: 'u' });
       await client.clientStream(stringValues('c'));
       for await (const _ of client.serverStream({ value: 's' })) { /* drain */ }
@@ -316,53 +316,64 @@ describe('createClient routes unary and streaming calls to their own transport',
     });
   });
 
-  it('by default unary calls time out after 15 s and streams do not', async () => {
+  it('by default unary calls time out after 15 s and streams after 5 minutes', async () => {
     await withServer(async (srv, key) => {
       const client = createClient(key.privateKeyHex, srv.url, StreamTest);
       await client.unary({ value: 'u' });
       await client.clientStream(stringValues('c'));
 
-      assert.deepEqual(srv.checks.map((c) => c.timeoutMs), ['15000', null]);
+      assert.deepEqual(srv.checks.map((c) => c.timeoutMs), ['15000', '300000']);
     });
   });
 
-  it('a timeout of 0 is none', async () => {
+  it('a call timeoutMs replaces the default, shorter or longer', async () => {
     await withServer(async (srv, key) => {
-      const client = createClient(key.privateKeyHex, srv.url, StreamTest, { unaryTimeoutMs: 0, streamTimeoutMs: 0 });
+      const client = createClient(key.privateKeyHex, srv.url, StreamTest);
+      await client.unary({ value: 'u' }, { timeoutMs: 20_000 });
+      await client.clientStream(stringValues('c'), { timeoutMs: 1_000 });
+
+      assert.deepEqual(srv.checks.map((c) => c.timeoutMs), ['20000', '1000']);
+    });
+  });
+
+  it('a fractional timeout is rounded up to whole milliseconds', async () => {
+    await withServer(async (srv, key) => {
+      const client = createClient(key.privateKeyHex, srv.url, StreamTest, { timeoutMs: 4_320.2, streamTimeoutMs: 8_764.5 });
       await client.unary({ value: 'u' });
       await client.clientStream(stringValues('c'));
+      await client.unary({ value: 'u' }, { timeoutMs: 999.1 });
 
-      assert.deepEqual(srv.checks.map((c) => c.timeoutMs), [null, null]);
+      assert.deepEqual(srv.checks.map((c) => c.timeoutMs), ['4321', '8765', '1000']);
     });
   });
 
-  it('a timeout that is negative, NaN, or too large for a Node timer is refused', () => {
-    // From 2^31 ms (Infinity included) Node fires a timer at once: every call would fail at once.
-    for (const ms of [-1, NaN, Infinity, 2 ** 31]) {
-      for (const opts of [{ unaryTimeoutMs: ms }, { streamTimeoutMs: ms }]) {
-        assert.throws(() => createClient(newKeypair().privateKeyHex, 'http://127.0.0.1:9', StreamTest, opts), RangeError);
+  // 0, a negative value and null would mean no deadline; NaN and values from 2^31 ms (Infinity
+  // included) make Node fire the timer at once, so every call would fail at once.
+  const notTimeouts = [0, -1, NaN, null, Infinity, 2 ** 31] as number[];
+
+  it('a timeout that is not positive, not a number, or too large for a Node timer is refused', () => {
+    for (const ms of notTimeouts) {
+      for (const [name, opts] of [['timeoutMs', { timeoutMs: ms }], ['streamTimeoutMs', { streamTimeoutMs: ms }]] as const) {
+        assert.throws(() => createClient(newKeypair().privateKeyHex, 'http://127.0.0.1:9', StreamTest, opts), {
+          name: 'RangeError',
+          message: `${name} must be a positive duration of at most 2147483647 ms`,
+        });
       }
     }
-    assert.doesNotThrow(() => createClient(newKeypair().privateKeyHex, 'http://127.0.0.1:9', StreamTest, { unaryTimeoutMs: 2 ** 31 - 1 }));
+    assert.doesNotThrow(() => createClient(newKeypair().privateKeyHex, 'http://127.0.0.1:9', StreamTest, { timeoutMs: 2 ** 31 - 1, streamTimeoutMs: 2 ** 31 - 1 }));
   });
 
-  it('a timeout of null is refused', () => {
-    // null passes `>= 0` and `<= max`, and a null deadline ends every call at once.
-    for (const opts of [{ unaryTimeoutMs: null }, { streamTimeoutMs: null }]) {
-      assert.throws(() => createClient(newKeypair().privateKeyHex, 'http://127.0.0.1:9', StreamTest, opts as unknown as ClientOptions), RangeError);
-    }
-  });
-
-  it('a call timeoutMs that is negative, NaN, null, or too large for a Node timer is refused, and nothing is sent', async () => {
+  it('a call timeoutMs that is not positive, not a number, or too large for a Node timer is refused, and nothing is sent', async () => {
     await withServer(async (srv, key) => {
       const client = createClient(key.privateKeyHex, srv.url, StreamTest);
       const drain = async (stream: AsyncIterable<unknown>) => {
         for await (const _ of stream) { /* drain */ }
       };
-      for (const timeoutMs of [-1, NaN, null, Infinity, 2 ** 31] as number[]) {
-        await assert.rejects(client.unary({ value: 'u' }, { timeoutMs }), RangeError);
-        await assert.rejects(client.clientStream(stringValues('c'), { timeoutMs }), RangeError);
-        await assert.rejects(drain(client.serverStream({ value: 's' }, { timeoutMs })), RangeError);
+      const refused = { name: 'RangeError', message: 'timeoutMs must be a positive duration of at most 2147483647 ms' };
+      for (const timeoutMs of notTimeouts) {
+        await assert.rejects(client.unary({ value: 'u' }, { timeoutMs }), refused);
+        await assert.rejects(client.clientStream(stringValues('c'), { timeoutMs }), refused);
+        await assert.rejects(drain(client.serverStream({ value: 's' }, { timeoutMs })), refused);
       }
       assert.equal(srv.checks.length, 0, 'nothing is sent');
     });
