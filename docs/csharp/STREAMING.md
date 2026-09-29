@@ -48,8 +48,9 @@ Details:
 - **Headers**: copied from the original content except `Content-Length`, which `TryComputeLength` reports
   when the source knew it (e.g. `ByteArrayContent`); otherwise the length is unknown.
 - **Re-send**: `SocketsHttpHandler` serializes content again when an HTTP/2 stream is refused. That works
-  while nothing after the first frame has been forwarded. Once later frames were forwarded, a second send
-  throws `InvalidOperationException`.
+  until the first frame is written and flushed and forwarding of the rest begins, so a failed write of the
+  first frame leaves the content re-sendable. After that, a second send throws `InvalidOperationException`,
+  unless nothing followed the first frame.
 
 ### Error paths
 
@@ -61,6 +62,7 @@ Details:
 | Source faults after the first frame | The fault surfaces from sending the body; the request is already signed and sent |
 | Inner handler fails before reading the body (e.g. connection refused) | The handler calls `Abort`, which completes the pipe reader with the exception, so the source's pending and later writes fail instead of hanging on a full pipe |
 | Transport fails while forwarding the rest | Same: the pipe reader is completed with that exception |
+| Transport fails writing the first frame (e.g. a refused HTTP/2 stream) | The pipe is left as is, so the content can be sent again; if the request fails, `Abort` as above |
 | Cancelled while waiting for the first frame | `OperationCanceledException`; the source's writes fail with it; nothing sent |
 | Content disposed before sending the rest | `Abort` with `ObjectDisposedException` |
 
@@ -86,10 +88,11 @@ gRPC call metadata, with lower-case names) would become a second value and make 
     `ArgumentOutOfRangeException` from the constructor, which reads the options once.
   - The deadline bounds the whole call, from the start of the request to the end of the response, and is
     sent to the server as `grpc-timeout`. For a client stream it also bounds the wait for the first message.
-- **Where it applies**: `NetworkClient.CreateNetworkServiceClient` and
-  `CreatePaymentIntentNetworkServiceClient` install it (with `RequestValidationInterceptor`). A raw
-  `GrpcChannel` from `Create` / `CreateChannel` has no interceptor: set `CallOptions.Deadline` per call or
-  wrap it with `channel.Intercept(new DefaultDeadlineInterceptor(options))`.
+- **Where it applies**: only `DefaultDeadlineInterceptor` reads `Timeout` and `StreamTimeout`.
+  `NetworkClient.CreateNetworkServiceClient` and `CreatePaymentIntentNetworkServiceClient` install it with
+  default options (and `RequestValidationInterceptor`). A raw `GrpcChannel` from `Create` / `CreateChannel`
+  has no interceptor, so the options' timeouts are not applied: set `CallOptions.Deadline` per call or wrap
+  it with `channel.Intercept(new DefaultDeadlineInterceptor(options))`.
 
 ## Bidirectional streams are refused
 
@@ -109,7 +112,8 @@ All in `csharp/sdk/T0.ProviderSdk.Tests/`.
 
 - a client stream reaches the transport, signed over frame 1, before frame 2 is written; it cannot be re-sent
 - a 100 000-byte first message; a first frame split inside its prefix and its payload; an empty stream
-- re-send of a single-frame body; a known `Content-Length` kept; non-gRPC content types signed whole
+- re-send of a single-frame body, and of a client stream whose first-frame write failed; a known
+  `Content-Length` kept; non-gRPC content types signed whole
 - source faults before and after the first frame; truncated prefix or payload; an oversize length
 - transport failure and cancellation make the source's pending writes fail
 - signature headers already on the request are replaced

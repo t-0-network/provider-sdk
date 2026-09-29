@@ -10,8 +10,8 @@ namespace T0.ProviderSdk.Network;
 /// of the original content through a pipe as it is written, unbuffered.
 /// </summary>
 /// <remarks>
-/// Can be sent again (SocketsHttpHandler does on a refused HTTP/2 stream) only while nothing after
-/// the first frame has been forwarded. See docs/csharp/STREAMING.md.
+/// Can be sent again (SocketsHttpHandler does on a refused HTTP/2 stream) until it has written the
+/// first frame and starts forwarding the rest. See docs/csharp/STREAMING.md.
 /// </remarks>
 internal sealed class FirstFrameThenPipeContent : HttpContent
 {
@@ -89,20 +89,23 @@ internal sealed class FirstFrameThenPipeContent : HttpContent
     protected override async Task SerializeToStreamAsync(Stream stream, TransportContext? context, CancellationToken cancellationToken)
     {
         var rest = _rest;
-        if (rest is not null && Interlocked.CompareExchange(ref _state, StateForwarding, StateIdle) != StateIdle)
-        {
-            throw new InvalidOperationException(
-                "The request body of a streaming call cannot be sent again once its later messages were sent.");
-        }
+        var state = Volatile.Read(ref _state);
+        if (rest is not null && state != StateIdle)
+            throw CannotSend(state);
+
+        // A failure here leaves the rest untouched, so the content can be sent again.
+        await stream.WriteAsync(_firstFrame, cancellationToken).ConfigureAwait(false);
+        await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
+        if (rest is null)
+            return;
+
+        state = Interlocked.CompareExchange(ref _state, StateForwarding, StateIdle);
+        if (state != StateIdle)
+            throw CannotSend(state);
 
         var forwardedRest = false;
         try
         {
-            await stream.WriteAsync(_firstFrame, cancellationToken).ConfigureAwait(false);
-            await stream.FlushAsync(cancellationToken).ConfigureAwait(false);
-            if (rest is null)
-                return;
-
             while (true)
             {
                 var result = await rest.ReadAsync(cancellationToken).ConfigureAwait(false);
@@ -120,7 +123,7 @@ internal sealed class FirstFrameThenPipeContent : HttpContent
                     break;
             }
         }
-        catch (Exception ex) when (rest is not null)
+        catch (Exception ex)
         {
             // Fail the original content's pending and later writes.
             await rest.CompleteAsync(ex).ConfigureAwait(false);
@@ -218,4 +221,9 @@ internal sealed class FirstFrameThenPipeContent : HttpContent
             throw new InvalidOperationException($"gRPC request message of {length} bytes is too large to sign.");
         return (int)length;
     }
+
+    private static InvalidOperationException CannotSend(int state) => state == StateClosed
+        ? new InvalidOperationException("The request body of a streaming call cannot be sent: the request was aborted.")
+        : new InvalidOperationException(
+            "The request body of a streaming call cannot be sent again once forwarding of its later messages has started.");
 }

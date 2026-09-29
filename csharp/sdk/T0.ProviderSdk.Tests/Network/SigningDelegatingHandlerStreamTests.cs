@@ -1,3 +1,4 @@
+using System.Net;
 using System.Text;
 using T0.ProviderSdk.Common;
 using T0.ProviderSdk.Crypto;
@@ -135,6 +136,32 @@ public class SigningDelegatingHandlerStreamTests
         await request.Content!.CopyToAsync(resent);
         Assert.Equal(frame, inner.Body.ToArray());
         Assert.Equal(frame, resent.ToArray());
+    }
+
+    [Fact]
+    public async Task FirstFrameWriteFails_ContentCanBeSentAgain()
+    {
+        var frame1 = Frame("m1");
+        var frame2 = Frame("m2");
+        var inner = new RetryingHandler();
+        var source = new PushContent(async stream =>
+        {
+            await stream.WriteAsync(frame1);
+            await stream.FlushAsync();
+            await inner.FirstAttempt.Task;
+            await stream.WriteAsync(frame2);
+            await stream.FlushAsync();
+        });
+        var handler = new SigningDelegatingHandler(Signer.FromHex(TestPrivateKey), new FixedTimeProvider(FixedTime))
+        {
+            InnerHandler = inner
+        };
+        using var client = new HttpClient(handler);
+
+        using var response = await client.SendAsync(Post(source)).WithTimeout();
+
+        Assert.True(HasInChain<IOException>(await inner.FirstAttempt.Task));
+        Assert.Equal([.. frame1, .. frame2], inner.Body.ToArray());
     }
 
     [Fact]
@@ -346,5 +373,42 @@ public class SigningDelegatingHandlerStreamTests
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request, CancellationToken cancellationToken) =>
             Task.FromException<HttpResponseMessage>(new HttpRequestException("connection refused"));
+    }
+
+    /// <summary>
+    /// A transport that serializes the body into a stream that fails, then again, as SocketsHttpHandler
+    /// does when an HTTP/2 stream is refused.
+    /// </summary>
+    private sealed class RetryingHandler : HttpMessageHandler
+    {
+        public TaskCompletionSource<Exception?> FirstAttempt { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public MemoryStream Body { get; } = new();
+
+        protected override async Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            var content = request.Content!;
+            Exception? failure = null;
+            try
+            {
+                await content.CopyToAsync(new RefusedStream(), cancellationToken);
+            }
+            catch (Exception ex)
+            {
+                failure = ex;
+            }
+            FirstAttempt.SetResult(failure);
+
+            await content.CopyToAsync(Body, cancellationToken);
+            return new HttpResponseMessage(HttpStatusCode.OK);
+        }
+    }
+
+    private sealed class RefusedStream : MemoryStream
+    {
+        public override ValueTask WriteAsync(ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default) =>
+            ValueTask.FromException(new IOException("the HTTP/2 stream was refused"));
     }
 }
