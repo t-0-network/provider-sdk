@@ -5,6 +5,7 @@ Proto-agnostic: works with ANY generated ConnectRPC client class.
 
 from __future__ import annotations
 
+import contextlib
 import functools
 import ipaddress
 import math
@@ -25,7 +26,7 @@ from t0_provider_sdk.network.options import (
     Protocol,
     WireFormat,
 )
-from t0_provider_sdk.network.signing import SigningClient, SigningSyncClient, _shared_transport
+from t0_provider_sdk.network.signing import SigningClient, SigningSyncClient, _aclose, _close, _shared_transport
 
 if TYPE_CHECKING:
     from collections.abc import Callable
@@ -93,6 +94,7 @@ def new_service_client(
     signing_client = SigningClient(sign_fn or new_signer_from_hex(private_key), transport=transport)
     client = client_class(base_url, http_client=signing_client, **_client_kwargs(wire_format, protocol))  # type: ignore[call-arg]
     _set_default_timeouts(client, unary_ms, stream_ms)
+    _close_client_stream_requests(client, sync=False)
     _reject_bidi_streams(client)
     return client
 
@@ -133,6 +135,7 @@ def new_service_client_sync(
     signing_client = SigningSyncClient(sign_fn or new_signer_from_hex(private_key), transport=transport)
     client = client_class(base_url, http_client=signing_client, **_client_kwargs(wire_format, protocol))  # type: ignore[call-arg]
     _set_default_timeouts(client, unary_ms, stream_ms)
+    _close_client_stream_requests(client, sync=True)
     _reject_bidi_streams(client)
     return client
 
@@ -225,6 +228,87 @@ def _set_default_timeouts(client: object, unary_ms: int, stream_ms: int) -> None
         execute = getattr(client, name, None)
         if execute is not None:
             setattr(client, name, _with_default_timeout(execute, stream_ms if streaming else unary_ms))
+
+
+def _close_client_stream_requests(client: object, *, sync: bool) -> None:
+    """Ends the caller's request iterator with the call. connectrpc does not close it, so after an
+    early failure it would stay open until garbage collection, and a sync transport would go on
+    pulling messages from it in its writer thread."""
+    execute = getattr(client, "execute_client_stream", None)
+    if execute is not None:
+        wrap = _with_closing_request_sync if sync else _with_closing_request
+        setattr(client, "execute_client_stream", wrap(execute))  # noqa: B010
+
+
+def _with_closing_request(execute: Callable[..., Any]) -> Callable[..., Any]:
+    @functools.wraps(execute)
+    async def execute_client_stream(*args: Any, request: Any, **kwargs: Any) -> Any:
+        messages = _CallRequest(request)
+        try:
+            return await execute(*args, request=messages, **kwargs)
+        finally:
+            await messages.finish()
+
+    return execute_client_stream
+
+
+def _with_closing_request_sync(execute: Callable[..., Any]) -> Callable[..., Any]:
+    @functools.wraps(execute)
+    def execute_client_stream(*args: Any, request: Any, **kwargs: Any) -> Any:
+        messages = _CallRequestSync(request)
+        try:
+            return execute(*args, request=messages, **kwargs)
+        finally:
+            messages.finish()
+
+    return execute_client_stream
+
+
+class _CallRequest:
+    """The caller's request messages, ended and closed when the call ends."""
+
+    def __init__(self, request: Any) -> None:
+        self._source = aiter(request)
+        self._done = False
+
+    def __aiter__(self) -> _CallRequest:
+        return self
+
+    async def __anext__(self) -> Any:
+        if self._done:
+            await _aclose(self._source)
+            raise StopAsyncIteration
+        return await anext(self._source)
+
+    async def finish(self) -> None:
+        self._done = True
+        # RuntimeError: the transport is inside it right now; its next pull closes it.
+        with contextlib.suppress(RuntimeError):
+            await _aclose(self._source)
+
+
+class _CallRequestSync:
+    """Sync variant of _CallRequest. The transport's writer thread may be inside the source when the
+    call ends; then it is closed from that thread at the next pull, which stops there."""
+
+    def __init__(self, request: Any) -> None:
+        self._source = iter(request)
+        self._done = False
+
+    def __iter__(self) -> _CallRequestSync:
+        return self
+
+    def __next__(self) -> Any:
+        if self._done:
+            _close(self._source)
+            raise StopIteration
+        return next(self._source)
+
+    def finish(self) -> None:
+        self._done = True
+        # ValueError: the writer thread entered it between the check in _close and the close.
+        with contextlib.suppress(ValueError):
+            _close(self._source)
 
 
 def _reject_bidi_streams(client: object) -> None:

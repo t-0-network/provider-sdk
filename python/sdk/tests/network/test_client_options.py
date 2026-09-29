@@ -107,6 +107,7 @@ class TestBaseURL:
             "https://api.t-0.network/v1",
             "https://api.t-0.network?x",
             "https://api.t-0.network#x",
+            "http://[:::]:8080",
         ],
     )
     @pytest.mark.parametrize("factory", FACTORIES)
