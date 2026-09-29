@@ -421,7 +421,7 @@ sequenceDiagram
     CC-->>App: Deserialized response
 ```
 
-**Streaming requests:** ConnectRPC hands `stream()` an iterator of envelopes. For an enveloped request the wrapper signs the first envelope as soon as it is available, sends at once and forwards the rest unbuffered; see [docs/STREAMING.md](../STREAMING.md#when-the-request-is-sent).
+**Streaming requests:** ConnectRPC hands `stream()` an iterator of envelopes, one per message. The wrapper signs the first envelope as soon as it is available, sends at once and forwards the rest unbuffered; see [docs/STREAMING.md](../STREAMING.md#when-the-request-is-sent).
 
 **Wrapper pattern (not subclass):** the wrapper holds the real client and delegates to it. ConnectRPC calls only `get()`, `post()` and `stream()`, so the wrapper covers everything it uses and nothing else of `pyqwest.Client` leaks through.
 

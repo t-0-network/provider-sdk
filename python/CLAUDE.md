@@ -117,7 +117,7 @@ Runtime version: `_version.py` (`__version__`). Full details: [`docs/VERSIONING.
 - **Raw bytes:** Signature verification and signing always use original wire bytes, never re-serialized protobuf (see critical requirement above)
 - **Two-phase verification:** ASGI/WSGI middleware (raw bytes) → `contextvars.ContextVar` → ConnectRPC interceptor (error codes). Do not collapse into a single layer.
 - **Wrapper pattern:** `SigningClient` wraps `pyqwest.Client` via delegation, not a subclass: ConnectRPC calls only `get()`, `post()` and `stream()` on it, and each of them is signed or refused in the wrapper.
-- **What is signed:** `application/connect+*`, `application/grpc` and `application/grpc+*` requests over their first envelope as sent; a Connect unary body (`post()`) whole.
+- **What is signed is chosen by entry point, not by content type:** `stream()` (Connect streams and every gRPC call) over its first envelope as sent; `post()` (Connect unary) over the whole body.
 - **Streaming signs the first message and sends at once, never buffered.** The first chunk is checked to be exactly one envelope: one that ends early fails with `INVALID_ARGUMENT` ("streaming request ends inside its first message"), one that holds more fails with `INTERNAL`, and neither is signed. Details: [`docs/STREAMING.md`](../docs/STREAMING.md).
 - **Proto-agnostic:** `handler()`/`handler_sync()` and `new_service_client()`/`new_service_client_sync()` accept any generated ConnectRPC class. Do not add service-specific logic to these functions.
 
