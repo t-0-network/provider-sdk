@@ -223,6 +223,7 @@ func TestNewServiceClient_ValidationErrors(t *testing.T) {
 		"http:foo", "http://h:99999", "http://h:0", "not a url", "http://my_host:8080",
 		"http://user@h", "http://h:", "http://bücher.example",
 		"https://api.t-0.network/v1", "https://api.t-0.network?x", "https://api.t-0.network#x",
+		"http://[:::]:8080",
 	} {
 		t.Run(fmt.Sprintf("base URL %q is refused", bad), func(t *testing.T) {
 			_, err := NewServiceClient("", factory, WithSignatureFunction(testSignFn(t)), WithBaseURL(bad))

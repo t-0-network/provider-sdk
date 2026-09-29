@@ -54,6 +54,7 @@ public class NetworkClientOptionsTests
     [InlineData("http://bücher.example")]
     [InlineData("http://user@h")]
     [InlineData("http://h:")]
+    [InlineData("http://[:::]:8080")] // not an IPv6 address
     [InlineData("https://api.t-0.network/v1")]
     [InlineData("https://api.t-0.network/v1/")]
     [InlineData("https://api.t-0.network?x")]
