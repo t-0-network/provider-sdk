@@ -31,6 +31,10 @@ node/
 - Trusted publishing uses OIDC (`id-token: write` permission) — no npm tokens needed
 - Trusted publisher config on npmjs.com must point to repo `t-0-network/provider-sdk` and the correct workflow/environment
 
+## Dependencies on the signing path
+
+`@connectrpc/connect`, `@connectrpc/connect-node` and `@connectrpc/connect-web` are pinned to one exact version (no `^`). The stream transport (`sdk/src/common/client/`) signs the envelopes connect-es builds and relies on its `@private` `CommonTransportOptions`, so consumers must only ever get a version our CI has tested. Bump the three together, as a Tier 3 update ([`.claude/skills/dependency-update/SKILL.md`](../.claude/skills/dependency-update/SKILL.md)); `test/streaming.test.ts` holds the guard test.
+
 ## Versioning
 
 Runtime version constant: `src/version.ts` (`SDK_VERSION`). Full details: [`docs/VERSIONING.md`](../docs/VERSIONING.md).

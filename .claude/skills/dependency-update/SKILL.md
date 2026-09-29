@@ -32,19 +32,20 @@ Everything non-crypto — dev-only, routine, and behavior/strictness bumps alike
 Dependabot's `ci-batch` entries use allowlist `patterns` in `.github/dependabot.yml`. A newly added non-crypto dependency is not in any allowlist, so Dependabot raises it as a solo PR (one dependency, one directory). Once you confirm it is non-crypto, add it to the matching ecosystem's `patterns` list so future bumps land in the batch.
 
 The crypto exclusion list (never add to any allowlist):
-`golang.org/x/crypto`, `github.com/btcsuite/*`, `github.com/decred/*`, `@noble/*`, `coincurve`, `pycryptodome`, `org.bouncycastle:*`, `BouncyCastle.Cryptography`
+`golang.org/x/crypto`, `github.com/btcsuite/*`, `github.com/decred/*`, `@noble/*`, `coincurve`, `pycryptodome`, `org.bouncycastle:*`, `BouncyCastle.Cryptography`, `@connectrpc/connect`, `@connectrpc/connect-node`, `@connectrpc/connect-web`
 
 ### Tier 3 — crypto / security path
 
 Identification is principle-based, not a hard-coded list — a future crypto dep must not silently slip into Tier 1. A dep is Tier 3 if **any** of these hold:
 
-- It is imported (directly or transitively reachable) by code that produces or verifies the request signature, computes the request digest, derives keys, or validates the signature timestamp. Trace from the per-language signer/verifier entry points: `go/crypto/`, `cli/keygen.go`, `node/sdk/src/client/signer.ts` + `node/sdk/src/service/service.ts`, `python/sdk/src/.../crypto/`, `java/sdk/src/main/java/.../crypto/`, `csharp/sdk/T0.ProviderSdk/Crypto/`.
+- It is imported (directly or transitively reachable) by code that produces or verifies the request signature, computes the request digest, derives keys, or validates the signature timestamp. Trace from the per-language signer/verifier entry points: `go/crypto/`, `cli/keygen.go`, `node/sdk/src/client/signer.ts` + `node/sdk/src/service/service.ts` + `node/sdk/src/common/client/` (the signing transports), `python/sdk/src/.../crypto/`, `java/sdk/src/main/java/.../crypto/`, `csharp/sdk/T0.ProviderSdk/Crypto/`.
+- It builds the bytes a client signs. The Node SDK's stream transport signs the first envelope that `@connectrpc/connect` builds, through its `@private` `CommonTransportOptions`; `@connectrpc/connect`, `@connectrpc/connect-node` and `@connectrpc/connect-web` are pinned to one exact version in `node/sdk/package.json` and bumped together in one PR (they peer-depend on each other's exact version). Beyond the vector consumers, re-run `node/sdk/test/streaming.test.ts` (including its `CommonTransportOptions` guard test) and `node/sdk/test/cross_stream.test.ts`.
 - It is consumed by tests under `cross_test/` or by the per-language consumers of `cross_test/test_vectors.json` listed in the reference table below.
 - The package self-describes as crypto, hash, signature, curve, kdf, mac, or rng (e.g. anything in `@noble/*`, `org.bouncycastle:*`, `golang.org/x/crypto`, `coincurve`, `BouncyCastle.Cryptography`, `secp256k1`-named libs, etc. — these are illustrative, not exhaustive).
 
 When unsure, treat as Tier 3.
 
-**Action:** the seven-step workflow below. One Tier 3 dep per PR (or a tightly-coupled pair like `@noble/curves` + `@noble/hashes`). PR #99 is the reference shape.
+**Action:** the seven-step workflow below. One Tier 3 dep per PR (or a tightly-coupled set like `@noble/curves` + `@noble/hashes`, or the three `@connectrpc/connect*` packages). PR #99 is the reference shape.
 
 ## Tier 3 workflow
 

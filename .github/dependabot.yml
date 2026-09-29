@@ -7,7 +7,12 @@
 #     workflow. Never add them to a pattern below:
 #       golang.org/x/crypto, github.com/btcsuite/*, github.com/decred/*,
 #       @noble/*, coincurve, pycryptodome,
-#       org.bouncycastle:*, BouncyCastle.Cryptography
+#       org.bouncycastle:*, BouncyCastle.Cryptography,
+#       @connectrpc/connect, @connectrpc/connect-node, @connectrpc/connect-web
+#     The Node SDK's stream transport signs the envelopes connect-es builds and
+#     uses its @private CommonTransportOptions, so those three are pinned exactly
+#     in node/sdk/package.json and bumped together (they peer-depend on each
+#     other's exact version) in one Tier 3 PR.
 #   * A new non-crypto dependency shows up as a solo PR until it is added to the
 #     matching allowlist.
 version: 2
@@ -63,7 +68,7 @@ updates:
       - dependency-name: "@t-0/provider-sdk"                       # release.yaml owns it
     patterns:
       - "@bufbuild/*"
-      - "@connectrpc/*"
+      - "@connectrpc/validate"                                     # not the connect* trio: Tier 3, see header
       - "@types/*"
       - "typescript"
       - "tsx"
