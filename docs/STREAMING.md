@@ -29,8 +29,6 @@ sent as the caller produces it and is never buffered.
 - A first message whose length prefix promises more bytes than arrive fails with `invalid argument`
   and the message "streaming request ends inside its first message". Other read errors keep their
   own code.
-- A length prefix alone never makes the client allocate more than 64 KiB. Beyond that the buffer
-  grows with the bytes that actually arrive.
 
 ## Bidirectional streams
 
