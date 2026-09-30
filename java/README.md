@@ -5,7 +5,7 @@ Java SDK for building T-0 Network payment provider integrations. The SDK provide
 ## Prerequisites
 
 - **Java** 17 or later
-- **Gradle** 8.x (or use the included Gradle wrapper)
+- **Gradle** 9.x (or use the included Gradle wrapper)
 
 ## Quick Start
 

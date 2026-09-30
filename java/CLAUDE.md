@@ -60,10 +60,12 @@ java/
 ├── sdk/                  # Core SDK library (published to Maven Central + JitPack)
 │   ├── src/main/java/    # Crypto, gRPC interceptors, client/server
 │   ├── src/main/proto/   # Protobuf definitions (generated code not committed)
-│   └── src/test/         # Tests + JMH benchmarks
-├── starter/template/     # Template project (scaffolded by the unified CLI)
-└── .github/workflows/    # CI, Release, Publish workflows
+│   ├── src/test/         # Tests
+│   └── src/jmh/          # JMH benchmarks
+└── starter/template/     # Template project (scaffolded by the unified CLI)
 ```
+
+CI, Release and Publish workflows live in the repository root's `.github/workflows/`.
 
 ## Publishing & Artifacts
 
@@ -73,8 +75,8 @@ java/
 
 - **JitPack is the default** — fast, builds on demand from GitHub
 - Maven Central publication can be slow (10-30 min, sometimes hours)
-- Tags use bare version numbers (`1.0.33`), NOT `v`-prefixed
-- JitPack builds only `:sdk:publishToMavenLocal` (see `jitpack.yml`)
+- Git tags are `vX.Y.Z` (one version for all SDKs); the Maven Central and JitPack version is the bare `X.Y.Z`
+- JitPack builds only `:sdk:publishToMavenLocal` (see the root `jitpack.yml`)
 
 ### Release Process
 

@@ -201,7 +201,7 @@ env:
 | SDK | `com.github.t-0-network:provider-sdk:TAG` |
 
 Where `TAG` can be:
-- Release tag: `1.0.33` (no `v` prefix — tags are bare version numbers)
+- Release version: `1.0.33` (the bare version; the git tag is `v1.0.33`)
 - Branch: `master-SNAPSHOT`
 - Commit hash: `abc1234`
 

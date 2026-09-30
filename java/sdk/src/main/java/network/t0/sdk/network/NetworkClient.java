@@ -73,8 +73,8 @@ import java.util.regex.Pattern;
  * <p>Unary calls get a default deadline of 15 seconds, client- and server-streaming calls one of
  * 5 minutes, which includes the wait for the first message. A deadline the caller sets on a call or on
  * its {@link Context} replaces the default, shorter or longer. Streaming calls are signed over their
- * first request message only; bidirectional streams fail with {@code UNIMPLEMENTED}.
- * See {@code docs/STREAMING.md}.
+ * first request message only; bidirectional streams and calls with a compressor fail with
+ * {@code UNIMPLEMENTED}. See {@code docs/STREAMING.md}.
  *
  * <p><b>Thread Safety:</b> Client instances are thread-safe. The underlying gRPC channel
  * and stubs support concurrent use from multiple threads. The signing interceptor creates

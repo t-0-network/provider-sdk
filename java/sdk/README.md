@@ -72,7 +72,7 @@ Handles inbound requests from the t-0 Network with automatic signature verificat
 
 **Key Features:**
 - Builder pattern for configuration
-- Configurable message sizes (default: 4MB inbound)
+- Configurable message sizes (default: 10 MiB inbound)
 - Automatic rejection of invalid/expired signatures
 - Inbound signature verification accepts both unframed and gRPC-framed signing payloads
 
@@ -365,9 +365,8 @@ boolean valid = SignatureVerifier.verify(publicKey, digest, signature);
 
 ### Client-Side Exceptions
 
-- `StatusRuntimeException` - gRPC call failed with status code
-- `IllegalArgumentException` - Invalid configuration (endpoint, keys)
-- `IOException` - Network connectivity issues
+- `StatusRuntimeException` - gRPC call failed with status code (a connection failure is `UNAVAILABLE`)
+- `IllegalArgumentException` - Invalid configuration (endpoint, keys, timeouts)
 
 ---
 
@@ -407,7 +406,7 @@ Results are reported in operations per millisecond.
 
 ### Signature Verification Fails
 
-**Symptom**: Server returns `UNAUTHENTICATED` with "Invalid signature"
+**Symptom**: Server returns `UNAUTHENTICATED` with "signature verification failed"
 
 **Possible Causes**:
 1. **Re-serialization**: Message was deserialized and re-serialized before verification. Ensure you're using raw bytes.
@@ -444,7 +443,7 @@ Results are reported in operations per millisecond.
 
 **Symptom**: `OutOfMemoryError` when signing large messages
 
-**Solution**: The SDK streams message bytes. If you're seeing OOM, you may be loading the entire message into memory elsewhere. Check your protobuf message construction.
+**Solution**: The SDK serializes each request message once, in memory, to sign it and send those exact bytes. An OOM here means the message itself is very large; check your protobuf message construction.
 
 ### gRPC Deadline Exceeded
 
