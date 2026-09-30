@@ -73,8 +73,8 @@ import java.util.regex.Pattern;
  * <p>Unary calls get a default deadline of 15 seconds, client- and server-streaming calls one of
  * 5 minutes, which includes the wait for the first message. A deadline the caller sets on a call or on
  * its {@link Context} replaces the default, shorter or longer. Streaming calls are signed over their
- * first request message only; bidirectional streams and calls with a compressor fail with
- * {@code UNIMPLEMENTED}. See {@code docs/STREAMING.md}.
+ * first request message only; bidirectional streams and calls with a non-identity compressor fail
+ * with {@code UNIMPLEMENTED}. See {@code docs/STREAMING.md}.
  *
  * <p><b>Thread Safety:</b> Client instances are thread-safe. The underlying gRPC channel
  * and stubs support concurrent use from multiple threads. The signing interceptor creates
@@ -372,7 +372,7 @@ public abstract class NetworkClient implements Closeable {
      * sits above the framer); later stream messages are sent unsigned. The underlying call starts on
      * that first message, since the headers must be complete by then, or unsigned when it is cancelled
      * or its deadline or context ends first (see {@code docs/STREAMING.md}). Bidirectional streams and
-     * calls with a compressor are refused with {@code UNIMPLEMENTED} before anything is sent.
+     * calls with a non-identity compressor are refused with {@code UNIMPLEMENTED} before anything is sent.
      *
      * <p>This class is thread-safe. Each call to {@link #interceptCall} creates
      * independent state for that specific call.
@@ -424,8 +424,8 @@ public abstract class NetworkClient implements Closeable {
                 return new RefusedCall<>(Status.UNIMPLEMENTED.withDescription("bidirectional streams are not supported"),
                         callOptions);
             }
-            // The signature covers the message as serialized here, and a compressor would change the
-            // bytes on the wire after that, so the network would refuse the call: refuse it first.
+            // The signature covers the message as serialized here, and a non-identity compressor would
+            // change the bytes on the wire after that, so the network would refuse the call: refuse it first.
             String compressor = callOptions.getCompressor();
             if (compressor != null && !"identity".equals(compressor)) {
                 return new RefusedCall<>(Status.UNIMPLEMENTED.withDescription("compressed requests are not supported"),

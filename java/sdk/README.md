@@ -216,7 +216,7 @@ The interceptor tries the unframed payload first, then reconstructs the gRPC fra
 
 ## Streaming and timeouts
 
-Client- and server-streaming calls are signed over their first request message only, and the call goes out as soon as that message is sent. Unary calls get a default deadline of 15 seconds and streaming calls one of 5 minutes, which includes the wait for the first message. A deadline set on the stub or on the caller's `Context` replaces the default, shorter or longer. Bidirectional streams and calls with a compressor are refused with `UNIMPLEMENTED` before anything is sent.
+Client- and server-streaming calls are signed over their first request message only, and the call goes out as soon as that message is sent. Unary calls get a default deadline of 15 seconds and streaming calls one of 5 minutes, which includes the wait for the first message. A deadline set on the stub or on the caller's `Context` replaces the default, shorter or longer. Bidirectional streams and calls with a non-identity compressor are refused with `UNIMPLEMENTED` before anything is sent.
 
 ```java
 // 30 s for unary calls, 30 min for streaming calls; each at most 2147483647 ms

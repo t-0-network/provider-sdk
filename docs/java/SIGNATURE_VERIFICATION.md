@@ -69,7 +69,7 @@ The network's verification logic on its own ingress mirrors this dual-path with 
 
 ## Streaming calls (client side)
 
-For client- and server-streaming calls `NetworkClient` signs **only the first request message**, unframed as for unary calls; the network accepts the first frame with or without its prefix over gRPC, like the unary dual-path above. A call with a compressor is refused before it is sent, since the signature would not cover the compressed bytes. The provider-side verifier described here still checks every inbound message; providers serve no streams. Details: [`docs/STREAMING.md`](../STREAMING.md).
+For client- and server-streaming calls `NetworkClient` signs **only the first request message**, unframed as for unary calls; the network accepts the first frame with or without its prefix over gRPC, like the unary dual-path above. A call with a non-identity compressor is refused before it is sent, since the signature would not cover the compressed bytes. The provider-side verifier described here still checks every inbound message; providers serve no streams. Details: [`docs/STREAMING.md`](../STREAMING.md).
 
 ## CRITICAL: do not remove either path
 

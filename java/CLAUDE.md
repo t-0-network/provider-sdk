@@ -29,7 +29,7 @@ GitHub issue #89 raised concern that the framed path looked like dead code — i
 
 ## Streaming Calls & Deadlines (client side)
 
-`SigningClientInterceptor` signs only the first message of a client/server stream (unframed) and defers the call's start until then (or until it is cancelled or its deadline or context ends, then unsigned and without sending anything), giving the listener one `onReady` before it; bidi and calls with a compressor are refused with `UNIMPLEMENTED`. `DefaultDeadlineInterceptor`: unary 15 s, streams 5 min, unless the caller set a deadline on the call or its `Context`. Read [`docs/STREAMING.md`](../docs/STREAMING.md) before touching either.
+`SigningClientInterceptor` signs only the first message of a client/server stream (unframed) and defers the call's start until then (or until it is cancelled or its deadline or context ends, then unsigned and without sending anything), giving the listener one `onReady` before it; bidi and calls with a non-identity compressor are refused with `UNIMPLEMENTED`. `DefaultDeadlineInterceptor`: unary 15 s, streams 5 min, unless the caller set a deadline on the call or its `Context`. Read [`docs/STREAMING.md`](../docs/STREAMING.md) before touching either.
 
 ---
 
