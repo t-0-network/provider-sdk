@@ -242,6 +242,32 @@ class TestSigningClientStream:
         _assert_signed_over(fake.headers, ENV1)
         assert fake.body == ENV1 + ENV2
 
+    async def test_bytes_body_is_signed_over_its_first_envelope(self) -> None:
+        """A pre-framed body given whole, and no headers: the signature covers its first envelope as
+        sent, and the body goes out unchanged."""
+        fake = _FakeClient()
+        async with _async_client(fake).stream("POST", URL, content=ENV1 + ENV2):
+            pass
+
+        _assert_signed_over(fake.headers, ENV1)
+        assert fake.body == ENV1 + ENV2
+
+    async def test_no_content_is_an_empty_stream(self) -> None:
+        fake = _FakeClient()
+        async with _async_client(fake).stream("POST", URL):
+            pass
+
+        _assert_signed_over(fake.headers, b"")
+        assert fake.body == b""
+
+    async def test_bytes_body_ending_inside_its_first_envelope_is_refused(self) -> None:
+        fake = _FakeClient()
+        with pytest.raises(ConnectError) as exc:
+            async with _async_client(fake).stream("POST", URL, content=ENV1[:-1]):
+                pass
+        assert exc.value.code == Code.INVALID_ARGUMENT
+        assert fake.events == [], "nothing is sent"
+
 
 class TestSigningSyncClientStream:
     def test_empty_stream_is_signed_over_nothing(self) -> None:
@@ -376,3 +402,26 @@ class TestSigningSyncClientStream:
 
         _assert_signed_over(fake.headers, ENV1)
         assert fake.body == ENV1 + ENV2
+
+    def test_bytes_body_is_signed_over_its_first_envelope(self) -> None:
+        fake = _FakeSyncClient()
+        with _sync_client(fake).stream("POST", URL, content=ENV1 + ENV2):
+            pass
+
+        _assert_signed_over(fake.headers, ENV1)
+        assert fake.body == ENV1 + ENV2
+
+    def test_no_content_is_an_empty_stream(self) -> None:
+        fake = _FakeSyncClient()
+        with _sync_client(fake).stream("POST", URL):
+            pass
+
+        _assert_signed_over(fake.headers, b"")
+        assert fake.body == b""
+
+    def test_bytes_body_ending_inside_its_first_envelope_is_refused(self) -> None:
+        fake = _FakeSyncClient()
+        with pytest.raises(ConnectError) as exc, _sync_client(fake).stream("POST", URL, content=ENV1[:-1]):
+            pass
+        assert exc.value.code == Code.INVALID_ARGUMENT
+        assert fake.events == [], "nothing is sent"

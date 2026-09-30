@@ -103,6 +103,25 @@ def _remaining_timeout(timeout: float | None, started: float, waited_for: str) -
     return timeout
 
 
+_BYTES = (bytes, bytearray, memoryview)
+
+
+def _pre_framed(body: bytes | bytearray | memoryview | None) -> list[bytes]:
+    """A body given whole, cut after its first envelope so that the same reader checks and signs that
+    envelope as it does for an iterator. The rest follows unchanged; a body that ends inside its first
+    envelope stays one chunk, which the reader refuses."""
+    body = bytes(body or b"")
+    if not body:
+        return []
+    size = _ENVELOPE_PREFIX_SIZE + int.from_bytes(body[1:_ENVELOPE_PREFIX_SIZE], "big")
+    return [body[:size], body[size:]] if len(body) > size else [body]
+
+
+async def _chunks(body: bytes | bytearray | memoryview | None) -> AsyncIterator[bytes]:
+    for chunk in _pre_framed(body):
+        yield chunk
+
+
 async def _aclose(source: AsyncIterator[bytes]) -> None:
     aclose = getattr(source, "aclose", None)
     if aclose is not None:
@@ -202,10 +221,13 @@ class SigningClient:
         self,
         method: str,
         url: str,
-        headers: pyqwest.Headers | None,
-        content: AsyncIterable[bytes],
+        headers: pyqwest.Headers | None = None,
+        content: bytes | AsyncIterable[bytes] | None = None,
     ) -> AbstractAsyncContextManager[pyqwest.Response]:
-        return self._stream_signing_first_envelope(method, url, headers, aiter(content))
+        """content: envelopes, one per chunk, as connectrpc passes them; or a pre-framed body as bytes;
+        or None for an empty stream."""
+        source = _chunks(content) if content is None or isinstance(content, _BYTES) else aiter(content)
+        return self._stream_signing_first_envelope(method, url, headers, source)
 
     # The body is read when the context is entered, which connectrpc does inside its call timeout.
 
@@ -268,11 +290,13 @@ class SigningSyncClient:
         self,
         method: str,
         url: str,
-        headers: pyqwest.Headers | None,
-        content: Iterable[bytes],
+        headers: pyqwest.Headers | None = None,
+        content: bytes | Iterable[bytes] | None = None,
         timeout: float | None = None,
     ) -> AbstractContextManager[pyqwest.SyncResponse]:
-        return self._stream_signing_first_envelope(method, url, headers, iter(content), timeout)
+        """content as for SigningClient.stream."""
+        source = iter(_pre_framed(content)) if content is None or isinstance(content, _BYTES) else iter(content)
+        return self._stream_signing_first_envelope(method, url, headers, source, timeout)
 
     @contextmanager
     def _stream_signing_first_envelope(

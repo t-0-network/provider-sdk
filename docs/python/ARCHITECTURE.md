@@ -657,7 +657,7 @@ class SigningClient:
     def stream(self, method, url, headers=None, content=None) -> AbstractAsyncContextManager[Response]: ...
 ```
 
-**`SigningSyncClient`** is the synchronous equivalent wrapping `pyqwest.SyncClient`.
+**`SigningSyncClient`** is the synchronous equivalent wrapping `pyqwest.SyncClient`. `stream()` takes the envelopes connectrpc passes (one per chunk), a pre-framed body as bytes, or no content (an empty stream), and in each case signs the first envelope as sent.
 
 Both classes share the signing logic via the `_sign_request()` helper, which takes the bytes the signature covers:
 
