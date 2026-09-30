@@ -5,12 +5,14 @@ Proto-agnostic: works with ANY generated ConnectRPC client class.
 
 from __future__ import annotations
 
+import asyncio
 import functools
 import inspect
 import ipaddress
 import logging
 import math
 import re
+import threading
 import types
 from typing import TYPE_CHECKING, Any, NoReturn, TypeVar
 from urllib.parse import urlsplit
@@ -36,6 +38,9 @@ if TYPE_CHECKING:
 T = TypeVar("T")
 
 _LOGGER = logging.getLogger("t0_provider_sdk")
+
+# Background closes of callers' request sources, kept here so they are not collected while pending.
+_CLOSING: set[asyncio.Task[None]] = set()
 
 # A host name: dot-separated labels of ASCII letters, digits and inner '-', none empty, the last one
 # starting with a letter (so "1.2.3" is not taken for a name). Other names ("my_host", "a..b",
@@ -258,7 +263,7 @@ def _with_closing_request(execute: Callable[..., Any]) -> Callable[..., Any]:
         try:
             return await execute(*args, request=messages, **kwargs)
         finally:
-            await messages.finish()
+            messages.finish()
 
     return execute_client_stream
 
@@ -287,25 +292,30 @@ class _CallRequest:
 
     async def __anext__(self) -> Any:
         if self._done:
-            await self._close()
+            self._close()
             raise StopAsyncIteration
         return await anext(self._source)
 
-    async def finish(self) -> None:
+    def finish(self) -> None:
         self._done = True
-        await self._close()
+        self._close()
 
-    async def _close(self) -> None:
-        # Best effort: a failure to close is logged and never replaces the call's own result.
+    def _close(self) -> None:
+        # In the background and best effort: the caller's cleanup may await anything, and it must
+        # never delay the call's result (a deadline error included) or replace it.
         source = self._source
-        if inspect.isasyncgen(source) and inspect.getasyncgenstate(source) == inspect.AGEN_RUNNING:
-            # The transport's task is inside it; the transport cancels that task when the call
-            # ends, and the cancellation closes it.
+        if inspect.isasyncgen(source) and inspect.getasyncgenstate(source) in (
+            inspect.AGEN_RUNNING,
+            inspect.AGEN_CLOSED,
+        ):
+            # RUNNING: the transport's task is inside it; the transport cancels that task when the
+            # call ends, and the cancellation closes it.
             return
-        try:
-            await _aclose(source)
-        except Exception:
-            _LOGGER.warning("closing the request messages of a client stream failed", exc_info=True)
+        if getattr(source, "aclose", None) is None:
+            return
+        task = asyncio.get_running_loop().create_task(_aclose_logged(source))
+        _CLOSING.add(task)
+        task.add_done_callback(_CLOSING.discard)
 
 
 class _CallRequestSync:
@@ -330,15 +340,33 @@ class _CallRequestSync:
         self._close()
 
     def _close(self) -> None:
-        # Best effort: a failure to close is logged and never replaces the call's own result.
-        # _close skips a source the writer thread is inside; that thread closes it at its next pull.
+        # In a thread of its own and best effort: the caller's cleanup may block, and it must never
+        # delay the call's result (a deadline error included) or replace it.
         source = self._source
-        try:
-            _close(source)
-        except Exception:
-            if isinstance(source, types.GeneratorType) and inspect.getgeneratorstate(source) == inspect.GEN_RUNNING:
-                return  # the writer thread entered it between the check and the close
-            _LOGGER.warning("closing the request messages of a client stream failed", exc_info=True)
+        if isinstance(source, types.GeneratorType) and inspect.getgeneratorstate(source) in (
+            inspect.GEN_RUNNING,  # the writer thread is inside it; it closes it at its next pull
+            inspect.GEN_CLOSED,
+        ):
+            return
+        if getattr(source, "close", None) is None:
+            return
+        threading.Thread(target=_close_logged, args=(source,), name="t0-close-request", daemon=True).start()
+
+
+async def _aclose_logged(source: Any) -> None:
+    try:
+        await _aclose(source)
+    except Exception:
+        _LOGGER.warning("closing the request messages of a client stream failed", exc_info=True)
+
+
+def _close_logged(source: Any) -> None:
+    try:
+        _close(source)
+    except Exception:
+        if isinstance(source, types.GeneratorType) and inspect.getgeneratorstate(source) == inspect.GEN_RUNNING:
+            return  # the writer thread entered it between the check and the close; it closes it next
+        _LOGGER.warning("closing the request messages of a client stream failed", exc_info=True)
 
 
 def _reject_bidi_streams(client: object) -> None:

@@ -23,6 +23,15 @@ from .test_redirects import _Client, _SyncClient
 
 PRIVATE_KEY = "0x6b30303de7b26bfb1222b317a52113357f8bb06de00160b4261a2fef9c8b9bd8"
 HOLD_SECONDS = 3.0
+CLOSE_MESSAGE = "closing the request messages of a client stream failed"
+
+
+async def _soon(condition, seconds: float = 1.0) -> bool:
+    """Closing runs in the background, a few loop ticks after the call ends."""
+    deadline = time.monotonic() + seconds
+    while not condition() and time.monotonic() < deadline:
+        await asyncio.sleep(0.01)
+    return condition()
 
 
 @pytest.fixture
@@ -55,6 +64,77 @@ def rejecting_server():
     listener.close()
 
 
+@pytest.fixture
+def silent_server():
+    """Takes the headers and never answers or reads the body, so a call ends at its deadline."""
+    listener = socket.socket()
+    listener.bind(("127.0.0.1", 0))
+    listener.listen(8)
+
+    def hold(conn: socket.socket) -> None:
+        with conn:
+            time.sleep(HOLD_SECONDS)
+
+    def serve() -> None:
+        while True:
+            try:
+                conn, _ = listener.accept()
+            except OSError:
+                return
+            threading.Thread(target=hold, args=(conn,), daemon=True).start()
+
+    threading.Thread(target=serve, daemon=True).start()
+    yield f"http://127.0.0.1:{listener.getsockname()[1]}"
+    listener.close()
+
+
+STREAM_TIMEOUT = 0.5
+MARGIN = 0.5
+
+
+@pytest.mark.asyncio
+async def test_async_cleanup_that_never_ends_does_not_hold_back_the_deadline(silent_server: str) -> None:
+    release = asyncio.Event()
+
+    async def messages():
+        try:
+            for i in range(100_000):
+                yield StringValue(value=f"m{i}")
+        finally:
+            await release.wait()
+
+    client = new_service_client(PRIVATE_KEY, _Client, base_url=silent_server, stream_timeout=STREAM_TIMEOUT)
+    started = time.monotonic()
+    with pytest.raises(ConnectError) as exc_info:
+        await client.client_stream(messages())
+    elapsed = time.monotonic() - started
+    release.set()  # lets the background close finish before the loop ends
+
+    assert exc_info.value.code == Code.DEADLINE_EXCEEDED
+    assert elapsed < STREAM_TIMEOUT + MARGIN
+
+
+def test_sync_cleanup_that_never_ends_does_not_hold_back_the_deadline(silent_server: str) -> None:
+    release = threading.Event()
+
+    def messages():
+        try:
+            for i in range(100_000):
+                yield StringValue(value=f"m{i}")
+        finally:
+            release.wait()
+
+    client = new_service_client_sync(PRIVATE_KEY, _SyncClient, base_url=silent_server, stream_timeout=STREAM_TIMEOUT)
+    started = time.monotonic()
+    with pytest.raises(ConnectError) as exc_info:
+        client.client_stream(messages())
+    elapsed = time.monotonic() - started
+    release.set()
+
+    assert exc_info.value.code == Code.DEADLINE_EXCEEDED
+    assert elapsed < STREAM_TIMEOUT + MARGIN
+
+
 @pytest.mark.asyncio
 async def test_async_request_is_closed_when_the_call_fails(rejecting_server: str) -> None:
     closed: list[bool] = []
@@ -71,7 +151,7 @@ async def test_async_request_is_closed_when_the_call_fails(rejecting_server: str
         await client.client_stream(messages())
 
     assert exc_info.value.code == Code.UNAUTHENTICATED
-    assert closed == [True], "closed by the call, not left to garbage collection"
+    assert await _soon(lambda: closed == [True]), "closed by the call, not left to garbage collection"
 
 
 def test_sync_request_stops_and_is_closed_when_the_call_fails(rejecting_server: str) -> None:
@@ -142,11 +222,13 @@ async def test_async_close_failure_is_logged_not_raised(
             yield StringValue(value="after close")
 
     client = new_service_client(PRIVATE_KEY, _Client, base_url=rejecting_server)
-    with caplog.at_level(logging.WARNING, logger="t0_provider_sdk"), pytest.raises(ConnectError) as exc_info:
-        await client.client_stream(messages())
+    with caplog.at_level(logging.WARNING, logger="t0_provider_sdk"):
+        with pytest.raises(ConnectError) as exc_info:
+            await client.client_stream(messages())
+        assert await _soon(lambda: caplog.records)
 
     assert exc_info.value.code == Code.UNAUTHENTICATED, "the call's own error, not the close failure"
-    assert [r.getMessage() for r in caplog.records] == ["closing the request messages of a client stream failed"]
+    assert [r.getMessage() for r in caplog.records] == [CLOSE_MESSAGE]
 
 
 def test_sync_close_failure_is_logged_not_raised(rejecting_server: str, caplog: pytest.LogCaptureFixture) -> None:
@@ -173,4 +255,4 @@ def test_sync_close_failure_is_logged_not_raised(rejecting_server: str, caplog: 
             time.sleep(0.01)
 
     assert exc_info.value.code == Code.UNAUTHENTICATED, "the call's own error, not the close failure"
-    assert [r.getMessage() for r in caplog.records] == ["closing the request messages of a client stream failed"]
+    assert [r.getMessage() for r in caplog.records] == [CLOSE_MESSAGE]
