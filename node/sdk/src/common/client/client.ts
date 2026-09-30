@@ -171,7 +171,7 @@ function timeout(name: string, ms: number | undefined): number | undefined {
 }
 
 /**
- * Options for createClient. See docs/STREAMING.md.
+ * Options for createClient.
  */
 export interface ClientOptions {
     /**
