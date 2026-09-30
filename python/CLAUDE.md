@@ -91,7 +91,7 @@ cd ../cross_test/go_helper && go build -o go_helper . && cd ../../python
 uv run pytest tests/cross_test/ -v
 ```
 
-Uses the shared Go helper at `cross_test/go_helper/` (repo root). Validates: Keccak256 hash, public key derivation, bidirectional signature verification, end-to-end server-to-server communication (both ASGI and WSGI, plus health checks), and signed client and server streams, checked against the helper's verifier log. In CI, tests fail (not skip) if the helper is missing.
+Uses the shared Go helper at `cross_test/go_helper/` (repo root). Validates: Keccak256 hash, public key derivation, bidirectional signature verification, end-to-end server-to-server communication (both ASGI and WSGI, plus health checks), and signed client and server streams, whose replies name the framing the helper verified and whose errors give the reason for a refusal. In CI, tests fail (not skip) if the helper is missing.
 
 ## Versioning
 

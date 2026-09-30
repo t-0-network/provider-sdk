@@ -888,7 +888,7 @@ The starter template in `starter/template/` is a complete, runnable application.
 
 - **Unit tests** (`sdk/tests/`) follow the SDK's module layout and need no Go helper. The shared vectors in `cross_test/test_vectors.json` drive the crypto code and both signing wrappers.
 - **Integration tests** (`sdk/tests/integration/`) sign through the client transport and verify through the ASGI and WSGI middleware in one process.
-- **Cross-language tests** (`tests/cross_test/`) run against the shared Go helper (`cross_test/go_helper/`): signing and verifying in both directions, server-to-server calls in both directions, and streaming calls to the helper's `test.v1.StreamTest`, checked against the helper's verifier log. In CI they fail, not skip, when the helper binary is missing.
+- **Cross-language tests** (`tests/cross_test/`) run against the shared Go helper (`cross_test/go_helper/`): signing and verifying in both directions, server-to-server calls in both directions, and streaming calls to the helper's `test.v1.StreamTest`, whose replies name the framing it verified and whose errors give the reason for a refusal. In CI they fail, not skip, when the helper binary is missing.
 
 ```bash
 # Install all dependencies

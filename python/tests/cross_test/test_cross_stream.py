@@ -1,7 +1,9 @@
 """Cross-language streaming tests: Python client -> Go server.
 
-The Go helper verifies test.v1.StreamTest requests over their first envelope, as the network does,
-and logs each verdict to stderr; the tests assert on that log. See docs/STREAMING.md.
+The Go helper verifies test.v1.StreamTest requests over their first envelope, as the network does.
+Its reply names the framing it accepted, and a refused call fails with UNAUTHENTICATED and the reason.
+Its stderr log is read only to hold message 2 back until message 1 was verified, and to see that
+nothing was sent. See docs/STREAMING.md.
 
 Requires the Go helper binary to be built:
     cd cross_test/go_helper && go build -o go_helper .
@@ -49,10 +51,10 @@ MESSAGES = ["m1", "m2", "m3"]
 
 STREAM_TEST_PREFIX = "/test.v1.StreamTest/"
 CLIENT_STREAM_PATH = STREAM_TEST_PREFIX + "ClientStream"
-SERVER_STREAM_PATH = STREAM_TEST_PREFIX + "ServerStream"
+# The no-buffering gate waits for this log line; every other check reads the call's own result.
 CLIENT_STREAM_VERIFIED = f"{CLIENT_STREAM_PATH} verified over the first envelope"
-SERVER_STREAM_VERIFIED = f"{SERVER_STREAM_PATH} verified over the first envelope"
-CLIENT_STREAM_REJECTED = f"{CLIENT_STREAM_PATH} rejected: "
+# The helper prefixes each reply with the framing its verifier accepted.
+ENVELOPE = "envelope:"
 
 # The network's timestamp tolerance is 60 s.
 STALE_BY_MS = 120_000
@@ -333,23 +335,18 @@ class TestPythonAsyncClientGoServerStream:
     async def test_client_stream(self, go_server: _GoServer, protocol: str, monkeypatch: pytest.MonkeyPatch) -> None:
         client = _async_client(_StreamTestClient, go_server.url, protocol)
         signed = _record_signed(monkeypatch)
-        mark = go_server.mark()
 
         response = await client.client_stream(_stream_of(*MESSAGES))
 
-        assert response.value == ",".join(MESSAGES)
-        go_server.wait_for_log(CLIENT_STREAM_VERIFIED, since=mark)
+        assert response.value == ENVELOPE + ",".join(MESSAGES)
         assert len(signed) == 1
         _assert_one_uncompressed_envelope(signed[0])
 
     async def test_server_stream(self, go_server: _GoServer, protocol: str) -> None:
         client = _async_client(_StreamTestClient, go_server.url, protocol)
-        mark = go_server.mark()
-
         received = [msg.value async for msg in client.server_stream(StringValue(value="hello"))]
 
-        assert received == ["hello"] * 3
-        go_server.wait_for_log(SERVER_STREAM_VERIFIED, since=mark)
+        assert received == [ENVELOPE + "hello"] * 3
 
     async def test_client_stream_is_sent_before_its_second_message(self, go_server: _GoServer, protocol: str) -> None:
         client = _async_client(_StreamTestClient, go_server.url, protocol)
@@ -363,41 +360,36 @@ class TestPythonAsyncClientGoServerStream:
             yield StringValue(value="m3")
 
         response = await client.client_stream(messages())
-        assert response.value == "m1,m2,m3"
+        assert response.value == ENVELOPE + "m1,m2,m3"
 
     async def test_large_first_message(self, go_server: _GoServer, protocol: str) -> None:
         client = _async_client(_StreamTestClient, go_server.url, protocol)
         large = _large_value()
-        mark = go_server.mark()
 
         response = await client.client_stream(_stream_of(large, "tail"))
 
-        assert response.value == f"{large},tail"
-        go_server.wait_for_log(CLIENT_STREAM_VERIFIED, since=mark)
+        assert response.value == f"{ENVELOPE}{large},tail"
 
     async def test_stale_timestamp_is_rejected(
         self, go_server: _GoServer, protocol: str, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         client = _async_client(_StreamTestClient, go_server.url, protocol)
         _stale_timestamps(monkeypatch)
-        mark = go_server.mark()
 
         with pytest.raises(ConnectError) as exc_info:
             await client.client_stream(_stream_of(*MESSAGES))
 
         assert exc_info.value.code == Code.UNAUTHENTICATED
-        go_server.wait_for_log(CLIENT_STREAM_REJECTED + "timestamp is outside the allowed time window", since=mark)
+        assert "timestamp is outside the allowed time window" in exc_info.value.message
 
     async def test_empty_client_stream_is_rejected(self, go_server: _GoServer, protocol: str) -> None:
         """Signed over empty bytes and sent; the server rejects a stream without a first message."""
         client = _async_client(_StreamTestClient, go_server.url, protocol)
-        mark = go_server.mark()
-
         with pytest.raises(ConnectError) as exc_info:
             await client.client_stream(_stream_of())
 
         assert exc_info.value.code == Code.UNAUTHENTICATED
-        go_server.wait_for_log(CLIENT_STREAM_REJECTED + "no first message", since=mark)
+        assert "no first message" in exc_info.value.message
 
     async def test_stream_timeout_before_the_first_message(self, go_server: _GoServer, protocol: str) -> None:
         client = _async_client(_StreamTestClient, go_server.url, protocol, stream_timeout=0.2)
@@ -421,23 +413,18 @@ class TestPythonSyncClientGoServerStream:
     def test_client_stream(self, go_server: _GoServer, protocol: str, monkeypatch: pytest.MonkeyPatch) -> None:
         client = _sync_client(_StreamTestClientSync, go_server.url, protocol)
         signed = _record_signed(monkeypatch)
-        mark = go_server.mark()
 
         response = client.client_stream(_sync_stream_of(*MESSAGES))
 
-        assert response.value == ",".join(MESSAGES)
-        go_server.wait_for_log(CLIENT_STREAM_VERIFIED, since=mark)
+        assert response.value == ENVELOPE + ",".join(MESSAGES)
         assert len(signed) == 1
         _assert_one_uncompressed_envelope(signed[0])
 
     def test_server_stream(self, go_server: _GoServer, protocol: str) -> None:
         client = _sync_client(_StreamTestClientSync, go_server.url, protocol)
-        mark = go_server.mark()
-
         received = [msg.value for msg in client.server_stream(StringValue(value="hello"))]
 
-        assert received == ["hello"] * 3
-        go_server.wait_for_log(SERVER_STREAM_VERIFIED, since=mark)
+        assert received == [ENVELOPE + "hello"] * 3
 
     def test_client_stream_is_sent_before_its_second_message(self, go_server: _GoServer, protocol: str) -> None:
         client = _sync_client(_StreamTestClientSync, go_server.url, protocol)
@@ -451,40 +438,35 @@ class TestPythonSyncClientGoServerStream:
             yield StringValue(value="m3")
 
         response = client.client_stream(messages())
-        assert response.value == "m1,m2,m3"
+        assert response.value == ENVELOPE + "m1,m2,m3"
 
     def test_large_first_message(self, go_server: _GoServer, protocol: str) -> None:
         client = _sync_client(_StreamTestClientSync, go_server.url, protocol)
         large = _large_value()
-        mark = go_server.mark()
 
         response = client.client_stream(_sync_stream_of(large, "tail"))
 
-        assert response.value == f"{large},tail"
-        go_server.wait_for_log(CLIENT_STREAM_VERIFIED, since=mark)
+        assert response.value == f"{ENVELOPE}{large},tail"
 
     def test_stale_timestamp_is_rejected(
         self, go_server: _GoServer, protocol: str, monkeypatch: pytest.MonkeyPatch
     ) -> None:
         client = _sync_client(_StreamTestClientSync, go_server.url, protocol)
         _stale_timestamps(monkeypatch)
-        mark = go_server.mark()
 
         with pytest.raises(ConnectError) as exc_info:
             client.client_stream(_sync_stream_of(*MESSAGES))
 
         assert exc_info.value.code == Code.UNAUTHENTICATED
-        go_server.wait_for_log(CLIENT_STREAM_REJECTED + "timestamp is outside the allowed time window", since=mark)
+        assert "timestamp is outside the allowed time window" in exc_info.value.message
 
     def test_empty_client_stream_is_rejected(self, go_server: _GoServer, protocol: str) -> None:
         client = _sync_client(_StreamTestClientSync, go_server.url, protocol)
-        mark = go_server.mark()
-
         with pytest.raises(ConnectError) as exc_info:
             client.client_stream(_sync_stream_of())
 
         assert exc_info.value.code == Code.UNAUTHENTICATED
-        go_server.wait_for_log(CLIENT_STREAM_REJECTED + "no first message", since=mark)
+        assert "no first message" in exc_info.value.message
 
     def test_stream_timeout_before_the_first_message(self, go_server: _GoServer, protocol: str) -> None:
         client = _sync_client(_StreamTestClientSync, go_server.url, protocol, stream_timeout=0.2)
@@ -524,15 +506,12 @@ def test_sync_grpc_unary_health_check(go_server: _GoServer) -> None:
 async def test_async_connect_json_streams(go_server: _GoServer, monkeypatch: pytest.MonkeyPatch) -> None:
     client = _async_client(_StreamTestClient, go_server.url, "connect", wire_format=WireFormat.JSON)
     signed = _record_signed(monkeypatch)
-    mark = go_server.mark()
 
     response = await client.client_stream(_stream_of(*MESSAGES))
-    assert response.value == ",".join(MESSAGES)
-    go_server.wait_for_log(CLIENT_STREAM_VERIFIED, since=mark)
+    assert response.value == ENVELOPE + ",".join(MESSAGES)
 
     received = [msg.value async for msg in client.server_stream(StringValue(value="hello"))]
-    assert received == ["hello"] * 3
-    go_server.wait_for_log(SERVER_STREAM_VERIFIED, since=mark)
+    assert received == [ENVELOPE + "hello"] * 3
 
     assert signed == [_json_envelope(MESSAGES[0]), _json_envelope("hello")]
 
@@ -540,14 +519,11 @@ async def test_async_connect_json_streams(go_server: _GoServer, monkeypatch: pyt
 def test_sync_connect_json_streams(go_server: _GoServer, monkeypatch: pytest.MonkeyPatch) -> None:
     client = _sync_client(_StreamTestClientSync, go_server.url, "connect", wire_format=WireFormat.JSON)
     signed = _record_signed(monkeypatch)
-    mark = go_server.mark()
 
     response = client.client_stream(_sync_stream_of(*MESSAGES))
-    assert response.value == ",".join(MESSAGES)
-    go_server.wait_for_log(CLIENT_STREAM_VERIFIED, since=mark)
+    assert response.value == ENVELOPE + ",".join(MESSAGES)
 
     received = [msg.value for msg in client.server_stream(StringValue(value="hello"))]
-    assert received == ["hello"] * 3
-    go_server.wait_for_log(SERVER_STREAM_VERIFIED, since=mark)
+    assert received == [ENVELOPE + "hello"] * 3
 
     assert signed == [_json_envelope(MESSAGES[0]), _json_envelope("hello")]
