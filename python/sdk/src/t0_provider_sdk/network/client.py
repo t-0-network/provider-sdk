@@ -71,11 +71,8 @@ def new_service_client(
         private_key: Hex-encoded secp256k1 private key: 64 hex digits, optionally after 0x or 0X.
             Ignored when sign_fn is given.
         client_class: Generated ConnectRPC async client class (e.g. NetworkServiceClient).
-        base_url: Base URL of the T-0 Network API: http:// or https://, a host (an IP literal, or
-            dot-separated labels of ASCII letters, digits and inner '-', the last one starting
-            with a letter) without user info, a port of 1..65535 if one is given, and no path,
-            query or fragment (a single trailing "/" is allowed). None means the default; an
-            empty string raises ValueError.
+        base_url: Base URL of the T-0 Network API. None means the default,
+            https://api.t-0.network; an empty or malformed value raises ValueError.
         timeout: Timeout of unary calls in seconds, 15 by default.
         stream_timeout: Timeout of client- and server-streaming calls in seconds, including the
             wait for the first request message, 300 by default.

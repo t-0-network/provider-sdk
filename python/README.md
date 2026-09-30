@@ -79,8 +79,11 @@ The sync variant uses `payment_sync.py` -- implement the same RPC methods as reg
 `new_service_client()` and `new_service_client_sync()` sign every request. A streaming call is signed over its first message and sent as soon as that message exists, so send a message (or close the stream) before waiting for a response. Unary calls time out after 15 seconds and streaming calls after 5 minutes; a call's own `timeout_ms` replaces either default.
 
 ```python
+from provider.config import load_config
+from t0_provider_sdk.api.tzero.v1.payment.network_connect import NetworkServiceClient
 from t0_provider_sdk.network import Protocol, WireFormat, new_service_client
 
+config = load_config()
 network_client = new_service_client(
     config.provider_private_key,
     NetworkServiceClient,
@@ -98,8 +101,7 @@ The streaming rules shared by every SDK: [`docs/STREAMING.md`](../docs/STREAMING
 
 ```bash
 uv run python -m provider.main    # Start the provider server
-uv run pytest                     # Run tests
-uv run ruff check .               # Lint
+uvx ruff check .                  # Lint (ruff is not a project dependency)
 ```
 
 ## Deployment

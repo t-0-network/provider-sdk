@@ -34,10 +34,8 @@ python/
 ├── pyproject.toml              # uv workspace root
 ├── sdk/                        # t0-provider-sdk package
 │   ├── pyproject.toml
-│   ├── buf.yaml + buf.gen.yaml # Proto code generation config
 │   └── src/t0_provider_sdk/
-│       ├── api/                # Generated ConnectRPC code (committed)
-│       ├── proto/              # Proto definitions (source of truth)
+│       ├── api/                # Generated ConnectRPC code (committed; source: the root proto/)
 │       ├── crypto/             # hash, keys, signer, verifier
 │       ├── common/             # headers
 │       ├── network/            # signing transport, client factory
@@ -76,13 +74,14 @@ Versions: `sdk/pyproject.toml`.
 
 ## Proto Code Generation
 
+From the repository root (the Python code comes from the root `buf.gen.yaml`, and its connect plugin runs from this workspace's dev dependencies):
+
 ```bash
-cd sdk
-buf dep update           # Fetch proto dependencies
-buf generate             # Generate Python + ConnectRPC stubs into src/t0_provider_sdk/api/
+uv sync --project python --all-packages
+buf generate
 ```
 
-Generated code is committed to the repository.
+Generated code in `sdk/src/t0_provider_sdk/api/` is committed to the repository (the `generate-clients.yaml` workflow does the same).
 
 ## Cross-Tests with Go SDK
 
@@ -131,7 +130,7 @@ headers = { X-Public-Key: "0x"+pk.hex(), X-Signature: "0x"+sig.hex(), X-Signatur
 
 `body_bytes` is the whole body of a Connect unary call, and the first envelope as sent of a Connect stream or any gRPC call (for gRPC unary, that is the whole body).
 
-Timestamp tolerance: ±60 seconds. Max body: 4 MB default.
+Timestamp tolerance: ±60 seconds. Max body: 10 MiB default.
 
 ## Error Hierarchy
 

@@ -154,14 +154,14 @@ message = body || timestamp
 ```
 
 Where:
-- **`body`** is the raw HTTP request body (0 to 4,194,304 bytes by default). These MUST be the exact bytes on the wire. Protobuf serialization is not canonical -- deserializing and re-serializing a Protobuf message can produce different bytes. The signing and verification layers must operate on the original wire bytes, never on re-serialized output.
+- **`body`** is the raw HTTP request body (0 to 10,485,760 bytes by default). These MUST be the exact bytes on the wire. Protobuf serialization is not canonical -- deserializing and re-serializing a Protobuf message can produce different bytes. The signing and verification layers must operate on the original wire bytes, never on re-serialized output.
 - **`timestamp`** is the current time in milliseconds since the Unix epoch, encoded as a **little-endian unsigned 64-bit integer** (8 bytes).
 
 ```
 Message byte layout:
 ┌──────────────────────┬─────────────────────────┐
 │ body bytes           │ timestamp (8 bytes)      │
-│ (0 .. 4,194,304)     │ little-endian uint64     │
+│ (0 .. 10,485,760)    │ little-endian uint64     │
 └──────────────────────┴─────────────────────────┘
 ```
 
@@ -217,7 +217,7 @@ flowchart TD
     C -->|No| E2["INVALID_ARGUMENT<br/>Invalid header encoding"]
     C -->|Yes| D{Timestamp within<br/>±60 seconds?}
     D -->|No| E3["INVALID_ARGUMENT<br/>Timestamp out of range"]
-    D -->|Yes| F{Body size<br/>≤ 4 MB?}
+    D -->|Yes| F{Body size<br/>≤ 10 MiB?}
     F -->|No| E4["INVALID_ARGUMENT<br/>Body too large"]
     F -->|Yes| G{Public key matches<br/>expected sender?}
     G -->|No| E5["UNAUTHENTICATED<br/>Unknown public key"]
@@ -519,7 +519,7 @@ When porting changes from Go to Python (or vice versa), use this table to locate
 
 ### 3.8 Protobuf Code Generation Pipeline
 
-Proto definitions are the source of truth and live in `sdk/src/t0_provider_sdk/proto/`. The `buf` tool generates Python code into `sdk/src/t0_provider_sdk/api/`. Generated code is committed to the repository to avoid requiring the `buf` toolchain at runtime or install time.
+Proto definitions are the source of truth and live in the repository's root `proto/`. The `buf` tool generates Python code from the root `buf.gen.yaml` into `sdk/src/t0_provider_sdk/api/`. Generated code is committed to the repository to avoid requiring the `buf` toolchain at runtime or install time.
 
 ```mermaid
 flowchart LR
@@ -533,12 +533,11 @@ flowchart LR
 
 Generated code uses absolute imports like `from tzero.v1.payment import provider_pb2`. To make these imports resolve, the SDK's `__init__.py` adds the `api/` directory to `sys.path` at import time.
 
-**Regeneration:** When proto definitions change, regenerate with:
+**Regeneration:** When proto definitions change, regenerate from the repository root:
 
 ```bash
-cd sdk
-buf dep update    # Fetch/update proto dependencies
-buf generate      # Regenerate Python code into api/
+uv sync --project python --all-packages   # the Python connect plugin is a dev dependency
+buf generate
 ```
 
 ### 3.9 Starter Template
@@ -652,7 +651,7 @@ Three constants define the HTTP header names used in the signature protocol:
 ```python
 class SigningClient:
     def __init__(self, sign_fn: SignFn, *, transport: Any | None = None) -> None: ...
-    async def get(self, url, headers=None) -> Any: ...
+    async def get(self, url, headers=None) -> Any: ...  # refused: GET requests are not supported
     async def post(self, url, headers=None, content=None) -> Any: ...
     def stream(self, method, url, headers=None, content=None) -> AbstractAsyncContextManager[Response]: ...
 ```
@@ -667,7 +666,7 @@ Both classes share the signing logic via the `_sign_request()` helper, which tak
 4. `signature, pub_key = sign_fn(digest)`
 5. Set headers: `X-Public-Key = "0x" + pub_key.hex()`, `X-Signature = "0x" + signature.hex()`, `X-Signature-Timestamp = str(timestamp_ms)`
 
-What `body` is (the whole body of `post()`, or the first envelope of `stream()`) and how `stream()` reads, checks, sends and closes its body: [docs/STREAMING.md](../STREAMING.md#what-is-signed).
+What `body` is: the whole body of `post()`, or the first envelope of `stream()` exactly as sent; see [docs/STREAMING.md](../STREAMING.md#what-is-signed).
 
 #### 4.3.2 `client.py` -- Generic Client Factory
 
@@ -745,7 +744,7 @@ The most complex modules in the SDK. Implement Phase 1 of the [two-phase verific
 
 | Constant | Value |
 |----------|-------|
-| `DEFAULT_MAX_BODY_SIZE` | `4 * 1024 * 1024` (4 MB) |
+| `DEFAULT_MAX_BODY_SIZE` | `10 * 1024 * 1024` (10 MiB) |
 | `TIMESTAMP_TOLERANCE_MS` | `60_000` (60 seconds) |
 
 **`VerifySignatureFn`** is a frozen dataclass holding the network's public key. When called, it:
@@ -914,17 +913,18 @@ uv run ruff check .
 
 When `.proto` files change:
 
+From the repository root:
+
 ```bash
-cd sdk
-buf dep update    # Update proto dependencies
-buf generate      # Regenerate Python code into api/
+uv sync --project python --all-packages   # the Python connect plugin is a dev dependency
+buf generate
 ```
 
-Commit the regenerated `api/` directory.
+Commit the regenerated `api/` directory (the `generate-clients.yaml` workflow does the same).
 
 #### 4.8.2 Adding a New Service
 
-1. Add the `.proto` file to `sdk/src/t0_provider_sdk/proto/`
+1. Add the `.proto` file to the repository's root `proto/`
 2. Run `buf generate` to create the generated code
 3. **Server side (ASGI):** Implement the generated service Protocol, then register with `handler()`:
    ```python

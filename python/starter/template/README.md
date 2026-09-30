@@ -96,8 +96,8 @@ If you only play one role, remove the unused handler registration from `create_p
 ```bash
 uv sync                                   # Install / update dependencies
 uv run python -m provider.main            # Run the ASGI server (uvicorn)
-uv run ruff check .                       # Lint
-uv run ruff format .                      # Format
+uvx ruff check .                          # Lint (ruff is not a project dependency)
+uvx ruff format .                         # Format
 ```
 
 ## Returning a validated response
