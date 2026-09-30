@@ -468,6 +468,9 @@ public abstract class NetworkClient implements Closeable {
                 private Thread firstSender; // sending the signed first message, until it is out
                 private boolean open = false; // started, and the first message, if it started the call, is out
                 private final List<Runnable> held = new ArrayList<>(); // callbacks raised meanwhile
+                // Where the listener is called when this wrapper calls it on its own: the caller's executor.
+                private final Executor callExecutor =
+                        callOptions.getExecutor() != null ? callOptions.getExecutor() : CALLBACK_EXECUTOR;
                 private ScheduledFuture<?> deadlineTimer;
                 private final Context.CancellationListener contextListener = cancelled -> startUnsigned();
                 // The listener's callbacks, one at a time: its onReady before the first message (see
@@ -497,8 +500,7 @@ public abstract class NetworkClient implements Closeable {
 
                     // The call is ready for its first message, and only that message starts rawCall: a
                     // sender that sends only on onReady needs this one, or both wait for ever.
-                    Executor executor = callOptions.getExecutor() != null ? callOptions.getExecutor() : CALLBACK_EXECUTOR;
-                    executor.execute(() -> deliver(() -> {
+                    callExecutor.execute(() -> deliver(() -> {
                         boolean waiting;
                         synchronized (lock) {
                             waiting = !started && !starting;
@@ -726,16 +728,22 @@ public abstract class NetworkClient implements Closeable {
                 }
 
                 // The signed first message is out (or failed): open the call to the threads waiting in
-                // claimStart, and run the callbacks held meanwhile, in order, before any later one.
+                // claimStart, and run the callbacks held meanwhile, in order, before any later one. They
+                // run on the call's executor, as they would have without the hold, not on the sender's
+                // thread (with a direct executor that is the sender's thread).
                 private void openAndRelease() {
+                    boolean released;
                     synchronized (lock) {
                         firstSender = null;
                         open = true;
+                        released = !held.isEmpty();
                         held.forEach(callbacks::executeLater);
                         held.clear();
                         lock.notifyAll();
                     }
-                    callbacks.drain();
+                    if (released) {
+                        callExecutor.execute(callbacks::drain);
+                    }
                 }
 
                 // Under the lock, before start: once started, the headers belong to the transport.

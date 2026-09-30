@@ -148,6 +148,7 @@ class SigningClientInterceptorStreamingTest {
         };
         call.start(listener, new Metadata());
         call.sendMessage(value("m1"));
+        runCallbackTasks(); // the call's executor runs what was held until m1 was out
 
         RecordingCall raw = channel.lastCall();
         assertThat(sentFromOnReady[0]).as("onReady sent m2").isTrue();
@@ -183,6 +184,7 @@ class SigningClientInterceptorStreamingTest {
         assertThat(transport.isAlive()).as("onReady returned").isFalse();
         raw.releaseSend();
         sender.join(5_000);
+        runCallbackTasks(); // the call's executor runs what was held until m1 was out
 
         assertThat(sender.isAlive()).as("sendMessage returned").isFalse();
         assertThat(sentFromOnReady[0]).as("onReady sent m2").isTrue();
@@ -254,6 +256,7 @@ class SigningClientInterceptorStreamingTest {
         }
         sender.join(5_000);
         assertThat(sender.isAlive()).as("sendMessage returned").isFalse();
+        runCallbackTasks(); // the call's executor runs what was held until m1 was out
         return raw;
     }
 
@@ -270,6 +273,30 @@ class SigningClientInterceptorStreamingTest {
                 return false;
             }
             return calls.get() == 2;
+        }
+    }
+
+    @Test
+    @DisplayName("A callback held while the first message goes out runs on the call's executor, not the sender's thread")
+    void heldCallbackRunsOnTheCallsExecutor() throws Exception {
+        channel.readyOnStart();
+        ExecutorService callExecutor = Executors.newSingleThreadExecutor(task -> new Thread(task, "call-executor"));
+        try {
+            List<String> onReadyThreads = Collections.synchronizedList(new ArrayList<>());
+            RecordingListener<StringValue> listener = new RecordingListener<>();
+            listener.onReadyAction = () -> onReadyThreads.add(Thread.currentThread().getName());
+            ClientCall<StringValue, StringValue> call =
+                    intercepted.newCall(CLIENT_STREAM, CallOptions.DEFAULT.withExecutor(callExecutor));
+            call.start(listener, new Metadata());
+            callExecutor.submit(() -> { }).get(5, TimeUnit.SECONDS); // the call's first onReady has run
+
+            call.sendMessage(value("m1")); // start() raises onReady, held until m1 is out
+            callExecutor.submit(() -> { }).get(5, TimeUnit.SECONDS); // what was handed to the executor has run
+
+            assertThat(onReadyThreads).isNotEmpty().allMatch("call-executor"::equals);
+            assertThat(channel.lastCall().sent).containsExactly(bytes("m1"));
+        } finally {
+            callExecutor.shutdownNow();
         }
     }
 
@@ -893,6 +920,7 @@ class SigningClientInterceptorStreamingTest {
         sender.setDaemon(true); // a hang must not keep the test JVM alive
         sender.start();
         sender.join(5_000);
+        runCallbackTasks(); // the call's executor runs what was held until m1 was out
 
         assertThat(sender.isAlive()).as("sendMessage returned").isFalse();
         RecordingCall raw = channel.lastCall();
