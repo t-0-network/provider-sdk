@@ -107,10 +107,28 @@ func (t *SigningTransport) signFirstEnvelope(req *http.Request) (*http.Response,
 		signed.Body = struct {
 			io.Reader
 			io.Closer
-		}{io.MultiReader(bytes.NewReader(envelope), req.Body), req.Body}
+		}{abortWhenDone{ctx: req.Context(), r: io.MultiReader(bytes.NewReader(envelope), req.Body)}, req.Body}
 	}
 
 	return t.transport.RoundTrip(signed)
+}
+
+// abortWhenDone ends a stream's body in the call's context error rather than io.EOF once that
+// context is done. A cancelled stream's body is still closed normally afterwards, and a body that
+// ended normally would let the server take a partial stream for a complete one.
+type abortWhenDone struct {
+	ctx context.Context
+	r   io.Reader
+}
+
+func (a abortWhenDone) Read(p []byte) (int, error) {
+	n, err := a.r.Read(p)
+	if err == io.EOF {
+		if ctxErr := a.ctx.Err(); ctxErr != nil {
+			return n, ctxErr
+		}
+	}
+	return n, err
 }
 
 // setSignatureHeaders signs Keccak256(signed || uint64le(now_ms)) and sets the signature headers.

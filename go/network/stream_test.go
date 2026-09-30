@@ -635,6 +635,52 @@ func TestSigningTransport_WholeBodyReadErrorClosesBody(t *testing.T) {
 	require.True(t, body.closed, "the body must be closed")
 }
 
+// A stream the caller cancels after its first message never ends normally, even when its body is
+// then closed normally: the transport below sees an error, not io.EOF, and aborts the request.
+func TestSigningTransport_CancelledStreamDoesNotEndNormally(t *testing.T) {
+	envelope := func(payload string) []byte { return append([]byte{0, 0, 0, 0, byte(len(payload))}, payload...) }
+
+	for name, cancelFirst := range map[string]bool{"cancelled, then closed": true, "closed normally": false} {
+		t.Run(name, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			body, source := io.Pipe()
+			var forwarded []byte
+			var bodyErr error
+			recorder := roundTripperFunc(func(r *http.Request) (*http.Response, error) {
+				forwarded, bodyErr = io.ReadAll(r.Body)
+				return &http.Response{StatusCode: http.StatusOK, Body: http.NoBody}, nil
+			})
+			st := NewSigningTransport(newTestKey(t).sign, time.Now, WithTransport(recorder))
+
+			done := make(chan error, 1)
+			go func() {
+				resp, err := st.RoundTrip(newStreamRequest(t, ctx, body))
+				if err == nil {
+					resp.Body.Close()
+				}
+				done <- err
+			}()
+			_, err := source.Write(envelope("m1"))
+			require.NoError(t, err)
+			_, err = source.Write(envelope("m2"))
+			require.NoError(t, err)
+			if cancelFirst {
+				cancel()
+			}
+			require.NoError(t, source.Close())
+			require.NoError(t, <-done)
+
+			require.Equal(t, append(envelope("m1"), envelope("m2")...), forwarded, "the bytes are forwarded unchanged")
+			if cancelFirst {
+				require.ErrorIs(t, bodyErr, context.Canceled)
+			} else {
+				require.NoError(t, bodyErr)
+			}
+		})
+	}
+}
+
 func TestSigningTransport_ContextEndsWaitForFirstMessage(t *testing.T) {
 	pr, pw := io.Pipe()
 	ctx, cancel := context.WithCancel(context.Background())
