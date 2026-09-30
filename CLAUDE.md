@@ -110,7 +110,7 @@ Consequently the Java SDK's `SignatureVerificationInterceptor` accepts both fram
 
 For client-streaming (upload) and server-streaming (download) RPCs, `body_bytes` is the **first request envelope exactly as sent**: `flags (1) || uint32be(length) || payload`. Later messages are sent unsigned. The server checks the timestamp when the headers arrive, before it reads the body, so a client signs as soon as it has the first message and sends the request at once — never buffer the stream to sign it. Over gRPC the network also accepts the first payload without its 5-byte prefix (the Java SDK signs above the framer, as for unary). A client that signs the HTTP body treats `application/connect+*`, `application/grpc` and `application/grpc+*` as enveloped and signs anything else whole.
 
-The rules every SDK client follows (what is signed, when the request is sent, timeouts, refused calls, option names): [`docs/STREAMING.md`](docs/STREAMING.md). Vectors: `stream_signing_cases` in `cross_test/test_vectors.json`; test service: `cross_test/stream_test.proto`, served by `go_helper serve`.
+The streaming rules every SDK client follows (what is signed, when the request is sent, bidirectional streams, the stream timeout): [`docs/STREAMING.md`](docs/STREAMING.md). Vectors: `stream_signing_cases` in `cross_test/test_vectors.json`; test service: `cross_test/stream_test.proto`, served by `go_helper serve`.
 
 ## Releasing
 
