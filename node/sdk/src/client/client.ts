@@ -4,8 +4,7 @@ import type { DescService } from "@bufbuild/protobuf";
 export const DEFAULT_ENDPOINT = "https://api.t-0.network"
 
 /**
- * @param endpoint the network's base URL, `http://` or `https://` with a host and an optional port,
- *     no path; undefined for DEFAULT_ENDPOINT.
+ * @param endpoint the network's base URL; undefined for DEFAULT_ENDPOINT.
  */
 export function createClient<T extends DescService>(signer: string | Buffer | ((data: Buffer) => Promise<Signature>) | Buffer<ArrayBufferLike>, endpoint: string | undefined, svc: T, opts?: ClientOptions) {
     return createClientCommon(signer, baseUrl(endpoint), svc, opts);
@@ -18,10 +17,12 @@ function baseUrl(endpoint: string | undefined): string {
     if (endpoint === null || endpoint === "") {
         throw new Error("base URL is not set");
     }
-    if (!validBaseUrl(endpoint)) {
+    // A value without "://" is read as https.
+    const url = typeof endpoint === "string" && !endpoint.includes("://") ? "https://" + endpoint : endpoint;
+    if (!validBaseUrl(url)) {
         throw new Error("base URL is not valid");
     }
-    return endpoint;
+    return url;
 }
 
 // Checked as written: the URL parser would read "http:foo" as http://foo/ and accept host names
