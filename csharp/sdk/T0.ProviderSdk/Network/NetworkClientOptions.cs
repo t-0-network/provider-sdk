@@ -61,7 +61,10 @@ public sealed class NetworkClientOptions
             throw new ArgumentException("base URL is not set", nameof(BaseUrl));
         // A value without a scheme is read as https.
         var url = value.Contains("://", StringComparison.Ordinal) ? value : "https://" + value;
-        if (!IsValidBaseUrl(url) || !Uri.TryCreate(url, UriKind.Absolute, out _))
+        // Before any parsing: Uri and IPAddress drop some control characters, such as a tab in an
+        // IPv6 scope id.
+        if (value.AsSpan().IndexOfAnyInRange('\u0000', '\u001f') >= 0 || value.Contains('\u007f')
+            || !IsValidBaseUrl(url) || !Uri.TryCreate(url, UriKind.Absolute, out _))
             throw new ArgumentException("base URL is not valid", nameof(BaseUrl));
         return url;
     }

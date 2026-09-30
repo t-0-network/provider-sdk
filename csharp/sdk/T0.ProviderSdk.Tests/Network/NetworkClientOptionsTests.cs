@@ -56,6 +56,16 @@ public class NetworkClientOptionsTests
         Assert.StartsWith("base URL is not valid", ex.Message);
     }
 
+    // Checked before parsing: Uri drops a tab inside an IPv6 scope id.
+    [Theory]
+    [InlineData("http://[::1%\t1]:65535/")]
+    [InlineData("http://h\u007f:8080")]
+    public void BaseUrlWithAControlCharacter_IsRefused(string url)
+    {
+        var ex = Assert.Throws<ArgumentException>(() => new NetworkClientOptions { BaseUrl = url });
+        Assert.StartsWith("base URL is not valid", ex.Message);
+    }
+
     [Fact]
     public void EmptyBaseUrl_IsRefused()
     {
