@@ -9,6 +9,8 @@ npm install
 npm run dev
 ```
 
+Requires Node.js 20.3 or newer.
+
 Share the provider public key (printed by the initializer; also on the comment line under `# Your provider's public key` in `.env`) with the T-0 team so t-0 can verify the requests you sign.
 
 ## Generated Project Structure
@@ -110,7 +112,9 @@ The SDK emits a structured `error`-level log line when a handler returns a respo
 If you do not pass a `logger` option to `createService`, the SDK uses:
 
 ```ts
-const defaultLogger = {
+import type { Logger } from "@t-0/provider-sdk";
+
+const defaultLogger: Logger = {
   error: (msg, fields) => console.error(JSON.stringify({ msg, ...fields })),
 };
 ```
