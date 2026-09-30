@@ -63,8 +63,8 @@ func (c *clientOptions) validate() error {
 	return nil
 }
 
-// validBaseURL accepts http:// or https://, a host without user info, if given a port in 1..65535,
-// and at most a trailing "/": no path, query or fragment.
+// validBaseURL accepts http:// or https://, a host without user info, if given a port in 1..65535
+// without leading zeros, and at most a trailing "/": no path, query or fragment.
 func validBaseURL(raw string) bool {
 	u, err := url.Parse(raw)
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.User != nil || !validHost(u) {
@@ -75,7 +75,7 @@ func validBaseURL(raw string) bool {
 	}
 	if port := u.Port(); port != "" || strings.HasSuffix(u.Host, ":") {
 		n, err := strconv.Atoi(port)
-		return err == nil && n >= 1 && n <= 65535
+		return err == nil && port[0] != '0' && n >= 1 && n <= 65535
 	}
 	return true
 }

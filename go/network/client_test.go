@@ -205,7 +205,7 @@ func TestNewServiceClient_ValidationErrors(t *testing.T) {
 	// The base URL rows every SDK shares.
 	for _, bad := range []string{
 		"ftp://h", "http://", "http://user@h", "http://my_host:8080", "https://api.t-0.network/v1",
-		"https://api.t-0.network?x", "http://h:0", "http://h:99999", "http://1.2.3",
+		"https://api.t-0.network?x", "http://h:0", "http://h:99999", "http://1.2.3", "http://h:080", "http://h\t",
 	} {
 		t.Run(fmt.Sprintf("base URL %q is refused", bad), func(t *testing.T) {
 			_, err := NewServiceClient("", factory, WithSignatureFunction(testSignFn(t)), WithBaseURL(bad))
