@@ -221,7 +221,9 @@ class CrossServerTests {
     }
 
     // --- Streaming: Java client -> Go server over gRPC (h2c), see docs/STREAMING.md ---
-    // The client sees only UNAUTHENTICATED, whatever the reason: the tests read the helper's log.
+    // Each reply starts with the framing the helper verified ("payload:" for Java, which signs above the
+    // framer); a refusal is UNAUTHENTICATED with the helper's reason as its description. The helper's log
+    // is read only to see when a request went out, or that none did.
 
     private static final MethodDescriptor<StringValue, StringValue> CLIENT_STREAM =
             streamTestMethod(MethodType.CLIENT_STREAMING, "ClientStream");
@@ -230,9 +232,6 @@ class CrossServerTests {
 
     private static final String CLIENT_STREAM_VERIFIED =
             "/test.v1.StreamTest/ClientStream verified over the first payload";
-    private static final String SERVER_STREAM_VERIFIED =
-            "/test.v1.StreamTest/ServerStream verified over the first payload";
-    private static final String CLIENT_STREAM_REJECTED = "/test.v1.StreamTest/ClientStream rejected: ";
 
     /** A client that buffered the stream to sign it would time out waiting for the log line. */
     @Test
@@ -252,7 +251,7 @@ class CrossServerTests {
             requests.onNext(StringValue.of("m3"));
             requests.onCompleted();
 
-            assertThat(result.get(10, TimeUnit.SECONDS)).isEqualTo("m1,m2,m3");
+            assertThat(result.get(10, TimeUnit.SECONDS)).isEqualTo("payload:m1,m2,m3");
         } finally {
             stop(goServer);
         }
@@ -271,8 +270,7 @@ class CrossServerTests {
         try (var client = streamClient(goServer.port(), PRIVATE_KEY)) {
             CompletableFuture<String> result = sendClientStream(client.getChannel(), List.of(large, "tail"));
 
-            assertThat(result.get(10, TimeUnit.SECONDS)).isEqualTo(large + ",tail");
-            goServer.waitForLog(CLIENT_STREAM_VERIFIED);
+            assertThat(result.get(10, TimeUnit.SECONDS)).isEqualTo("payload:" + large + ",tail");
         } finally {
             stop(goServer);
         }
@@ -293,7 +291,7 @@ class CrossServerTests {
             }
             call.halfClose();
 
-            assertThat(call.read(10, TimeUnit.SECONDS).getValue()).isEqualTo("m1,m2,m3");
+            assertThat(call.read(10, TimeUnit.SECONDS).getValue()).isEqualTo("payload:m1,m2,m3");
         } finally {
             stop(goServer);
         }
@@ -310,7 +308,7 @@ class CrossServerTests {
             ReadinessDrivenSender sender = new ReadinessDrivenSender(List.of("m1", "m2", "m3"));
             ClientCalls.asyncClientStreamingCall(client.getChannel().newCall(CLIENT_STREAM, CallOptions.DEFAULT), sender);
 
-            assertThat(sender.result.get(10, TimeUnit.SECONDS)).isEqualTo("m1,m2,m3");
+            assertThat(sender.result.get(10, TimeUnit.SECONDS)).isEqualTo("payload:m1,m2,m3");
         } finally {
             stop(goServer);
         }
@@ -328,8 +326,7 @@ class CrossServerTests {
             List<String> received = new ArrayList<>();
             replies.forEachRemaining(reply -> received.add(reply.getValue()));
 
-            assertThat(received).containsExactly("hello", "hello", "hello");
-            goServer.waitForLog(SERVER_STREAM_VERIFIED);
+            assertThat(received).containsExactly("payload:hello", "payload:hello", "payload:hello");
         } finally {
             stop(goServer);
         }
@@ -395,7 +392,8 @@ class CrossServerTests {
         GoServer goServer = startGoServer();
 
         try (var client = streamClient(goServer.port(), PRIVATE_KEY)) {
-            assertThat(sendClientStream(client.getChannel(), List.of("m1")).get(10, TimeUnit.SECONDS)).isEqualTo("m1");
+            assertThat(sendClientStream(client.getChannel(), List.of("m1")).get(10, TimeUnit.SECONDS))
+                    .isEqualTo("payload:m1");
             goServer.waitForLog(CLIENT_STREAM_VERIFIED);
             int afterFirstCall = goServer.logLength();
 
@@ -504,8 +502,7 @@ class CrossServerTests {
         GoServer goServer = startGoServer();
 
         try (var client = streamClient(goServer.port(), PRIVATE_KEY)) {
-            assertUnauthenticated(sendClientStream(client.getChannel(), List.of()));
-            goServer.waitForLog(CLIENT_STREAM_REJECTED + "no first message");
+            assertUnauthenticated(sendClientStream(client.getChannel(), List.of()), "no first message");
         } finally {
             stop(goServer);
         }
@@ -523,8 +520,7 @@ class CrossServerTests {
             Channel stale = ClientInterceptors.intercept(channel,
                     SigningInterceptors.withClock(Signer.fromHex(PRIVATE_KEY), twoMinutesAgo));
 
-            assertUnauthenticated(sendClientStream(stale, List.of("m1")));
-            goServer.waitForLog(CLIENT_STREAM_REJECTED + "timestamp is outside the allowed time window");
+            assertUnauthenticated(sendClientStream(stale, List.of("m1")), "timestamp is outside the allowed time window");
         } finally {
             shutdown(channel);
             stop(goServer);
@@ -645,10 +641,13 @@ class CrossServerTests {
         return result;
     }
 
-    private static void assertUnauthenticated(CompletableFuture<String> result) {
+    /** The call failed with UNAUTHENTICATED, and the helper's reason is in its description. */
+    private static void assertUnauthenticated(CompletableFuture<String> result, String reason) {
         ExecutionException thrown = org.junit.jupiter.api.Assertions.assertThrows(
                 ExecutionException.class, () -> result.get(10, TimeUnit.SECONDS));
-        assertThat(Status.fromThrowable(thrown.getCause()).getCode()).isEqualTo(Status.Code.UNAUTHENTICATED);
+        Status status = Status.fromThrowable(thrown.getCause());
+        assertThat(status.getCode()).isEqualTo(Status.Code.UNAUTHENTICATED);
+        assertThat(status.getDescription()).contains(reason);
     }
 
     /** Any SDK client: the streams are called on its channel, not its stub. */
