@@ -61,7 +61,8 @@ func newStreamTestHandler(publicKeyHex string) (http.Handler, error) {
 		}))
 
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Every SDK's streaming cross tests wait for these log lines: keep their wording.
+		// The streaming cross tests wait for these log lines to see a request go out with its first
+		// message, and check that nothing was sent: keep their wording.
 		framing, err := verifyFirstEnvelope(r, trustedKey)
 		if err != nil {
 			log.Printf("%s rejected: %v", r.URL.Path, err)

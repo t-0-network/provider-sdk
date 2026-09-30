@@ -57,7 +57,7 @@ The SDK module requires a separate tag for releases:
 - Server uses functional options pattern for configuration
 - `StartServer()` is async — returns after confirming server is listening (5s timeout)
 - Shutdown function is idempotent and safe for concurrent calls
-- Default max request body size: 1 MB (configurable via `WithMaxBodySize`)
+- Default max request body size: 10 MiB (configurable via `WithMaxBodySize`)
 - Signature errors stored in context, converted to ConnectRPC errors by interceptor
 - Uses `github.com/decred/dcrd/dcrec/secp256k1/v4` for signing/verification
 - Uses `golang.org/x/crypto/sha3.NewLegacyKeccak256()` — must be Legacy variant, not standard SHA-3

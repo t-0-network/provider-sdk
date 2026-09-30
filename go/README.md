@@ -111,7 +111,7 @@ server := provider.NewServer(providerServiceHandler, provider.WithAddr(":8080"))
 
 **Server options:** `WithAddr`, `WithReadTimeout`, `WithWriteTimeout`, `WithReadHeaderTimeout`, `WithShutdownTimeout`, `WithTLSConfig`, `WithHTTP2Config`.
 
-**Handler options:** `WithVerifySignatureFn`, `WithConnectHandlerOptions`, `WithMaxBodySize` (default: 1 MB).
+**Handler options:** `WithVerifySignatureFn`, `WithConnectHandlerOptions`, `WithMaxBodySize` (default: 10 MiB).
 
 ### Network Client
 

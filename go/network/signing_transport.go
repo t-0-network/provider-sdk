@@ -44,8 +44,9 @@ func NewSigningTransport(signFn crypto.SignFn, timeNow func() time.Time, opts ..
 
 // SigningTransport is an http.RoundTripper that signs each request and sets the signature, public
 // key and timestamp headers. Connect-streaming and gRPC requests are signed over their first
-// envelope and sent as soon as it is read; other requests over the whole body.
-// See docs/STREAMING.md.
+// envelope and sent as soon as it is read; other requests over the whole body. A GET request is
+// refused with CodeUnimplemented, because its message would travel in the URL, which the
+// signature does not cover. See docs/STREAMING.md.
 type SigningTransport struct {
 	transport http.RoundTripper
 	sign      crypto.SignFn

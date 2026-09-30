@@ -13,7 +13,7 @@ func GetPrivateKeyBytes(privateKey *secp256k1.PrivateKey) []byte {
 	return privateKey.Serialize()
 }
 
-// GetPrivateKeyFromHex parses a private key written as 64 hex characters, with or without a 0x
+// GetPrivateKeyFromHex parses a private key written as 64 hex characters, with or without a 0x or 0X
 // prefix. Its value must be in [1, n-1], n being the secp256k1 order; it is never reduced mod n.
 func GetPrivateKeyFromHex(privateKeyHexed string) (*secp256k1.PrivateKey, error) {
 	if privateKeyHexed == "" {
