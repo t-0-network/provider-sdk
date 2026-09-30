@@ -248,6 +248,50 @@ public class DefaultDeadlineInterceptorTests
         }
     }
 
+    // The form master's docs and starter use: a base URL string and the default timeouts.
+    [Fact]
+    public async Task BaseUrlOverloads_UseTheBaseUrlAndTheDefaultTimeout()
+    {
+        var timeouts = new List<string?>();
+        var (app, baseUrl) = await StartTimeoutRecorderAsync(timeouts);
+
+        try
+        {
+            var signer = Signer.FromHex(PrivateKey);
+
+            var payment = NetworkClient.CreateNetworkServiceClient(baseUrl, signer);
+            var ex = await Assert.ThrowsAsync<RpcException>(
+                () => payment.UpdateQuoteAsync(new PaymentApi.UpdateQuoteRequest()).ResponseAsync);
+            Assert.Equal(StatusCode.Unimplemented, ex.StatusCode);
+
+            var paymentIntent = NetworkClient.CreatePaymentIntentNetworkServiceClient(baseUrl, signer);
+            ex = await Assert.ThrowsAsync<RpcException>(
+                () => paymentIntent.ConfirmPaymentAsync(new PaymentIntentApi.ConfirmPaymentRequest()).ResponseAsync);
+            Assert.Equal(StatusCode.Unimplemented, ex.StatusCode);
+
+            // Both reached the server at baseUrl, each with the 15 s default.
+            Assert.Equal(2, timeouts.Count);
+            Assert.All(timeouts, timeout =>
+                Assert.InRange(ParseGrpcTimeout(timeout), TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(15)));
+        }
+        finally
+        {
+            await app.StopAsync();
+            await app.DisposeAsync();
+        }
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("http://my_host:8080")]
+    public void BaseUrlOverloads_CheckTheBaseUrl(string baseUrl)
+    {
+        var signer = Signer.FromHex(PrivateKey);
+
+        Assert.Throws<ArgumentException>(() => NetworkClient.CreateNetworkServiceClient(baseUrl, signer));
+        Assert.Throws<ArgumentException>(() => NetworkClient.CreatePaymentIntentNetworkServiceClient(baseUrl, signer));
+    }
+
     [Fact]
     public async Task ClientStream_SendsTheStreamTimeout_OrTheCallersDeadline()
     {

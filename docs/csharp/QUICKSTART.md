@@ -25,8 +25,7 @@ using T0.ProviderSdk.Network;
 DotNetEnv.Env.Load();
 var config = T0Config.FromEnvironment();
 var signer = Signer.FromHex(config.ProviderPrivateKey);
-var networkClient = NetworkClient.CreateNetworkServiceClient(
-    new NetworkClientOptions { BaseUrl = config.TZeroEndpoint }, signer);
+var networkClient = NetworkClient.CreateNetworkServiceClient(config.TZeroEndpoint, signer);
 
 var server = new T0ProviderServer(config, signer);
 server.MapPaymentService<MyProvider.Services.PaymentHandler>(networkClient);
@@ -34,7 +33,7 @@ server.AddHostedService<MyProvider.Services.QuotePublisher>();
 await server.RunAsync();
 ```
 
-`NetworkClientOptions` also sets `Timeout` (unary calls, 15 s) and `StreamTimeout` (client and server streams, 5 min); see [Streaming and timeouts](../../csharp/README.md#streaming-and-timeouts).
+The overload that takes `NetworkClientOptions` in place of the base URL also sets `Timeout` (unary calls, default 15 s) and `StreamTimeout` (client and server streams, default 5 min); see [Streaming and timeouts](../../csharp/README.md#streaming-and-timeouts).
 
 ## Environment Variables
 
@@ -64,7 +63,7 @@ For providers handling payment intents, map an additional service:
 
 ```csharp
 var intentNetworkClient = NetworkClient.CreatePaymentIntentNetworkServiceClient(
-    new NetworkClientOptions { BaseUrl = config.TZeroEndpoint }, signer);
+    config.TZeroEndpoint, signer);
 
 server.MapPaymentIntentService<MyProvider.Services.PaymentIntentHandler>(intentNetworkClient);
 ```

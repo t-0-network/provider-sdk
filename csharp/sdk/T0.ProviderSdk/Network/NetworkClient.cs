@@ -95,10 +95,28 @@ public static class NetworkClient
         Create(options, signer, invoker => new PaymentApi.NetworkService.NetworkServiceClient(invoker));
 
     /// <summary>
+    /// Creates a Payment NetworkService client for <paramref name="baseUrl"/> with the default timeouts;
+    /// pass <see cref="NetworkClientOptions"/> to change them.
+    /// </summary>
+    public static PaymentApi.NetworkService.NetworkServiceClient CreateNetworkServiceClient(
+        string baseUrl,
+        ISigner signer) =>
+        CreateNetworkServiceClient(new NetworkClientOptions { BaseUrl = baseUrl }, signer);
+
+    /// <summary>
     /// Creates a PaymentIntent NetworkService client; see <see cref="Create{TClient}"/>.
     /// </summary>
     public static PaymentIntentApi.NetworkService.NetworkServiceClient CreatePaymentIntentNetworkServiceClient(
         NetworkClientOptions options,
         ISigner signer) =>
         Create(options, signer, invoker => new PaymentIntentApi.NetworkService.NetworkServiceClient(invoker));
+
+    /// <summary>
+    /// Creates a PaymentIntent NetworkService client for <paramref name="baseUrl"/> with the default
+    /// timeouts; pass <see cref="NetworkClientOptions"/> to change them.
+    /// </summary>
+    public static PaymentIntentApi.NetworkService.NetworkServiceClient CreatePaymentIntentNetworkServiceClient(
+        string baseUrl,
+        ISigner signer) =>
+        CreatePaymentIntentNetworkServiceClient(new NetworkClientOptions { BaseUrl = baseUrl }, signer);
 }
