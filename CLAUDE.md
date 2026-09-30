@@ -47,6 +47,7 @@ cd go && go test ./...                            # Go
 cd node/sdk && npm ci && npm run build && npm test # Node
 cd python && uv sync --all-packages && uv run pytest -v  # Python
 cd java && ./gradlew build                        # Java
+cd csharp && dotnet test                          # C#
 ```
 
 ## Cross-Language Testing

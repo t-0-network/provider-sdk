@@ -47,9 +47,9 @@ unary timeout.
   the server. A stream that runs longer ends with `deadline exceeded` unless the caller passes a
   longer stream timeout.
 - A deadline that the caller sets on a call replaces it, whether it is shorter or longer.
-- A synchronous client (Python's sync client) cannot interrupt a request source that blocks: it
-  checks the deadline each time the source yields a message, and sends nothing if the time is up.
-  A source that blocks forever keeps the call waiting, so bound the blocking reads in such a source.
+- A synchronous client (Python's sync client) cannot interrupt a request source that blocks before
+  its first message: the call waits for it and, if the deadline has passed by then, sends nothing and
+  fails with `deadline exceeded`. After the first message the deadline ends the call on time.
 
 | | Go | Node | Python | Java | C# |
 |---|---|---|---|---|---|

@@ -3,10 +3,11 @@
 ## Prerequisites
 
 - [buf](https://buf.build/docs/installation/) (protobuf code generation)
-- [Go](https://go.dev/dl/) 1.25+
-- [Node.js](https://nodejs.org/) LTS + npm
+- [Go](https://go.dev/dl/) 1.27+
+- [Node.js](https://nodejs.org/) LTS (20.19 or newer) + npm
 - [Python](https://www.python.org/downloads/) 3.13+ with [uv](https://docs.astral.sh/uv/)
 - [Java](https://adoptium.net/) 17+ with [Gradle](https://gradle.org/) (wrapper included)
+- [.NET](https://dotnet.microsoft.com/download) 10 SDK
 
 ## Project Structure
 
@@ -20,6 +21,8 @@ python/sdk/     Python SDK (t0-provider-sdk)
 python/starter/ Python starter template
 java/sdk/       Java SDK (network.t-0:provider-sdk-java)
 java/starter/   Java starter template
+csharp/         C# SDK + starter template
+cross_test/     Cross-language test vectors + shared Go helper
 ```
 
 ## Development Setup
@@ -69,6 +72,13 @@ chmod +x gradlew
 ./gradlew build --no-daemon
 ```
 
+### C#
+
+```sh
+cd csharp
+dotnet test
+```
+
 ### Unified CLI
 
 `cli/` builds `t0-init`, which embeds every starter template from your checkout. Build it, run its tests, and scaffold a project from your tree:
@@ -102,9 +112,10 @@ Generated code locations:
 
 ### Python-specific proto generation
 
+From the repository root (the Python code comes from the root `buf.gen.yaml`, and its connect plugin runs from the Python workspace's dev dependencies):
+
 ```sh
-cd python/sdk
-buf dep update
+uv sync --project python --all-packages
 buf generate
 ```
 
@@ -138,7 +149,7 @@ Run tests per language:
 - HTTP/2 cleartext (h2c) is enabled automatically via `h2c.NewHandler()` -- no TLS required for HTTP/2 in development
 - Server uses functional options pattern: `WithAddr`, `WithReadTimeout`, `WithTLSConfig`, etc.
 - `StartServer()` returns immediately after confirming the server is listening (or 5s timeout). It returns a `ServerShutdownFn` for graceful shutdown (idempotent, safe for concurrent calls)
-- Default max request body size: 1 MB (configurable via `WithMaxBodySize`)
+- Default max request body size: 10 MiB (configurable via `WithMaxBodySize`)
 
 **Module Tags:**
 - The SDK module requires a separate tag: `go/vX.Y.Z`
@@ -149,7 +160,7 @@ Run tests per language:
 **SDK Architecture:**
 - Dual ESM/CJS output: `lib/esm/` (via `tsconfig.esm.json`) and `lib/cjs/` (via `tsconfig.cjs.json`)
 - The middleware chain pattern: `signatureValidation(nodeAdapter(createService(...)))` -- `signatureValidation` streams raw bytes for hashing before ConnectRPC deserializes
-- Uses `@noble/secp256k1` for signing and `@noble/hashes` for Keccak-256
+- Uses `@noble/curves` (secp256k1) for signing and `@noble/hashes` for Keccak-256
 
 **Publishing:**
 - npm provenance requires GitHub-hosted runners (`ubuntu-latest`). Blacksmith/self-hosted runners are rejected by npm
@@ -161,8 +172,9 @@ Run tests per language:
 
 | PyPI Package | Import | Purpose | Notes |
 |---|---|---|---|
-| `connectrpc` | `connectrpc` | ConnectRPC runtime | PyPI distribution renamed from `connect-python` at v0.10.0; pin `>=0.10.0` |
-| `protobuf` | `google.protobuf` | Message serialization | >= 5.28 required |
+| `connectrpc` | `connectrpc` | ConnectRPC runtime | PyPI distribution renamed from `connect-python` at v0.10.0; the SDK needs `>=0.11.1` |
+| `pyqwest` | `pyqwest` | connectrpc's HTTP client | `>=0.9.0`, the first that can be told not to follow redirects |
+| `protobuf` | `google.protobuf` | Message serialization | `>=7.34.1` |
 | `coincurve` | `coincurve` | secp256k1 ECDSA | Signing, verification, key derivation |
 | `pycryptodome` | `Crypto.Hash.keccak` | Keccak256 hash | Do NOT use `pysha3` (incompatible with Python 3.13) or `hashlib.sha3_256` (different padding) |
 
@@ -193,7 +205,7 @@ Reference for porting changes from the Go SDK:
 **SDK Architecture:**
 - Uses gRPC (not ConnectRPC) with `io.grpc` framework
 - Server MUST wrap service with `ServerInterceptors.useInputStreamMessages()` BEFORE adding signature verification interceptor -- otherwise raw bytes are not available and verification fails
-- Supports both Connect protocol (raw protobuf) and gRPC protocol (5-byte frame: compression flag + 4-byte length) automatically
+- Verifies a signature over the unframed message or over the gRPC-framed body (5-byte prefix: compression flag + 4-byte length), because the network signs either depending on where its signer sits; see [docs/java/SIGNATURE_VERIFICATION.md](docs/java/SIGNATURE_VERIFICATION.md)
 - Uses BouncyCastle for secp256k1 and Keccak-256, with canonical S-value normalization (lower half of curve order)
 
 **Repository Structure:**

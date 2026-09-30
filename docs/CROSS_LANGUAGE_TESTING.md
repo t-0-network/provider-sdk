@@ -94,3 +94,4 @@ Tests **fail** (not skip) if the Go helper binary is missing in CI.
 2. Add Go setup + helper build to the SDK's CI workflow (see `ci-python.yaml` for the pattern)
 3. Add `go/**` and `cross_test/**` to the CI workflow's path triggers
 4. Tests must fail (not skip) if the helper binary is missing in CI
+5. Streaming against `go_helper serve`: a client stream of several messages and a server stream, each verified over the expected framing; no buffering (message 2 after the helper logged message 1 as verified); a large first message; and refusals of a stale timestamp and an empty stream
