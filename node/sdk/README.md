@@ -33,6 +33,12 @@ import {
   PayoutResponse,
   UpdatePaymentRequest,
   UpdatePaymentResponse,
+  UpdateLimitRequest,
+  UpdateLimitResponse,
+  AppendLedgerEntriesRequest,
+  AppendLedgerEntriesResponse,
+  ApprovePaymentQuoteRequest,
+  ApprovePaymentQuoteResponse,
   HandlerContext,
 } from "@t-0/provider-sdk";
 
@@ -48,6 +54,18 @@ const server = http.createServer(
       async updatePayment(req: UpdatePaymentRequest, ctx: HandlerContext): Promise<UpdatePaymentResponse> {
         // Handle payment status updates
         return {} as UpdatePaymentResponse;
+      },
+      async updateLimit(req: UpdateLimitRequest, ctx: HandlerContext): Promise<UpdateLimitResponse> {
+        // Handle updates of your limits and their usage
+        return {} as UpdateLimitResponse;
+      },
+      async appendLedgerEntries(req: AppendLedgerEntriesRequest, ctx: HandlerContext): Promise<AppendLedgerEntriesResponse> {
+        // Handle new ledger transactions and entries
+        return {} as AppendLedgerEntriesResponse;
+      },
+      async approvePaymentQuotes(req: ApprovePaymentQuoteRequest, ctx: HandlerContext): Promise<ApprovePaymentQuoteResponse> {
+        // Approve the final quote of a payment after a manual AML check
+        return { result: { case: "accepted", value: {} } } as ApprovePaymentQuoteResponse;
       },
     });
   })
@@ -183,10 +201,10 @@ The input is 64 hex characters, with an optional `0x` or `0X` prefix; output is 
 
 ### Network Client
 
-Use `createClient` to call T-0 Network APIs. The client handles request signing automatically. It speaks the Connect protocol. `endpoint` is the network's base URL: `http://` or `https://`, a host and an optional port, no path; `undefined` means `https://api.t-0.network`.
+Use `createClient` to call T-0 Network APIs. The client handles request signing automatically. It speaks the Connect protocol. `endpoint` is the network's base URL; `undefined` means `https://api.t-0.network`.
 
 ```ts
-import { createClient, NetworkService } from "@t-0/provider-sdk";
+import { createClient, NetworkService, PaymentMethodType, QuoteType } from "@t-0/provider-sdk";
 
 const privateKey = process.env.PROVIDER_PRIVATE_KEY!;
 const endpoint = process.env.TZERO_ENDPOINT || "https://api-sandbox.t-0.network";
@@ -198,9 +216,10 @@ await networkClient.updateQuote({
   payOut: [
     {
       currency: "EUR",
-      quoteType: 1, // REALTIME
-      paymentMethod: 1,
-      bands: [{ clientQuoteId: "q1", maxAmount: { value: "10000" }, rate: { value: "0.92" } }],
+      quoteType: QuoteType.REALTIME,
+      paymentMethod: PaymentMethodType.SEPA,
+      // Decimal: unscaled * 10^exponent, so 0.92 is { unscaled: 92n, exponent: -2 }
+      bands: [{ clientQuoteId: "q1", maxAmount: { unscaled: 10000n, exponent: 0 }, rate: { unscaled: 92n, exponent: -2 } }],
       expiration: { seconds: BigInt(Math.floor(Date.now() / 1000) + 30) },
       timestamp: { seconds: BigInt(Math.floor(Date.now() / 1000)) },
     },
@@ -209,10 +228,10 @@ await networkClient.updateQuote({
 
 // Get a quote
 const quote = await networkClient.getQuote({
-  amount: { payOutAmount: { value: "100" } },
+  amount: { amount: { case: "payOutAmount", value: { unscaled: 100n, exponent: 0 } } },
   payOutCurrency: "EUR",
-  payOutMethod: 1,
-  quoteType: 1,
+  payOutMethod: PaymentMethodType.SEPA,
+  quoteType: QuoteType.REALTIME,
 });
 ```
 
@@ -231,7 +250,7 @@ const client = createClient(privateKey, endpoint, NetworkService, {
 await client.updateQuote(request, { timeoutMs: 120_000 }); // this call only
 ```
 
-The rules shared by every SDK: [`docs/STREAMING.md`](../../docs/STREAMING.md).
+The streaming rules shared by every SDK: [`docs/STREAMING.md`](../../docs/STREAMING.md).
 
 ## Development
 
