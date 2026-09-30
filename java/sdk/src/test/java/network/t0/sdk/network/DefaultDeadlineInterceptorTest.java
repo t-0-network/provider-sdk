@@ -187,35 +187,8 @@ class DefaultDeadlineInterceptorTest {
         @Test
         @DisplayName("The default create() sends unary calls a 15 s deadline and server streams 5 min")
         void defaultCreateDeadlinesReachTheServer() throws Exception {
-            // Milliseconds left on each call's deadline when it reaches the server, by method.
             Map<String, Optional<Long>> remainingMs = new ConcurrentHashMap<>();
-            ServerInterceptor recorder = new ServerInterceptor() {
-                @Override
-                public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(
-                        ServerCall<ReqT, RespT> call, Metadata headers, ServerCallHandler<ReqT, RespT> next) {
-                    // The server turns the grpc-timeout header into the deadline of the call's context.
-                    remainingMs.put(call.getMethodDescriptor().getBareMethodName(),
-                            Optional.ofNullable(Context.current().getDeadline())
-                                    .map(deadline -> deadline.timeRemaining(TimeUnit.MILLISECONDS)));
-                    return next.startCall(call, headers);
-                }
-            };
-            Server server = NettyServerBuilder.forPort(0)
-                    .addService(ServerInterceptors.intercept(new HealthGrpc.HealthImplBase() {
-                        @Override
-                        public void check(HealthCheckRequest request, StreamObserver<HealthCheckResponse> observer) {
-                            observer.onNext(HealthCheckResponse.getDefaultInstance());
-                            observer.onCompleted();
-                        }
-
-                        @Override
-                        public void watch(HealthCheckRequest request, StreamObserver<HealthCheckResponse> observer) {
-                            observer.onNext(HealthCheckResponse.getDefaultInstance());
-                            observer.onCompleted();
-                        }
-                    }, recorder))
-                    .build()
-                    .start();
+            Server server = deadlineRecordingHealthServer(remainingMs);
             try (var client = BlockingNetworkClient.create("http://localhost:" + server.getPort(),
                     Signer.fromHex(PRIVATE_KEY_HEX), HealthGrpc::newBlockingStub)) {
 
@@ -227,6 +200,32 @@ class DefaultDeadlineInterceptorTest {
 
             assertThat(remainingMs.get("Check")).hasValueSatisfying(ms -> assertThat(ms).isBetween(14_000L, 15_000L));
             assertThat(remainingMs.get("Watch")).hasValueSatisfying(ms -> assertThat(ms).isBetween(299_000L, 300_000L));
+        }
+
+        @ParameterizedTest
+        @EnumSource(DeprecatedIntCreate.class)
+        @DisplayName("The deprecated create(..., int timeoutSeconds) sets the unary deadline; streams keep 5 min")
+        void deprecatedIntTimeoutOverload(DeprecatedIntCreate client) throws Exception {
+            Map<String, Optional<Long>> remainingMs = new ConcurrentHashMap<>();
+            Server server = deadlineRecordingHealthServer(remainingMs);
+            String endpoint = "http://localhost:" + server.getPort();
+            Signer signer = Signer.fromHex(PRIVATE_KEY_HEX);
+            try (NetworkClient created = client.create(endpoint, signer, 7)) {
+                // The deadlines come from the client's channel, whatever stub type it hands out.
+                HealthGrpc.HealthBlockingStub stub = HealthGrpc.newBlockingStub(created.getChannel());
+                stub.check(HealthCheckRequest.getDefaultInstance());
+                stub.watch(HealthCheckRequest.getDefaultInstance()).forEachRemaining(response -> { });
+            } finally {
+                server.shutdownNow();
+            }
+
+            assertThat(remainingMs.get("Check")).hasValueSatisfying(ms -> assertThat(ms).isBetween(6_000L, 7_000L));
+            assertThat(remainingMs.get("Watch")).hasValueSatisfying(ms -> assertThat(ms).isBetween(299_000L, 300_000L));
+            for (int bad : new int[] {0, -1, Integer.MAX_VALUE}) {
+                assertThatThrownBy(() -> client.create(endpoint, signer, bad))
+                        .isInstanceOf(IllegalArgumentException.class)
+                        .hasMessage("timeout must be a positive duration of at most 2147483647 ms");
+            }
         }
 
         @Test
@@ -338,6 +337,37 @@ class DefaultDeadlineInterceptorTest {
             return stub.withInterceptors(MetadataUtils.newAttachHeadersInterceptor(headers));
         }
 
+        /** Health service that records, by method, the milliseconds left on each call's deadline on arrival. */
+        private Server deadlineRecordingHealthServer(Map<String, Optional<Long>> remainingMs) throws Exception {
+            ServerInterceptor recorder = new ServerInterceptor() {
+                @Override
+                public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(
+                        ServerCall<ReqT, RespT> call, Metadata headers, ServerCallHandler<ReqT, RespT> next) {
+                    // The server turns the grpc-timeout header into the deadline of the call's context.
+                    remainingMs.put(call.getMethodDescriptor().getBareMethodName(),
+                            Optional.ofNullable(Context.current().getDeadline())
+                                    .map(deadline -> deadline.timeRemaining(TimeUnit.MILLISECONDS)));
+                    return next.startCall(call, headers);
+                }
+            };
+            return NettyServerBuilder.forPort(0)
+                    .addService(ServerInterceptors.intercept(new HealthGrpc.HealthImplBase() {
+                        @Override
+                        public void check(HealthCheckRequest request, StreamObserver<HealthCheckResponse> observer) {
+                            observer.onNext(HealthCheckResponse.getDefaultInstance());
+                            observer.onCompleted();
+                        }
+
+                        @Override
+                        public void watch(HealthCheckRequest request, StreamObserver<HealthCheckResponse> observer) {
+                            observer.onNext(HealthCheckResponse.getDefaultInstance());
+                            observer.onCompleted();
+                        }
+                    }, recorder))
+                    .build()
+                    .start();
+        }
+
         private CompletableFuture<Status> watch(HealthGrpc.HealthStub stub) {
             CompletableFuture<Status> closed = new CompletableFuture<>();
             stub.watch(HealthCheckRequest.getDefaultInstance(), new StreamObserver<>() {
@@ -373,6 +403,31 @@ class DefaultDeadlineInterceptorTest {
                     .build()
                     .start();
         }
+    }
+
+    /** The deprecated int overload of each client, kept for callers written against earlier releases. */
+    @SuppressWarnings("deprecation")
+    enum DeprecatedIntCreate {
+        BLOCKING {
+            @Override
+            NetworkClient create(String endpoint, Signer signer, int timeoutSeconds) {
+                return BlockingNetworkClient.create(endpoint, signer, HealthGrpc::newBlockingStub, timeoutSeconds);
+            }
+        },
+        ASYNC {
+            @Override
+            NetworkClient create(String endpoint, Signer signer, int timeoutSeconds) {
+                return AsyncNetworkClient.create(endpoint, signer, HealthGrpc::newStub, timeoutSeconds);
+            }
+        },
+        FUTURE {
+            @Override
+            NetworkClient create(String endpoint, Signer signer, int timeoutSeconds) {
+                return FutureNetworkClient.create(endpoint, signer, HealthGrpc::newFutureStub, timeoutSeconds);
+            }
+        };
+
+        abstract NetworkClient create(String endpoint, Signer signer, int timeoutSeconds);
     }
 
     // ==================== Helpers ====================

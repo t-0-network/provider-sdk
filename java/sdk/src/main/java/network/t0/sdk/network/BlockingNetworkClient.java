@@ -4,6 +4,7 @@ import io.grpc.Channel;
 import io.grpc.ManagedChannel;
 import io.grpc.stub.AbstractBlockingStub;
 import network.t0.sdk.crypto.DigestSigner;
+import network.t0.sdk.crypto.Signer;
 
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
@@ -71,6 +72,30 @@ public final class BlockingNetworkClient<S extends AbstractBlockingStub<S>> exte
             DigestSigner signer,
             Function<Channel, S> stubFactory) {
         return create(endpoint, signer, stubFactory, DEFAULT_TIMEOUT, DEFAULT_STREAM_TIMEOUT);
+    }
+
+    /**
+     * Creates a new BlockingNetworkClient with a default deadline in seconds for unary calls; streaming calls
+     * get the default stream timeout of 5 minutes.
+     *
+     * @param endpoint       the T-0 Network base URL with an http or https scheme, or {@code null} for "https://api.t-0.network"
+     * @param signer         the signer to use for signing requests
+     * @param stubFactory    the stub factory (e.g., {@code NetworkServiceGrpc::newBlockingStub})
+     * @param timeoutSeconds the default deadline for unary calls, in seconds
+     * @param <S>            the blocking stub type
+     * @return a new BlockingNetworkClient instance
+     * @throws IllegalArgumentException if the endpoint, signer or stub factory is invalid, or the timeout is not
+     *                                  a positive duration of at most 2147483647 ms
+     * @deprecated Use {@link #create(String, DigestSigner, Function, Duration, Duration)}, which also sets the
+     *             stream timeout.
+     */
+    @Deprecated
+    public static <S extends AbstractBlockingStub<S>> BlockingNetworkClient<S> create(
+            String endpoint,
+            Signer signer,
+            Function<Channel, S> stubFactory,
+            int timeoutSeconds) {
+        return create(endpoint, signer, stubFactory, Duration.ofSeconds(timeoutSeconds), DEFAULT_STREAM_TIMEOUT);
     }
 
     /**
