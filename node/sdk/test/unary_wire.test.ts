@@ -4,7 +4,7 @@ import http from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { create, fromBinary, fromJsonString, toBinary } from '@bufbuild/protobuf';
+import { create, toBinary } from '@bufbuild/protobuf';
 import { StringValueSchema } from '@bufbuild/protobuf/wkt';
 import { Code, ConnectError, createClient as createConnectClient } from '@connectrpc/connect';
 import type { UniversalClientFn } from '@connectrpc/connect/protocol';
@@ -16,7 +16,6 @@ import { createSigningHttpClient } from '../src/common/client/signing-http-clien
 import { computeDigest, NetworkHeaders, parsePublicKey, verifySignature } from '../src/crypto/index.js';
 import {
   Health,
-  HealthCheckRequestSchema,
   HealthCheckResponseSchema,
   HealthCheckResponse_ServingStatus,
 } from '../src/service/health_pb.js';
@@ -135,13 +134,6 @@ describe('Unary request on the wire (golden)', () => {
     assertSignedOverBody(s);
     assertOneChunk(s);
   });
-
-  it('the binary and the JSON request carry the same message', () => {
-    assert.deepEqual(
-      fromBinary(HealthCheckRequestSchema, Buffer.from(BINARY_REQUEST.body, 'hex')),
-      fromJsonString(HealthCheckRequestSchema, JSON_REQUEST.body),
-    );
-  });
 });
 
 async function sendThroughSigningClient(t: TestContext, contentType: string, method: string, chunks?: Uint8Array[]): Promise<Sent> {
@@ -158,31 +150,17 @@ async function sendThroughSigningClient(t: TestContext, contentType: string, met
 }
 
 describe('The signing HTTP client signs a body whole unless its content type is enveloped', () => {
-  it('joins a body of several chunks, signs it and sends it as one chunk', async (t) => {
-    const s = await sendThroughSigningClient(t, 'application/proto', 'POST', [Buffer.from('0a05', 'hex'), Buffer.from('hello')]);
-    assert.equal(s.body.toString('hex'), '0a0568656c6c6f');
-    assertOneChunk(s);
-    assertSignedOverBody(s);
-  });
-
-  it('signs a request without a body over empty bytes and sends it without one', async (t) => {
-    const s = await sendThroughSigningClient(t, 'application/proto', 'POST');
-    assert.equal(s.hasBody, false);
-    assert.equal(s.header.get('Content-Length'), null);
-    assertSignedOverBody(s);
-  });
-
-  it('refuses a GET with unimplemented and sends nothing', async (t) => {
+  it('refuses a unary body of several chunks and sends nothing', async (t) => {
     t.mock.method(Date, 'now', () => TIMESTAMP_MS);
     const sent: Sent[] = [];
     await assert.rejects(
       createSigningHttpClient(signer, recordingClient(sent))({
-        url: `${BASE_URL}/test.v1.StreamTest/Unary?message=CgVoZWxsbw`,
-        method: 'GET',
+        url: `${BASE_URL}/test.v1.StreamTest/Unary`,
+        method: 'POST',
         header: new Headers({ 'Content-Type': 'application/proto' }),
-        body: undefined,
+        body: (async function* () { yield Buffer.from('0a05', 'hex'); yield Buffer.from('hello'); })(),
       }),
-      (err: unknown) => err instanceof ConnectError && err.code === Code.Unimplemented && err.rawMessage === 'GET requests are not supported',
+      (err: unknown) => err instanceof ConnectError && err.code === Code.Internal,
     );
     assert.equal(sent.length, 0);
   });

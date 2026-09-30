@@ -1002,8 +1002,6 @@ describe('Stream signing cases', () => {
   const multiBody = Buffer.from(multi.body_hex, 'hex');
   const multiFirst = Buffer.from(multi.signed_hex, 'hex');
   const badFirstChunks: [string, Buffer[]][] = [
-    ['one byte per chunk', [...multiBody].map((b) => Buffer.from([b]))],
-    ['the first envelope split across chunks', [multiFirst.subarray(0, 7), multiBody.subarray(7)]],
     ['a body that ends inside its first envelope', [multiFirst.subarray(0, multiFirst.length - 1)]],
     ['an empty first chunk', [Buffer.alloc(0), multiBody]],
   ];

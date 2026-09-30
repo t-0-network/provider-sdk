@@ -14,10 +14,7 @@ import {DescService} from "@bufbuild/protobuf";
 export function createClient<T extends DescService>(signer: string | Buffer | ((data: Buffer) => Promise<Signature>) | Buffer<ArrayBufferLike>, endpoint: string, svc: T, opts?: ClientOptions) {
     const sign: SignerFunction = typeof signer === "function" ? signer : CreateSigner(signer);
 
-    const wireFormat = opts?.wireFormat === undefined ? WireFormat.Binary : opts.wireFormat;
-    if (wireFormat !== WireFormat.Binary && wireFormat !== WireFormat.Json) {
-        throw new Error("wireFormat must be WireFormat.Binary or WireFormat.Json");
-    }
+    const wireFormat = opts?.wireFormat ?? WireFormat.Binary;
     const unaryTimeoutMs = timeout("timeoutMs", opts?.timeoutMs) ?? DEFAULT_TIMEOUT_MS;
     const streamTimeoutMs = timeout("streamTimeoutMs", opts?.streamTimeoutMs) ?? DEFAULT_STREAM_TIMEOUT_MS;
     const unaryTransport = createTransport(transportOptions(sign, endpoint, unaryTimeoutMs, wireFormat));
@@ -37,18 +34,14 @@ export function createClient<T extends DescService>(signer: string | Buffer | ((
             })();
             // A server stream is awaited only once its iteration starts; until then a refusal must not
             // count as an unhandled rejection. The caller still gets it from the first next().
-            response.catch(() => {
-                if (signal !== undefined) {
-                    streamEnds.get(signal)?.();
-                }
-            });
+            response.catch(() => {});
             return response;
         },
     });
     const calls = client as Record<string, unknown>;
     for (const method of svc.methods) {
         if (method.methodKind === "server_streaming") {
-            calls[method.localName] = cancelOnReturn(calls[method.localName] as ServerStreamingCall, streamTimeoutMs);
+            calls[method.localName] = cancelOnReturn(calls[method.localName] as ServerStreamingCall);
         }
     }
     return client as Client<T>;
@@ -56,40 +49,16 @@ export function createClient<T extends DescService>(signer: string | Buffer | ((
 
 type ServerStreamingCall = (input: unknown, options?: CallOptions) => AsyncIterable<unknown>;
 
-// What to do when a server stream's call fails before it is read, keyed by the signal its transport gets.
-const streamEnds = new WeakMap<AbortSignal, () => void>();
-
 // Leaving a for-await loop over a server stream early calls return(): it cancels the call and reads
 // it to its end, so the socket and the deadline timer are released at once, not at the deadline.
-function cancelOnReturn(call: ServerStreamingCall, streamTimeoutMs: number): ServerStreamingCall {
+function cancelOnReturn(call: ServerStreamingCall): ServerStreamingCall {
     return (input, options) => {
         const cancel = new AbortController();
-        // Unlinked when the call ends: refused or failed before it is read, read to its end, or left.
-        // A deadline ends a stream that nobody reads without a sign here, so a timer set to the same
-        // deadline unlinks it then; unref: it never keeps the process alive.
-        const unlinkSignal = linkSignal(options?.signal, cancel);
-        const timer = setTimeout(() => unlinkSignal(), deadlineOf(options?.timeoutMs, streamTimeoutMs));
-        timer.unref();
-        const unlink = () => {
-            clearTimeout(timer);
-            unlinkSignal();
-        };
-        streamEnds.set(cancel.signal, unlink);
-        const it = call(input, {...options, signal: cancel.signal})[Symbol.asyncIterator]();
+        const signal = options?.signal === undefined ? cancel.signal : AbortSignal.any([options.signal, cancel.signal]);
+        const it = call(input, {...options, signal})[Symbol.asyncIterator]();
         return {
             [Symbol.asyncIterator]: () => ({
-                next: () => it.next().then(
-                    (r) => {
-                        if (r.done) {
-                            unlink();
-                        }
-                        return r;
-                    },
-                    (e) => {
-                        unlink();
-                        throw e;
-                    },
-                ),
+                next: () => it.next(),
                 return: async (value?: unknown) => {
                     cancel.abort(new ConnectError("the stream was closed before its end", Code.Canceled));
                     try {
@@ -97,36 +66,11 @@ function cancelOnReturn(call: ServerStreamingCall, streamTimeoutMs: number): Ser
                     } catch {
                         // the cancellation
                     }
-                    unlink();
                     return {done: true, value};
                 },
             }),
         };
     };
-}
-
-// A refused timeoutMs ends the call at once, through its refusal.
-function deadlineOf(timeoutMs: number | undefined, byDefault: number): number {
-    try {
-        return timeout("timeoutMs", timeoutMs) ?? byDefault;
-    } catch {
-        return byDefault;
-    }
-}
-
-// The caller's signal cancels the call; the returned function detaches it once the call has ended,
-// so a signal shared by many calls does not collect their listeners.
-function linkSignal(signal: AbortSignal | undefined, cancel: AbortController): () => void {
-    if (signal === undefined) {
-        return () => {};
-    }
-    if (signal.aborted) {
-        cancel.abort(signal.reason);
-        return () => {};
-    }
-    const onAbort = () => cancel.abort(signal.reason);
-    signal.addEventListener("abort", onAbort, {once: true});
-    return () => signal.removeEventListener("abort", onAbort);
 }
 
 /**
@@ -139,7 +83,7 @@ export function transportOptions(signer: SignerFunction, endpoint: string, timeo
     return {
         httpClient: createSigningHttpClient(signer),
         baseUrl: endpoint,
-        useBinaryFormat: wireFormat === WireFormat.Binary,
+        useBinaryFormat: wireFormat !== WireFormat.Json,
         interceptors: [],
         acceptCompression: [],
         sendCompression: null,

@@ -18,6 +18,8 @@ All flags and the install-only form: [cli/README.md](../../cli/README.md). What 
 npm install @t-0/provider-sdk
 ```
 
+Requires Node.js 20.3 or newer.
+
 ## Usage
 
 ### Provider Service

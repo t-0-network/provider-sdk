@@ -12,11 +12,7 @@ import type {SignerFunction} from "./client.js";
  */
 export function createSigningHttpClient(signer: SignerFunction, httpClient: UniversalClientFn = createNodeHttpClient({httpVersion: "1.1"})): UniversalClientFn {
     return async (req) => {
-        // A GET carries its message in the URL, which the signature would not cover.
-        if (req.method.toUpperCase() === "GET") {
-            throw new ConnectError("GET requests are not supported", Code.Unimplemented);
-        }
-        const it = (req.body ?? emptyBody)[Symbol.asyncIterator]();
+        const it = (req.body ?? (async function* () {})())[Symbol.asyncIterator]();
         const enveloped = isEnveloped(req.header.get("Content-Type"));
 
         let first: Uint8Array | undefined;
@@ -33,7 +29,13 @@ export function createSigningHttpClient(signer: SignerFunction, httpClient: Univ
                 // The signing function is the caller's: the deadline or a cancellation ends the wait for it too.
                 headers = await untilAborted(signatureHeaders(signer, first ?? new Uint8Array(0)), req.signal);
             } else {
-                whole = await untilAborted(readAll(it), req.signal);
+                // A unary body is one chunk; a second one fails the call instead of going out unsigned.
+                const r = await untilAborted(it.next(), req.signal);
+                whole = r.done === true ? new Uint8Array(0) : r.value;
+                if ((await it.next()).done !== true) {
+                    throw new ConnectError("a unary request body must be one chunk", Code.Internal);
+                }
+                req.header.set("Content-Length", String(whole.byteLength));
                 headers = await untilAborted(signatureHeaders(signer, whole), req.signal);
             }
         } catch (e) {
@@ -44,14 +46,7 @@ export function createSigningHttpClient(signer: SignerFunction, httpClient: Univ
             req.header.set(name, value);
         }
 
-        let body: AsyncIterable<Uint8Array> | undefined;
-        if (enveloped) {
-            body = firstThenRest(first, it);
-        } else if (whole !== undefined && req.body !== undefined) {
-            req.header.set("Content-Length", String(whole.byteLength));
-            body = firstThenRest(whole, emptyBody[Symbol.asyncIterator]());
-        }
-        return httpClient({...req, body});
+        return httpClient({...req, body: firstThenRest(enveloped ? first : whole, it)});
     };
 }
 
@@ -74,23 +69,6 @@ function requireOneEnvelope(chunk: Uint8Array): void {
     if (size < chunk.byteLength) {
         throw new ConnectError("the first request chunk is not one complete envelope", Code.Internal);
     }
-}
-
-// A unary body is signed whole, however many chunks it comes in.
-async function readAll(it: AsyncIterator<Uint8Array>): Promise<Uint8Array> {
-    const chunks: Uint8Array[] = [];
-    let size = 0;
-    for (let r = await it.next(); r.done !== true; r = await it.next()) {
-        chunks.push(r.value);
-        size += r.value.byteLength;
-    }
-    const body = new Uint8Array(size);
-    let at = 0;
-    for (const chunk of chunks) {
-        body.set(chunk, at);
-        at += chunk.byteLength;
-    }
-    return body;
 }
 
 // `first` (if any), then the rest of `it`. Not an async generator: return() and throw() must reach
@@ -125,7 +103,3 @@ function untilAborted<T>(promise: Promise<T>, signal: AbortSignal | undefined): 
         promise.then(resolve, reject).finally(() => signal.removeEventListener("abort", onAbort));
     });
 }
-
-const emptyBody: AsyncIterable<Uint8Array> = {
-    [Symbol.asyncIterator]: () => ({next: async () => ({done: true, value: undefined})}),
-};
