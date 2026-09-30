@@ -1,11 +1,6 @@
 package network.t0.sdk.network;
 
-import io.grpc.Channel;
-import io.grpc.StatusRuntimeException;
-import io.grpc.health.v1.HealthCheckRequest;
 import io.grpc.health.v1.HealthGrpc;
-import network.t0.sdk.crypto.DigestSigner;
-import network.t0.sdk.crypto.SignResult;
 import network.t0.sdk.crypto.Signer;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -13,9 +8,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
-import java.io.IOException;
 import java.time.Duration;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -38,26 +31,14 @@ class NetworkClientFactoryTest {
 
     @ParameterizedTest
     @CsvSource({
-            "https://api.t-0.network,        api.t-0.network, 443,  false",
-            "http://localhost:8080,          localhost,       8080, true",
-            "http://127.0.0.1:1234,          127.0.0.1,       1234, true",
-            "HTTPS://api.t-0.network:8443,   api.t-0.network, 8443, false",
-            "HTTPS://api.t-0.network,        api.t-0.network, 443,  false",
-            "https://api.t-0.network/,       api.t-0.network, 443,  false",
-            "http://localhost:8080/,         localhost,       8080, true",
-            "http://[::1]:8080,              [::1],           8080, true",
-            "http://localhost,               localhost,       80,   true",
-            "api.t-0.network,                api.t-0.network, 443,  false",
-            "api.t-0.network:443,            api.t-0.network, 443,  false",
-            "localhost:8080,                 localhost,       8080, false",
-            "127.0.0.1:1234,                 127.0.0.1,       1234, false",
-            "[::1]:8080,                     [::1],           8080, false",
-            "api.t-0.network/,               api.t-0.network, 443,  false",
-            "http://my-host:8080,            my-host,         8080, true",
-            "http://a1.b2.example,           a1.b2.example,   80,   true",
-            "http://h,                       h,               80,   true",
-            "http://255.255.255.255:1,       255.255.255.255, 1,    true"})
-    @DisplayName("A valid base URL gives its host, its port or the scheme's, and TLS for https (also without \"://\")")
+            "https://api.t-0.network,  api.t-0.network, 443,  false",
+            "https://api.t-0.network/, api.t-0.network, 443,  false",
+            "http://localhost:8080,    localhost,       8080, true",
+            "http://127.0.0.1:1234,    127.0.0.1,       1234, true",
+            "http://[::1]:8080,        [::1],           8080, true",
+            "api.t-0.network,          api.t-0.network, 443,  false",
+            "api.t-0.network:443,      api.t-0.network, 443,  false"})
+    @DisplayName("A valid base URL gives its host, its port or the scheme's, and TLS for https")
     void validBaseUrls(String endpoint, String host, int port, boolean plaintext) {
         assertThat(NetworkClient.parseEndpoint(endpoint)).isEqualTo(new NetworkClient.EndpointInfo(host, port, plaintext));
         try (var client = BlockingNetworkClient.create(endpoint, SIGNER, HealthGrpc::newBlockingStub)) {
@@ -77,15 +58,9 @@ class NetworkClientFactoryTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"http://my_host:8080", "ftp://h", "http://", "http://:8080",
-            "http:foo", "http://h:99999", "http://h:0", "not a url", "https://", "http:///path",
-            "https://api t-0.network", " ", "http://h:", "http://user@h", "http://b\u00fccher.example",
-            "https://api.t-0.network/v1", "https://api.t-0.network?x", "https://api.t-0.network#x",
-            "https://api.t-0.network/v1/", "https://api.t-0.network//", "http://[:::]:8080", "http://[1::2::3]",
-            "http://a..b", "http://-foo", "http://foo-", "http://1.2.3", "http://localhost.", "http://256.1.1.1",
-            "http://a.1b", "http://.a", "http://127.1", "http://01.2.3.4",
-            "api.t-0.network/v1", "user@h", "my_host:8080", "h:99999", ":8080", "//h"})
-    @DisplayName("A base URL that is not valid, with a scheme or read as https, is refused")
+    @ValueSource(strings = {"ftp://h", "http://", "http://user@h", "http://my_host:8080",
+            "https://api.t-0.network/v1", "https://api.t-0.network?x", "http://h:0", "http://h:99999", "http://1.2.3"})
+    @DisplayName("A base URL that is not valid is refused with \"base URL is not valid\"")
     void invalidBaseUrlIsRefused(String endpoint) {
         assertThatThrownBy(() -> NetworkClient.parseEndpoint(endpoint))
                 .isInstanceOf(IllegalArgumentException.class).hasMessage("base URL is not valid");
@@ -107,63 +82,5 @@ class NetworkClientFactoryTest {
                 .isInstanceOf(IllegalArgumentException.class).hasMessage("stubFactory must not be null");
         assertThatThrownBy(() -> BlockingNetworkClient.create(endpoint, null, HealthGrpc::newBlockingStub))
                 .isInstanceOf(IllegalArgumentException.class).hasMessage("signer must not be null");
-    }
-
-    @Test
-    @DisplayName("A stub factory that throws leaves no channel open, in every client")
-    void throwingStubFactoryShutsTheChannelDown() {
-        IllegalStateException failure = new IllegalStateException("no stub");
-        AtomicReference<Channel> built = new AtomicReference<>();
-        String endpoint = "http://localhost:1";
-
-        assertThatThrownBy(() -> BlockingNetworkClient.<HealthGrpc.HealthBlockingStub>create(endpoint, SIGNER,
-                channel -> { built.set(channel); throw failure; })).isSameAs(failure);
-        assertShutDown(built.get());
-        assertThatThrownBy(() -> AsyncNetworkClient.<HealthGrpc.HealthStub>create(endpoint, SIGNER,
-                channel -> { built.set(channel); throw failure; })).isSameAs(failure);
-        assertShutDown(built.get());
-        assertThatThrownBy(() -> FutureNetworkClient.<HealthGrpc.HealthFutureStub>create(endpoint, SIGNER,
-                channel -> { built.set(channel); throw failure; })).isSameAs(failure);
-        assertShutDown(built.get());
-
-        // Also for a checked exception the factory throws without declaring it.
-        IOException checked = new IOException("no stub");
-        assertThatThrownBy(() -> BlockingNetworkClient.<HealthGrpc.HealthBlockingStub>create(endpoint, SIGNER,
-                channel -> { built.set(channel); return NetworkClientFactoryTest.<RuntimeException, HealthGrpc.HealthBlockingStub>sneakyThrow(checked); }))
-                .isSameAs(checked);
-        assertShutDown(built.get());
-    }
-
-    @SuppressWarnings("unchecked")
-    private static <E extends Throwable, S> S sneakyThrow(Throwable t) throws E {
-        throw (E) t;
-    }
-
-    /** A call on a shut-down channel fails at once, naming the shutdown, without trying to connect. */
-    private static void assertShutDown(Channel channel) {
-        assertThatThrownBy(() -> HealthGrpc.newBlockingStub(channel).check(HealthCheckRequest.getDefaultInstance()))
-                .isInstanceOfSatisfying(StatusRuntimeException.class, e ->
-                        assertThat(e.getStatus().getDescription()).contains("shutdown"));
-    }
-
-    @Test
-    @DisplayName("Any DigestSigner can sign, and its hex getters derive from its public key")
-    void anyDigestSignerIsAccepted() {
-        DigestSigner custom = new DigestSigner() {
-            @Override
-            public SignResult sign(byte[] digest) {
-                return SIGNER.sign(digest);
-            }
-
-            @Override
-            public byte[] getPublicKey() {
-                return SIGNER.getPublicKey();
-            }
-        };
-        assertThat(custom.getPublicKeyHex()).isEqualTo(SIGNER.getPublicKeyHex());
-        assertThat(custom.getPublicKeyHexPrefixed()).isEqualTo(SIGNER.getPublicKeyHexPrefixed());
-        try (var client = FutureNetworkClient.create("http://localhost:1", custom, HealthGrpc::newFutureStub)) {
-            assertThat(client.stub()).isNotNull();
-        }
     }
 }

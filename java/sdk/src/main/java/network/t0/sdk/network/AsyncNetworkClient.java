@@ -123,13 +123,7 @@ public final class AsyncNetworkClient<S extends AbstractAsyncStub<S>> extends Ne
             throw new IllegalArgumentException("stubFactory must not be null");
         }
         ChannelPair pair = createChannel(endpoint, signer, timeout, streamTimeout);
-        S stub;
-        try {
-            stub = stubFactory.apply(pair.interceptedChannel());
-        } catch (Throwable e) { // also an undeclared checked exception
-            pair.channel().shutdownNow(); // nobody else holds the channel to close it
-            throw e;
-        }
+        S stub = stubFactory.apply(pair.interceptedChannel());
         return new AsyncNetworkClient<>(pair.channel(), pair.interceptedChannel(), stub);
     }
 

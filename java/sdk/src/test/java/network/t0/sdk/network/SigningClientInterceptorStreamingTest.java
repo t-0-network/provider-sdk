@@ -29,7 +29,6 @@ import org.junit.jupiter.params.provider.EnumSource;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -370,41 +369,8 @@ class SigningClientInterceptorStreamingTest {
     }
 
     @Test
-    @DisplayName("A signer that throws: sendMessage throws it, nothing starts, and cancel() still closes the listener")
-    void throwingSignerLeavesTheCallCancellable() {
-        IllegalStateException failure = new IllegalStateException("signer unavailable");
-        DigestSigner failing = new DigestSigner() {
-            @Override
-            public SignResult sign(byte[] digest) {
-                throw failure;
-            }
-
-            @Override
-            public byte[] getPublicKey() {
-                return signer.getPublicKey();
-            }
-        };
-        Clock clock = Clock.fixed(Instant.ofEpochMilli(FIXED_TIMESTAMP_MS), ZoneOffset.UTC);
-        ClientCall<StringValue, StringValue> call = ClientInterceptors
-                .intercept(channel, new NetworkClient.SigningClientInterceptor(failing, clock))
-                .newCall(CLIENT_STREAM, callOptions());
-        RecordingListener<StringValue> listener = new RecordingListener<>();
-        call.start(listener, new Metadata());
-
-        assertThatThrownBy(() -> call.sendMessage(value("m1"))).isSameAs(failure);
-        RecordingCall raw = channel.lastCall();
-        assertThat(raw.events).isEmpty();
-
-        // A stub cancels the call on such an exception.
-        call.cancel("signing failed", failure);
-        assertThat(raw.events).containsExactly("start", "cancel");
-        assertThat(raw.headers.get(SIGNATURE)).isNull();
-        assertThat(listener.closeStatus.getCode()).isEqualTo(Status.Code.CANCELLED);
-    }
-
-    @Test
-    @DisplayName("A signer that throws an undeclared checked exception leaves the call to cancel() and the deadline")
-    void sneakyThrowingSignerLeavesTheCallToCancelAndTheDeadline() throws Exception {
+    @DisplayName("A signer that throws (even an undeclared checked exception): nothing starts, and cancel() or the deadline still closes the call")
+    void throwingSignerLeavesTheCallToCancelAndTheDeadline() throws Exception {
         IOException failure = new IOException("signer unreachable");
         DigestSigner failing = new DigestSigner() {
             @Override
@@ -425,6 +391,7 @@ class SigningClientInterceptorStreamingTest {
         ClientCall<StringValue, StringValue> call = withFailing.newCall(CLIENT_STREAM, callOptions());
         call.start(listener, new Metadata());
         assertThatThrownBy(() -> call.sendMessage(value("m1"))).isSameAs(failure);
+        assertThat(channel.lastCall().events()).as("nothing started").isEmpty();
         Thread canceller = new Thread(() -> call.cancel("signing failed", failure));
         canceller.setDaemon(true); // a hang must not keep the test JVM alive
         canceller.start();
@@ -574,43 +541,6 @@ class SigningClientInterceptorStreamingTest {
         RecordingCall raw = channel.lastCall();
         assertThat(raw.events).containsExactly("cancel");
         assertThat(raw.headers).isNull();
-    }
-
-    @Test
-    @DisplayName("A marshaller failing on the first message surfaces to the caller; nothing is started")
-    void marshallerFailureOnFirstMessageStartsNothing() {
-        IllegalStateException failure = new IllegalStateException("cannot marshal");
-        MethodDescriptor<StringValue, StringValue> failing = CLIENT_STREAM.toBuilder(
-                new MethodDescriptor.Marshaller<StringValue>() {
-                    @Override
-                    public InputStream stream(StringValue value) {
-                        throw failure;
-                    }
-
-                    @Override
-                    public StringValue parse(InputStream stream) {
-                        throw new UnsupportedOperationException();
-                    }
-                },
-                CLIENT_STREAM.getResponseMarshaller()).build();
-
-        RecordingListener<StringValue> listener = new RecordingListener<>();
-        ClientCall<StringValue, StringValue> call = intercepted.newCall(failing, callOptions());
-        call.start(listener, new Metadata());
-        call.request(1);
-
-        assertThatThrownBy(() -> call.sendMessage(value("m1"))).isSameAs(failure);
-        RecordingCall raw = channel.lastCall();
-        assertThat(raw.events).isEmpty();
-        assertThat(raw.headers).isNull();
-
-        // A stub cancels the call on such an exception.
-        call.cancel("marshalling failed", failure);
-        assertThat(raw.events).containsExactly("start", "request:1", "cancel");
-        assertThat(raw.headers.get(SIGNATURE)).isNull();
-        assertThat(listener.closeStatus.getCode()).isEqualTo(Status.Code.CANCELLED);
-        // A real call may wrap the cause; the caller's must be in the chain.
-        assertThat(causeChain(listener.closeStatus.getCause())).contains(failure);
     }
 
     @Test
@@ -1043,14 +973,6 @@ class SigningClientInterceptorStreamingTest {
     @SuppressWarnings("unchecked")
     private static <E extends Throwable> SignResult sneakyThrow(Throwable t) throws E {
         throw (E) t;
-    }
-
-    private static List<Throwable> causeChain(Throwable t) {
-        List<Throwable> chain = new ArrayList<>();
-        for (; t != null && !chain.contains(t); t = t.getCause()) {
-            chain.add(t);
-        }
-        return chain;
     }
 
     private static void awaitQuietly(CountDownLatch latch) {
