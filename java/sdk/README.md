@@ -191,7 +191,7 @@ Where:
 
 ### Timestamp Validation
 
-- **Window**: 60 seconds (configurable via `Headers.TIMESTAMP_VALIDITY_WINDOW_MS`)
+- **Window**: 60 seconds, fixed (`Headers.TIMESTAMP_VALIDITY_WINDOW_MS`)
 - Requests with timestamps outside this window are rejected with `INVALID_ARGUMENT`
 
 ---

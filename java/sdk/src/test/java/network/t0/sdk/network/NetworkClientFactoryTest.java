@@ -59,7 +59,8 @@ class NetworkClientFactoryTest {
 
     @ParameterizedTest
     @ValueSource(strings = {"ftp://h", "http://", "http://user@h", "http://my_host:8080",
-            "https://api.t-0.network/v1", "https://api.t-0.network?x", "http://h:0", "http://h:99999", "http://1.2.3"})
+            "https://api.t-0.network/v1", "https://api.t-0.network?x", "http://h:0", "http://h:99999", "http://1.2.3",
+            "http://h:080", "http://h\t"})
     @DisplayName("A base URL that is not valid is refused with \"base URL is not valid\"")
     void invalidBaseUrlIsRefused(String endpoint) {
         assertThatThrownBy(() -> NetworkClient.parseEndpoint(endpoint))

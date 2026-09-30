@@ -281,7 +281,7 @@ public abstract class NetworkClient implements Closeable {
     private static final Pattern HOST_NAME = Pattern.compile(
             "([A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?\\.)*[A-Za-z]([A-Za-z0-9-]*[A-Za-z0-9])?");
     private static final Pattern IPV6_LITERAL = Pattern.compile("\\[[0-9A-Fa-f:.]+]");
-    private static final Pattern PORT = Pattern.compile("[0-9]{1,5}");
+    private static final Pattern PORT = Pattern.compile("[1-9][0-9]{0,4}"); // no leading zero
 
     /**
      * Parses a base URL into its components.
