@@ -48,7 +48,7 @@ export function createClient<T extends DescService>(signer: string | Buffer | ((
     const calls = client as Record<string, unknown>;
     for (const method of svc.methods) {
         if (method.methodKind === "server_streaming") {
-            calls[method.localName] = cancelOnReturn(calls[method.localName] as ServerStreamingCall);
+            calls[method.localName] = cancelOnReturn(calls[method.localName] as ServerStreamingCall, streamTimeoutMs);
         }
     }
     return client as Client<T>;
@@ -61,11 +61,19 @@ const streamEnds = new WeakMap<AbortSignal, () => void>();
 
 // Leaving a for-await loop over a server stream early calls return(): it cancels the call and reads
 // it to its end, so the socket and the deadline timer are released at once, not at the deadline.
-function cancelOnReturn(call: ServerStreamingCall): ServerStreamingCall {
+function cancelOnReturn(call: ServerStreamingCall, streamTimeoutMs: number): ServerStreamingCall {
     return (input, options) => {
         const cancel = new AbortController();
         // Unlinked when the call ends: refused or failed before it is read, read to its end, or left.
-        const unlink = linkSignal(options?.signal, cancel);
+        // A deadline ends a stream that nobody reads without a sign here, so a timer set to the same
+        // deadline unlinks it then; unref: it never keeps the process alive.
+        const unlinkSignal = linkSignal(options?.signal, cancel);
+        const timer = setTimeout(() => unlinkSignal(), deadlineOf(options?.timeoutMs, streamTimeoutMs));
+        timer.unref();
+        const unlink = () => {
+            clearTimeout(timer);
+            unlinkSignal();
+        };
         streamEnds.set(cancel.signal, unlink);
         const it = call(input, {...options, signal: cancel.signal})[Symbol.asyncIterator]();
         return {
@@ -95,6 +103,15 @@ function cancelOnReturn(call: ServerStreamingCall): ServerStreamingCall {
             }),
         };
     };
+}
+
+// A refused timeoutMs ends the call at once, through its refusal.
+function deadlineOf(timeoutMs: number | undefined, byDefault: number): number {
+    try {
+        return timeout("timeoutMs", timeoutMs) ?? byDefault;
+    } catch {
+        return byDefault;
+    }
 }
 
 // The caller's signal cancels the call; the returned function detaches it once the call has ended,

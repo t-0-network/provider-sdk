@@ -550,6 +550,29 @@ describe('createClient routes unary and streaming calls to their own transport',
     }
   });
 
+  it('a server stream that is never read leaves no listener on the caller\'s signal after its deadline', async () => {
+    let arrived: () => void = () => {};
+    const requestArrived = new Promise<void>((resolve) => { arrived = resolve; });
+    const server = http.createServer(async (req, res) => {
+      for await (const _ of req) { /* the request */ }
+      res.writeHead(200, { 'Content-Type': 'application/connect+proto' });
+      res.flushHeaders(); // and nothing more
+      arrived();
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    try {
+      const client = createClient(newKeypair().privateKeyHex, `http://127.0.0.1:${(server.address() as AddressInfo).port}`, StreamTest, { streamTimeoutMs: 500 });
+      const shared = new AbortController();
+      client.serverStream({ value: 's' }, { signal: shared.signal });
+      await requestArrived;
+      await new Promise((resolve) => setTimeout(resolve, 1_000)); // past the deadline
+      assert.equal(getEventListeners(shared.signal, 'abort').length, 0);
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
   it('leaving a server stream early cancels the call', async () => {
     let closed: () => void = () => {};
     const serverSawClose = new Promise<void>((resolve) => { closed = resolve; });
