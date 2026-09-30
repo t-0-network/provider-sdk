@@ -173,7 +173,7 @@ Run tests per language:
 | PyPI Package | Import | Purpose | Notes |
 |---|---|---|---|
 | `connectrpc` | `connectrpc` | ConnectRPC runtime | PyPI distribution renamed from `connect-python` at v0.10.0; the SDK needs `>=0.11.1` |
-| `pyqwest` | `pyqwest` | connectrpc's HTTP client | `>=0.9.0`, the first that can be told not to follow redirects |
+| `pyqwest` | `pyqwest` | connectrpc's HTTP client | `>=0.11.0`: it can be told not to follow redirects, and it aborts an upload whose source fails instead of ending it normally |
 | `protobuf` | `google.protobuf` | Message serialization | `>=7.34.1` |
 | `coincurve` | `coincurve` | secp256k1 ECDSA | Signing, verification, key derivation |
 | `pycryptodome` | `Crypto.Hash.keccak` | Keccak256 hash | Do NOT use `pysha3` (incompatible with Python 3.13) or `hashlib.sha3_256` (different padding) |
