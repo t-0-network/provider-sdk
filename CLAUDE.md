@@ -65,7 +65,7 @@ cd csharp && dotnet test                               # C# ↔ Go (included in 
 cd java && ./gradlew test --tests "*.CrossServerTests" # Java ↔ Go
 ```
 
-The helper's stream verifier logs its verdict on every `test.v1.StreamTest` request to stderr, before the handler reads past the first message: `<path> verified over the first envelope|payload` or `<path> rejected: <reason>`. The streaming cross tests read that log to check which framing was accepted, that a request went out right after its first message (the caller's stream produces message 2 only once the line is there), and why a request was refused. The verifier itself, and the Go client against it, are tested in `cross_test/go_helper` (`go test ./...`).
+The helper's stream verifier refuses a `test.v1.StreamTest` request with an `unauthenticated` RPC error whose message is the reason, and starts every reply to a verified request with the framing it was verified over (`envelope:` or `payload:`); the streaming cross tests check both from the call itself. It also logs its verdict to stderr before the handler reads past the first message (`<path> verified over the first envelope|payload` or `<path> rejected: <reason>`); the tests read that log only to check that a request went out right after its first message (the caller's stream produces message 2 only once the line is there) and that a call cancelled before its first message sent nothing. The verifier itself, and the Go client against it, are tested in `cross_test/go_helper` (`go test ./...`).
 
 **When adding a new SDK**, add cross-language server-to-server tests that use `cross_test/go_helper/`:
 1. Create test file(s) that start/call the Go helper for bidirectional health round-trips (with `service` field set for non-empty body)

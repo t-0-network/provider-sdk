@@ -109,17 +109,20 @@ The verifier (`verifyFirstEnvelope`), in order:
    (Java) covers. The codec does not matter: Connect JSON streams are signed the same way;
 4. hands the handler the whole body, first envelope included.
 
-It logs its verdict on each request to stderr before the handler reads past the first message:
+A refused request fails with an `unauthenticated` RPC error whose message is the reason:
+`unknown public key`, `timestamp is outside the allowed time window`, `signature does not verify
+over the first message`, `no first message`, `truncated first message`, `... is not a streaming
+content type`, or a malformed signature or timestamp header. Every reply to a verified request
+starts with the framing it was verified over, `envelope:` or `payload:` (gRPC without the prefix,
+as Java signs): `ClientStream` answers `<framing>:<values joined by ",">`, and `ServerStream` sends
+`<framing>:<value>` three times. The streaming cross tests check the framing and the refusal reason
+from the call itself.
 
-- `<path> verified over the first envelope` (or `payload`: gRPC without the prefix, as Java signs)
-- `<path> rejected: <reason>`, answered with HTTP 401. Reasons: `unknown public key`,
-  `timestamp is outside the allowed time window`, `signature does not verify over the first
-  message`, `no first message`, `truncated first message`, `... is not a streaming content type`,
-  and malformed signature or timestamp headers.
-
-The streaming cross tests of every SDK wait for these lines, so their wording is a contract: they
-check the framing, that the request went out with its first message (message 2 is produced only
-once message 1 is logged as verified), and why a request was refused. `go test ./...` here pins
+The verifier also logs its verdict to stderr before the handler reads past the first message:
+`<path> verified over the first envelope|payload` or `<path> rejected: <reason>`. The cross tests
+still use that log in two places, so its wording is a contract: a request went out with its first
+message (message 2 is produced only once message 1 is logged as verified), and a call cancelled
+before its first message sent nothing (no line at all). `go test ./...` here pins
 the verifier and runs the Go client against it over Connect, Connect JSON and gRPC (Go signs below
 the gRPC framer, so it is always verified over the envelope). The client rules:
 [`docs/STREAMING.md`](../docs/STREAMING.md).

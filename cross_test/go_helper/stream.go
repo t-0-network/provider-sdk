@@ -48,12 +48,12 @@ func newStreamTestHandler(publicKeyHex string) (http.Handler, error) {
 				return nil, err
 			}
 			log.Printf("ClientStream received %d messages", len(got))
-			return connect.NewResponse(wrapperspb.String(strings.Join(got, ","))), nil
+			return connect.NewResponse(wrapperspb.String(framingOf(ctx) + ":" + strings.Join(got, ","))), nil
 		}))
 	mux.Handle(streamTestServerStream, connect.NewServerStreamHandler(streamTestServerStream,
 		func(ctx context.Context, req *connect.Request[wrapperspb.StringValue], stream *connect.ServerStream[wrapperspb.StringValue]) error {
 			for i := 0; i < serverStreamReplies; i++ {
-				if err := stream.Send(wrapperspb.String(req.Msg.GetValue())); err != nil {
+				if err := stream.Send(wrapperspb.String(framingOf(ctx) + ":" + req.Msg.GetValue())); err != nil {
 					return err
 				}
 			}
@@ -65,12 +65,22 @@ func newStreamTestHandler(publicKeyHex string) (http.Handler, error) {
 		framing, err := verifyFirstEnvelope(r, trustedKey)
 		if err != nil {
 			log.Printf("%s rejected: %v", r.URL.Path, err)
-			http.Error(w, err.Error(), http.StatusUnauthorized)
+			// A proper RPC error, so the caller reads the reason from the call itself.
+			_ = connect.NewErrorWriter().Write(w, r, connect.NewError(connect.CodeUnauthenticated, err))
 			return
 		}
 		log.Printf("%s verified over the first %s", r.URL.Path, framing)
-		mux.ServeHTTP(w, r)
+		mux.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), framingKey{}, framing)))
 	}), nil
+}
+
+// framingKey carries what the signature was verified over ("envelope" or "payload") to the
+// handlers, which put it in front of every reply.
+type framingKey struct{}
+
+func framingOf(ctx context.Context) string {
+	framing, _ := ctx.Value(framingKey{}).(string)
+	return framing
 }
 
 func verifyFirstEnvelope(r *http.Request, trustedKey []byte) (string, error) {

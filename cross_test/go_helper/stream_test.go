@@ -5,14 +5,12 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/hex"
+	"errors"
 	"io"
-	"log"
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strconv"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -144,38 +142,16 @@ func TestVerifyFirstEnvelope(t *testing.T) {
 	}
 }
 
-// syncBuffer collects the helper's log, which its handlers write from other goroutines.
-type syncBuffer struct {
-	mu  sync.Mutex
-	buf bytes.Buffer
-}
-
-func (b *syncBuffer) Write(p []byte) (int, error) {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	return b.buf.Write(p)
-}
-
-func (b *syncBuffer) String() string {
-	b.mu.Lock()
-	defer b.mu.Unlock()
-	return b.buf.String()
-}
-
-// serveHelper serves what `go_helper serve` serves and captures its log.
-func serveHelper(t *testing.T) (string, *syncBuffer) {
+// serveHelper serves what `go_helper serve` serves.
+func serveHelper(t *testing.T) string {
 	t.Helper()
-	logs := &syncBuffer{}
-	log.SetOutput(logs)
-	t.Cleanup(func() { log.SetOutput(os.Stderr) })
-
 	handler, err := newServeHandler(clientPublicKey)
 	if err != nil {
 		t.Fatal(err)
 	}
 	srv := httptest.NewServer(handler)
 	t.Cleanup(srv.Close)
-	return srv.URL, logs
+	return srv.URL
 }
 
 type streamTestClient struct {
@@ -216,8 +192,7 @@ func TestGoClientAgainstHelper(t *testing.T) {
 			defer cancel()
 
 			t.Run("client stream", func(t *testing.T) {
-				url, logs := serveHelper(t)
-				stream := newHelperClient(t, url, clientPrivateKey, p.opts).clientStream.CallClientStream(ctx)
+				stream := newHelperClient(t, serveHelper(t), clientPrivateKey, p.opts).clientStream.CallClientStream(ctx)
 				for _, m := range []string{"m1", "m2", "m3"} {
 					if err := stream.Send(wrapperspb.String(m)); err != nil {
 						t.Fatal(err)
@@ -227,18 +202,14 @@ func TestGoClientAgainstHelper(t *testing.T) {
 				if err != nil {
 					t.Fatal(err)
 				}
-				if got := resp.Msg.GetValue(); got != "m1,m2,m3" {
-					t.Fatalf("got %q, want m1,m2,m3", got)
-				}
 				// Go signs below the gRPC framer: the first envelope for gRPC too.
-				if want := streamTestClientStream + " verified over the first envelope"; !strings.Contains(logs.String(), want) {
-					t.Fatalf("log has no %q:\n%s", want, logs)
+				if got := resp.Msg.GetValue(); got != "envelope:m1,m2,m3" {
+					t.Fatalf("got %q, want envelope:m1,m2,m3", got)
 				}
 			})
 
 			t.Run("server stream", func(t *testing.T) {
-				url, logs := serveHelper(t)
-				stream, err := newHelperClient(t, url, clientPrivateKey, p.opts).serverStream.CallServerStream(ctx, connect.NewRequest(wrapperspb.String("hello")))
+				stream, err := newHelperClient(t, serveHelper(t), clientPrivateKey, p.opts).serverStream.CallServerStream(ctx, connect.NewRequest(wrapperspb.String("hello")))
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -250,23 +221,18 @@ func TestGoClientAgainstHelper(t *testing.T) {
 				if err := stream.Err(); err != nil {
 					t.Fatal(err)
 				}
-				if strings.Join(got, ",") != "hello,hello,hello" {
-					t.Fatalf("got %q, want hello three times", got)
-				}
-				if want := streamTestServerStream + " verified over the first envelope"; !strings.Contains(logs.String(), want) {
-					t.Fatalf("log has no %q:\n%s", want, logs)
+				if strings.Join(got, ",") != "envelope:hello,envelope:hello,envelope:hello" {
+					t.Fatalf("got %q, want envelope:hello three times", got)
 				}
 			})
 
 			t.Run("empty client stream is rejected", func(t *testing.T) {
-				url, logs := serveHelper(t)
-				stream := newHelperClient(t, url, clientPrivateKey, p.opts).clientStream.CallClientStream(ctx)
+				stream := newHelperClient(t, serveHelper(t), clientPrivateKey, p.opts).clientStream.CallClientStream(ctx)
 				_, err := stream.CloseAndReceive()
-				if code := connect.CodeOf(err); code != connect.CodeUnauthenticated {
-					t.Fatalf("got %v (%v), want unauthenticated", code, err)
-				}
-				if want := streamTestClientStream + " rejected: no first message"; !strings.Contains(logs.String(), want) {
-					t.Fatalf("log has no %q:\n%s", want, logs)
+				var connectErr *connect.Error
+				if !errors.As(err, &connectErr) || connectErr.Code() != connect.CodeUnauthenticated ||
+					!strings.Contains(connectErr.Message(), "no first message") {
+					t.Fatalf("got %v, want unauthenticated with the reason no first message", err)
 				}
 			})
 		})

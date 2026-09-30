@@ -4,6 +4,9 @@
 // it (`go_helper serve`) behind a verifier that checks the signature over the first request
 // message only, the way the T-0 Network verifies streaming RPCs. Each SDK's tests build the two
 // methods by hand on google.protobuf.StringValue, so no SDK needs generated code for it.
+//
+// Every reply starts with what the signature was verified over, "envelope" or "payload", and ":".
+// A request the verifier refuses fails with UNAUTHENTICATED and the reason as its message.
 syntax = "proto3";
 
 package test.v1;
@@ -11,8 +14,8 @@ package test.v1;
 import "google/protobuf/wrappers.proto";
 
 service StreamTest {
-  // Replies with the received values joined by ",".
+  // Replies "<framing>:" and the received values joined by ",".
   rpc ClientStream(stream google.protobuf.StringValue) returns (google.protobuf.StringValue);
-  // Replies with the request value three times.
+  // Replies "<framing>:" and the request value, three times.
   rpc ServerStream(google.protobuf.StringValue) returns (stream google.protobuf.StringValue);
 }
