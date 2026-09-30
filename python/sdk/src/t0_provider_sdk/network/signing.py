@@ -143,11 +143,17 @@ def _shared_transport(*, sync: bool, http2: bool) -> Any:
     """One per kind for the process: a transport holds its connections, and clients never close it.
 
     Redirects are not followed: the next request would carry this request's signature to another URL.
+    The system's CA certificates are trusted: a transport built here has no roots of its own, so
+    every https:// call would fail without them.
     """
-    http_version = pyqwest.HTTPVersion.HTTP2 if http2 else None
+    options = {
+        "http_version": pyqwest.HTTPVersion.HTTP2 if http2 else None,
+        "follow_redirects": False,
+        "tls_include_system_certs": True,
+    }
     if sync:
-        return pyqwest.SyncHTTPTransport(http_version=http_version, follow_redirects=False)
-    return pyqwest.HTTPTransport(http_version=http_version, follow_redirects=False)
+        return pyqwest.SyncHTTPTransport(**options)
+    return pyqwest.HTTPTransport(**options)
 
 
 class _AsyncChain:
