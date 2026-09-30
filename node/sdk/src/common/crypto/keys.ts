@@ -14,7 +14,7 @@ export function parsePrivateKey(privateKey: string | Buffer): Buffer {
     }
     privateKey = Buffer.from(hex, 'hex');
   } else if (privateKey.length !== 32) {
-    throw new Error('private key must be 32 bytes (64 hex characters)');
+    throw new Error('private key must be 32 bytes');
   }
   const d = BigInt('0x' + privateKey.toString('hex'));
   if (d === 0n || d >= SECP256K1_N) {

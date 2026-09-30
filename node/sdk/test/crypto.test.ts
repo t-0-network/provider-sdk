@@ -157,8 +157,11 @@ describe('CreateSigner', () => {
   });
 
   it('rejects a private key that is not 32 bytes', () => {
-    for (const key of [keyHex.slice(2), keyHex + '00', keyHex.slice(2) + '  ', 'zz' + keyHex.slice(2), 'not-a-valid-key', '0x', Buffer.alloc(31, 1), Buffer.alloc(33, 1)]) {
+    for (const key of [keyHex.slice(2), keyHex + '00', keyHex.slice(2) + '  ', 'zz' + keyHex.slice(2), 'not-a-valid-key', '0x']) {
       nodeAssert.throws(() => CreateSigner(key), { message: 'private key must be 32 bytes (64 hex characters)' });
+    }
+    for (const key of [Buffer.alloc(31, 1), Buffer.alloc(33, 1)]) {
+      nodeAssert.throws(() => CreateSigner(key), { message: 'private key must be 32 bytes' });
     }
   });
 

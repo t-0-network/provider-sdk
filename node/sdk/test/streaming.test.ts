@@ -403,7 +403,7 @@ describe('createClient routes unary and streaming calls to their own transport',
     }
     for (const url of [
       'ftp://h', 'http://', 'http://user@h', 'http://my_host:8080', 'https://api.t-0.network/v1',
-      'https://api.t-0.network?x', 'http://h:0', 'http://h:99999', 'http://1.2.3',
+      'https://api.t-0.network?x', 'http://h:0', 'http://h:99999', 'http://1.2.3', 'http://h:080', 'http://h\t',
     ]) {
       assert.throws(() => createClient(key, url, StreamTest), { message: 'base URL is not valid' }, url);
     }
