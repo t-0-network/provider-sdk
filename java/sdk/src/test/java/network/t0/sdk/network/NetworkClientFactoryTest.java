@@ -47,11 +47,17 @@ class NetworkClientFactoryTest {
             "http://localhost:8080/,         localhost,       8080, true",
             "http://[::1]:8080,              [::1],           8080, true",
             "http://localhost,               localhost,       80,   true",
+            "api.t-0.network,                api.t-0.network, 443,  false",
+            "api.t-0.network:443,            api.t-0.network, 443,  false",
+            "localhost:8080,                 localhost,       8080, false",
+            "127.0.0.1:1234,                 127.0.0.1,       1234, false",
+            "[::1]:8080,                     [::1],           8080, false",
+            "api.t-0.network/,               api.t-0.network, 443,  false",
             "http://my-host:8080,            my-host,         8080, true",
             "http://a1.b2.example,           a1.b2.example,   80,   true",
             "http://h,                       h,               80,   true",
             "http://255.255.255.255:1,       255.255.255.255, 1,    true"})
-    @DisplayName("An http or https base URL gives its host, its port or the scheme's, and TLS for https")
+    @DisplayName("A valid base URL gives its host, its port or the scheme's, and TLS for https (also without \"://\")")
     void validBaseUrls(String endpoint, String host, int port, boolean plaintext) {
         assertThat(NetworkClient.parseEndpoint(endpoint)).isEqualTo(new NetworkClient.EndpointInfo(host, port, plaintext));
         try (var client = BlockingNetworkClient.create(endpoint, SIGNER, HealthGrpc::newBlockingStub)) {
@@ -71,14 +77,15 @@ class NetworkClientFactoryTest {
     }
 
     @ParameterizedTest
-    @ValueSource(strings = {"http://my_host:8080", "api.t-0.network", "api.t-0.network:443", "ftp://h", "http://", "http://:8080",
+    @ValueSource(strings = {"http://my_host:8080", "ftp://h", "http://", "http://:8080",
             "http:foo", "http://h:99999", "http://h:0", "not a url", "https://", "http:///path",
             "https://api t-0.network", " ", "http://h:", "http://user@h", "http://b\u00fccher.example",
             "https://api.t-0.network/v1", "https://api.t-0.network?x", "https://api.t-0.network#x",
             "https://api.t-0.network/v1/", "https://api.t-0.network//", "http://[:::]:8080", "http://[1::2::3]",
             "http://a..b", "http://-foo", "http://foo-", "http://1.2.3", "http://localhost.", "http://256.1.1.1",
-            "http://a.1b", "http://.a", "http://127.1", "http://01.2.3.4"})
-    @DisplayName("A base URL without an http or https scheme or without a host is refused, not repaired")
+            "http://a.1b", "http://.a", "http://127.1", "http://01.2.3.4",
+            "api.t-0.network/v1", "user@h", "my_host:8080", "h:99999", ":8080", "//h"})
+    @DisplayName("A base URL that is not valid, with a scheme or read as https, is refused")
     void invalidBaseUrlIsRefused(String endpoint) {
         assertThatThrownBy(() -> NetworkClient.parseEndpoint(endpoint))
                 .isInstanceOf(IllegalArgumentException.class).hasMessage("base URL is not valid");

@@ -136,7 +136,7 @@ public abstract class NetworkClient implements Closeable {
     /**
      * Creates a channel pair for the given endpoint with the signing and default-deadline interceptors.
      *
-     * @param endpoint      the T-0 Network base URL with an http or https scheme, or {@code null} for "https://api.t-0.network"
+     * @param endpoint      the T-0 Network endpoint (e.g., "https://api.t-0.network" or "api.t-0.network:443"), or {@code null} for "https://api.t-0.network"
      * @param signer        the signer to use for signing requests
      * @param timeout       the default deadline for unary calls
      * @param streamTimeout the default deadline for client- and server-streaming calls
@@ -286,9 +286,9 @@ public abstract class NetworkClient implements Closeable {
     /**
      * Parses a base URL into its components.
      *
-     * @param endpoint {@code http://} or {@code https://} (any case), a host, an optional port from 1 to
-     *                 65535 and an optional trailing {@code /}, with no path, query or fragment;
-     *                 {@code null} for {@value #DEFAULT_ENDPOINT}
+     * @param endpoint the endpoint (e.g., "https://api.t-0.network" or "api.t-0.network:443"): a host, an
+     *                 optional port from 1 to 65535 and an optional trailing {@code /}, with no path, query
+     *                 or fragment; {@code null} for {@value #DEFAULT_ENDPOINT}
      * @return the parsed endpoint information
      * @throws IllegalArgumentException if the base URL is empty or not valid
      */
@@ -298,6 +298,10 @@ public abstract class NetworkClient implements Closeable {
         }
         if (endpoint.isEmpty()) {
             throw new IllegalArgumentException("base URL is not set");
+        }
+        // A value without "://" is read as https, so "host" and "host:port" work as they always did.
+        if (!endpoint.contains("://")) {
+            endpoint = "https://" + endpoint;
         }
         int schemeEnd = endpoint.indexOf("://");
         String scheme = schemeEnd < 0 ? "" : endpoint.substring(0, schemeEnd);
@@ -367,8 +371,8 @@ public abstract class NetworkClient implements Closeable {
      * <p>Only the first request message is signed, without its 5-byte gRPC prefix (this interceptor
      * sits above the framer); later stream messages are sent unsigned. The underlying call starts on
      * that first message, since the headers must be complete by then, or unsigned when it is cancelled
-     * or its deadline or context ends first. Bidirectional streams and calls with a compressor are
-     * refused with {@code UNIMPLEMENTED} before anything is sent. See {@code docs/STREAMING.md}.
+     * or its deadline or context ends first (see {@code docs/STREAMING.md}). Bidirectional streams and
+     * calls with a compressor are refused with {@code UNIMPLEMENTED} before anything is sent.
      *
      * <p>This class is thread-safe. Each call to {@link #interceptCall} creates
      * independent state for that specific call.
