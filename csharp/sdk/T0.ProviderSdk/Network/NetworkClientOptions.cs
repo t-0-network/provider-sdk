@@ -21,8 +21,8 @@ public sealed class NetworkClientOptions
     /// Base URL of the T-0 Network API, <c>https://api.t-0.network</c> by default or when set to null.
     /// </summary>
     /// <exception cref="ArgumentException">
-    /// The value is empty, or is not <c>http://</c> or <c>https://</c> followed by a host, an optional
-    /// port from 1 to 65535 and an optional trailing '/'. The host is an IPv4 address (four decimal
+    /// The value is empty, or is not a valid base URL: http or https, a host, an optional port from 1
+    /// to 65535 and an optional trailing '/'. The host is an IPv4 address (four decimal
     /// numbers 0..255 without leading zeros), an IPv6 address in brackets, or a name of labels of
     /// ASCII letters, digits and inner '-' separated by '.', whose last label starts with a letter.
     /// User info, a path, a query and a fragment are refused.
@@ -63,9 +63,11 @@ public sealed class NetworkClientOptions
     {
         if (value.Length == 0)
             throw new ArgumentException("base URL is not set", nameof(BaseUrl));
-        if (!IsValidBaseUrl(value) || !Uri.TryCreate(value, UriKind.Absolute, out _))
+        // A value without a scheme is read as https.
+        var url = value.Contains("://", StringComparison.Ordinal) ? value : "https://" + value;
+        if (!IsValidBaseUrl(url) || !Uri.TryCreate(url, UriKind.Absolute, out _))
             throw new ArgumentException("base URL is not valid", nameof(BaseUrl));
-        return value;
+        return url;
     }
 
     // Checked as written: Uri alone would read "http:host" as http://host, "http://h:" as port 80 and

@@ -21,23 +21,49 @@ public class NetworkClientOptionsTests
         Assert.Equal("https://api.t-0.network", new NetworkClientOptions { BaseUrl = null }.BaseUrl);
     }
 
+    // The shared base URL table: 17 accepted, 31 refused as not valid, "" refused as not set.
     [Theory]
     [InlineData("https://api.t-0.network")]
+    [InlineData("https://api.t-0.network/")]
+    [InlineData("HTTPS://api.t-0.network")]
     [InlineData("http://localhost:8080")]
+    [InlineData("http://localhost:8080/")]
     [InlineData("http://127.0.0.1:1234")]
+    [InlineData("http://255.255.255.255:1")]
     [InlineData("http://[::1]:8080")]
     [InlineData("http://my-host:8080")]
     [InlineData("http://a1.b2.example")]
     [InlineData("http://h")]
-    [InlineData("https://api.t-0.network/")]
-    [InlineData("http://h:8080/")]
-    [InlineData("HTTPS://example.com")]
-    [InlineData("HTTPS://api.t-0.network")]
-    [InlineData("http://localhost:8080/")]
-    [InlineData("http://255.255.255.255:1")]
     public void BaseUrl_AcceptsHttpAndHttpsUrls(string url)
     {
         Assert.Equal(url, new NetworkClientOptions { BaseUrl = url }.BaseUrl);
+    }
+
+    [Theory]
+    [InlineData("api.t-0.network", 443)]
+    [InlineData("api.t-0.network:443", 443)]
+    [InlineData("localhost:8080", 8080)]
+    [InlineData("127.0.0.1:1234", 1234)]
+    [InlineData("[::1]:8080", 8080)]
+    [InlineData("api.t-0.network/", 443)]
+    public void BaseUrlWithoutScheme_IsReadAsHttps(string url, int port)
+    {
+        var options = new NetworkClientOptions { BaseUrl = url };
+
+        Assert.Equal("https://" + url, options.BaseUrl);
+        Assert.Equal(port, new Uri(options.BaseUrl).Port);
+    }
+
+    // The base URL overloads of the helpers apply the same reading.
+    [Fact]
+    public void BaseUrlOverloads_ReadAValueWithoutSchemeAsHttps()
+    {
+        var signer = Signer.FromHex(Key);
+
+        Assert.NotNull(NetworkClient.CreateNetworkServiceClient("api.t-0.network", signer));
+        Assert.NotNull(NetworkClient.CreatePaymentIntentNetworkServiceClient("localhost:8080", signer));
+        var ex = Assert.Throws<ArgumentException>(() => NetworkClient.CreateNetworkServiceClient("user@h", signer));
+        Assert.StartsWith("base URL is not valid", ex.Message);
     }
 
     [Fact]
@@ -48,34 +74,37 @@ public class NetworkClientOptionsTests
     }
 
     [Theory]
-    [InlineData("api.t-0.network")] // no scheme: not repaired
-    [InlineData("api.t-0.network:443")]
     [InlineData("ftp://h")]
     [InlineData("http://")]
     [InlineData("http://:8080")]
     [InlineData("http:foo")]
+    [InlineData("not a url")]
     [InlineData("http://h:99999")]
     [InlineData("http://h:0")]
+    [InlineData("http://h:")]
+    [InlineData("http://user@h")]
     [InlineData("http://my_host:8080")]
     [InlineData("http://bücher.example")]
-    [InlineData("http://user@h")]
-    [InlineData("http://h:")]
+    [InlineData("https://api.t-0.network/v1")]
+    [InlineData("https://api.t-0.network/v1/")]
+    [InlineData("https://api.t-0.network?x")]
+    [InlineData("https://api.t-0.network#x")]
     [InlineData("http://[:::]:8080")] // not an IPv6 address
     [InlineData("http://a..b")]
     [InlineData("http://-foo")]
     [InlineData("http://foo-")]
     [InlineData("http://1.2.3")] // not IPv4, and a name's last label starts with a letter
     [InlineData("http://127.1")]
-    [InlineData("http://localhost.")] // trailing dot: an empty last label
     [InlineData("http://256.1.1.1")]
-    [InlineData("http://a.1b")]
     [InlineData("http://01.2.3.4")] // IPv4 octets have no leading zeros
-    [InlineData("https://api.t-0.network/v1")]
-    [InlineData("https://api.t-0.network/v1/")]
-    [InlineData("https://api.t-0.network?x")]
-    [InlineData("https://api.t-0.network#x")]
-    [InlineData("not a url")]
-    [InlineData("/relative/path")]
+    [InlineData("http://a.1b")]
+    [InlineData("http://localhost.")] // trailing dot: an empty last label
+    [InlineData("api.t-0.network/v1")]
+    [InlineData("user@h")]
+    [InlineData("my_host:8080")]
+    [InlineData("h:99999")]
+    [InlineData(":8080")]
+    [InlineData("//h")]
     public void BaseUrlOtherThanSchemeHostAndPort_IsRefused(string url)
     {
         var ex = Assert.Throws<ArgumentException>(() => new NetworkClientOptions { BaseUrl = url });

@@ -53,7 +53,7 @@ csharp/
 
 ### Deadlines
 
-Timeouts are gRPC call deadlines: a call without its own deadline gets `NetworkClientOptions.Timeout` (unary, 15 s) or `StreamTimeout` (client and server streams, 5 min), and the caller's own deadline replaces the default. Every `NetworkClient` factory applies both through an interceptor, which also refuses bidirectional streams; `HttpClient.Timeout` is infinite. All clients share one transport (connection pool), so a client is cheap to create and needs no disposing; the transport sends HTTP/2 keepalive pings every 5 min (10 s timeout) while a call is open and does not follow redirects, which would re-send the signed request to another server. The client does not validate requests; the network does. See [STREAMING.md](../STREAMING.md#timeouts).
+Timeouts are gRPC call deadlines: a call without its own deadline gets `NetworkClientOptions.Timeout` (unary, 15 s) or `StreamTimeout` (client and server streams, 5 min), and the caller's own deadline replaces the default. Every `NetworkClient` factory applies both through an interceptor, which also refuses bidirectional streams; `HttpClient.Timeout` is infinite. All clients share one transport (connection pool), so a client is cheap to create and needs no disposing; the transport sends HTTP/2 keepalive pings every 5 min (10 s timeout) while a call is open and does not follow redirects, which would re-send the signed request to another server. The client does not validate requests; the network does. See [STREAMING.md](../STREAMING.md#stream-timeout).
 
 ### Two-Phase Server Architecture
 

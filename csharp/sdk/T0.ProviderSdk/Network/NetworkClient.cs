@@ -13,8 +13,8 @@ namespace T0.ProviderSdk.Network;
 /// <remarks>
 /// Every client signs its requests and gives a call without a deadline of its own
 /// <see cref="NetworkClientOptions.Timeout"/> (unary) or <see cref="NetworkClientOptions.StreamTimeout"/>
-/// (client and server streams). Bidirectional streams are refused. All clients share one connection
-/// pool, so a client is cheap to create and needs no disposing. See docs/STREAMING.md.
+/// (client and server streams). Bidirectional streams are refused (see docs/STREAMING.md). All
+/// clients share one connection pool, so a client is cheap to create and needs no disposing.
 /// </remarks>
 public static class NetworkClient
 {
