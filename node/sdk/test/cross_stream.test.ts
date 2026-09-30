@@ -99,30 +99,26 @@ describe('Cross-language streaming: Node client → Go server', { skip: !goAvail
     goServer?.kill();
   });
 
-  it('ServerStream: every response arrives', async () => {
-    const mark = log.length;
+  // The helper prefixes each reply with the framing it verified the signature over.
+  it('ServerStream: every response arrives, verified over the first envelope', async () => {
     const client = createClient(CLIENT_PRIVATE_KEY, url, StreamTest);
     const got: string[] = [];
     for await (const resp of client.serverStream({ value: 'hello' })) {
       got.push(resp.value);
     }
-    assert.deepEqual(got, ['hello', 'hello', 'hello']);
-    await waitForLog('/test.v1.StreamTest/ServerStream verified over the first envelope', mark);
+    assert.deepEqual(got, ['envelope:hello', 'envelope:hello', 'envelope:hello']);
   });
 
   it('Connect JSON: client and server streams are verified over the first envelope', async () => {
-    const mark = log.length;
     const client = createClient(CLIENT_PRIVATE_KEY, url, StreamTest, { wireFormat: WireFormat.Json });
     const resp = await client.clientStream(stringValues('m1', 'm2', 'm3'));
-    assert.equal(resp.value, 'm1,m2,m3');
-    await waitForLog('/test.v1.StreamTest/ClientStream verified over the first envelope', mark);
+    assert.equal(resp.value, 'envelope:m1,m2,m3');
 
     const got: string[] = [];
     for await (const reply of client.serverStream({ value: 'hello' })) {
       got.push(reply.value);
     }
-    assert.deepEqual(got, ['hello', 'hello', 'hello']);
-    await waitForLog('/test.v1.StreamTest/ServerStream verified over the first envelope', mark);
+    assert.deepEqual(got, ['envelope:hello', 'envelope:hello', 'envelope:hello']);
   });
 
   // m2 is produced only once the helper has logged m1 as verified: a buffering transport stalls.
@@ -136,31 +132,28 @@ describe('Cross-language streaming: Node client → Go server', { skip: !goAvail
       yield { value: 'm3' };
     }
     const resp = await client.clientStream(messages());
-    assert.equal(resp.value, 'm1,m2,m3');
+    assert.equal(resp.value, 'envelope:m1,m2,m3');
   });
 
   it('ClientStream: a large first message is signed whole', async () => {
-    const mark = log.length;
     const client = createClient(CLIENT_PRIVATE_KEY, url, StreamTest);
     const large = randomBytes(192 * 1024).toString('base64'); // 256 KiB
     const resp = await client.clientStream(stringValues(large, 'tail'));
-    assert.equal(resp.value, `${large},tail`);
-    await waitForLog('/test.v1.StreamTest/ClientStream verified over the first envelope', mark);
+    assert.equal(resp.value, `envelope:${large},tail`);
   });
 
   it('a client stream signed with a stale timestamp is rejected', async (t) => {
-    const mark = log.length;
     const real = Date.now(); // read before mocking: a mock calling Date.now would call itself
     t.mock.method(Date, 'now', () => real - 120_000);
     const client = createClient(CLIENT_PRIVATE_KEY, url, StreamTest);
-    await assert.rejects(client.clientStream(stringValues('m1', 'm2')), isCode(Code.Unauthenticated));
-    await waitForLog('/test.v1.StreamTest/ClientStream rejected: timestamp is outside the allowed time window', mark);
+    await assert.rejects(
+      client.clientStream(stringValues('m1', 'm2')),
+      isCode(Code.Unauthenticated, 'timestamp is outside the allowed time window'),
+    );
   });
 
   it('an empty client stream is rejected', async () => {
-    const mark = log.length;
     const client = createClient(CLIENT_PRIVATE_KEY, url, StreamTest);
-    await assert.rejects(client.clientStream(stringValues()), isCode(Code.Unauthenticated));
-    await waitForLog('/test.v1.StreamTest/ClientStream rejected: no first message', mark);
+    await assert.rejects(client.clientStream(stringValues()), isCode(Code.Unauthenticated, 'no first message'));
   });
 });

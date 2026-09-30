@@ -53,11 +53,14 @@ export async function* stringValues(...values: string[]) {
   }
 }
 
-// For assert.rejects: the error is a ConnectError with this code.
-export function isCode(code: Code) {
+// For assert.rejects: the error is a ConnectError with this code and, if given, a message containing `part`.
+export function isCode(code: Code, part?: string) {
   return (err: unknown) => {
     assert.ok(err instanceof ConnectError, `want a ConnectError, got ${err}`);
     assert.equal(err.code, code, `code of ${err.message}`);
+    if (part !== undefined) {
+      assert.ok(err.rawMessage.includes(part), `want a message containing "${part}", got "${err.rawMessage}"`);
+    }
     return true;
   };
 }
