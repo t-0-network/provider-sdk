@@ -92,7 +92,7 @@ network_client = new_service_client(
 )
 ```
 
-The rules for every SDK (what is signed, refused calls, timeout bounds, option names): [`docs/STREAMING.md`](../docs/STREAMING.md).
+The streaming rules shared by every SDK: [`docs/STREAMING.md`](../docs/STREAMING.md).
 
 ## Available Commands
 

@@ -157,6 +157,8 @@ def _checked_base_url(base_url: str | None) -> str:
         return DEFAULT_BASE_URL
     if base_url == "":
         raise ValueError("base URL is not set")
+    if "://" not in base_url:  # a value without a scheme is read as https
+        base_url = "https://" + base_url
     if not _is_valid_base_url(base_url):
         raise ValueError("base URL is not valid")
     # connectrpc appends "/<service>/<method>", so a trailing "/" would double the slash.

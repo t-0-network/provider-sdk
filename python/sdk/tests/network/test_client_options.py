@@ -46,10 +46,15 @@ ACCEPTED_BASE_URLS = [
     "http://my-host:8080",
     "http://a1.b2.example",
     "http://h",
-]
-REFUSED_BASE_URLS = [
+    # Without "://" a value is read as "https://" + value.
     "api.t-0.network",
     "api.t-0.network:443",
+    "localhost:8080",
+    "127.0.0.1:1234",
+    "[::1]:8080",
+    "api.t-0.network/",
+]
+REFUSED_BASE_URLS = [
     "ftp://h",
     "http://",
     "http://:8080",
@@ -75,6 +80,12 @@ REFUSED_BASE_URLS = [
     "http://01.2.3.4",
     "http://a.1b",
     "http://localhost.",
+    "api.t-0.network/v1",
+    "user@h",
+    "my_host:8080",
+    "h:99999",
+    ":8080",
+    "//h",
 ]
 
 
@@ -123,8 +134,10 @@ class TestBaseURL:
     @pytest.mark.parametrize("factory", FACTORIES)
     def test_valid_url_is_accepted(self, factory, base_url: str) -> None:
         client = factory(PRIVATE_KEY, _Client, base_url=base_url)
-        # A trailing "/" is dropped: connectrpc appends "/<service>/<method>" to the address.
-        assert client._address == base_url.removesuffix("/")
+        # Read as https without "://", and a trailing "/" is dropped: connectrpc appends
+        # "/<service>/<method>" to the address.
+        expected = base_url if "://" in base_url else "https://" + base_url
+        assert client._address == expected.removesuffix("/")
 
     @pytest.mark.parametrize("base_url", REFUSED_BASE_URLS)
     @pytest.mark.parametrize("factory", FACTORIES)

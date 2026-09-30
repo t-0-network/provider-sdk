@@ -199,7 +199,7 @@ TimestampOutOfRangeError, UnknownPublicKeyError, SignatureFailedError
 Docs live in the top-level [`docs/python/`](../docs/python/) directory:
 - [`ARCHITECTURE.md`](../docs/python/ARCHITECTURE.md) — comprehensive architecture guide
 - [`PITFALLS.md`](../docs/python/PITFALLS.md) — critical gotchas and lessons learned
-- [`docs/STREAMING.md`](../docs/STREAMING.md) — the streaming and timeout rules shared by all SDKs
+- [`docs/STREAMING.md`](../docs/STREAMING.md) — the streaming rules shared by all SDKs
 
 ## Git Workflow
 
