@@ -21,7 +21,7 @@ public class NetworkClientOptionsTests
         Assert.Equal("https://api.t-0.network", new NetworkClientOptions { BaseUrl = null }.BaseUrl);
     }
 
-    // The shared base URL table: 7 accepted, 9 refused as not valid, "" refused as not set.
+    // The shared base URL table: 7 accepted, 11 refused as not valid, "" refused as not set.
     [Theory]
     [InlineData("https://api.t-0.network")]
     [InlineData("https://api.t-0.network/")]
@@ -73,6 +73,8 @@ public class NetworkClientOptionsTests
     [InlineData("http://h:0")]
     [InlineData("http://h:99999")]
     [InlineData("http://1.2.3")]
+    [InlineData("http://h:080")]
+    [InlineData("http://h\t")]
     public void BaseUrlOtherThanSchemeHostAndPort_IsRefused(string url)
     {
         var ex = Assert.Throws<ArgumentException>(() => new NetworkClientOptions { BaseUrl = url });

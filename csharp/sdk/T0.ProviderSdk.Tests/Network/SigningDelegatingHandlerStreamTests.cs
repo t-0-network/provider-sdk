@@ -284,6 +284,22 @@ public class SigningDelegatingHandlerStreamTests
         Assert.False(inner.Received.Task.IsCompleted);
     }
 
+    // A length of 2^31 or more cannot fit a byte array, so such a body never arrives whole.
+    [Theory]
+    [InlineData(0xFF)] // 0xFFFFFFFF
+    [InlineData(0x80)] // 0x80000000
+    public async Task FirstFrameLongerThanAnArrayCanHold_Fails(byte high)
+    {
+        byte[] body = [0, high, 0xFF, 0xFF, 0xFF, .. Encoding.UTF8.GetBytes("m1")];
+        var (client, inner) = NewClient();
+
+        var ex = await Assert.ThrowsAsync<RpcException>(
+            () => client.SendAsync(Post(PushContent.Frames(body))).WithTimeout());
+        Assert.Equal(StatusCode.InvalidArgument, ex.StatusCode);
+        Assert.Equal("streaming request ends inside its first message", ex.Status.Detail);
+        Assert.False(inner.Received.Task.IsCompleted);
+    }
+
     [Fact]
     public async Task TransportFailureBeforeTheBodyIsRead_FailsLaterSourceWrites()
     {

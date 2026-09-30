@@ -196,7 +196,7 @@ internal sealed class FirstFrameThenPipeContent : HttpContent
                     throw BrokenFirstMessage();
                 }
 
-                frame = new byte[FramePrefixLength + ReadPayloadLength(buffer.Slice(0, FramePrefixLength))];
+                frame = new byte[ReadFrameLength(buffer.Slice(0, FramePrefixLength))];
             }
 
             var take = (int)Math.Min(buffer.Length, frame.Length - filled);
@@ -219,11 +219,16 @@ internal sealed class FirstFrameThenPipeContent : HttpContent
     private static RpcException BrokenFirstMessage() =>
         new(new Status(StatusCode.InvalidArgument, "streaming request ends inside its first message"));
 
-    private static int ReadPayloadLength(ReadOnlySequence<byte> prefix)
+    // The prefix and payload length. A frame longer than a byte array can hold could never arrive
+    // whole, so it is a first message that ends early, refused before anything is signed.
+    private static int ReadFrameLength(ReadOnlySequence<byte> prefix)
     {
         Span<byte> bytes = stackalloc byte[FramePrefixLength];
         prefix.CopyTo(bytes);
-        return (int)BinaryPrimitives.ReadUInt32BigEndian(bytes[1..]);
+        var payloadLength = BinaryPrimitives.ReadUInt32BigEndian(bytes[1..]);
+        if (payloadLength > Array.MaxLength - FramePrefixLength)
+            throw BrokenFirstMessage();
+        return FramePrefixLength + (int)payloadLength;
     }
 
     private static InvalidOperationException CannotSend(int state) => state == StateClosed

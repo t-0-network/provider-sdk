@@ -126,11 +126,11 @@ public sealed class NetworkClientOptions
         return octets == 4;
     }
 
-    // Nothing, or ':' and a port from 1 to 65535.
+    // Nothing, or ':' and a port from 1 to 65535 without leading zeros.
     private static bool IsPort(ReadOnlySpan<char> port) =>
         port.IsEmpty
-        || (port[0] == ':' && port.Length is > 1 and <= 6 && !port[1..].ContainsAnyExceptInRange('0', '9')
-            && int.Parse(port[1..]) is >= 1 and <= 65535);
+        || (port[0] == ':' && port.Length is > 1 and <= 6 && port[1] != '0'
+            && !port[1..].ContainsAnyExceptInRange('0', '9') && int.Parse(port[1..]) <= 65535);
 
     private static readonly Regex HostName = new(
         @"^(?:[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?\.)*[A-Za-z](?:[A-Za-z0-9-]*[A-Za-z0-9])?\z",
