@@ -45,6 +45,9 @@ func (c *clientOptions) validate() error {
 		return ErrEmptyBaseURL
 	}
 
+	if !strings.Contains(c.baseURL, "://") {
+		c.baseURL = "https://" + c.baseURL // a base URL without a scheme is read as https
+	}
 	if !validBaseURL(c.baseURL) {
 		return ErrInvalidBaseURL
 	}
@@ -155,7 +158,7 @@ func WithTimeout(t time.Duration) ClientOption {
 
 // WithStreamTimeout sets the deadline of each client- and server-streaming call whose context has
 // none, including the wait for its first message. A deadline on the call's context replaces it,
-// shorter or longer. It must be positive and at most 2147483647 ms. See docs/STREAMING.md.
+// shorter or longer. It must be positive and at most 2147483647 ms.
 //
 // Default: 5 minutes.
 func WithStreamTimeout(t time.Duration) ClientOption {
