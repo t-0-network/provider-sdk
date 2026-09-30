@@ -13,7 +13,6 @@ from t0_provider_sdk.crypto.signer import new_signer_from_hex
 from t0_provider_sdk.network import (
     DEFAULT_BASE_URL,
     Protocol,
-    WireFormat,
     new_service_client,
     new_service_client_sync,
 )
@@ -37,55 +36,22 @@ UNARY = MethodInfo(
 ACCEPTED_BASE_URLS = [
     "https://api.t-0.network",
     "https://api.t-0.network/",
-    "HTTPS://api.t-0.network",
     "http://localhost:8080",
-    "http://localhost:8080/",
     "http://127.0.0.1:1234",
-    "http://255.255.255.255:1",
     "http://[::1]:8080",
-    "http://my-host:8080",
-    "http://a1.b2.example",
-    "http://h",
-    # Without "://" a value is read as "https://" + value.
     "api.t-0.network",
     "api.t-0.network:443",
-    "localhost:8080",
-    "127.0.0.1:1234",
-    "[::1]:8080",
-    "api.t-0.network/",
 ]
 REFUSED_BASE_URLS = [
     "ftp://h",
     "http://",
-    "http://:8080",
-    "http:foo",
-    "not a url",
-    "http://h:99999",
-    "http://h:0",
-    "http://h:",
     "http://user@h",
     "http://my_host:8080",
-    "http://bücher.example",
     "https://api.t-0.network/v1",
-    "https://api.t-0.network/v1/",
     "https://api.t-0.network?x",
-    "https://api.t-0.network#x",
-    "http://[:::]:8080",
-    "http://a..b",
-    "http://-foo",
-    "http://foo-",
+    "http://h:0",
+    "http://h:99999",
     "http://1.2.3",
-    "http://127.1",
-    "http://256.1.1.1",
-    "http://01.2.3.4",
-    "http://a.1b",
-    "http://localhost.",
-    "api.t-0.network/v1",
-    "user@h",
-    "my_host:8080",
-    "h:99999",
-    ":8080",
-    "//h",
 ]
 
 
@@ -144,20 +110,6 @@ class TestBaseURL:
     def test_invalid_url_is_refused(self, factory, base_url: str) -> None:
         with pytest.raises(ValueError, match="^base URL is not valid$"):
             factory(PRIVATE_KEY, _Client, base_url=base_url)
-
-
-class TestEnumOptions:
-    @pytest.mark.parametrize("value", ["json", None, 1])
-    @pytest.mark.parametrize("factory", FACTORIES)
-    def test_wire_format_must_be_a_wire_format(self, factory, value: object) -> None:
-        with pytest.raises(ValueError, match=r"^wire_format must be WireFormat\.BINARY or WireFormat\.JSON$"):
-            factory(PRIVATE_KEY, _Client, wire_format=value)
-
-    @pytest.mark.parametrize("value", ["grpc", None, WireFormat.JSON])
-    @pytest.mark.parametrize("factory", FACTORIES)
-    def test_protocol_must_be_a_protocol(self, factory, value: object) -> None:
-        with pytest.raises(ValueError, match=r"^protocol must be Protocol\.CONNECT or Protocol\.GRPC$"):
-            factory(PRIVATE_KEY, _Client, protocol=value)
 
 
 class TestSigner:

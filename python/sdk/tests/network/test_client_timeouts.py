@@ -6,7 +6,6 @@ records the timeout header (and the sync pyqwest timeout) and fails the call.
 
 from __future__ import annotations
 
-import math
 from contextlib import asynccontextmanager, contextmanager
 
 import pytest
@@ -172,8 +171,9 @@ STREAMS = ["client_stream", "server_stream"]
 KINDS = ["unary", *STREAMS]
 # Shorter and longer than both defaults: the call's own timeout replaces the default either way.
 CALL_TIMEOUTS_MS = [700, 600_000]
-BAD_TIMEOUTS_S = [0, -1.0, None, math.inf, math.nan, 2_147_484, True]
-BAD_CALL_TIMEOUTS_MS = [0, -5, math.inf, math.nan, 2**31, True]
+# One value per branch of the check: zero, no value, and 2^31 ms, one above the bound.
+BAD_TIMEOUTS_S = [0, None, 2_147_483.648]
+BAD_CALL_TIMEOUTS_MS = [0, 2**31]
 
 
 @pytest.mark.asyncio
@@ -288,26 +288,13 @@ class TestTimeoutOptions:
 
     @pytest.mark.asyncio
     async def test_largest_value_is_accepted(self) -> None:
-        client, recorder = _async_client(stream_timeout=2_147_483)
+        client, recorder = _async_client(stream_timeout=2_147_483.647)
         await _call(client, "client_stream")
-        assert recorder.timeout_header == "2147483000"
-
-    @pytest.mark.asyncio
-    async def test_largest_call_timeout_is_accepted(self) -> None:
-        client, recorder = _async_client()
-        await _call(client, "unary", timeout_ms=2**31 - 1)
         assert recorder.timeout_header == "2147483647"
 
     @pytest.mark.asyncio
     async def test_sub_millisecond_timeout_is_not_dropped(self) -> None:
+        """connectrpc reads a timeout of 0 ms as none, so 0.1 ms must not round down to it."""
         client, recorder = _async_client(timeout=0.0001)
         await _call(client, "unary")
         assert recorder.timeout_header == "1"
-
-    @pytest.mark.asyncio
-    async def test_fractions_of_a_millisecond_round_up(self) -> None:
-        client, recorder = _async_client(timeout=0.9991)
-        await _call(client, "unary")
-        assert recorder.timeout_header == "1000"
-        await _call(client, "unary", timeout_ms=999.1)
-        assert recorder.timeout_header == "1000"

@@ -5,15 +5,10 @@ Proto-agnostic: works with ANY generated ConnectRPC client class.
 
 from __future__ import annotations
 
-import asyncio
 import functools
-import inspect
 import ipaddress
-import logging
 import math
 import re
-import threading
-import types
 from typing import TYPE_CHECKING, Any, NoReturn, TypeVar
 from urllib.parse import urlsplit
 
@@ -30,17 +25,13 @@ from t0_provider_sdk.network.options import (
     Protocol,
     WireFormat,
 )
-from t0_provider_sdk.network.signing import SigningClient, SigningSyncClient, _aclose, _close, _shared_transport
+from t0_provider_sdk.network.signing import SigningClient, SigningSyncClient, _shared_transport
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
 T = TypeVar("T")
 
-_LOGGER = logging.getLogger("t0_provider_sdk")
-
-# Background closes of callers' request sources, kept here so they are not collected while pending.
-_CLOSING: set[asyncio.Task[None]] = set()
 
 # A host name: dot-separated labels of ASCII letters, digits and inner '-', none empty, the last one
 # starting with a letter (so "1.2.3" is not taken for a name). Other names ("my_host", "a..b",
@@ -101,12 +92,10 @@ def new_service_client(
     """
     base_url = _checked_base_url(base_url)
     unary_ms, stream_ms = _default_timeouts_ms(timeout, stream_timeout)
-    _check_enums(wire_format, protocol)
     transport = _transport(base_url, protocol, sync=False)
     signing_client = SigningClient(sign_fn or new_signer_from_hex(private_key), transport=transport)
     client = client_class(base_url, http_client=signing_client, **_client_kwargs(wire_format, protocol))  # type: ignore[call-arg]
     _set_default_timeouts(client, unary_ms, stream_ms)
-    _close_client_stream_requests(client, sync=False)
     _reject_bidi_streams(client)
     return client
 
@@ -142,12 +131,10 @@ def new_service_client_sync(
     """
     base_url = _checked_base_url(base_url)
     unary_ms, stream_ms = _default_timeouts_ms(timeout, stream_timeout)
-    _check_enums(wire_format, protocol)
     transport = _transport(base_url, protocol, sync=True)
     signing_client = SigningSyncClient(sign_fn or new_signer_from_hex(private_key), transport=transport)
     client = client_class(base_url, http_client=signing_client, **_client_kwargs(wire_format, protocol))  # type: ignore[call-arg]
     _set_default_timeouts(client, unary_ms, stream_ms)
-    _close_client_stream_requests(client, sync=True)
     _reject_bidi_streams(client)
     return client
 
@@ -198,13 +185,6 @@ def _is_valid_base_url(base_url: str) -> bool:
     return True
 
 
-def _check_enums(wire_format: WireFormat, protocol: Protocol) -> None:
-    if not isinstance(wire_format, WireFormat):
-        raise ValueError("wire_format must be WireFormat.BINARY or WireFormat.JSON")
-    if not isinstance(protocol, Protocol):
-        raise ValueError("protocol must be Protocol.CONNECT or Protocol.GRPC")
-
-
 def _client_kwargs(wire_format: WireFormat, protocol: Protocol) -> dict[str, Any]:
     kwargs: dict[str, Any] = {
         "protocol": ProtocolType.GRPC if protocol is Protocol.GRPC else ProtocolType.CONNECT,
@@ -246,129 +226,6 @@ def _set_default_timeouts(client: object, unary_ms: int, stream_ms: int) -> None
         execute = getattr(client, name, None)
         if execute is not None:
             setattr(client, name, _with_default_timeout(execute, stream_ms if streaming else unary_ms))
-
-
-def _close_client_stream_requests(client: object, *, sync: bool) -> None:
-    """Ends the caller's request iterator with the call. connectrpc does not close it, so after an
-    early failure it would stay open until garbage collection, and a sync transport would go on
-    pulling messages from it in its writer thread."""
-    execute = getattr(client, "execute_client_stream", None)
-    if execute is not None:
-        wrap = _with_closing_request_sync if sync else _with_closing_request
-        setattr(client, "execute_client_stream", wrap(execute))  # noqa: B010
-
-
-def _with_closing_request(execute: Callable[..., Any]) -> Callable[..., Any]:
-    @functools.wraps(execute)
-    async def execute_client_stream(*args: Any, request: Any, **kwargs: Any) -> Any:
-        messages = _CallRequest(request)
-        try:
-            return await execute(*args, request=messages, **kwargs)
-        finally:
-            messages.finish()
-
-    return execute_client_stream
-
-
-def _with_closing_request_sync(execute: Callable[..., Any]) -> Callable[..., Any]:
-    @functools.wraps(execute)
-    def execute_client_stream(*args: Any, request: Any, **kwargs: Any) -> Any:
-        messages = _CallRequestSync(request)
-        try:
-            return execute(*args, request=messages, **kwargs)
-        finally:
-            messages.finish()
-
-    return execute_client_stream
-
-
-class _CallRequest:
-    """The caller's request messages, ended and closed when the call ends."""
-
-    def __init__(self, request: Any) -> None:
-        self._source = aiter(request)
-        self._done = False
-
-    def __aiter__(self) -> _CallRequest:
-        return self
-
-    async def __anext__(self) -> Any:
-        if self._done:
-            self._close()
-            raise StopAsyncIteration
-        return await anext(self._source)
-
-    def finish(self) -> None:
-        self._done = True
-        self._close()
-
-    def _close(self) -> None:
-        # In the background and best effort: the caller's cleanup may await anything, and it must
-        # never delay the call's result (a deadline error included) or replace it.
-        source = self._source
-        if inspect.isasyncgen(source) and inspect.getasyncgenstate(source) in (
-            inspect.AGEN_RUNNING,
-            inspect.AGEN_CLOSED,
-        ):
-            # RUNNING: the transport's task is inside it; the transport cancels that task when the
-            # call ends, and the cancellation closes it.
-            return
-        if getattr(source, "aclose", None) is None:
-            return
-        task = asyncio.get_running_loop().create_task(_aclose_logged(source))
-        _CLOSING.add(task)
-        task.add_done_callback(_CLOSING.discard)
-
-
-class _CallRequestSync:
-    """Sync variant of _CallRequest. The transport's writer thread may be inside the source when the
-    call ends; then it is closed from that thread at the next pull, which stops there."""
-
-    def __init__(self, request: Any) -> None:
-        self._source = iter(request)
-        self._done = False
-
-    def __iter__(self) -> _CallRequestSync:
-        return self
-
-    def __next__(self) -> Any:
-        if self._done:
-            self._close()
-            raise StopIteration
-        return next(self._source)
-
-    def finish(self) -> None:
-        self._done = True
-        self._close()
-
-    def _close(self) -> None:
-        # In a thread of its own and best effort: the caller's cleanup may block, and it must never
-        # delay the call's result (a deadline error included) or replace it.
-        source = self._source
-        if isinstance(source, types.GeneratorType) and inspect.getgeneratorstate(source) in (
-            inspect.GEN_RUNNING,  # the writer thread is inside it; it closes it at its next pull
-            inspect.GEN_CLOSED,
-        ):
-            return
-        if getattr(source, "close", None) is None:
-            return
-        threading.Thread(target=_close_logged, args=(source,), name="t0-close-request", daemon=True).start()
-
-
-async def _aclose_logged(source: Any) -> None:
-    try:
-        await _aclose(source)
-    except Exception:
-        _LOGGER.warning("closing the request messages of a client stream failed", exc_info=True)
-
-
-def _close_logged(source: Any) -> None:
-    try:
-        _close(source)
-    except Exception:
-        if isinstance(source, types.GeneratorType) and inspect.getgeneratorstate(source) == inspect.GEN_RUNNING:
-            return  # the writer thread entered it between the check and the close; it closes it next
-        _LOGGER.warning("closing the request messages of a client stream failed", exc_info=True)
 
 
 def _reject_bidi_streams(client: object) -> None:

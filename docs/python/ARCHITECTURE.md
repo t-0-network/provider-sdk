@@ -699,9 +699,9 @@ def new_service_client_sync(
 ) -> T: ...
 ```
 
-The functions check the base URL and the key, create a `SignFn` from the private key (unless `sign_fn` is given), wrap it in `SigningClient`/`SigningSyncClient`, and pass it as the `http_client` parameter to the generated ConnectRPC client constructor, together with the protocol, the codec for `WireFormat.JSON` and `send_compression=None` (requests go out uncompressed). `Protocol.GRPC` on an `http://` base URL gets an HTTP/2 transport without TLS. A `wire_format` or `protocol` that is not a member of its enum raises `ValueError`.
+The functions check the base URL and the key, create a `SignFn` from the private key (unless `sign_fn` is given), wrap it in `SigningClient`/`SigningSyncClient`, and pass it as the `http_client` parameter to the generated ConnectRPC client constructor, together with the protocol, the codec for `WireFormat.JSON` and `send_compression=None` (requests go out uncompressed). `Protocol.GRPC` on an `http://` base URL gets an HTTP/2 transport without TLS.
 
-`timeout` (15 s) is the default of unary calls and `stream_timeout` (300 s) that of client- and server-streaming calls; a per-call `timeout_ms` replaces it, shorter or longer. Values that are not positive or exceed 2147483647 ms raise `ValueError`. Bidirectional calls raise `ConnectError(Code.UNIMPLEMENTED)` before anything is sent. When a client stream ends, early failure included, its request iterator is closed: connectrpc leaves it open, and a sync transport would keep pulling messages from it after the call. Closing runs in the background (a task in the async client, a short-lived thread in the sync one) and is best effort: the iterator's cleanup never delays the call's result, a deadline error included, and an error from it is logged to the `t0_provider_sdk` logger instead of replacing that result. See [docs/STREAMING.md](../STREAMING.md#stream-timeout).
+`timeout` (15 s) is the default of unary calls and `stream_timeout` (300 s) that of client- and server-streaming calls; a per-call `timeout_ms` replaces it, shorter or longer. Values that are not positive or exceed 2147483647 ms raise `ValueError`. Bidirectional calls raise `ConnectError(Code.UNIMPLEMENTED)` before anything is sent. See [docs/STREAMING.md](../STREAMING.md#stream-timeout).
 
 #### 4.3.3 `options.py`
 
