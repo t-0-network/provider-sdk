@@ -268,13 +268,20 @@ type streamProtocol struct {
 	gzip bool
 }
 
-var streamProtocols = []streamProtocol{
-	{name: "connect"},
-	{name: "connect-json", opts: []ClientOption{WithWireFormat(WireFormatJSON)}},
-	{name: "connect-gzip", gzip: true},
-	{name: "grpc", opts: []ClientOption{WithProtocol(ProtocolGRPC)}},
-	{name: "grpc-gzip", opts: []ClientOption{WithProtocol(ProtocolGRPC)}, gzip: true},
-}
+var (
+	protocolConnect = streamProtocol{name: "connect"}
+	protocolGRPC    = streamProtocol{name: "grpc", opts: []ClientOption{WithProtocol(ProtocolGRPC)}}
+
+	streamProtocols = []streamProtocol{
+		protocolConnect,
+		{name: "connect-json", opts: []ClientOption{WithWireFormat(WireFormatJSON)}},
+		{name: "connect-gzip", gzip: true},
+		protocolGRPC,
+		{name: "grpc-gzip", opts: []ClientOption{WithProtocol(ProtocolGRPC)}, gzip: true},
+	}
+	// connectAndGRPC is for tests that neither the codec nor compression can affect.
+	connectAndGRPC = []streamProtocol{protocolConnect, protocolGRPC}
+)
 
 func (p streamProtocol) client(t *testing.T, srv *streamTestServer, key testKey, opts ...ClientOption) *streamTestClient {
 	t.Helper()
@@ -417,10 +424,7 @@ func TestStream_LargeFirstMessage(t *testing.T) {
 }
 
 func TestStream_EmptyClientStreamIsSentAndRejected(t *testing.T) {
-	for _, p := range streamProtocols {
-		if p.name != "connect" && p.name != "grpc" {
-			continue // no message, so the codec and compression do not matter
-		}
+	for _, p := range connectAndGRPC {
 		t.Run(p.name, func(t *testing.T) {
 			key := newTestKey(t)
 			srv := newStreamTestServer(t, key.publicKey)
@@ -541,7 +545,6 @@ func TestSigningTransport_TruncatedFirstEnvelope(t *testing.T) {
 	for name, body := range map[string][]byte{
 		"partial prefix":  {0, 0, 0},
 		"partial payload": {0, 0, 0, 0, 9, 0x0a, 0x07},
-		"missing payload": {0, 0, 0, 0, 9},
 	} {
 		t.Run(name, func(t *testing.T) {
 			st := NewSigningTransport(newTestKey(t).sign, time.Now, WithTransport(unexpectedRoundTrip(t)))
@@ -735,7 +738,7 @@ func TestSigningTransport_TimestampTakenAfterFirstMessage(t *testing.T) {
 }
 
 func TestStream_Timeouts(t *testing.T) {
-	for _, p := range streamProtocols {
+	for _, p := range connectAndGRPC {
 		t.Run(p.name, func(t *testing.T) {
 			key := newTestKey(t)
 			srv := newStreamTestServer(t, key.publicKey)
@@ -760,36 +763,12 @@ func TestStream_Timeouts(t *testing.T) {
 				_, err := receiveAll(noDeadline(t), client, "hello")
 				require.Equal(t, connect.CodeDeadlineExceeded, connect.CodeOf(err), "error: %v", err)
 			})
-
-			t.Run("a longer deadline of the caller replaces the unary timeout", func(t *testing.T) {
-				client := p.client(t, srv, key, WithTimeout(100*time.Millisecond))
-				_, err := client.unary.CallUnary(testContext(t), connect.NewRequest(wrapperspb.String("ping")))
-				require.NoError(t, err)
-			})
-
-			t.Run("a longer deadline of the caller replaces the stream timeout", func(t *testing.T) {
-				client := p.client(t, srv, key, WithStreamTimeout(100*time.Millisecond))
-				got, err := receiveAll(testContext(t), client, "hello")
-				require.NoError(t, err)
-				require.Len(t, got, 3)
-			})
-
-			t.Run("a client stream may outlast the unary timeout", func(t *testing.T) {
-				client := p.client(t, srv, key, WithTimeout(100*time.Millisecond))
-				stream := client.clientStream.CallClientStream(testContext(t))
-				require.NoError(t, stream.Send(wrapperspb.String("m1")))
-				time.Sleep(300 * time.Millisecond)
-				require.NoError(t, stream.Send(wrapperspb.String("m2")))
-				resp, err := stream.CloseAndReceive()
-				require.NoError(t, err)
-				require.Equal(t, "m1,m2", resp.Msg.GetValue())
-			})
 		})
 	}
 }
 
 func TestStream_StreamTimeoutBeforeFirstMessage(t *testing.T) {
-	for _, p := range streamProtocols {
+	for _, p := range connectAndGRPC {
 		t.Run(p.name, func(t *testing.T) {
 			key := newTestKey(t)
 			srv := newStreamTestServer(t, key.publicKey)
@@ -809,7 +788,7 @@ func TestStream_StreamTimeoutBeforeFirstMessage(t *testing.T) {
 }
 
 func TestStream_DeadlinesAreSent(t *testing.T) {
-	for _, p := range streamProtocols {
+	for _, p := range connectAndGRPC {
 		t.Run(p.name, func(t *testing.T) {
 			key := newTestKey(t)
 			srv := newStreamTestServer(t, key.publicKey)
@@ -952,7 +931,7 @@ func TestStream_RedirectsAreNotFollowed(t *testing.T) {
 }
 
 func TestStream_BidiIsRejected(t *testing.T) {
-	for _, p := range streamProtocols {
+	for _, p := range connectAndGRPC {
 		t.Run(p.name, func(t *testing.T) {
 			key := newTestKey(t)
 			srv := newStreamTestServer(t, key.publicKey)

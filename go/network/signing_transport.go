@@ -168,9 +168,6 @@ func readFirstEnvelope(req *http.Request) ([]byte, error) {
 	return envelope, err
 }
 
-// maxPrealloc caps what the length prefix may allocate up front; larger messages grow as they arrive.
-const maxPrealloc = 64 << 10
-
 func readEnvelope(r io.Reader) ([]byte, error) {
 	var prefix [5]byte
 	if _, err := io.ReadFull(r, prefix[:]); err != nil {
@@ -180,10 +177,9 @@ func readEnvelope(r io.Reader) ([]byte, error) {
 		return nil, firstMessageError(err)
 	}
 
-	size := int64(binary.BigEndian.Uint32(prefix[1:]))
-	envelope := bytes.NewBuffer(make([]byte, 0, 5+min(size, maxPrealloc)))
+	var envelope bytes.Buffer
 	envelope.Write(prefix[:])
-	if _, err := io.CopyN(envelope, r, size); err != nil {
+	if _, err := io.CopyN(&envelope, r, int64(binary.BigEndian.Uint32(prefix[1:]))); err != nil {
 		return nil, firstMessageError(err)
 	}
 	return envelope.Bytes(), nil

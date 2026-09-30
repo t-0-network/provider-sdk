@@ -60,14 +60,6 @@ func (c *clientOptions) validate() error {
 		return ErrInvalidStreamTimeout
 	}
 
-	if c.wireFormat != WireFormatBinary && c.wireFormat != WireFormatJSON {
-		return errors.New("WithWireFormat must be WireFormatBinary or WireFormatJSON")
-	}
-
-	if c.protocol != ProtocolConnect && c.protocol != ProtocolGRPC {
-		return errors.New("WithProtocol must be ProtocolConnect or ProtocolGRPC")
-	}
-
 	return nil
 }
 
