@@ -93,8 +93,8 @@ def _get_unsupported() -> ConnectError:
 
 
 def _remaining_timeout(timeout: float | None, started: float, waited_for: str) -> float | None:
-    """Deducts the time a sync source took to yield what is signed. A blocked source is not
-    interrupted: once it yields with no time left, this raises TimeoutError and nothing is sent."""
+    """Deducts time spent preparing a sync request. Blocking source reads and signing are not
+    interrupted: once they return with no time left, this raises TimeoutError and nothing is sent."""
     if timeout is None:
         return None
     timeout -= time.monotonic() - started
@@ -267,10 +267,10 @@ class SigningSyncClient:
     stream) before waiting for a response. Bidirectional streams are not supported; only the
     factory-built clients reject them.
 
-    A blocked source is not interrupted: the time it takes to yield the first message is deducted
-    from the call's timeout, and if none is left, nothing is sent, the source is closed and the call
-    fails with TimeoutError (DEADLINE_EXCEEDED in connectrpc). Bounding the time of each read is up
-    to the source. See docs/STREAMING.md.
+    A blocked source or signer is not interrupted: the time it takes to yield and sign the first
+    message is deducted from the call's timeout, and if none is left, nothing is sent, the source
+    is closed and the call fails with TimeoutError (DEADLINE_EXCEEDED in connectrpc). Bounding the
+    time of each read is up to the source. See docs/STREAMING.md.
 
     Redirects are not followed, so a 3xx response fails the call. A transport passed in must not
     follow them either.
@@ -290,8 +290,10 @@ class SigningSyncClient:
         content: bytes | None = None,
         timeout: float | None = None,
     ) -> Any:
+        started = time.monotonic()
         body = content or b""
         headers = _sign_request(self._sign_fn, body, headers)
+        timeout = _remaining_timeout(timeout, started, "request signing")
         return self._inner.post(url, headers=headers, content=content, timeout=timeout)
 
     def stream(
@@ -322,8 +324,9 @@ class SigningSyncClient:
             first = next(source, None)
             if first is not None:
                 _require_one_envelope(first)
-            timeout = _remaining_timeout(timeout, started, "the first request message")
+            _remaining_timeout(timeout, started, "the first request message")
             headers = _sign_request(self._sign_fn, first or b"", headers)
+            timeout = _remaining_timeout(timeout, started, "request signing")
         except BaseException:
             _close(source)
             raise
