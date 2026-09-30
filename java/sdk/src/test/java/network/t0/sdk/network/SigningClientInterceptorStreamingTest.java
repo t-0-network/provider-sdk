@@ -95,11 +95,17 @@ class SigningClientInterceptorStreamingTest {
         call.start(new RecordingListener<>(), new Metadata());
         call.request(1);
         call.sendMessage(value("m1"));
+
+        RecordingCall raw = channel.lastCall();
+        // Assert before the next message exists: buffering until halfClose would fail here.
+        assertThat(raw.events).containsExactly("start", "request:1", "send");
+        assertThat(raw.sent).containsExactly(bytes("m1"));
+        assertThat(verifies(raw.headers, bytes("m1"))).isTrue();
+
         call.sendMessage(value("m2"));
         call.sendMessage(value("m3"));
         call.halfClose();
 
-        RecordingCall raw = channel.lastCall();
         assertThat(raw.events).containsExactly("start", "request:1", "send", "send", "send", "halfClose");
         assertThat(raw.sent).containsExactly(bytes("m1"), bytes("m2"), bytes("m3"));
 
@@ -112,24 +118,6 @@ class SigningClientInterceptorStreamingTest {
         assertThat(verifies(raw.headers, concat(bytes("m1"), bytes("m2")))).isFalse();
         // Signed above the gRPC framer: not the framed first message.
         assertThat(verifies(raw.headers, frame(bytes("m1")))).isFalse();
-    }
-
-    @Test
-    @DisplayName("Client stream: the call starts and the first message goes out before the second exists")
-    void clientStreamSendsTheFirstMessageAtOnce() {
-        ClientCall<StringValue, StringValue> call = intercepted.newCall(CLIENT_STREAM, callOptions());
-        call.start(new RecordingListener<>(), new Metadata());
-        call.request(1);
-        call.sendMessage(value("m1"));
-
-        RecordingCall raw = channel.lastCall();
-        assertThat(raw.events).containsExactly("start", "request:1", "send");
-        assertThat(raw.sent).containsExactly(bytes("m1"));
-        assertThat(verifies(raw.headers, bytes("m1"))).isTrue();
-
-        call.sendMessage(value("m2"));
-        call.halfClose();
-        assertThat(raw.events).containsExactly("start", "request:1", "send", "send", "halfClose");
     }
 
     @Test
@@ -753,6 +741,40 @@ class SigningClientInterceptorStreamingTest {
     }
 
     // ==================== Concurrent start ====================
+
+    @Test
+    @DisplayName("An interrupted sender waiting for the first message fails with CANCELLED and sends nothing")
+    void interruptedSenderDoesNotOvertakeTheFirstMessage() throws Exception {
+        channel.blockFirstSend();
+        ClientCall<StringValue, StringValue> call = intercepted.newCall(CLIENT_STREAM, callOptions());
+        call.start(new RecordingListener<>(), new Metadata());
+        RecordingCall raw = channel.lastCall();
+        ExecutorService threads = Executors.newFixedThreadPool(2);
+        try {
+            Future<?> first = threads.submit(() -> call.sendMessage(value("m1")));
+            raw.awaitFirstSendEntered();
+            Future<Boolean> interrupted = threads.submit(() -> {
+                Thread.currentThread().interrupt();
+                assertThatThrownBy(() -> call.sendMessage(value("m2")))
+                        .isInstanceOf(io.grpc.StatusRuntimeException.class)
+                        .satisfies(error -> {
+                            assertThat(Status.fromThrowable(error).getCode()).isEqualTo(Status.Code.CANCELLED);
+                            assertThat(error.getCause()).isInstanceOf(InterruptedException.class);
+                        });
+                return Thread.currentThread().isInterrupted();
+            });
+            assertThat(interrupted.get(5, TimeUnit.SECONDS)).as("interrupt status preserved").isTrue();
+            assertThat(raw.events()).containsExactly("start");
+
+            raw.releaseSend();
+            first.get(5, TimeUnit.SECONDS);
+            assertThat(raw.sent).containsExactly(bytes("m1"));
+            assertThat(verifies(raw.headers, bytes("m1"))).isTrue();
+        } finally {
+            raw.releaseSend();
+            threads.shutdownNow();
+        }
+    }
 
     @Test
     @DisplayName("cancel() while the first message starts the call waits for that start: one start, signed")

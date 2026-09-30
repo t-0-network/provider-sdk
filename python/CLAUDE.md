@@ -56,7 +56,7 @@ python/
 | Package | Import | Purpose |
 |---------|--------|---------|
 | connectrpc | `connectrpc` | ConnectRPC runtime (renamed from `connect-python` at v0.10.0; v0.11 switched its default codec to protobuf-py) |
-| pyqwest | `pyqwest` | HTTP client (Rust-backed); a direct dependency from 0.9, the first that can turn off redirects. The SDK builds its own transports with `follow_redirects=False` and `tls_include_system_certs=True` (without it a transport built this way trusts no CA and every https:// call fails) |
+| pyqwest | `pyqwest` | HTTP client (Rust-backed); the minimum in `sdk/pyproject.toml` ensures a cancelled request source aborts its upload instead of completing a partial body. The SDK builds its own transports with `follow_redirects=False` and `tls_include_system_certs=True` (without it a transport built this way trusts no CA and every https:// call fails) |
 | protobuf | `google.protobuf` | Message serialization |
 | coincurve | `coincurve` | secp256k1 ECDSA |
 | pycryptodome | `Crypto.Hash.keccak` | Keccak256 |

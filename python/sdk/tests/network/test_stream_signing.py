@@ -8,6 +8,7 @@ from __future__ import annotations
 import struct
 import time
 from contextlib import asynccontextmanager, contextmanager
+from types import SimpleNamespace
 
 import pyqwest
 import pytest
@@ -84,6 +85,11 @@ class _FakeSyncClient:
         self.body: bytes | None = None
         self.timeout: float | None = None
 
+    def post(self, url, headers=None, content=None, timeout=None):
+        self.events.append("request sent")
+        self.headers, self.body, self.timeout = headers, content, timeout
+        return "response"
+
     @contextmanager
     def stream(self, method, url, headers=None, content=None, timeout=None):
         self.events.append("request sent")
@@ -124,6 +130,51 @@ def _send_sync(fake: _FakeSyncClient, content_type: str, content, timeout: float
     client = _sync_client(fake)
     with client.stream("POST", URL, headers=_headers(content_type), content=content, timeout=timeout) as resp:
         assert resp == "response"
+
+
+@pytest.mark.parametrize("operation", ["post", "stream"])
+@pytest.mark.parametrize("timeout", [1.0, None])
+@pytest.mark.parametrize("signing_time", [0.25, 1.25])
+def test_sync_timeout_includes_signing(monkeypatch, operation, timeout, signing_time) -> None:
+    now = 0.0
+    closed = []
+
+    def sign(digest):
+        nonlocal now
+        now += signing_time
+        return SIGN_FN(digest)
+
+    def source():
+        nonlocal now
+        try:
+            now += 0.25
+            yield ENV1
+        finally:
+            closed.append(True)
+
+    monkeypatch.setattr("t0_provider_sdk.network.signing.time", SimpleNamespace(monotonic=lambda: now, time=time.time))
+    fake = _FakeSyncClient()
+    client = SigningSyncClient(sign)
+    client._inner = fake  # type: ignore[assignment]
+
+    def send():
+        if operation == "stream":
+            with client.stream("POST", URL, content=source(), timeout=timeout) as response:
+                assert response == "response"
+        else:
+            assert client.post(URL, content=ENV1, timeout=timeout) == "response"
+
+    elapsed = signing_time + (0.25 if operation == "stream" else 0)
+    if timeout is not None and elapsed >= timeout:
+        with pytest.raises(TimeoutError, match="request signing"):
+            send()
+        assert fake.events == [], "an expired call must never reach the transport"
+    else:
+        send()
+        assert fake.events == ["request sent"]
+        assert fake.timeout == (None if timeout is None else timeout - elapsed)
+    if operation == "stream":
+        assert closed == [True]
 
 
 BROKEN_FIRST_MESSAGE = "streaming request ends inside its first message"

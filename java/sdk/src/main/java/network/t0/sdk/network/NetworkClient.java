@@ -461,16 +461,14 @@ public abstract class NetworkClient implements Closeable {
 
                 // Guards the start of rawCall and the hand-off of request() calls made before it. The
                 // first of sendMessage, halfClose and cancel to find the call unstarted claims the start
-                // (starting); the others wait until it has started. cancel() may come from another thread.
+                // via starter; the others wait until it has started. cancel() may come from another thread.
                 private final Object lock = new Object();
                 private Listener<RespT> responseListener;
                 private Metadata headers;
                 private volatile boolean started = false;
-                private boolean starting = false;
-                private Thread starter; // the thread in rawCall.start(), while starting
+                private Thread starter; // the thread that claimed rawCall.start(), until it returns
                 private int pendingRequests = 0;
                 private Thread firstSender; // sending the signed first message, until it is out
-                private boolean open = false; // started, and the first message, if it started the call, is out
                 private final List<Runnable> held = new ArrayList<>(); // callbacks raised meanwhile
                 // Where the listener is called when this wrapper calls it on its own: the caller's executor.
                 private final Executor callExecutor =
@@ -507,7 +505,7 @@ public abstract class NetworkClient implements Closeable {
                     callExecutor.execute(() -> deliver(() -> {
                         boolean waiting;
                         synchronized (lock) {
-                            waiting = !started && !starting;
+                            waiting = !started && starter == null;
                         }
                         if (waiting) {
                             responseListener.onReady();
@@ -536,7 +534,7 @@ public abstract class NetworkClient implements Closeable {
                             firstSender = Thread.currentThread();
                         }
                         try {
-                            startRawCall(false);
+                            startRawCall();
                             rawCall.sendMessage(messageBytes);
                         } finally {
                             openAndRelease();
@@ -550,7 +548,7 @@ public abstract class NetworkClient implements Closeable {
                 public void halfClose() {
                     // If no message was sent, start with empty body signature
                     if (claimStart(new byte[0])) {
-                        startRawCall(true);
+                        startRawCall();
                     }
                     rawCall.halfClose();
                 }
@@ -583,7 +581,7 @@ public abstract class NetworkClient implements Closeable {
                                 .withDescription(message)
                                 .withCause(cause)
                                 .asRuntimeException());
-                        startRawCall(true);
+                        startRawCall();
                     }
                     rawCall.cancel(message, cause);
                 }
@@ -612,11 +610,10 @@ public abstract class NetworkClient implements Closeable {
                  */
                 private boolean claimStart(byte[] signed) {
                     synchronized (lock) {
-                        if (!started && !starting) {
+                        if (!started && starter == null) {
                             if (signed != null) {
                                 addSignatureHeaders(signed, clock.millis());
                             }
-                            starting = true;
                             starter = Thread.currentThread();
                             return true;
                         }
@@ -625,7 +622,7 @@ public abstract class NetworkClient implements Closeable {
                             return false;
                         }
                         // Until the first message is out, so that nothing another thread sends overtakes it.
-                        while (!open) {
+                        while (!started || firstSender != null) {
                             try {
                                 lock.wait();
                             } catch (InterruptedException e) {
@@ -643,18 +640,17 @@ public abstract class NetworkClient implements Closeable {
                 // The deadline or the context ended before the first message; a started call has its own.
                 private void startUnsigned() {
                     synchronized (lock) {
-                        if (started || starting) {
+                        if (started || starter != null) {
                             return;
                         }
-                        starting = true;
                         starter = Thread.currentThread();
                     }
-                    startRawCall(true);
+                    startRawCall();
                 }
 
                 // Outside the lock: request() from another thread must not block on it meanwhile. Opens the
                 // call to the threads waiting in claimStart, unless a first message still has to go out.
-                private void startRawCall(boolean openWhenStarted) {
+                private void startRawCall() {
                     Listener<RespT> listener;
                     Metadata startHeaders;
                     ScheduledFuture<?> timer;
@@ -701,9 +697,7 @@ public abstract class NetworkClient implements Closeable {
                         callContext.detach(previous);
                         synchronized (lock) {
                             started = true;
-                            starting = false;
                             starter = null;
-                            open = openWhenStarted;
                             requests = pendingRequests;
                             pendingRequests = 0;
                             lock.notifyAll();
@@ -739,7 +733,6 @@ public abstract class NetworkClient implements Closeable {
                     boolean released;
                     synchronized (lock) {
                         firstSender = null;
-                        open = true;
                         released = !held.isEmpty();
                         held.forEach(callbacks::executeLater);
                         held.clear();
