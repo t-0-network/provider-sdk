@@ -41,20 +41,21 @@ type ProviderServiceImplementation struct{
 func (s *ProviderServiceImplementation) PayOut(ctx context.Context, req *connect.Request[networkproto.PayoutRequest],
 ) (*connect.Response[networkproto.PayoutResponse], error) {
     msg := req.Msg
-    confirmPayoutReq := &networkproto.ConfirmPayoutRequest{
+    finalizePayoutReq := &networkproto.FinalizePayoutRequest{
         PaymentId: msg.GetPaymentId(),
-        PayoutId:  msg.GetPayoutId(),
-        Result: &networkproto.ConfirmPayoutRequest_Success_{
-            Success: &networkproto.ConfirmPayoutRequest_Success{},
+        Result: &networkproto.FinalizePayoutRequest_Success_{
+            Success: &networkproto.FinalizePayoutRequest_Success{},
         },
     }
 
-    _, err := s.networkClient.ConfirmPayout(ctx, connect.NewRequest(confirmPayoutReq))
+    _, err := s.networkClient.FinalizePayout(ctx, connect.NewRequest(finalizePayoutReq))
     if err != nil {
         return nil, connect.NewError(connect.CodeInternal, err)
     }
 
-    return connect.NewResponse(&networkproto.PayoutResponse{}), nil
+    return connect.NewResponse(&networkproto.PayoutResponse{
+        Result: &networkproto.PayoutResponse_Accepted_{Accepted: &networkproto.PayoutResponse_Accepted{}},
+    }), nil
 }
 
 func (s *ProviderServiceImplementation) UpdatePayment(
@@ -119,6 +120,8 @@ Use `NewServiceClient` to call T-0 Network APIs. The client handles request sign
 ```go
 import (
     "context"
+    "log"
+
     "connectrpc.com/connect"
     networkproto "github.com/t-0-network/provider-sdk/go/api/tzero/v1/payment"
     "github.com/t-0-network/provider-sdk/go/api/tzero/v1/payment/paymentconnect"
@@ -133,13 +136,13 @@ if err != nil {
 }
 
 // Publish quotes
-_, err = networkClient.UpdateQuote(ctx, connect.NewRequest(&networkproto.UpdateQuoteRequest{...}))
+_, err = networkClient.UpdateQuote(ctx, connect.NewRequest(&networkproto.UpdateQuoteRequest{ /* ... */ }))
 
 // Get a quote
-_, err = networkClient.GetQuote(ctx, connect.NewRequest(&networkproto.GetQuoteRequest{...}))
+_, err = networkClient.GetQuote(ctx, connect.NewRequest(&networkproto.GetQuoteRequest{ /* ... */ }))
 
 // Create payment
-_, err = networkClient.CreatePayment(ctx, connect.NewRequest(&networkproto.CreatePaymentRequest{...}))
+_, err = networkClient.CreatePayment(ctx, connect.NewRequest(&networkproto.CreatePaymentRequest{ /* ... */ }))
 ```
 
 **Client options:** `WithBaseURL` (default: `https://api.t-0.network`), `WithTimeout` (unary calls, default: 15s), `WithStreamTimeout` (streaming calls, default: 5 min), `WithWireFormat` (`WireFormatBinary` default, `WireFormatJSON`), `WithProtocol` (`ProtocolConnect` default, `ProtocolGRPC`), `WithSignatureFunction`.
@@ -151,14 +154,20 @@ Client-streaming and server-streaming calls are signed over their first request 
 A unary call gets a 15 second deadline and a stream gets 5 minutes, unless the call's context has a deadline of its own, which then applies instead, shorter or longer.
 
 ```go
-// uploadconnect stands for any generated service that has a client-streaming method Upload.
-client, err := network.NewServiceClient(privateKey, uploadconnect.NewUploadServiceClient,
+// A client-streaming method, called through connect.NewClient; a generated client works the same way.
+upload := func(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) *connect.Client[wrapperspb.StringValue, wrapperspb.StringValue] {
+    return connect.NewClient[wrapperspb.StringValue, wrapperspb.StringValue](httpClient, baseURL+"/example.v1.UploadService/Upload", opts...)
+}
+uploadClient, err := network.NewServiceClient(privateKey, upload,
     network.WithStreamTimeout(30*time.Minute), // every stream of this client may run up to 30 minutes
 )
+if err != nil {
+    log.Fatalf("Failed to create upload client: %v", err)
+}
 
-stream := client.Upload(ctx)
-if err := stream.Send(firstChunk); err != nil { /* ... */ } // signs and sends the request
-if err := stream.Send(nextChunk); err != nil { /* ... */ }
+stream := uploadClient.CallClientStream(ctx)
+if err := stream.Send(wrapperspb.String("first chunk")); err != nil { /* ... */ } // signs and sends the request
+if err := stream.Send(wrapperspb.String("next chunk")); err != nil { /* ... */ }
 resp, err := stream.CloseAndReceive()
 ```
 
