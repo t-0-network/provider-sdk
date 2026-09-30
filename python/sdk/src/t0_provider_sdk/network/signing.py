@@ -232,6 +232,8 @@ class SigningClient:
     ) -> AbstractAsyncContextManager[pyqwest.Response]:
         """content: envelopes, one per chunk, as connectrpc passes them; or a pre-framed body as bytes;
         or None for an empty stream."""
+        if method.upper() == "GET":
+            raise _get_unsupported()
         source = _chunks(content) if content is None or isinstance(content, _BYTES) else aiter(content)
         return self._stream_signing_first_envelope(method, url, headers, source)
 
@@ -301,6 +303,8 @@ class SigningSyncClient:
         timeout: float | None = None,
     ) -> AbstractContextManager[pyqwest.SyncResponse]:
         """content as for SigningClient.stream."""
+        if method.upper() == "GET":
+            raise _get_unsupported()
         source = iter(_pre_framed(content)) if content is None or isinstance(content, _BYTES) else iter(content)
         return self._stream_signing_first_envelope(method, url, headers, source, timeout)
 

@@ -843,7 +843,7 @@ The `api/` directory contains buf/protobuf-generated Python code. It is committe
 
 ```
 api/
-├── buf/validate/           # Protobuf validation (from protovalidate dep)
+├── buf/validate/           # buf.validate stubs (generated, used by protovalidate)
 ├── ivms101/v1/ivms/        # Travel rule data structures
 └── tzero/v1/
     ├── common/             # Shared types (Decimal, enums)

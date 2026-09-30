@@ -260,6 +260,22 @@ class TestSigningClientStream:
         _assert_signed_over(fake.headers, b"")
         assert fake.body == b""
 
+    async def test_get_is_refused_before_anything_is_read(self) -> None:
+        read: list[str] = []
+
+        async def source():
+            read.append("message 1")
+            yield ENV1
+
+        fake = _FakeClient()
+        with pytest.raises(ConnectError) as exc:
+            async with _async_client(fake).stream("GET", URL, content=source()):
+                pass
+        assert exc.value.code == Code.UNIMPLEMENTED
+        assert exc.value.message == "GET requests are not supported"
+        assert read == []
+        assert fake.events == [], "nothing is sent"
+
     async def test_bytes_body_ending_inside_its_first_envelope_is_refused(self) -> None:
         fake = _FakeClient()
         with pytest.raises(ConnectError) as exc:
@@ -418,6 +434,21 @@ class TestSigningSyncClientStream:
 
         _assert_signed_over(fake.headers, b"")
         assert fake.body == b""
+
+    def test_get_is_refused_before_anything_is_read(self) -> None:
+        read: list[str] = []
+
+        def source():
+            read.append("message 1")
+            yield ENV1
+
+        fake = _FakeSyncClient()
+        with pytest.raises(ConnectError) as exc, _sync_client(fake).stream("GET", URL, content=source()):
+            pass
+        assert exc.value.code == Code.UNIMPLEMENTED
+        assert exc.value.message == "GET requests are not supported"
+        assert read == []
+        assert fake.events == [], "nothing is sent"
 
     def test_bytes_body_ending_inside_its_first_envelope_is_refused(self) -> None:
         fake = _FakeSyncClient()

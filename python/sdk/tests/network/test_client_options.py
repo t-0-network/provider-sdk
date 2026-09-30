@@ -52,6 +52,8 @@ REFUSED_BASE_URLS = [
     "http://h:0",
     "http://h:99999",
     "http://1.2.3",
+    "http://h:080",
+    "http://h\t",
 ]
 
 

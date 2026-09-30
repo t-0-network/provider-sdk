@@ -152,6 +152,9 @@ def _checked_base_url(base_url: str | None) -> str:
 def _is_valid_base_url(base_url: str) -> bool:
     """http:// or https:// (any case), a host name or IP literal, a port of 1..65535 if given, and
     nothing after that but an optional "/"."""
+    # urlsplit drops tabs and newlines instead of refusing them.
+    if any(ord(c) < 0x20 or ord(c) == 0x7F for c in base_url):
+        return False
     scheme, separator, _ = base_url.partition("://")
     if not separator or scheme.lower() not in ("http", "https"):
         return False
@@ -163,8 +166,10 @@ def _is_valid_base_url(base_url: str) -> bool:
     host = parts.hostname
     if not host or (port is not None and not 1 <= port <= 65535):
         return False
-    # No user info, and no ':' without a port after it.
+    # No user info, no ':' without a port after it, and no port written with a leading zero.
     if "@" in parts.netloc or parts.netloc.endswith(":"):
+        return False
+    if port is not None and parts.netloc.rpartition(":")[2] != str(port):
         return False
     # No path, query or fragment. urlsplit drops an empty "?" or "#", so look for the characters.
     if parts.path not in ("", "/") or "?" in base_url or "#" in base_url:
