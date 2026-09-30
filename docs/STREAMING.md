@@ -25,6 +25,9 @@ sent as the caller produces it and is never buffered.
 - A client stream closed before its first message is signed over empty bytes and sent. The network
   rejects it.
 - A call that is cancelled or times out before its first message sends nothing.
+- If the caller's message source fails, or the caller cancels, after the first message was sent,
+  the call fails for the caller and the request is aborted. The server never sees a normal end of
+  the stream, so it never handles a partial upload as complete.
 - A signature header that the caller set is replaced, never added to.
 - A first message whose length prefix promises more bytes than arrive fails with `invalid argument`
   and the message "streaming request ends inside its first message". Other read errors keep their
