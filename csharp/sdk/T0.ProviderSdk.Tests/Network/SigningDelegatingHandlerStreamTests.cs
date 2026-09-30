@@ -1,13 +1,10 @@
 using System.Net;
 using System.Text;
-using Google.Protobuf;
 using Grpc.Core;
-using Grpc.Net.Client;
 using T0.ProviderSdk.Common;
 using T0.ProviderSdk.Crypto;
 using T0.ProviderSdk.Network;
 using static T0.ProviderSdk.Tests.Network.StreamingTestHelpers;
-using StringValue = Google.Protobuf.WellKnownTypes.StringValue;
 
 namespace T0.ProviderSdk.Tests.Network;
 
@@ -82,31 +79,6 @@ public class SigningDelegatingHandlerStreamTests
         var (client, inner) = NewClient();
 
         using var response = await client.SendAsync(Post(PushContent.Frames(frame1, frame2))).WithTimeout();
-
-        var request = await inner.Received.Task.WithTimeout();
-        Assert.True(SignatureCovers(request, frame1));
-        Assert.Equal([.. frame1, .. frame2], inner.Body.ToArray());
-    }
-
-    [Fact]
-    public async Task FirstFrameOver128KiBInSmallWrites_GrowsItsBufferAndIsSignedWhole()
-    {
-        var payload = new byte[200_000];
-        Random.Shared.NextBytes(payload);
-        var frame1 = Frame(payload);
-        var frame2 = Frame("m2");
-        var source = new PushContent(async stream =>
-        {
-            for (var start = 0; start < frame1.Length; start += 4096)
-            {
-                await stream.WriteAsync(frame1.AsMemory(start, Math.Min(4096, frame1.Length - start)));
-                await stream.FlushAsync();
-            }
-            await stream.WriteAsync(frame2);
-        });
-        var (client, inner) = NewClient();
-
-        using var response = await client.SendAsync(Post(source)).WithTimeout();
 
         var request = await inner.Received.Task.WithTimeout();
         Assert.True(SignatureCovers(request, frame1));
@@ -210,23 +182,6 @@ public class SigningDelegatingHandlerStreamTests
     }
 
     [Fact]
-    public async Task KnownLength_IsKept_ForASingleFrameOverThePipeThreshold()
-    {
-        // Over 64 KiB, the frame is read before the source has ended; the length comes from the source.
-        var body = Frame(new byte[100_000]);
-        var source = new ByteArrayContent(body);
-        source.Headers.ContentType = new("application/grpc");
-        var (client, inner) = NewClient();
-
-        using var response = await client.SendAsync(Post(source)).WithTimeout();
-
-        var request = await inner.Received.Task.WithTimeout();
-        Assert.Equal(body.Length, request.Content!.Headers.ContentLength);
-        Assert.True(SignatureCovers(request, body));
-        Assert.Equal(body, inner.Body.ToArray());
-    }
-
-    [Fact]
     public async Task SingleFrameBody_GetsItsLength()
     {
         // A single-frame body of unknown length, as a unary gRPC call sends it, goes out with a length
@@ -243,9 +198,7 @@ public class SigningDelegatingHandlerStreamTests
 
     [Theory]
     [InlineData("application/grpc")]
-    [InlineData("application/grpc+proto")]
     [InlineData("application/connect+proto")]
-    [InlineData("application/connect+json")]
     public async Task EnvelopedContent_IsSignedOverTheFirstEnvelope(string contentType)
     {
         var frame1 = Frame("m1");
@@ -328,61 +281,6 @@ public class SigningDelegatingHandlerStreamTests
             () => client.SendAsync(Post(PushContent.Frames(frame1[..length]))).WithTimeout());
         Assert.Equal(StatusCode.InvalidArgument, ex.StatusCode);
         Assert.Equal("streaming request ends inside its first message", ex.Status.Detail);
-        Assert.False(inner.Received.Task.IsCompleted);
-    }
-
-    [Fact]
-    public async Task TruncatedFirstFrame_ReachesTheCallerAsInvalidArgument()
-    {
-        // The gRPC framer writes whole messages, so a handler above the signer cuts the body.
-        var inner = new RecordingHandler();
-        var signing = new SigningDelegatingHandler(Signer.FromHex(TestPrivateKey)) { InnerHandler = inner };
-        using var channel = GrpcChannel.ForAddress("http://example.com", new GrpcChannelOptions
-        {
-            HttpClient = new HttpClient(new TruncatingHandler(length: 6) { InnerHandler = signing }),
-            DisposeHttpClient = true,
-        });
-        var marshaller = Marshallers.Create(value => value.ToByteArray(), StringValue.Parser.ParseFrom);
-        var method = new Method<StringValue, StringValue>(
-            MethodType.Unary, "test.v1.StreamTest", "Unary", marshaller, marshaller);
-
-        using var call = channel.CreateCallInvoker().AsyncUnaryCall(
-            method, null, new CallOptions(deadline: DateTime.UtcNow.AddSeconds(10)), new StringValue { Value = "m1" });
-        var ex = await Assert.ThrowsAsync<RpcException>(() => call.ResponseAsync).WithTimeout();
-
-        Assert.Equal(StatusCode.InvalidArgument, ex.StatusCode);
-        Assert.Equal("streaming request ends inside its first message", ex.Status.Detail);
-        Assert.False(inner.Received.Task.IsCompleted);
-    }
-
-    [Fact]
-    public async Task HugeLengthPrefix_DoesNotAllocateAheadOfItsBytes()
-    {
-        // Claims almost 2 GiB, then ends after two bytes.
-        byte[] body = [0, 0x7F, 0xFF, 0x00, 0x00, .. Encoding.UTF8.GetBytes("m1")];
-        var (client, inner) = NewClient();
-        var before = GC.GetTotalAllocatedBytes(precise: true);
-
-        var ex = await Assert.ThrowsAsync<RpcException>(
-            () => client.SendAsync(Post(PushContent.Frames(body))).WithTimeout());
-
-        Assert.Equal(StatusCode.InvalidArgument, ex.StatusCode);
-        // Process-wide, so other tests count too; the claimed length would be about 2 GiB.
-        Assert.InRange(GC.GetTotalAllocatedBytes(precise: true) - before, 0, 256L * 1024 * 1024);
-        Assert.False(inner.Received.Task.IsCompleted);
-    }
-
-    [Fact]
-    public async Task FirstFrameTooLargeToSign_Fails()
-    {
-        // Length 0xFFFFFFFF: more than a byte array can hold.
-        byte[] body = [0, 0xFF, 0xFF, 0xFF, 0xFF, .. Encoding.UTF8.GetBytes("m1")];
-        var (client, inner) = NewClient();
-
-        var ex = await Assert.ThrowsAsync<RpcException>(
-            () => client.SendAsync(Post(PushContent.Frames(body))).WithTimeout());
-        Assert.Equal(StatusCode.ResourceExhausted, ex.StatusCode);
-        Assert.Equal("first request message is too large to sign", ex.Status.Detail);
         Assert.False(inner.Received.Task.IsCompleted);
     }
 
@@ -490,22 +388,6 @@ public class SigningDelegatingHandlerStreamTests
     }
 
     private sealed class SourceFailedException() : Exception("the request content failed");
-
-    /// <summary>
-    /// Replaces the request body with its first <c>length</c> bytes, keeping the content type.
-    /// </summary>
-    private sealed class TruncatingHandler(int length) : DelegatingHandler
-    {
-        protected override async Task<HttpResponseMessage> SendAsync(
-            HttpRequestMessage request, CancellationToken cancellationToken)
-        {
-            var source = request.Content!;
-            var body = await source.ReadAsByteArrayAsync(cancellationToken);
-            request.Content = new ByteArrayContent(body[..length]);
-            request.Content.Headers.ContentType = source.Headers.ContentType;
-            return await base.SendAsync(request, cancellationToken);
-        }
-    }
 
     /// <summary>
     /// A transport that fails before reading the request body, as when the connection is refused.

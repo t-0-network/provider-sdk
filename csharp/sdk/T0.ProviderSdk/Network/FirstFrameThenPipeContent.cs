@@ -18,10 +18,6 @@ internal sealed class FirstFrameThenPipeContent : HttpContent
 {
     private const int FramePrefixLength = 5;
 
-    // A length prefix is a claim until its bytes arrive, so the frame buffer starts no bigger than
-    // this or the bytes already read, and grows as more arrive.
-    private const int MaxPreallocation = 64 * 1024;
-
     private const int StateIdle = 0;
     private const int StateForwarding = 1;
     private const int StateClosed = 2;
@@ -177,7 +173,6 @@ internal sealed class FirstFrameThenPipeContent : HttpContent
         PipeReader reader, CancellationToken cancellationToken)
     {
         byte[]? frame = null;
-        var frameLength = 0;
         var filled = 0;
 
         while (true)
@@ -201,18 +196,15 @@ internal sealed class FirstFrameThenPipeContent : HttpContent
                     throw BrokenFirstMessage();
                 }
 
-                frameLength = FramePrefixLength + ReadPayloadLength(buffer.Slice(0, FramePrefixLength));
-                frame = new byte[(int)Math.Min(frameLength, Math.Max(MaxPreallocation, buffer.Length))];
+                frame = new byte[FramePrefixLength + ReadPayloadLength(buffer.Slice(0, FramePrefixLength))];
             }
 
-            var take = (int)Math.Min(buffer.Length, frameLength - filled);
-            if (filled + take > frame.Length)
-                Array.Resize(ref frame, (int)Math.Min(frameLength, Math.Max(2L * frame.Length, filled + take)));
+            var take = (int)Math.Min(buffer.Length, frame.Length - filled);
             buffer.Slice(0, take).CopyTo(frame.AsSpan(filled));
             filled += take;
             var remaining = buffer.Slice(take);
 
-            if (filled == frameLength)
+            if (filled == frame.Length)
             {
                 reader.AdvanceTo(remaining.Start);
                 return (frame, result.IsCompleted && remaining.IsEmpty);
@@ -231,10 +223,7 @@ internal sealed class FirstFrameThenPipeContent : HttpContent
     {
         Span<byte> bytes = stackalloc byte[FramePrefixLength];
         prefix.CopyTo(bytes);
-        var length = BinaryPrimitives.ReadUInt32BigEndian(bytes[1..]);
-        if (length > Array.MaxLength - FramePrefixLength)
-            throw new RpcException(new Status(StatusCode.ResourceExhausted, "first request message is too large to sign"));
-        return (int)length;
+        return (int)BinaryPrimitives.ReadUInt32BigEndian(bytes[1..]);
     }
 
     private static InvalidOperationException CannotSend(int state) => state == StateClosed
