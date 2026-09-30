@@ -288,7 +288,7 @@ public class CrossServerTests
         await call.RequestStream.WriteAsync(new StringValue { Value = "m3" });
         await call.RequestStream.CompleteAsync();
 
-        Assert.Equal("m1,m2,m3", (await call.ResponseAsync).Value);
+        Assert.Equal("envelope:m1,m2,m3", (await call.ResponseAsync).Value);
     }
 
     [Fact]
@@ -311,9 +311,8 @@ public class CrossServerTests
         while (await call.ResponseStream.MoveNext(CancellationToken.None))
             received.Add(call.ResponseStream.Current.Value);
 
-        Assert.Equal(["hello", "hello", "hello"], received);
-        await server.WaitForLogAsync("/test.v1.StreamTest/ServerStream verified over the first envelope")
-            .WaitAsync(TimeSpan.FromSeconds(10));
+        // The helper names the framing it verified the signature over in every reply.
+        Assert.Equal(["envelope:hello", "envelope:hello", "envelope:hello"], received);
     }
 
     [Fact]
@@ -335,8 +334,7 @@ public class CrossServerTests
 
         var ex = await Assert.ThrowsAsync<RpcException>(() => call.ResponseAsync);
         Assert.Equal(StatusCode.Unauthenticated, ex.StatusCode);
-        await server.WaitForLogAsync("/test.v1.StreamTest/ClientStream rejected: no first message")
-            .WaitAsync(TimeSpan.FromSeconds(10));
+        Assert.Contains("no first message", ex.Status.Detail);
     }
 
     [Fact]
@@ -359,9 +357,7 @@ public class CrossServerTests
         await call.RequestStream.WriteAsync(new StringValue { Value = "tail" });
         await call.RequestStream.CompleteAsync();
 
-        Assert.Equal($"{large},tail", (await call.ResponseAsync).Value);
-        await server.WaitForLogAsync("/test.v1.StreamTest/ClientStream verified over the first envelope")
-            .WaitAsync(TimeSpan.FromSeconds(10));
+        Assert.Equal($"envelope:{large},tail", (await call.ResponseAsync).Value);
     }
 
     [Fact]
@@ -392,10 +388,8 @@ public class CrossServerTests
         await call.RequestStream.WriteAsync(new StringValue { Value = "tail" });
         await call.RequestStream.CompleteAsync();
 
-        Assert.Equal($"{first},tail", (await call.ResponseAsync).Value);
+        Assert.Equal($"envelope:{first},tail", (await call.ResponseAsync).Value);
         Assert.Equal("gzip", Assert.Single(recorder.Sent!.GetValues("grpc-encoding")));
-        await server.WaitForLogAsync("/test.v1.StreamTest/ClientStream verified over the first envelope")
-            .WaitAsync(TimeSpan.FromSeconds(10));
     }
 
     [Fact]
@@ -424,9 +418,7 @@ public class CrossServerTests
         var ex = await FirstMessageOnlyClientStreamAsync(channel.CreateCallInvoker());
 
         Assert.Equal(StatusCode.Unauthenticated, ex.StatusCode);
-        await server.WaitForLogAsync(
-                "/test.v1.StreamTest/ClientStream rejected: timestamp is outside the allowed time window")
-            .WaitAsync(TimeSpan.FromSeconds(10));
+        Assert.Contains("timestamp is outside the allowed time window", ex.Status.Detail);
     }
 
     // Only m1: later writes could race the rejection.
