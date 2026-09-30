@@ -25,12 +25,15 @@ csharp/
 │   │   └── FirstFrameThenPipeContent.cs # Sends the signed first envelope, then pipes the rest
 │   ├── Provider/                     # Server-side (incoming requests)
 │   │   ├── SignatureVerificationMiddleware.cs
+│   │   ├── ValidationInterceptor.cs  # Validates responses against buf.validate annotations
+│   │   ├── HealthServiceImpl.cs      # grpc.health.v1 service
 │   │   └── ProviderServerOptions.cs
 │   ├── Hosting/
 │   │   └── QuotePublisherService.cs  # Abstract BackgroundService for quotes
 │   ├── Common/
 │   │   ├── Headers.cs                # Header constants + timestamp encoding
-│   │   └── HexUtils.cs              # Hex encoding/decoding
+│   │   ├── HexUtils.cs               # Hex encoding/decoding
+│   │   └── ValidationUtils.cs        # Formats buf.validate violations
 │   ├── Api/                          # Generated protobuf + gRPC code
 │   │   ├── Tzero/V1/Payment/         # Payment service definitions
 │   │   ├── Tzero/V1/PaymentIntent/   # PaymentIntent service definitions
