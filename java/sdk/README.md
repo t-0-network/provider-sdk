@@ -58,7 +58,7 @@ Handles outbound requests to the t-0 Network with automatic request signing.
 - Automatic request signing via `SigningClientInterceptor`
 - Default deadlines per call type: 15 seconds for unary calls, 5 minutes for streaming calls (configurable per client and per stub)
 - Streaming calls: only the first request message is signed
-- Base URL: `http://` or `https://`, a host (an IPv4 address without leading zeros, an IPv6 address in brackets, or a name: dot-separated labels of ASCII letters, digits and inner `-`, the last label starting with a letter), optionally a port from 1 to 65535 and a trailing `/`, with no path, query or fragment (`https://host`, `http://host:port`); `null` selects `https://api.t-0.network`, anything else is refused with "base URL is not valid"
+- Endpoint parsing (supports `https://host`, `http://host:port`, `host:port`)
 - Graceful shutdown with 5-second timeout
 
 ### 2. Server Layer (`network.t0.sdk.provider`)
@@ -226,7 +226,7 @@ try (var client = AsyncNetworkClient.create("https://api.t-0.network", signer,
 }
 ```
 
-The rules shared by every SDK: [`docs/STREAMING.md`](../../docs/STREAMING.md).
+The streaming rules shared by every SDK: [`docs/STREAMING.md`](../../docs/STREAMING.md).
 
 ---
 
@@ -268,7 +268,7 @@ try (var client = BlockingNetworkClient.create(
 }
 ```
 
-The base URL needs an `http` or `https` scheme; `null` selects `https://api.t-0.network`. The signer is any `DigestSigner`; `Signer` holds the key in memory. `sign()` runs while the call's lock is held, so an implementation of your own must return quickly and must not block on network I/O.
+The signer is any `DigestSigner`; `Signer` holds the key in memory. `sign()` runs while the call's lock is held, so an implementation of your own must return quickly and must not block on network I/O.
 
 ### Creating an Async Client
 
@@ -282,7 +282,7 @@ try (var client = AsyncNetworkClient.create(
 
     client.stub().updateQuote(request, new StreamObserver<>() {
         @Override
-        public void onNext(Response response) { /* handle response */ }
+        public void onNext(UpdateQuoteResponse response) { /* handle response */ }
         @Override
         public void onError(Throwable t) { /* handle error */ }
         @Override
@@ -307,7 +307,7 @@ ProviderServer server = ProviderServer.create(8080, networkPublicKeyHex)
 server.awaitTermination();
 
 // Or using convenience method
-ProviderServer server = ProviderServer.startWith(
+ProviderServer server2 = ProviderServer.startWith(
     8080,
     networkPublicKeyHex,
     new MyProviderService()
@@ -318,6 +318,7 @@ ProviderServer server = ProviderServer.startWith(
 
 ```java
 import network.t0.sdk.crypto.Signer;
+import network.t0.sdk.crypto.SignResult;
 import network.t0.sdk.crypto.Keccak256;
 
 Signer signer = Signer.fromHex(privateKeyHex);
@@ -329,8 +330,8 @@ byte[] digest = Keccak256.hash(messageBytes, timestampBytes);
 SignResult result = signer.sign(digest);
 
 // Get signature components
-String signatureHex = result.getSignatureHexPrefixed();  // 0x...
-String publicKeyHex = result.getPublicKeyHexPrefixed();  // 0x...
+String signatureHex = result.getSignatureHex();  // 0x...
+String publicKeyHex = result.getPublicKeyHex();  // 0x...
 ```
 
 ### Manual Verification (Advanced)
@@ -457,7 +458,7 @@ BlockingNetworkClient.create(endpoint, signer, stubFactory, Duration.ofSeconds(6
 
 Or per-call:
 ```java
-client.stub(60, TimeUnit.SECONDS).someMethod(request);
+client.stub(60, TimeUnit.SECONDS).updateQuote(request);
 ```
 
 ### Hex Encoding Errors

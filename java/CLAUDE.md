@@ -113,4 +113,4 @@ Docs live in the top-level [`docs/java/`](../docs/java/) directory:
 - [`PROTO_SCHEMA_MANAGEMENT.md`](../docs/java/PROTO_SCHEMA_MANAGEMENT.md) — protobuf code generation
 - [`ISSUES_AND_LESSONS.md`](../docs/java/ISSUES_AND_LESSONS.md) — historical issues and solutions
 
-The streaming and timeout rules shared by every SDK: [`docs/STREAMING.md`](../docs/STREAMING.md).
+The streaming rules shared by every SDK: [`docs/STREAMING.md`](../docs/STREAMING.md).
