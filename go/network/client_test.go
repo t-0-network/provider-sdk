@@ -204,8 +204,10 @@ func TestNewServiceClient_ValidationErrors(t *testing.T) {
 
 	// The base URL rows every SDK shares.
 	for _, bad := range []string{
-		"ftp://h", "http://", "http://user@h", "http://my_host:8080", "https://api.t-0.network/v1",
-		"https://api.t-0.network?x", "http://h:0", "http://h:99999", "http://1.2.3", "http://h:080", "http://h\t",
+		"ftp://h", "http://", "http://user@h", "http://my_host:8080", "https://api.t-0.network?x", "http://h:0",
+		"http://h:99999", "http://1.2.3", "http://h:080", "http://h\t", "https://api.t-0.network//",
+		"https://api.t-0.network/v1//", "https://api.t-0.network/a//b", "https://api.t-0.network/v1/..",
+		"https://api.t-0.network/v%31", "https://api.t-0.network/v1?x",
 	} {
 		t.Run(fmt.Sprintf("base URL %q is refused", bad), func(t *testing.T) {
 			_, err := NewServiceClient("", factory, WithSignatureFunction(testSignFn(t)), WithBaseURL(bad))
@@ -228,6 +230,10 @@ func TestNewServiceClient_ValidationErrors(t *testing.T) {
 			"http://[::1]:8080":        "http://[::1]:8080",
 			"api.t-0.network":          "https://api.t-0.network",
 			"api.t-0.network:443":      "https://api.t-0.network:443",
+			// A path prefixes every call.
+			"https://api.t-0.network/v1":              "https://api.t-0.network/v1",
+			"https://api.t-0.network/v1/":             "https://api.t-0.network/v1/",
+			"https://api.t-0.network/sda/payments/t0": "https://api.t-0.network/sda/payments/t0",
 		} {
 			_, err := NewServiceClient("", capture, WithSignatureFunction(testSignFn(t)), WithBaseURL(good))
 			require.NoError(t, err, good)

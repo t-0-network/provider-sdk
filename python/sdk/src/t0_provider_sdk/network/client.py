@@ -39,6 +39,9 @@ T = TypeVar("T")
 _HOST_LABEL = r"[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?"
 _HOST_NAME = re.compile(rf"(?:{_HOST_LABEL}\.)*[A-Za-z](?:[A-Za-z0-9-]*[A-Za-z0-9])?")
 
+# A segment of the base URL's path: ASCII letters, digits and "-._~", but not "." or "..".
+_PATH_SEGMENT = re.compile(r"[A-Za-z0-9._~-]+")
+
 # The largest timeout every SDK accepts: 2^31 - 1 ms, about 24.8 days.
 MAX_TIMEOUT_MS = 2**31 - 1
 
@@ -151,7 +154,7 @@ def _checked_base_url(base_url: str | None) -> str:
 
 def _is_valid_base_url(base_url: str) -> bool:
     """http:// or https:// (any case), a host name or IP literal, a port of 1..65535 if given, and
-    nothing after that but an optional "/"."""
+    a path (see _is_valid_path): no query or fragment."""
     # urlsplit drops tabs and newlines instead of refusing them.
     if any(ord(c) < 0x20 or ord(c) == 0x7F for c in base_url):
         return False
@@ -171,8 +174,8 @@ def _is_valid_base_url(base_url: str) -> bool:
         return False
     if port is not None and parts.netloc.rpartition(":")[2] != str(port):
         return False
-    # No path, query or fragment. urlsplit drops an empty "?" or "#", so look for the characters.
-    if parts.path not in ("", "/") or "?" in base_url or "#" in base_url:
+    # No query or fragment. urlsplit drops an empty "?" or "#", so look for the characters.
+    if not _is_valid_path(parts.path) or "?" in base_url or "#" in base_url:
         return False
     if ":" in host:  # only a bracketed IPv6 literal keeps a ':' in its host
         try:
@@ -185,6 +188,15 @@ def _is_valid_base_url(base_url: str) -> bool:
     except ValueError:
         return _HOST_NAME.fullmatch(host) is not None
     return True
+
+
+def _is_valid_path(path: str) -> bool:
+    """An empty path, "/", or segments of ASCII letters, digits and "-._~" (not "." or ".."), each
+    after one "/", with an optional trailing "/". Calls go to <path>/<service>/<method>. Other paths
+    ("//", "/..", "/%41") would reach different URLs in different SDKs, whose HTTP clients normalize
+    them differently."""
+    segments = path.removesuffix("/").split("/")[1:]
+    return all(_PATH_SEGMENT.fullmatch(s) and s not in (".", "..") for s in segments)
 
 
 def _client_kwargs(wire_format: WireFormat, protocol: Protocol) -> dict[str, Any]:

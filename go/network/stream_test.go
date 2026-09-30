@@ -46,6 +46,7 @@ type streamTestClient struct {
 }
 
 func newStreamTestClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) *streamTestClient {
+	baseURL = strings.TrimRight(baseURL, "/") // as the generated clients do
 	return &streamTestClient{
 		clientStream: connect.NewClient[wrapperspb.StringValue, wrapperspb.StringValue](httpClient, baseURL+procClientStream, opts...),
 		serverStream: connect.NewClient[wrapperspb.StringValue, wrapperspb.StringValue](httpClient, baseURL+procServerStream, opts...),
@@ -88,6 +89,13 @@ func newStreamTestServer(t *testing.T, publicKey []byte) *streamTestServer {
 // newStreamTestServerOver serves HTTP/2 over TLS, or without TLS (cleartext) for a client that
 // builds its own transport.
 func newStreamTestServerOver(t *testing.T, publicKey []byte, cleartext bool) *streamTestServer {
+	t.Helper()
+	return newStreamTestServerAt(t, publicKey, cleartext, "")
+}
+
+// newStreamTestServerAt serves the procedures under pathPrefix, such as "/prefix"; the recorded
+// procedure is the path a request arrives at, prefix included.
+func newStreamTestServerAt(t *testing.T, publicKey []byte, cleartext bool, pathPrefix string) *streamTestServer {
 	t.Helper()
 	s := &streamTestServer{publicKey: publicKey, received: make(chan string, 64)}
 
@@ -132,7 +140,11 @@ func newStreamTestServerOver(t *testing.T, publicKey []byte, cleartext bool) *st
 			return connect.NewResponse(wrapperspb.String(req.Msg.GetValue())), nil
 		}))
 
-	srv := httptest.NewUnstartedServer(s.verify(mux))
+	var handler http.Handler = mux
+	if pathPrefix != "" {
+		handler = http.StripPrefix(pathPrefix, mux)
+	}
+	srv := httptest.NewUnstartedServer(s.verify(handler))
 	if cleartext {
 		srv.Config.Protocols = new(http.Protocols)
 		srv.Config.Protocols.SetUnencryptedHTTP2(true)
@@ -504,6 +516,36 @@ func TestStream_UnaryOnSameClient(t *testing.T) {
 				require.Equal(t, "body", accepted[0].framing)
 			}
 		})
+	}
+}
+
+// A path in the base URL prefixes every call, with or without a trailing "/". The signature does
+// not cover the URL, so it verifies as without one.
+func TestStream_BaseURLPathPrefixesCalls(t *testing.T) {
+	for _, p := range connectAndGRPC {
+		for _, path := range []string{"/prefix", "/prefix/", "/sda/payments/t0"} {
+			t.Run(p.name+" "+path, func(t *testing.T) {
+				key := newTestKey(t)
+				prefix := strings.TrimSuffix(path, "/")
+				srv := newStreamTestServerAt(t, key.publicKey, false, prefix)
+				client := p.client(t, srv, key, WithBaseURL(srv.url+path))
+
+				resp, err := client.unary.CallUnary(testContext(t), connect.NewRequest(wrapperspb.String("u")))
+				require.NoError(t, err)
+				require.Equal(t, "u", resp.Msg.GetValue())
+				stream := client.clientStream.CallClientStream(testContext(t))
+				require.NoError(t, stream.Send(wrapperspb.String("c")))
+				resp, err = stream.CloseAndReceive()
+				require.NoError(t, err)
+				require.Equal(t, "c", resp.Msg.GetValue())
+
+				accepted, rejected := srv.results()
+				require.Empty(t, rejected)
+				require.Len(t, accepted, 2)
+				require.Equal(t, prefix+procUnary, accepted[0].procedure)
+				require.Equal(t, prefix+procClientStream, accepted[1].procedure)
+			})
+		}
 	}
 }
 

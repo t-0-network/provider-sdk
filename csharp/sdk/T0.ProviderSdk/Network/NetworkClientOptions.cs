@@ -19,6 +19,7 @@ public sealed class NetworkClientOptions
 
     /// <summary>
     /// Base URL of the T-0 Network API, <c>https://api.t-0.network</c> by default or when set to null.
+    /// A path in it prefixes every call: <c>https://host/v1</c> calls <c>https://host/v1/&lt;service&gt;/&lt;method&gt;</c>.
     /// </summary>
     /// <exception cref="ArgumentException">
     /// The value is empty ("base URL is not set") or not a valid base URL ("base URL is not valid").
@@ -55,6 +56,10 @@ public sealed class NetworkClientOptions
         set => _streamTimeout = Validate(value, nameof(StreamTimeout));
     }
 
+    // The base URL's path without its trailing "/" (e.g. "/v1"), or "" without one. Grpc.Net ignores
+    // the path of a channel's address, so SigningDelegatingHandler puts it before each call's path.
+    internal string PathPrefix => new Uri(_baseUrl).AbsolutePath.TrimEnd('/');
+
     private static string ValidateBaseUrl(string value)
     {
         if (value.Length == 0)
@@ -71,7 +76,7 @@ public sealed class NetworkClientOptions
 
     // Checked as written: Uri alone would read "http:host" as http://host, "http://h:" as port 80 and
     // "1.2.3" as the address 1.2.0.3, and would accept port 0, user info, names such as my_host that
-    // some gRPC clients cannot connect to, and a path that the channel drops.
+    // some gRPC clients cannot connect to, and paths that it normalizes ("/a/../b", "/%41").
     private static bool IsValidBaseUrl(string url)
     {
         var schemeLength = url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ? "http://".Length
@@ -84,8 +89,8 @@ public sealed class NetworkClientOptions
         var end = rest.IndexOfAny('/', '?', '#');
         var authority = end >= 0 ? rest[..end] : rest;
         var tail = end >= 0 ? rest[end..] : [];
-        if (!tail.IsEmpty && !tail.SequenceEqual("/"))
-            return false; // a path, query or fragment
+        if (!IsPath(tail))
+            return false; // a query, a fragment, or a path of other characters
 
         ReadOnlySpan<char> host, port;
         if (authority.StartsWith('['))
@@ -105,6 +110,24 @@ public sealed class NetworkClientOptions
 
         return IsHost(host) && IsPort(port);
     }
+
+    // Segments of letters, digits and "-._~" (not "." or ".."), each after one "/", and an optional
+    // trailing "/". Other paths ("//", "/..", "/%41") would reach different URLs in different SDKs,
+    // whose HTTP clients normalize them differently.
+    private static bool IsPath(ReadOnlySpan<char> path)
+    {
+        if (!PathPattern.IsMatch(path))
+            return false;
+        foreach (var range in path.Split('/'))
+        {
+            if (path[range] is "." or "..")
+                return false;
+        }
+        return true;
+    }
+
+    private static readonly Regex PathPattern = new(
+        @"^(?:/[A-Za-z0-9._~-]+)*/?\z", RegexOptions.CultureInvariant);
 
     // IPv4, bracketed IPv6, or a DNS name whose last label starts with a letter.
     private static bool IsHost(ReadOnlySpan<char> host)

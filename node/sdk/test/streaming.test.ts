@@ -28,7 +28,8 @@ interface StreamServer {
 const ENVELOPED = /^application\/connect\+/;
 
 // Like the network, verifies a stream over its first envelope before the handler reads the body.
-async function bootStreamServer(clientPublicKeyHex: string): Promise<StreamServer> {
+// Serves the procedures under pathPrefix, such as "/prefix"; a check's procedure includes it.
+async function bootStreamServer(clientPublicKeyHex: string, pathPrefix = ''): Promise<StreamServer> {
   const trustedKey = parsePublicKey(clientPublicKeyHex);
   const checks: Check[] = [];
   const received: string[] = [];
@@ -76,7 +77,7 @@ async function bootStreamServer(clientPublicKeyHex: string): Promise<StreamServe
 
   const serve = async (req: http.IncomingMessage, res: http.ServerResponse) => {
     const path = req.url?.split('?')[0] ?? '';
-    const handler = handlers.get(path);
+    const handler = path.startsWith(`${pathPrefix}/`) ? handlers.get(path.slice(pathPrefix.length)) : undefined;
     if (!handler) {
       res.writeHead(404).end();
       return;
@@ -402,8 +403,10 @@ describe('createClient routes unary and streaming calls to their own transport',
       assert.throws(() => createClient(key, url, StreamTest), { message: 'base URL is not set' });
     }
     for (const url of [
-      'ftp://h', 'http://', 'http://user@h', 'http://my_host:8080', 'https://api.t-0.network/v1',
-      'https://api.t-0.network?x', 'http://h:0', 'http://h:99999', 'http://1.2.3', 'http://h:080', 'http://h\t',
+      'ftp://h', 'http://', 'http://user@h', 'http://my_host:8080', 'https://api.t-0.network?x', 'http://h:0',
+      'http://h:99999', 'http://1.2.3', 'http://h:080', 'http://h\t', 'https://api.t-0.network//',
+      'https://api.t-0.network/v1//', 'https://api.t-0.network/a//b', 'https://api.t-0.network/v1/..',
+      'https://api.t-0.network/v%31', 'https://api.t-0.network/v1?x',
     ]) {
       assert.throws(() => createClient(key, url, StreamTest), { message: 'base URL is not valid' }, url);
     }
@@ -411,8 +414,28 @@ describe('createClient routes unary and streaming calls to their own transport',
       undefined,
       'https://api.t-0.network', 'https://api.t-0.network/', 'http://localhost:8080', 'http://127.0.0.1:1234',
       'http://[::1]:8080', 'api.t-0.network', 'api.t-0.network:443',
+      'https://api.t-0.network/v1', 'https://api.t-0.network/v1/', 'https://api.t-0.network/sda/payments/t0',
     ]) {
       assert.doesNotThrow(() => createClient(key, url, StreamTest), String(url));
+    }
+  });
+
+  it('a path in the base URL prefixes every call, with or without a trailing "/"; the signature is unchanged', async () => {
+    for (const path of ['/prefix', '/prefix/', '/sda/payments/t0']) {
+      const prefix = path.replace(/\/$/, '');
+      const key = newKeypair();
+      const srv = await bootStreamServer(key.publicKeyHex, prefix);
+      try {
+        const client = createClient(key.privateKeyHex, srv.url + path, StreamTest);
+        assert.equal((await client.unary({ value: 'u' })).value, 'u');
+        assert.equal((await client.clientStream(stringValues('c'))).value, 'c');
+        assert.deepEqual(srv.checks.map((c) => [c.procedure, c.valid]), [
+          [`${prefix}/test.v1.StreamTest/Unary`, true],
+          [`${prefix}/test.v1.StreamTest/ClientStream`, true],
+        ], path);
+      } finally {
+        await srv.close();
+      }
     }
   });
 

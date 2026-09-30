@@ -31,7 +31,7 @@ public static class NetworkClient
         ArgumentNullException.ThrowIfNull(signer);
         ArgumentNullException.ThrowIfNull(newClient);
 
-        var httpClient = CreateHttpClient(signer);
+        var httpClient = CreateHttpClient(signer, options.PathPrefix);
         GrpcChannel channel;
         try
         {
@@ -62,19 +62,19 @@ public static class NetworkClient
     // pool of open connections behind it, since nothing disposes a client.
     internal static readonly SocketsHttpHandler SharedTransport = CreateTransport();
 
-    internal static HttpClient CreateHttpClient(ISigner signer)
+    internal static HttpClient CreateHttpClient(ISigner signer, string pathPrefix = "")
     {
         // disposeHandler: false, so disposing one client's channel leaves the shared transport open.
         // Deadlines come from the call: HttpClient.Timeout only runs until the response headers,
         // which for a client stream is the whole upload.
-        return new HttpClient(CreateSigningHandler(signer), disposeHandler: false)
+        return new HttpClient(CreateSigningHandler(signer, pathPrefix), disposeHandler: false)
         {
             Timeout = System.Threading.Timeout.InfiniteTimeSpan
         };
     }
 
-    internal static SigningDelegatingHandler CreateSigningHandler(ISigner signer) =>
-        new(signer) { InnerHandler = SharedTransport };
+    internal static SigningDelegatingHandler CreateSigningHandler(ISigner signer, string pathPrefix = "") =>
+        new(signer) { InnerHandler = SharedTransport, PathPrefix = pathPrefix };
 
     // Pings find a dead HTTP/2 connection while a call waits on it, such as a stream between messages.
     // A redirect is not followed: it would send the signed request to another server.

@@ -26,9 +26,18 @@ public sealed class SigningDelegatingHandler : DelegatingHandler
         _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
+    /// <summary>
+    /// The base URL's path, such as <c>/v1</c>, put before each request's path; empty for none.
+    /// Grpc.Net ignores the path of a channel's address. The signature does not cover the URL.
+    /// </summary>
+    internal string PathPrefix { get; init; } = "";
+
     protected override async Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request, CancellationToken cancellationToken)
     {
+        if (PathPrefix.Length > 0 && request.RequestUri is { } uri)
+            request.RequestUri = new Uri(uri, PathPrefix + uri.PathAndQuery);
+
         if (request.Content is { } content && IsEnveloped(content))
             return await SendSignedOverFirstFrameAsync(request, content, cancellationToken).ConfigureAwait(false);
 

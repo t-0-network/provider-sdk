@@ -26,15 +26,17 @@ function baseUrl(endpoint: string | undefined): string {
 }
 
 // Checked as written: the URL parser would read "http:foo" as http://foo/ and accept host names
-// that some gRPC clients cannot connect to ("my_host", "a..b"). A port has no leading zero, and
-// nothing may follow the host and port but one "/".
-const BASE_URL = /^https?:\/\/(\[[0-9a-f:.]+\]|[a-z0-9.-]+)(?::([1-9]\d*))?\/?$/i;
+// that some gRPC clients cannot connect to ("my_host", "a..b"). A port has no leading zero. A path
+// prefixes every call: segments of letters, digits and "-._~" (not "." or ".."), each after one
+// "/", and an optional trailing "/". Other paths ("//", "/..", "/%41") would reach different URLs
+// in different SDKs, whose HTTP clients normalize them differently. No query or fragment.
+const BASE_URL = /^https?:\/\/(\[[0-9a-f:.]+\]|[a-z0-9.-]+)(?::([1-9]\d*))?((?:\/[a-z0-9._~-]+)*)\/?$/i;
 const IPV4 = /^(?:(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)\.){3}(?:25[0-5]|2[0-4]\d|1\d\d|[1-9]?\d)$/;
 const LABEL = /^[a-z0-9](?:[a-z0-9-]*[a-z0-9])?$/i;
 
 function validBaseUrl(endpoint: string): boolean {
     const match = typeof endpoint === "string" ? BASE_URL.exec(endpoint) : null;
-    if (match === null || !validHost(match[1])) {
+    if (match === null || !validHost(match[1]) || match[3].split("/").some((s) => s === "." || s === "..")) {
         return false;
     }
     try {

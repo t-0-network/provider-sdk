@@ -31,16 +31,20 @@ class NetworkClientFactoryTest {
 
     @ParameterizedTest
     @CsvSource({
-            "https://api.t-0.network,  api.t-0.network, 443,  false",
-            "https://api.t-0.network/, api.t-0.network, 443,  false",
-            "http://localhost:8080,    localhost,       8080, true",
-            "http://127.0.0.1:1234,    127.0.0.1,       1234, true",
-            "http://[::1]:8080,        [::1],           8080, true",
-            "api.t-0.network,          api.t-0.network, 443,  false",
-            "api.t-0.network:443,      api.t-0.network, 443,  false"})
-    @DisplayName("A valid base URL gives its host, its port or the scheme's, and TLS for https")
-    void validBaseUrls(String endpoint, String host, int port, boolean plaintext) {
-        assertThat(NetworkClient.parseEndpoint(endpoint)).isEqualTo(new NetworkClient.EndpointInfo(host, port, plaintext));
+            "https://api.t-0.network,                 api.t-0.network, 443,  false, ''",
+            "https://api.t-0.network/,                api.t-0.network, 443,  false, ''",
+            "http://localhost:8080,                   localhost,       8080, true,  ''",
+            "http://127.0.0.1:1234,                   127.0.0.1,       1234, true,  ''",
+            "http://[::1]:8080,                       [::1],           8080, true,  ''",
+            "api.t-0.network,                         api.t-0.network, 443,  false, ''",
+            "api.t-0.network:443,                     api.t-0.network, 443,  false, ''",
+            "https://api.t-0.network/v1,              api.t-0.network, 443,  false, v1",
+            "https://api.t-0.network/v1/,             api.t-0.network, 443,  false, v1",
+            "https://api.t-0.network/sda/payments/t0, api.t-0.network, 443,  false, sda/payments/t0"})
+    @DisplayName("A valid base URL gives its host, its port or the scheme's, TLS for https, and its path")
+    void validBaseUrls(String endpoint, String host, int port, boolean plaintext, String pathPrefix) {
+        assertThat(NetworkClient.parseEndpoint(endpoint))
+                .isEqualTo(new NetworkClient.EndpointInfo(host, port, plaintext, pathPrefix));
         try (var client = BlockingNetworkClient.create(endpoint, SIGNER, HealthGrpc::newBlockingStub)) {
             assertThat(client.getChannel().authority()).endsWith(":" + port);
         }
@@ -59,8 +63,9 @@ class NetworkClientFactoryTest {
 
     @ParameterizedTest
     @ValueSource(strings = {"ftp://h", "http://", "http://user@h", "http://my_host:8080",
-            "https://api.t-0.network/v1", "https://api.t-0.network?x", "http://h:0", "http://h:99999", "http://1.2.3",
-            "http://h:080", "http://h\t"})
+            "https://api.t-0.network?x", "http://h:0", "http://h:99999", "http://1.2.3", "http://h:080", "http://h\t",
+            "https://api.t-0.network//", "https://api.t-0.network/v1//", "https://api.t-0.network/a//b",
+            "https://api.t-0.network/v1/..", "https://api.t-0.network/v%31", "https://api.t-0.network/v1?x"})
     @DisplayName("A base URL that is not valid is refused with \"base URL is not valid\"")
     void invalidBaseUrlIsRefused(String endpoint) {
         assertThatThrownBy(() -> NetworkClient.parseEndpoint(endpoint))

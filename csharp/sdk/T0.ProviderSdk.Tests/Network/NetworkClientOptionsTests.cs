@@ -21,13 +21,16 @@ public class NetworkClientOptionsTests
         Assert.Equal("https://api.t-0.network", new NetworkClientOptions { BaseUrl = null }.BaseUrl);
     }
 
-    // The shared base URL table: 7 accepted, 11 refused as not valid, "" refused as not set.
+    // The shared base URL table: 10 accepted, 16 refused as not valid, "" refused as not set.
     [Theory]
     [InlineData("https://api.t-0.network")]
     [InlineData("https://api.t-0.network/")]
     [InlineData("http://localhost:8080")]
     [InlineData("http://127.0.0.1:1234")]
     [InlineData("http://[::1]:8080")]
+    [InlineData("https://api.t-0.network/v1")]
+    [InlineData("https://api.t-0.network/v1/")]
+    [InlineData("https://api.t-0.network/sda/payments/t0")]
     public void BaseUrl_AcceptsHttpAndHttpsUrls(string url)
     {
         Assert.Equal(url, new NetworkClientOptions { BaseUrl = url }.BaseUrl);
@@ -78,14 +81,19 @@ public class NetworkClientOptionsTests
     [InlineData("http://")]
     [InlineData("http://user@h")]
     [InlineData("http://my_host:8080")]
-    [InlineData("https://api.t-0.network/v1")]
     [InlineData("https://api.t-0.network?x")]
     [InlineData("http://h:0")]
     [InlineData("http://h:99999")]
     [InlineData("http://1.2.3")]
     [InlineData("http://h:080")]
     [InlineData("http://h\t")]
-    public void BaseUrlOtherThanSchemeHostAndPort_IsRefused(string url)
+    [InlineData("https://api.t-0.network//")]
+    [InlineData("https://api.t-0.network/v1//")]
+    [InlineData("https://api.t-0.network/a//b")]
+    [InlineData("https://api.t-0.network/v1/..")]
+    [InlineData("https://api.t-0.network/v%31")]
+    [InlineData("https://api.t-0.network/v1?x")]
+    public void BaseUrlThatIsNotValid_IsRefused(string url)
     {
         var ex = Assert.Throws<ArgumentException>(() => new NetworkClientOptions { BaseUrl = url });
         Assert.StartsWith("base URL is not valid", ex.Message);

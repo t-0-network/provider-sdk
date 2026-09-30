@@ -136,7 +136,8 @@ public abstract class NetworkClient implements Closeable {
     /**
      * Creates a channel pair for the given endpoint with the signing and default-deadline interceptors.
      *
-     * @param endpoint      the T-0 Network endpoint (e.g., "https://api.t-0.network" or "api.t-0.network:443"), or {@code null} for "https://api.t-0.network"
+     * @param endpoint      the T-0 Network endpoint (e.g., "https://api.t-0.network" or "api.t-0.network:443"), or {@code null} for "https://api.t-0.network";
+     *                      a path in it prefixes every call (see {@link #parseEndpoint(String)})
      * @param signer        the signer to use for signing requests
      * @param timeout       the default deadline for unary calls
      * @param streamTimeout the default deadline for client- and server-streaming calls
@@ -165,9 +166,13 @@ public abstract class NetworkClient implements Closeable {
 
         ManagedChannel channel = builder.build();
 
+        // Below the other interceptors, so that they see the method as generated.
+        Channel prefixed = endpointInfo.pathPrefix().isEmpty()
+                ? channel
+                : ClientInterceptors.intercept(channel, new PathPrefixInterceptor(endpointInfo.pathPrefix()));
         // The last listed runs first: the deadline is set before the signing interceptor creates the call.
         Channel interceptedChannel = ClientInterceptors.intercept(
-                channel, new SigningClientInterceptor(signer, Clock.systemUTC()), deadlines);
+                prefixed, new SigningClientInterceptor(signer, Clock.systemUTC()), deadlines);
 
         return new ChannelPair(channel, interceptedChannel);
     }
@@ -271,8 +276,17 @@ public abstract class NetworkClient implements Closeable {
 
     /**
      * Parsed endpoint information.
+     *
+     * @param pathPrefix the base URL's path without its leading and trailing {@code /} (e.g. {@code "v1"} or
+     *                   {@code "a/b"}), or {@code ""} for none
      */
-    protected record EndpointInfo(String host, int port, boolean usePlaintext) {}
+    protected record EndpointInfo(String host, int port, boolean usePlaintext, String pathPrefix) {
+
+        /** Endpoint information without a path prefix. */
+        public EndpointInfo(String host, int port, boolean usePlaintext) {
+            this(host, port, usePlaintext, "");
+        }
+    }
 
     // A host is an IPv4 address, an IPv6 address in brackets, or a name: labels of letters, digits and
     // inner '-', joined by '.', the last one starting with a letter.
@@ -282,13 +296,20 @@ public abstract class NetworkClient implements Closeable {
             "([A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?\\.)*[A-Za-z]([A-Za-z0-9-]*[A-Za-z0-9])?");
     private static final Pattern IPV6_LITERAL = Pattern.compile("\\[[0-9A-Fa-f:.]+]");
     private static final Pattern PORT = Pattern.compile("[1-9][0-9]{0,4}"); // no leading zero
+    // Segments of letters, digits and "-._~", each after one '/', and an optional trailing '/'. Other paths
+    // ("//", "/%41") would reach different URLs in different SDKs, whose HTTP clients normalize them
+    // differently; "." and ".." segments are refused separately.
+    private static final Pattern PATH = Pattern.compile("(/[A-Za-z0-9._~-]+)*/?");
 
     /**
      * Parses a base URL into its components.
      *
      * @param endpoint the endpoint (e.g., "https://api.t-0.network" or "api.t-0.network:443"): a host, an
-     *                 optional port from 1 to 65535 and an optional trailing {@code /}, with no path, query
-     *                 or fragment; {@code null} for {@value #DEFAULT_ENDPOINT}
+     *                 optional port from 1 to 65535 and an optional path, with no query or fragment;
+     *                 {@code null} for {@value #DEFAULT_ENDPOINT}. The path prefixes every call
+     *                 ({@code https://host/v1} calls {@code https://host/v1/<service>/<method>}): segments of
+     *                 letters, digits and {@code -._~} (not {@code .} or {@code ..}), each after one
+     *                 {@code /}, and an optional trailing {@code /}
      * @return the parsed endpoint information
      * @throws IllegalArgumentException if the base URL is empty or not valid
      */
@@ -309,11 +330,20 @@ public abstract class NetworkClient implements Closeable {
         if (!usePlaintext && !"https".equalsIgnoreCase(scheme)) {
             throw invalidBaseUrl();
         }
-        // Calls go to <base URL>/<service>/<method>, so a path, query or fragment could only be dropped:
-        // after one trailing '/', whatever the host and port patterns do not match is refused.
-        String authority = endpoint.substring(schemeEnd + 3);
-        if (authority.endsWith("/")) {
-            authority = authority.substring(0, authority.length() - 1);
+        // The authority ends at the first '/'. A query or fragment fails the host and port patterns, or PATH.
+        String rest = endpoint.substring(schemeEnd + 3);
+        int slash = rest.indexOf('/');
+        String authority = slash < 0 ? rest : rest.substring(0, slash);
+        String path = slash < 0 ? "" : rest.substring(slash);
+        if (!PATH.matcher(path).matches()) {
+            throw invalidBaseUrl();
+        }
+        String trimmed = path.endsWith("/") ? path.substring(0, path.length() - 1) : path;
+        String pathPrefix = trimmed.isEmpty() ? "" : trimmed.substring(1);
+        for (String segment : pathPrefix.split("/")) {
+            if (segment.equals(".") || segment.equals("..")) {
+                throw invalidBaseUrl();
+            }
         }
         // The port follows the last ':' outside an IPv6 literal's brackets.
         int colon = authority.lastIndexOf(':');
@@ -349,11 +379,37 @@ public abstract class NetworkClient implements Closeable {
         } catch (URISyntaxException e) {
             throw invalidBaseUrl();
         }
-        return new EndpointInfo(host, port, usePlaintext);
+        return new EndpointInfo(host, port, usePlaintext, pathPrefix);
     }
 
     private static IllegalArgumentException invalidBaseUrl() {
         return new IllegalArgumentException("base URL is not valid");
+    }
+
+    // --- Path prefix interceptor ---
+
+    /**
+     * gRPC client interceptor that sends each call to {@code /<prefix>/<service>/<method>}: grpc-java sends
+     * {@code "/" + fullMethodName} as the {@code :path}, and ignores any path in the channel's address.
+     */
+    static final class PathPrefixInterceptor implements ClientInterceptor {
+
+        private final String prefix;
+
+        /**
+         * @param prefix the path without its leading and trailing {@code /}, such as {@code "v1"}
+         */
+        PathPrefixInterceptor(String prefix) {
+            this.prefix = prefix;
+        }
+
+        @Override
+        public <ReqT, RespT> ClientCall<ReqT, RespT> interceptCall(
+                MethodDescriptor<ReqT, RespT> method, CallOptions callOptions, Channel next) {
+            return next.newCall(
+                    method.toBuilder().setFullMethodName(prefix + "/" + method.getFullMethodName()).build(),
+                    callOptions);
+        }
     }
 
     // --- Signing interceptor ---

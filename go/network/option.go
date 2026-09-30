@@ -64,18 +64,46 @@ func (c *clientOptions) validate() error {
 }
 
 // validBaseURL accepts http:// or https://, a host without user info, if given a port in 1..65535
-// without leading zeros, and at most a trailing "/": no path, query or fragment.
+// without leading zeros, and a path (see validPath): no query or fragment.
 func validBaseURL(raw string) bool {
 	u, err := url.Parse(raw)
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.User != nil || !validHost(u) {
 		return false
 	}
-	if (u.Path != "" && u.Path != "/") || strings.ContainsAny(raw, "?#") {
+	// The path as written: u.Path is decoded ("%2F" becomes "/").
+	authorityAndPath := raw[strings.Index(raw, "://")+len("://"):]
+	path := ""
+	if i := strings.IndexByte(authorityAndPath, '/'); i >= 0 {
+		path = authorityAndPath[i:]
+	}
+	if !validPath(path) || strings.ContainsAny(raw, "?#") {
 		return false
 	}
 	if port := u.Port(); port != "" || strings.HasSuffix(u.Host, ":") {
 		n, err := strconv.Atoi(port)
 		return err == nil && port[0] != '0' && n >= 1 && n <= 65535
+	}
+	return true
+}
+
+// validPath accepts "", "/", or segments of ASCII letters, digits and "-._~" (not "." or ".."), each
+// after one "/", with an optional trailing "/". Calls go to <path>/<service>/<method>. Other paths
+// ("//", "/..", "/%41") would reach different URLs in different SDKs, whose HTTP clients normalize
+// them differently.
+func validPath(path string) bool {
+	path = strings.TrimSuffix(path, "/")
+	if path == "" {
+		return true
+	}
+	for _, segment := range strings.Split(path, "/")[1:] {
+		if segment == "" || segment == "." || segment == ".." {
+			return false
+		}
+		for i := 0; i < len(segment); i++ {
+			if c := segment[i]; !isASCIILetter(c) && (c < '0' || c > '9') && !strings.ContainsRune("-._~", rune(c)) {
+				return false
+			}
+		}
 	}
 	return true
 }
