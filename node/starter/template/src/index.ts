@@ -32,11 +32,14 @@ dotenv.config();
 const privateKeyHex = process.env.PROVIDER_PRIVATE_KEY;
 const port = process.env.PORT || 3000;
 const endpoint = process.env.TZERO_ENDPOINT || "https://api-sandbox.t-0.network";
-const quotePublishingInterval: number = Number(process.env.QUOTE_PUBLISHING_INTERVAL || "5000");
+const quotePublishingInterval = Number(process.env.QUOTE_PUBLISHING_INTERVAL || "5000");
 const networkPublicKeyHex = process.env.NETWORK_PUBLIC_KEY;
 
 invariant(privateKeyHex, 'Private key not set');
-invariant(quotePublishingInterval > 0, 'Interval must be positive');
+invariant(
+  Number.isSafeInteger(quotePublishingInterval) && quotePublishingInterval > 0 && quotePublishingInterval <= 2_147_483_647,
+  'Interval must be a positive integer no greater than 2147483647',
+);
 invariant(networkPublicKeyHex, 'Network public key is not set');
 
 async function main() {

@@ -1,3 +1,5 @@
+using System.Globalization;
+
 namespace T0.ProviderSdk;
 
 /// <summary>
@@ -35,7 +37,7 @@ public sealed class T0Config
     /// Required: PROVIDER_PRIVATE_KEY, NETWORK_PUBLIC_KEY.
     /// Optional: TZERO_ENDPOINT (default: sandbox), PORT (default: 8080).
     /// </summary>
-    /// <exception cref="InvalidOperationException">Thrown when required environment variables are missing.</exception>
+    /// <exception cref="InvalidOperationException">Thrown when a required variable is missing or PORT is not an integer from 1 to 65535.</exception>
     public static T0Config FromEnvironment()
     {
         var privateKey = Environment.GetEnvironmentVariable("PROVIDER_PRIVATE_KEY");
@@ -58,9 +60,18 @@ public sealed class T0Config
             TZeroEndpoint = string.IsNullOrEmpty(endpoint)
                 ? "https://api-sandbox.t-0.network"
                 : endpoint,
-            Port = !string.IsNullOrEmpty(portStr) && int.TryParse(portStr, out var port)
-                ? port
-                : 8080,
+            Port = ParsePort(portStr),
         };
+    }
+
+    private static int ParsePort(string? portStr)
+    {
+        if (string.IsNullOrEmpty(portStr))
+            return 8080;
+        if (!int.TryParse(portStr, NumberStyles.None, CultureInfo.InvariantCulture, out var port)
+            || port is < 1 or > 65535)
+            throw new InvalidOperationException(
+                $"PORT must be an integer from 1 to 65535 (got \"{portStr}\").");
+        return port;
     }
 }

@@ -1,3 +1,4 @@
+using System.Globalization;
 using Google.Protobuf.WellKnownTypes;
 using T0.ProviderSdk.Api.Tzero.V1.Common;
 using T0.ProviderSdk.Api.Tzero.V1.Payment;
@@ -9,7 +10,7 @@ namespace MyProvider.Services;
 // TODO: Step 1.3 Replace this with fetching quotes from your systems and publishing them into the T-0 Network.
 // Recommended: publish at least once per 5 seconds, but not more than once per second.
 public class QuotePublisher(NetworkService.NetworkServiceClient client)
-    : QuotePublisherService(TimeSpan.FromMilliseconds(int.TryParse(Environment.GetEnvironmentVariable("QUOTE_PUBLISHING_INTERVAL"), out var ms) && ms > 0 ? ms : 5000))
+    : QuotePublisherService(TimeSpan.FromMilliseconds(int.TryParse(Environment.GetEnvironmentVariable("QUOTE_PUBLISHING_INTERVAL"), NumberStyles.Integer, CultureInfo.InvariantCulture, out var ms) && ms > 0 ? ms : 5000))
 {
     protected override Task PublishQuotesAsync(CancellationToken ct)
     {

@@ -25,7 +25,7 @@ try {
 Write-Host "Installed to $InstallPath"
 
 $UserPath = [Environment]::GetEnvironmentVariable("Path", "User")
-if ($UserPath -notlike "*$InstallDir*") {
+if (($UserPath -split ';') -notcontains $InstallDir) {
     [Environment]::SetEnvironmentVariable("Path", "$UserPath;$InstallDir", "User")
     $env:Path = "$env:Path;$InstallDir"
     Write-Host "Added $InstallDir to user PATH (restart your terminal for it to take effect)"

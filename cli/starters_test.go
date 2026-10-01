@@ -161,6 +161,16 @@ func TestRun_GoModulePathReplacement(t *testing.T) {
 	})
 }
 
+func TestJavaTemplate_DeclaresSdkRepository(t *testing.T) {
+	data, err := os.ReadFile(filepath.Join("..", "java", "starter", "template", "build.gradle.kts"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.Contains(string(data), "val sdkRepository = \"jitpack\"") {
+		t.Error(`java starter template no longer contains val sdkRepository = "jitpack"; --repository rewrites that exact line`)
+	}
+}
+
 func TestStarters_HaveDockerfiles(t *testing.T) {
 	for _, lang := range starterLangs(t) {
 		t.Run(lang, func(t *testing.T) {

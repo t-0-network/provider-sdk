@@ -1,3 +1,5 @@
+using System.Buffers;
+
 namespace T0.ProviderSdk.Common;
 
 /// <summary>
@@ -18,12 +20,31 @@ public static class HexUtils
     }
 
     /// <summary>
+    /// Decodes an even-length ASCII hex string. Returns false for an odd length or a non-hex character.
+    /// </summary>
+    public static bool TryParseHex(ReadOnlySpan<char> hex, out byte[] bytes)
+    {
+        bytes = [];
+        if ((hex.Length & 1) != 0)
+            return false;
+
+        var decoded = new byte[hex.Length / 2];
+        if (Convert.FromHexString(hex, decoded, out var charsConsumed, out var bytesWritten) != OperationStatus.Done
+            || charsConsumed != hex.Length
+            || bytesWritten != decoded.Length)
+            return false;
+
+        bytes = decoded;
+        return true;
+    }
+
+    /// <summary>
     /// Converts bytes to a lowercase hex string (without 0x prefix).
     /// </summary>
     public static string BytesToHex(byte[] bytes)
     {
         ArgumentNullException.ThrowIfNull(bytes);
-        return Convert.ToHexString(bytes).ToLowerInvariant();
+        return Convert.ToHexStringLower(bytes);
     }
 
     /// <summary>
@@ -32,8 +53,9 @@ public static class HexUtils
     public static string StripHexPrefix(string hex)
     {
         ArgumentNullException.ThrowIfNull(hex);
-        if (hex.Length >= 2 && hex[0] == '0' && (hex[1] == 'x' || hex[1] == 'X'))
-            return hex[2..];
+        const string prefix = "0x";
+        if (hex.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            return hex[prefix.Length..];
         return hex;
     }
 
@@ -43,7 +65,8 @@ public static class HexUtils
     public static string AddHexPrefix(string hex)
     {
         ArgumentNullException.ThrowIfNull(hex);
-        if (hex.Length >= 2 && hex[0] == '0' && (hex[1] == 'x' || hex[1] == 'X'))
+        const string prefix = "0x";
+        if (hex.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
             return hex;
         return "0x" + hex;
     }

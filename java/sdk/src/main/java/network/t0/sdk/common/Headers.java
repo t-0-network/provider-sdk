@@ -1,5 +1,8 @@
 package network.t0.sdk.common;
 
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+
 /**
  * HTTP header names used for request signing and verification.
  *
@@ -43,11 +46,6 @@ public final class Headers {
      * @return 8-byte little-endian encoded timestamp
      */
     public static byte[] encodeTimestamp(long timestampMs) {
-        byte[] bytes = new byte[8];
-        for (int i = 0; i < 8; i++) {
-            bytes[i] = (byte) (timestampMs & 0xFF);
-            timestampMs >>= 8;
-        }
-        return bytes;
+        return ByteBuffer.allocate(8).order(ByteOrder.LITTLE_ENDIAN).putLong(timestampMs).array();
     }
 }

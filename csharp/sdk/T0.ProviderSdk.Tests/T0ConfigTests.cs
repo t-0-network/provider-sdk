@@ -116,18 +116,25 @@ public class T0ConfigTests
         }
     }
 
-    [Fact]
-    public void FromEnvironment_InvalidPort_UsesDefault()
+    [Theory]
+    [InlineData("not_a_number")]
+    [InlineData("8080.0")]
+    [InlineData("０")] // fullwidth digit
+    [InlineData("0")]
+    [InlineData("-1")]
+    [InlineData("99999")]
+    [InlineData(" 8080")]
+    public void FromEnvironment_InvalidPort_Throws(string port)
     {
         ClearEnvVars();
         Environment.SetEnvironmentVariable("PROVIDER_PRIVATE_KEY", "privkey");
         Environment.SetEnvironmentVariable("NETWORK_PUBLIC_KEY", "0x04pubkey");
-        Environment.SetEnvironmentVariable("PORT", "not_a_number");
+        Environment.SetEnvironmentVariable("PORT", port);
 
         try
         {
-            var config = T0Config.FromEnvironment();
-            Assert.Equal(8080, config.Port);
+            var ex = Assert.Throws<InvalidOperationException>(T0Config.FromEnvironment);
+            Assert.Contains("PORT", ex.Message);
         }
         finally
         {

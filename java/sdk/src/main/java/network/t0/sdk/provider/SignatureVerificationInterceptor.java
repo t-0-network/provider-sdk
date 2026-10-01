@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.ByteBuffer;
 import java.time.Clock;
 
 /**
@@ -248,22 +249,13 @@ public final class SignatureVerificationInterceptor implements ServerInterceptor
      * @return the message bytes with gRPC frame prefix prepended
      */
     private byte[] reconstructGrpcFrame(byte[] messageBytes) {
-        byte[] framed = new byte[GRPC_FRAME_HEADER_SIZE + messageBytes.length];
-
-        // Byte 0: Compressed flag (0 = not compressed)
-        framed[0] = 0;
-
-        // Bytes 1-4: Message length in big-endian
-        int length = messageBytes.length;
-        framed[1] = (byte) ((length >> 24) & 0xFF);
-        framed[2] = (byte) ((length >> 16) & 0xFF);
-        framed[3] = (byte) ((length >> 8) & 0xFF);
-        framed[4] = (byte) (length & 0xFF);
-
-        // Copy message bytes
-        System.arraycopy(messageBytes, 0, framed, GRPC_FRAME_HEADER_SIZE, messageBytes.length);
-
-        return framed;
+        // Byte 0 is the uncompressed flag. putInt writes the length big-endian,
+        // which is the gRPC frame. The unframed path is unchanged.
+        ByteBuffer framed = ByteBuffer.allocate(GRPC_FRAME_HEADER_SIZE + messageBytes.length);
+        framed.put((byte) 0);
+        framed.putInt(messageBytes.length);
+        framed.put(messageBytes);
+        return framed.array();
     }
 
     private ValidationResult validatePublicKeyHeader(String publicKeyHex) {
