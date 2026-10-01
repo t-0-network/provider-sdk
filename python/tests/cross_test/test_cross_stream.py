@@ -1,7 +1,8 @@
 """Cross-language streaming tests: Python client -> Go server.
 
-The Go helper verifies test.v1.StreamTest requests over their first envelope, as the network does.
-Its reply names the framing it accepted, and a refused call fails with UNAUTHENTICATED and the reason.
+The Go helper verifies test.v1.StreamTest requests over their first envelope, as the network does,
+with the Go SDK's verifier. Its reply names the framing it accepted, and a refused call fails with
+that verifier's code and the reason.
 Its stderr log is read only to hold message 2 back until message 1 was verified, and to see that
 nothing was sent. See docs/STREAMING.md.
 
@@ -379,7 +380,7 @@ class TestPythonAsyncClientGoServerStream:
         with pytest.raises(ConnectError) as exc_info:
             await client.client_stream(_stream_of(*MESSAGES))
 
-        assert exc_info.value.code == Code.UNAUTHENTICATED
+        assert exc_info.value.code == Code.INVALID_ARGUMENT
         assert "timestamp is outside the allowed time window" in exc_info.value.message
 
     async def test_empty_client_stream_is_rejected(self, go_server: _GoServer, protocol: str) -> None:
@@ -457,7 +458,7 @@ class TestPythonSyncClientGoServerStream:
         with pytest.raises(ConnectError) as exc_info:
             client.client_stream(_sync_stream_of(*MESSAGES))
 
-        assert exc_info.value.code == Code.UNAUTHENTICATED
+        assert exc_info.value.code == Code.INVALID_ARGUMENT
         assert "timestamp is outside the allowed time window" in exc_info.value.message
 
     def test_empty_client_stream_is_rejected(self, go_server: _GoServer, protocol: str) -> None:

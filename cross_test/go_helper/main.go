@@ -154,24 +154,18 @@ func cmdServe() {
 	}
 }
 
-// newServeHandler serves the provider service behind the SDK's verification and test.v1.StreamTest
-// behind the first-envelope verifier; h2c lets Connect (HTTP/1.1) and gRPC share the port.
+// newServeHandler serves the provider service and test.v1.StreamTest behind the SDK's signature
+// verification; h2c lets Connect (HTTP/1.1) and gRPC share the port.
 func newServeHandler(networkPublicKeyHex string) (http.Handler, error) {
 	httpHandler, err := provider.NewHttpHandler(
 		provider.NetworkPublicKeyHexed(networkPublicKeyHex),
 		provider.Handler(paymentconnect.NewProviderServiceHandler, paymentconnect.ProviderServiceHandler(&testProviderService{})),
+		provider.Handler(newStreamTestHandler, streamTest{}),
 	)
 	if err != nil {
 		return nil, err
 	}
-	streamHandler, err := newStreamTestHandler(networkPublicKeyHex)
-	if err != nil {
-		return nil, fmt.Errorf("stream test handler: %w", err)
-	}
-	mux := http.NewServeMux()
-	mux.Handle(streamTestPrefix, streamHandler)
-	mux.Handle("/", httpHandler)
-	return h2c.NewHandler(mux, &http2.Server{}), nil
+	return h2c.NewHandler(httpHandler, &http2.Server{}), nil
 }
 
 func hasFlag(flag string) bool {

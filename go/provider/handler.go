@@ -82,7 +82,7 @@ func NewHttpHandlerWithOptions(
 	if key == "" {
 		return nil, ErrNetworkPublicKeyIsRequired
 	}
-	verifySignatureFn, err := newVerifySignature(key)
+	verifier, err := newVerifySignature(key)
 	if err != nil {
 		return nil, err
 	}
@@ -95,7 +95,7 @@ func NewHttpHandlerWithOptions(
 	for _, o := range opts {
 		o(&scratch)
 	}
-	defaultOptions, err := newDefaultHandlerOptions(verifySignatureFn, scratch.logger)
+	defaultOptions, err := newDefaultHandlerOptions(verifier, scratch.logger)
 	if err != nil {
 		return nil, err
 	}
@@ -138,11 +138,13 @@ func Handler[T any](handler func(svc T, option ...connect.HandlerOption) (string
 		for _, o := range options {
 			o(&defaultOptions)
 		}
-		path, h := handler(p, defaultOptions.connectHandlerOptions...)
-		h = newSignatureVerifierMiddleware(defaultOptions.verifySignatureFn, defaultOptions.verifySignatureMaxBodySize)(h)
-		// The middleware passes a rejected request on with its body unread, and
-		// connect-go reads all of it; this stops every read at the limit.
-		h = http.MaxBytesHandler(h, defaultOptions.verifySignatureMaxBodySize)
+		// First, so that a connect.WithReadMaxBytes of the caller's replaces it.
+		connectOptions := append(
+			[]connect.HandlerOption{connect.WithReadMaxBytes(int(defaultOptions.verifySignatureMaxBodySize))},
+			defaultOptions.connectHandlerOptions...,
+		)
+		path, h := handler(p, connectOptions...)
+		h = newSignatureVerifierMiddleware(defaultOptions.verifier, defaultOptions.verifySignatureMaxBodySize)(h)
 		return path, h
 	}
 }

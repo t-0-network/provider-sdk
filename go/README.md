@@ -113,7 +113,9 @@ server := provider.NewServer(providerServiceHandler, provider.WithAddr(":8080"))
 
 **Server options:** `WithAddr`, `WithReadTimeout`, `WithWriteTimeout`, `WithReadHeaderTimeout`, `WithShutdownTimeout`, `WithTLSConfig`, `WithHTTP2Config`.
 
-**Handler options:** `WithConnectHandlerOptions`, `WithMaxBodySize` (default: 10 MiB).
+**Handler options:** `WithConnectHandlerOptions`, `WithMaxBodySize` (the largest request message, default: 10 MiB; the body of a unary call, or each message of a stream).
+
+A handler built with `provider.Handler` verifies streaming calls too: over their first message only, before the handler runs, without buffering the stream ([`docs/STREAMING.md`](../docs/STREAMING.md#server-side-go-sdk)). `provider.SignatureVerification(ctx)` reports what a request's signature covered.
 
 ### Network Client
 

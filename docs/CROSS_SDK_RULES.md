@@ -26,7 +26,7 @@ Shared vectors live in [`cross_test/test_vectors.json`](../cross_test/test_vecto
 
 ## Receiving calls from the network (provider servers)
 
-A provider server receives unary calls only. Streaming is client-side: the network is always the server of a stream.
+A provider server receives unary calls only. Streaming is client-side: the network is always the server of a stream. The Go SDK is the exception: its server also verifies client- and server-streaming calls (V9), because a Go server built with `provider.Handler` may serve streams, and the Go helper's streaming service runs on it.
 
 | # | Rule | Checked by |
 |---|---|---|
@@ -38,6 +38,7 @@ A provider server receives unary calls only. Streaming is client-side: the netwo
 | V6 | The signature is verified over the whole body. If that fails, and the request is `application/grpc*` with a body of exactly one uncompressed frame, it is verified again over the message without its 5-byte prefix. Java rebuilds the frame instead, with the same result. | *per-SDK tests*; Java ↔ Go cross tests |
 | V7 | A body over the server's limit (10 MiB by default) is rejected without being read further. | *per-SDK tests* |
 | V8 | There is no way to serve without signature verification. Go's `WithVerifySignatureFn` is a no-op; Python refuses a call its middleware did not verify (INTERNAL), and no handler option removes the check. | *per-SDK tests* |
+| V9 | Go only: a request whose content type is `application/connect+*`, `application/grpc` or `application/grpc+*` is verified over its first envelope, prefix included, and over gRPC also over the uncompressed first payload alone (S3). Only that envelope is read before the verdict; its length is checked against the limit first. The rest of the body goes to the handler as it arrives, and a stream as a whole has no limit (each message has). A rejected call fails before its handler runs, streaming or not. For a unary gRPC body, which is exactly one frame, the result is the same as V6. | `go/provider` tests; streaming cross tests (`go_helper serve`) |
 
 ### Error codes
 
@@ -45,7 +46,8 @@ A provider server receives unary calls only. Streaming is client-side: the netwo
 |---|---|
 | missing header; malformed `X-Signature` or `X-Signature-Timestamp`; timestamp outside the window | InvalidArgument |
 | `X-Public-Key` present but not the network key (bad hex, not a key, or another key); signature does not verify | Unauthenticated |
-| body over the limit | ResourceExhausted |
+| Go, enveloped body: no first message, or a first message cut short ("no first message", "truncated first message") | Unauthenticated |
+| body over the limit; Go, enveloped body: first envelope over the limit | ResourceExhausted |
 
 Messages may differ between SDKs; codes may not.
 
@@ -53,7 +55,7 @@ Messages may differ between SDKs; codes may not.
 
 | SDK | Server verification |
 |---|---|
-| Go | `go/provider/verify_signature.go`, `go/provider/handler.go`, `go/internal/pubkey` (key parser) |
+| Go | `go/provider/verify_signature.go`, `go/provider/signature_error.go`, `go/provider/handler.go`, `go/internal/pubkey` (key parser), `go/internal/envelope` (enveloped content types) |
 | Node | `node/sdk/src/common/service.ts`, `node/sdk/src/common/node.ts`, `node/sdk/src/common/crypto/{keys,request}.ts` |
 | Python | `python/sdk/src/t0_provider_sdk/provider/{middleware,middleware_wsgi,interceptor,handler}.py`, `crypto/keys.py` |
 | Java | `java/sdk/src/main/java/network/t0/sdk/provider/SignatureVerificationInterceptor.java`, `crypto/SignatureVerifier.java` |

@@ -1,7 +1,7 @@
 # Streaming calls
 
 These rules hold for client and server streaming calls in the network client of every SDK in this
-repo. The signature scheme itself is in the root [`CLAUDE.md`](../CLAUDE.md#signature-protocol), and
+repo. How the Go SDK's server verifies them: [Server side](#server-side-go-sdk). The signature scheme itself is in the root [`CLAUDE.md`](../CLAUDE.md#signature-protocol), and
 the shared test vectors are in [`cross_test/README.md`](../cross_test/README.md).
 
 ## What is signed
@@ -34,6 +34,22 @@ sent as the caller produces it and is never buffered.
 - A first message whose length prefix promises more bytes than arrive fails with `invalid argument`
   and the message "streaming request ends inside its first message". Other read errors keep their
   own code.
+
+## Server side (Go SDK)
+
+Only the Go SDK verifies streaming calls on the server (rule V9 in
+[`CROSS_SDK_RULES.md`](CROSS_SDK_RULES.md)). A handler built with `provider.Handler` gets the same
+check the network makes:
+
+- The headers are checked before the body is read. Then the middleware reads the first envelope
+  only and verifies the signature over it, or over gRPC also over its payload without the prefix.
+- The rest of the stream reaches the handler as the caller sends it. Nothing is buffered, and the
+  stream as a whole has no size limit. Each message is limited by `WithMaxBodySize`, the first one
+  before its signature is verified.
+- A rejected stream fails before its handler runs, with the codes of
+  [`CROSS_SDK_RULES.md`](CROSS_SDK_RULES.md#error-codes). A stream without a whole first message
+  is `unauthenticated` ("no first message", "truncated first message").
+- `provider.SignatureVerification(ctx)` tells a handler what was signed: `envelope` or `payload`.
 
 ## Bidirectional streams
 

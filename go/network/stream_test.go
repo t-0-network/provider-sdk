@@ -1005,24 +1005,6 @@ func receiveAll(ctx context.Context, client *streamTestClient, value string) ([]
 	return got, stream.Err()
 }
 
-func TestIsEnveloped(t *testing.T) {
-	for contentType, want := range map[string]bool{
-		"application/connect+proto":      true,
-		"application/connect+json":       true,
-		"application/grpc":               true,
-		"application/grpc+proto":         true,
-		"Application/GRPC+proto; x=y":    true,
-		"APPLICATION/CONNECT+proto; x=y": true,
-		"application/proto":              false,
-		"application/json; charset=utf8": false,
-		"":                               false,
-	} {
-		req := newStreamRequest(t, context.Background(), http.NoBody)
-		req.Header.Set("Content-Type", contentType)
-		require.Equal(t, want, isEnveloped(req), contentType)
-	}
-}
-
 type streamSigningCase struct {
 	Name              string `json:"name"`
 	ContentType       string `json:"content_type"`

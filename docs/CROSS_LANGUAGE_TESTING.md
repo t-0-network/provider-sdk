@@ -44,9 +44,9 @@ CI builds it automatically (each language's CI workflow sets up Go and builds it
 | `call-pay-out <url> <key> [--grpc]` | Signed PayOut RPC |
 | `call-health <url> <key> [--grpc]` | Signed health check |
 
-`serve` also mounts `test.v1.StreamTest` ([`cross_test/stream_test.proto`](../cross_test/stream_test.proto), reference only — every SDK builds the two methods by hand on `google.protobuf.StringValue`). Its verifier checks a streaming request the way the T-0 Network does: the signature over the first envelope only (or, for gRPC, its payload without the prefix), before the handler reads the rest.
+`serve` also mounts `test.v1.StreamTest` ([`cross_test/stream_test.proto`](../cross_test/stream_test.proto), reference only — every SDK builds the two methods by hand on `google.protobuf.StringValue`). It is served behind the Go SDK's own signature verification, which checks a streaming request the way the T-0 Network does: the signature over the first envelope only (or, for gRPC, its payload without the prefix), before the handler reads the rest.
 
-A refused request fails with an `unauthenticated` RPC error whose message is the reason, and every reply to a verified request starts with the framing it was verified over (`envelope:` or `payload:`), so the streaming cross tests check both from the call itself. The verifier also logs its verdict to stderr (`<path> verified over the first envelope|payload` or `<path> rejected: <reason>`); the cross tests still wait for that line to check that the request went out with its first message, and look for its absence when nothing may be sent, so its wording is a contract with those tests. `cd cross_test/go_helper && go test ./...` tests the verifier itself and runs the Go client against it. The verifier step by step: [`cross_test/README.md`](../cross_test/README.md#commands).
+A refused request fails with an RPC error whose message is the reason: `invalid_argument` for a missing or malformed header or a timestamp outside the window, `unauthenticated` for another key, a signature that does not verify, or a stream without a whole first message. Every reply to a verified request starts with the framing it was verified over (`envelope:` or `payload:`), so the streaming cross tests check both from the call itself. The helper also logs the verdict to stderr (`<path> verified over the first envelope|payload` or `<path> rejected: <reason>`); the cross tests still wait for that line to check that the request went out with its first message, and look for its absence when nothing may be sent, so its wording is a contract with those tests. `cd cross_test/go_helper && go test ./...` checks the helper's wiring with the Go client; the verifier is tested in `go/provider`. Step by step, with every refusal: [`cross_test/README.md`](../cross_test/README.md#commands).
 
 Default protocol is Connect (HTTP/1.1). Pass `--grpc` for gRPC protocol over h2c.
 
@@ -58,7 +58,7 @@ Default protocol is Connect (HTTP/1.1). Pass `--grpc` for gRPC protocol over h2c
 | **Lang→Go streaming** | Client + server stream (async + sync) | Client + server stream | Client + server stream | Client + server stream |
 | **Go→Lang** | Health (ASGI+WSGI) | Health | Health + PayOut | Health + PayOut |
 
-Streaming runs one way only: providers don't serve streaming RPCs, so there is no Go→Lang streaming test. The streaming cross tests check that each SDK's client signs the bytes the network verifies and sends the request with its first message; the verifier's own verdicts are pinned in `cross_test/go_helper`. The rules they test: [`docs/STREAMING.md`](STREAMING.md).
+Streaming runs one way only: providers don't serve streaming RPCs, so there is no Go→Lang streaming test. The streaming cross tests check that each SDK's client signs the bytes the network verifies and sends the request with its first message; the verifier's own verdicts are pinned in the Go SDK (`go/provider`). The rules they test: [`docs/STREAMING.md`](STREAMING.md).
 
 ### Test files
 

@@ -10,12 +10,12 @@ import (
 	"io"
 	"net/http"
 	"strconv"
-	"strings"
 	"time"
 
 	"connectrpc.com/connect"
 	"github.com/t-0-network/provider-sdk/go/common"
 	"github.com/t-0-network/provider-sdk/go/crypto"
+	"github.com/t-0-network/provider-sdk/go/internal/envelope"
 )
 
 // SigningTransportOption configures a SigningTransport.
@@ -59,7 +59,7 @@ func (t *SigningTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 		closeRequestBody(req)
 		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("GET requests are not supported"))
 	}
-	if isEnveloped(req) {
+	if envelope.IsEnveloped(req.Header.Get("Content-Type")) {
 		return t.signFirstEnvelope(req)
 	}
 	return t.signWholeBody(req)
@@ -201,24 +201,6 @@ func closeRequestBody(req *http.Request) {
 	if req.Body != nil {
 		_ = req.Body.Close()
 	}
-}
-
-func mediaType(req *http.Request) string {
-	ct := req.Header.Get("Content-Type")
-	if i := strings.IndexByte(ct, ';'); i >= 0 {
-		ct = ct[:i]
-	}
-	return strings.ToLower(strings.TrimSpace(ct))
-}
-
-func isGRPCMediaType(mt string) bool {
-	return mt == "application/grpc" || strings.HasPrefix(mt, "application/grpc+")
-}
-
-// isEnveloped reports whether the body is a sequence of envelopes, of which only the first is signed.
-func isEnveloped(req *http.Request) bool {
-	mt := mediaType(req)
-	return strings.HasPrefix(mt, "application/connect+") || isGRPCMediaType(mt)
 }
 
 // callTimeouts gives each call whose context has no deadline the timeout of its stream type. It is
