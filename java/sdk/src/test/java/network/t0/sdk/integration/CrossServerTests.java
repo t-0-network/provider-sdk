@@ -219,7 +219,7 @@ class CrossServerTests {
 
     // --- Streaming: Java client -> Go server over gRPC (h2c), see docs/STREAMING.md ---
     // Each reply starts with the framing the helper verified ("payload:" for Java, which signs above the
-    // framer); a refusal is UNAUTHENTICATED with the helper's reason as its description. The helper's log
+    // framer); a refusal has the code of the Go SDK's verifier and its reason as its description. The helper's log
     // is read only to see when a request went out, or that none did.
 
     private static final MethodDescriptor<StringValue, StringValue> CLIENT_STREAM =
@@ -474,7 +474,7 @@ class CrossServerTests {
         GoServer goServer = startGoServer();
 
         try (var client = streamClient(goServer.port(), PRIVATE_KEY)) {
-            assertUnauthenticated(sendClientStream(client.getChannel(), List.of()), "no first message");
+            assertRefused(sendClientStream(client.getChannel(), List.of()), Status.Code.UNAUTHENTICATED, "no first message");
         } finally {
             stop(goServer);
         }
@@ -492,7 +492,8 @@ class CrossServerTests {
             Channel stale = ClientInterceptors.intercept(channel,
                     SigningInterceptors.withClock(Signer.fromHex(PRIVATE_KEY), twoMinutesAgo));
 
-            assertUnauthenticated(sendClientStream(stale, List.of("m1")), "timestamp is outside the allowed time window");
+            assertRefused(sendClientStream(stale, List.of("m1")), Status.Code.INVALID_ARGUMENT,
+                    "timestamp is outside the allowed time window");
         } finally {
             shutdown(channel);
             stop(goServer);
@@ -613,12 +614,12 @@ class CrossServerTests {
         return result;
     }
 
-    /** The call failed with UNAUTHENTICATED, and the helper's reason is in its description. */
-    private static void assertUnauthenticated(CompletableFuture<String> result, String reason) {
+    /** The call failed with code, and the helper's reason is in its description. */
+    private static void assertRefused(CompletableFuture<String> result, Status.Code code, String reason) {
         ExecutionException thrown = org.junit.jupiter.api.Assertions.assertThrows(
                 ExecutionException.class, () -> result.get(10, TimeUnit.SECONDS));
         Status status = Status.fromThrowable(thrown.getCause());
-        assertThat(status.getCode()).isEqualTo(Status.Code.UNAUTHENTICATED);
+        assertThat(status.getCode()).isEqualTo(code);
         assertThat(status.getDescription()).contains(reason);
     }
 

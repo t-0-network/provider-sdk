@@ -2,26 +2,33 @@ package provider
 
 import (
 	"context"
-	"errors"
 
 	"connectrpc.com/connect"
 )
 
-// signatureErrorInterceptor checks for a signature error in the context.
-// this error is propagated from the signature verification middleware.
-func signatureErrorInterceptor() connect.UnaryInterceptorFunc {
-	return func(next connect.UnaryFunc) connect.UnaryFunc {
-		return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
-			sigErr, ok := getSignatureErrorFromContext(ctx)
-			if !ok {
-				return nil, connect.NewError(connect.CodeInternal, ErrNoSignatureResult)
-			}
+// signatureErrorInterceptor fails a call whose request the signature verification middleware
+// rejected, before its handler runs. A streaming handler is not started, so it never receives a
+// message, and neither is a server stream's single request message read.
+type signatureErrorInterceptor struct{}
 
-			if sigErr != nil {
-				return nil, connect.NewError(sigErr.ConnectCode, errors.New(sigErr.Message))
-			}
-
-			return next(ctx, req)
+func (signatureErrorInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
+	return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
+		if _, err := SignatureVerification(ctx); err != nil {
+			return nil, err
 		}
+		return next(ctx, req)
+	}
+}
+
+func (signatureErrorInterceptor) WrapStreamingClient(next connect.StreamingClientFunc) connect.StreamingClientFunc {
+	return next
+}
+
+func (signatureErrorInterceptor) WrapStreamingHandler(next connect.StreamingHandlerFunc) connect.StreamingHandlerFunc {
+	return func(ctx context.Context, conn connect.StreamingHandlerConn) error {
+		if _, err := SignatureVerification(ctx); err != nil {
+			return err
+		}
+		return next(ctx, conn)
 	}
 }

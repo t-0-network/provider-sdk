@@ -11,24 +11,24 @@ const (
 )
 
 type providerHandlerOptions struct {
-	verifySignatureFn          verifyFunc
+	verifier                   *signatureVerifier
 	verifySignatureMaxBodySize int64
 	connectHandlerOptions      []connect.HandlerOption
 	logger                     *slog.Logger
 	sdkVersion                 string
 }
 
-func newDefaultHandlerOptions(verifySignatureFn verifyFunc, logger *slog.Logger) (providerHandlerOptions, error) {
+func newDefaultHandlerOptions(verifier *signatureVerifier, logger *slog.Logger) (providerHandlerOptions, error) {
 	if logger == nil {
 		logger = slog.Default()
 	}
 	return providerHandlerOptions{
 		verifySignatureMaxBodySize: defaultMaxBodySize,
 		connectHandlerOptions: []connect.HandlerOption{
-			connect.WithInterceptors(signatureErrorInterceptor(), newValidationInterceptor(logger)),
+			connect.WithInterceptors(signatureErrorInterceptor{}, newValidationInterceptor(logger)),
 		},
-		verifySignatureFn: verifySignatureFn,
-		logger:            logger,
+		verifier: verifier,
+		logger:   logger,
 	}, nil
 }
 
@@ -49,8 +49,11 @@ func WithConnectHandlerOptions(opts ...connect.HandlerOption) HandlerOption {
 	}
 }
 
-// WithMaxBodySize sets the maximum allowed request body size; a larger body is
-// rejected with ResourceExhausted. If size is <= 0, the default size will be used.
+// WithMaxBodySize sets the largest request message, 10 MiB by default: the body
+// of a unary call, or each message of a stream (the first one with its 5-byte
+// prefix, checked before the signature). A larger one is rejected with
+// ResourceExhausted. The limit is also passed to connect.WithReadMaxBytes; a
+// caller's own replaces it. If size is <= 0, the default size will be used.
 func WithMaxBodySize(size int64) HandlerOption {
 	return func(h *providerHandlerOptions) {
 		if size > 0 {

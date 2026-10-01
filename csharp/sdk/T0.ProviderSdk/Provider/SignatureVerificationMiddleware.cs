@@ -151,7 +151,7 @@ public sealed class SignatureVerificationMiddleware
     /// Verifies the signature over the whole body; failing that, for a gRPC request whose body is
     /// exactly one uncompressed frame, over the message without its 5-byte prefix, which is what a
     /// signer above the gRPC framer covers (the Java SDK's NetworkClient). Same rule as Go's
-    /// <c>verifyWithFramingFallback</c>.
+    /// <c>signatureVerifier.verify</c>.
     /// </summary>
     private static bool VerifyWithFramingFallback(
         byte[] publicKey, byte[] body, byte[] timestampBytes, byte[] signature, string? contentType) =>

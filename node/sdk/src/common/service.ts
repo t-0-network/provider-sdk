@@ -97,7 +97,7 @@ const createSignatureVerification: (networkPublicKey: Buffer) => Interceptor = (
   tsBuf.writeBigUInt64LE(ts); // 64‑bit little‑endian timestamp
 
   // The whole body; failing that, for gRPC, a body of one uncompressed frame without its 5-byte
-  // prefix, as the Java SDK signs it (above the gRPC framer). Go's verifyWithFramingFallback.
+  // prefix, as the Java SDK signs it (above the gRPC framer). Go's signatureVerifier.verify.
   const verified = verifySignature(publicKey, body.body.update(tsBuf).digest(), signature)
     || ((req.header.get("Content-Type") ?? "").startsWith("application/grpc")
       && body.isOneUncompressedFrame()
