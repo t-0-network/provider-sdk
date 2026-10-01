@@ -3,6 +3,7 @@
 from t0_provider_sdk.provider.errors import (
     InvalidHeaderEncodingError,
     MissingRequiredHeaderError,
+    NetworkPublicKeyRequiredError,
     SignatureFailedError,
     SignatureVerificationError,
     TimestampOutOfRangeError,
@@ -25,6 +26,7 @@ __all__ = [
     "HandlerOption",
     "InvalidHeaderEncodingError",
     "MissingRequiredHeaderError",
+    "NetworkPublicKeyRequiredError",
     "SignatureFailedError",
     "SignatureVerificationError",
     "TimestampOutOfRangeError",

@@ -1,6 +1,13 @@
 """Error types for signature verification."""
 
 
+class NetworkPublicKeyRequiredError(ValueError):
+    """new_asgi_app / new_wsgi_app got an empty network public key."""
+
+    def __init__(self) -> None:
+        super().__init__("network public key is not set")
+
+
 class SignatureVerificationError(Exception):
     """Base class for all signature verification errors."""
 

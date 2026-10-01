@@ -35,8 +35,13 @@ def load_config() -> Config:
         print("Error: PROVIDER_PRIVATE_KEY is not set in .env", file=sys.stderr)
         sys.exit(1)
 
+    network_public_key = os.getenv("NETWORK_PUBLIC_KEY", "").strip()
+    if not network_public_key:
+        print("Error: NETWORK_PUBLIC_KEY is not set in .env", file=sys.stderr)
+        sys.exit(1)
+
     return Config(
-        network_public_key=os.getenv("NETWORK_PUBLIC_KEY", ""),
+        network_public_key=network_public_key,
         provider_private_key=provider_private_key,
         tzero_endpoint=os.getenv("TZERO_ENDPOINT", "https://api-sandbox.t-0.network"),
         port=int(os.getenv("PORT", "8080")),

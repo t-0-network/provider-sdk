@@ -823,7 +823,7 @@ Creates the composite ASGI application:
 1. Creates `_HandlerOptions` with the `SignatureErrorInterceptor`
 2. Builds all registered handlers, collecting `(path, app)` pairs
 3. Creates an ASGI path-prefix router via `_create_router()`
-4. Wraps the router with `signature_verification_middleware` (if `network_public_key` is non-empty)
+4. Wraps the router with `signature_verification_middleware`
 
 **`new_wsgi_app(network_public_key, *build_handlers) -> WSGIApp`**
 
@@ -831,11 +831,11 @@ Creates the composite WSGI application (parallel to `new_asgi_app()`):
 1. Creates `_HandlerOptions` with the `SignatureErrorInterceptorSync`
 2. Builds all registered handlers, collecting `(path, app)` pairs
 3. Creates a WSGI path-prefix router via `_create_wsgi_router()`
-4. Wraps the router with `signature_verification_middleware_wsgi` (if `network_public_key` is non-empty)
+4. Wraps the router with `signature_verification_middleware_wsgi`
 
 Both routers use simple path-prefix matching. ConnectRPC request paths follow the pattern `/<package>.<Service>/<Method>`, so prefix matching on the service path correctly routes all methods of a service.
 
-Pass an empty string for `network_public_key` to disable signature verification (useful for testing).
+`network_public_key` is required, and surrounding whitespace is stripped. Both functions check it before building anything: an empty or whitespace-only key raises `NetworkPublicKeyRequiredError` (a `ValueError`), and a malformed key raises `ValueError("invalid network public key: ...")`.
 
 ### 4.5 Generated Code (`api/`)
 
