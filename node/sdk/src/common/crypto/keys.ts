@@ -1,14 +1,14 @@
 import { secp256k1 } from '@noble/curves/secp256k1.js';
 
-// The order of secp256k1: a private key is a number in [1, n-1].
-const SECP256K1_N = 0xfffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141n;
-
 export function parsePrivateKey(privateKey: string | Buffer): Buffer {
   if (privateKey === undefined || privateKey === null || privateKey.length === 0) {
     throw new Error('private key must not be null or empty');
   }
   if (typeof privateKey === 'string') {
-    const hex = privateKey.replace(/^0x/i, '');
+    const hex = privateKey.startsWith('0x') || privateKey.startsWith('0X') ? privateKey.slice(2) : privateKey;
+    // Checked before decoding: Buffer.from(hex, 'hex'), and Uint8Array.fromHex on Node 26 for 32 characters
+    // or more, read a character above U+00FF by its low byte ("٦" as "f"), so a malformed key would
+    // become a different, valid one.
     if (!/^[0-9a-fA-F]{64}$/.test(hex)) {
       throw new Error('private key must be 32 bytes (64 hex characters)');
     }
@@ -16,8 +16,8 @@ export function parsePrivateKey(privateKey: string | Buffer): Buffer {
   } else if (privateKey.length !== 32) {
     throw new Error('private key must be 32 bytes');
   }
-  const d = BigInt('0x' + privateKey.toString('hex'));
-  if (d === 0n || d >= SECP256K1_N) {
+  // A number in [1, n-1], n being the order of secp256k1.
+  if (!secp256k1.utils.isValidSecretKey(privateKey)) {
     throw new Error('private key must be in range [1, n-1]');
   }
   return privateKey;

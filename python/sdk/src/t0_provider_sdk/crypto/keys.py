@@ -1,12 +1,9 @@
 """Key conversion utilities for secp256k1 ECDSA keys."""
 
-import re
+import binascii
 
 from coincurve import PrivateKey, PublicKey
-
-_PRIVATE_KEY_HEX = re.compile(r"[0-9a-fA-F]{64}")
-# The order n of secp256k1: a private key is an integer in [1, n-1].
-_SECP256K1_ORDER = 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141
+from coincurve.utils import GROUP_ORDER_INT
 
 
 def private_key_from_hex(hex_key: str) -> PrivateKey:
@@ -18,12 +15,16 @@ def private_key_from_hex(hex_key: str) -> PrivateKey:
     if not hex_key:
         raise ValueError("private key must not be null or empty")
     cleaned = hex_key[2:] if hex_key[:2] in ("0x", "0X") else hex_key
-    # Checked here: bytes.fromhex skips whitespace and the curve library pads a short key, so a
-    # malformed key would otherwise become a different, valid one.
-    if _PRIVATE_KEY_HEX.fullmatch(cleaned) is None:
+    # unhexlify, not bytes.fromhex, which skips whitespace; and the length is checked here, because the
+    # curve library pads a short key. A malformed key would otherwise become a different, valid one.
+    try:
+        secret = binascii.unhexlify(cleaned)
+    except ValueError:
+        secret = b""
+    if len(secret) != 32:
         raise ValueError("private key must be 32 bytes (64 hex characters)")
-    secret = bytes.fromhex(cleaned)
-    if not 0 < int.from_bytes(secret, "big") < _SECP256K1_ORDER:
+    # GROUP_ORDER_INT is the order n of secp256k1.
+    if not 0 < int.from_bytes(secret, "big") < GROUP_ORDER_INT:
         raise ValueError("private key must be in range [1, n-1]")
     return PrivateKey(secret)
 

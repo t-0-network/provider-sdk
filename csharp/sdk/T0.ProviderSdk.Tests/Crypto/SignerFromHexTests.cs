@@ -40,6 +40,8 @@ public class SignerFromHexTests
     [Theory]
     [InlineData(Key62 + "  ")] // whitespace
     [InlineData("zz" + Key62)] // not hex
+    [InlineData("+0" + Key62)] // a sign
+    [InlineData("\u06660" + Key62)] // a digit that is not ASCII
     public void KeyThatIsNotHex_IsRefused(string key)
     {
         var ex = Assert.Throws<ArgumentException>(() => Signer.FromHex(key));

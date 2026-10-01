@@ -13,7 +13,7 @@ import org.bouncycastle.math.ec.FixedPointCombMultiplier;
 
 import java.math.BigInteger;
 import java.util.Arrays;
-import java.util.regex.Pattern;
+import java.util.HexFormat;
 
 /**
  * ECDSA signer using secp256k1 curve, producing Ethereum-style signatures.
@@ -42,8 +42,6 @@ public final class Signer implements DigestSigner {
     );
 
     private static final int PRIVATE_KEY_LENGTH = 32;
-    // Exactly 32 bytes of hex after an optional 0x or 0X prefix; anything else is refused, not repaired.
-    private static final Pattern PRIVATE_KEY_HEX = Pattern.compile("[0-9a-fA-F]{64}");
 
     private final BigInteger privateKey;
     private final byte[] publicKey;
@@ -68,15 +66,20 @@ public final class Signer implements DigestSigner {
             throw new IllegalArgumentException("private key must not be null or empty");
         }
 
+        // Exactly 32 bytes of hex after an optional 0x or 0X prefix; anything else is refused, not repaired.
         String cleanHex = HexUtils.stripHexPrefix(hexPrivateKey);
-        if (!PRIVATE_KEY_HEX.matcher(cleanHex).matches()) {
+        byte[] privateKeyBytes = null;
+        if (cleanHex.length() == 2 * PRIVATE_KEY_LENGTH) {
+            try {
+                privateKeyBytes = HexFormat.of().parseHex(cleanHex); // ASCII hex digits only, any case
+            } catch (IllegalArgumentException e) {
+                // refused below
+            }
+        }
+        if (privateKeyBytes == null) {
             throw new IllegalArgumentException("private key must be 32 bytes (64 hex characters)");
         }
-
-        BigInteger privateKeyInt = new BigInteger(cleanHex, 16);
-        validatePrivateKeyRange(privateKeyInt);
-        byte[] publicKey = derivePublicKey(privateKeyInt);
-        return new Signer(privateKeyInt, publicKey);
+        return fromBytes(privateKeyBytes);
     }
 
     /**

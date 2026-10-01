@@ -156,6 +156,8 @@ class SignerTest {
             "6b30303de7b26bfb1222b317a52113357f8bb06de00160b4261a2fef9c8b9bd8aa", // 66 hex
             "6b30303de7b26bfb1222b317a52113357f8bb06de00160b4261a2fef9c8b9b  ",   // 62 hex + 2 spaces
             "zz30303de7b26bfb1222b317a52113357f8bb06de00160b4261a2fef9c8b9bd8",   // "zz" + 62 hex
+            "+b30303de7b26bfb1222b317a52113357f8bb06de00160b4261a2fef9c8b9bd8",   // a sign
+            "\u0666b30303de7b26bfb1222b317a52113357f8bb06de00160b4261a2fef9c8b9bd8", // a digit that is not ASCII
             "0x",
             "abcd"})
     void fromHex_notSixtyFourHexCharacters_shouldThrow(String key) {

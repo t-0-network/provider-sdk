@@ -55,8 +55,28 @@ class TestPrivateKeyFromHex:
 
     @pytest.mark.parametrize(
         "key",
-        ["0x", "01" * 31, "0x" + "01" * 31, "01" * 33, "01" * 31 + "  ", " " + "01" * 31 + " ", "zz" + "01" * 31],
-        ids=["prefix only", "62 hex", "0x + 62 hex", "66 hex", "62 hex + 2 spaces", "spaces around", "zz + 62 hex"],
+        [
+            "0x",
+            "01" * 31,
+            "0x" + "01" * 31,
+            "01" * 33,
+            "01" * 31 + "  ",
+            " " + "01" * 31 + " ",
+            "zz" + "01" * 31,
+            "+1" + "01" * 31,
+            "\u06661" + "01" * 31,
+        ],
+        ids=[
+            "prefix only",
+            "62 hex",
+            "0x + 62 hex",
+            "66 hex",
+            "62 hex + 2 spaces",
+            "spaces around",
+            "zz + 62 hex",
+            "a sign",
+            "a digit that is not ASCII",
+        ],
     )
     def test_key_that_is_not_64_hex_digits_is_refused(self, key):
         """A 31-byte key, padded with whitespace or not, would otherwise become a different key."""

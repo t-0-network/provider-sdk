@@ -58,6 +58,8 @@ func TestGetPrivateKeyFromHex_ChecksTheKey(t *testing.T) {
 		{key[:62] + "  ", size},
 		{"zz" + key[:62], size},
 		{"0x0x" + key, size},
+		{"+" + key[1:], size},      // a sign
+		{"\u0666" + key[1:], size}, // a digit that is not ASCII
 		{strings.Repeat("0", 64), outRange},
 		{"FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141", outRange},
 	} {
