@@ -180,9 +180,13 @@ type PaymentIntentUpdateRequest_FundsReceived struct {
 	// Flat USD surcharge retained by the pay-in provider per transfer.
 	// Already subtracted from settlement_amount.
 	// Settlement is computed as (payment_amount / rate) - fix.
-	Fix           *common.Decimal `protobuf:"bytes,70,opt,name=fix,proto3" json:"fix,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	Fix *common.Decimal `protobuf:"bytes,70,opt,name=fix,proto3" json:"fix,omitempty"`
+	// *
+	// The pay-in provider that collected the funds — the counterparty whose balance moved
+	// against this intent. Distinguishes providers that share a payment method.
+	PayInProviderId uint32 `protobuf:"varint,80,opt,name=pay_in_provider_id,json=payInProviderId,proto3" json:"pay_in_provider_id,omitempty"`
+	unknownFields   protoimpl.UnknownFields
+	sizeCache       protoimpl.SizeCache
 }
 
 func (x *PaymentIntentUpdateRequest_FundsReceived) Reset() {
@@ -264,6 +268,13 @@ func (x *PaymentIntentUpdateRequest_FundsReceived) GetFix() *common.Decimal {
 	return nil
 }
 
+func (x *PaymentIntentUpdateRequest_FundsReceived) GetPayInProviderId() uint32 {
+	if x != nil {
+		return x.PayInProviderId
+	}
+	return 0
+}
+
 type PaymentIntentUpdateRequest_FundsReceived_TravelRuleData struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// *
@@ -314,11 +325,11 @@ var File_tzero_v1_payment_intent_beneficiary_proto protoreflect.FileDescriptor
 
 const file_tzero_v1_payment_intent_beneficiary_proto_rawDesc = "" +
 	"\n" +
-	")tzero/v1/payment_intent/beneficiary.proto\x12\x17tzero.v1.payment_intent\x1a\x1bbuf/validate/validate.proto\x1a\x1divms101/v1/ivms/ivms101.proto\x1a\x1ctzero/v1/common/common.proto\x1a$tzero/v1/common/payment_method.proto\"\xea\x06\n" +
+	")tzero/v1/payment_intent/beneficiary.proto\x12\x17tzero.v1.payment_intent\x1a\x1bbuf/validate/validate.proto\x1a\x1divms101/v1/ivms/ivms101.proto\x1a\x1ctzero/v1/common/common.proto\x1a$tzero/v1/common/payment_method.proto\"\xa6\a\n" +
 	"\x1aPaymentIntentUpdateRequest\x123\n" +
 	"\x11payment_intent_id\x18\n" +
 	" \x01(\x04B\a\xbaH\x042\x02 \x00R\x0fpaymentIntentId\x12j\n" +
-	"\x0efunds_received\x18\x14 \x01(\v2A.tzero.v1.payment_intent.PaymentIntentUpdateRequest.FundsReceivedH\x00R\rfundsReceived\x1a\x99\x05\n" +
+	"\x0efunds_received\x18\x14 \x01(\v2A.tzero.v1.payment_intent.PaymentIntentUpdateRequest.FundsReceivedH\x00R\rfundsReceived\x1a\xd5\x05\n" +
 	"\rFundsReceived\x12E\n" +
 	"\x11settlement_amount\x18\n" +
 	" \x01(\v2\x18.tzero.v1.common.DecimalR\x10settlementAmount\x12,\n" +
@@ -328,7 +339,9 @@ const file_tzero_v1_payment_intent_beneficiary_proto_rawDesc = "" +
 	"\x15transaction_reference\x182 \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\x80\x02R\x14transactionReference\x12\x82\x01\n" +
 	"\x10travel_rule_data\x18< \x01(\v2P.tzero.v1.payment_intent.PaymentIntentUpdateRequest.FundsReceived.TravelRuleDataB\x06\xbaH\x03\xc8\x01\x01R\x0etravelRuleData\x12`\n" +
-	"\x03fix\x18F \x01(\v2\x18.tzero.v1.common.DecimalB4\xbaH1\xba\x01.\x12\x18fix must be non-negative\x1a\x12this.unscaled >= 0R\x03fix\x1a_\n" +
+	"\x03fix\x18F \x01(\v2\x18.tzero.v1.common.DecimalB4\xbaH1\xba\x01.\x12\x18fix must be non-negative\x1a\x12this.unscaled >= 0R\x03fix\x12:\n" +
+	"\x12pay_in_provider_id\x18P \x01(\rB\r\xbaH\n" +
+	"*\b\x18\xff\xff\xff\xff\a \x00R\x0fpayInProviderId\x1a_\n" +
 	"\x0eTravelRuleData\x12M\n" +
 	"\x13originator_provider\x18\x1e \x01(\v2\x14.ivms101.LegalPersonB\x06\xbaH\x03\xc8\x01\x01R\x12originatorProviderB\x0f\n" +
 	"\x06update\x12\x05\xbaH\x02\b\x01\"\x1d\n" +

@@ -28,7 +28,7 @@ from tzero.v1.common import common_pb2 as tzero_dot_v1_dot_common_dot_common__pb
 from tzero.v1.common import payment_method_pb2 as tzero_dot_v1_dot_common_dot_payment__method__pb2
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n)tzero/v1/payment_intent/beneficiary.proto\x12\x17tzero.v1.payment_intent\x1a\x1b\x62uf/validate/validate.proto\x1a\x1divms101/v1/ivms/ivms101.proto\x1a\x1ctzero/v1/common/common.proto\x1a$tzero/v1/common/payment_method.proto\"\xea\x06\n\x1aPaymentIntentUpdateRequest\x12\x33\n\x11payment_intent_id\x18\n \x01(\x04\x42\x07\xbaH\x04\x32\x02 \x00R\x0fpaymentIntentId\x12j\n\x0e\x66unds_received\x18\x14 \x01(\x0b\x32\x41.tzero.v1.payment_intent.PaymentIntentUpdateRequest.FundsReceivedH\x00R\rfundsReceived\x1a\x99\x05\n\rFundsReceived\x12\x45\n\x11settlement_amount\x18\n \x01(\x0b\x32\x18.tzero.v1.common.DecimalR\x10settlementAmount\x12,\n\x04rate\x18\x14 \x01(\x0b\x32\x18.tzero.v1.common.DecimalR\x04rate\x12?\n\x0epayment_amount\x18\x1e \x01(\x0b\x32\x18.tzero.v1.common.DecimalR\rpaymentAmount\x12I\n\x0epayment_method\x18( \x01(\x0e\x32\".tzero.v1.common.PaymentMethodTypeR\rpaymentMethod\x12?\n\x15transaction_reference\x18\x32 \x01(\tB\n\xbaH\x07r\x05\x10\x01\x18\x80\x02R\x14transactionReference\x12\x82\x01\n\x10travel_rule_data\x18< \x01(\x0b\x32P.tzero.v1.payment_intent.PaymentIntentUpdateRequest.FundsReceived.TravelRuleDataB\x06\xbaH\x03\xc8\x01\x01R\x0etravelRuleData\x12`\n\x03\x66ix\x18\x46 \x01(\x0b\x32\x18.tzero.v1.common.DecimalB4\xbaH1\xba\x01.\x12\x18\x66ix must be non-negative\x1a\x12this.unscaled >= 0R\x03\x66ix\x1a_\n\x0eTravelRuleData\x12M\n\x13originator_provider\x18\x1e \x01(\x0b\x32\x14.ivms101.LegalPersonB\x06\xbaH\x03\xc8\x01\x01R\x12originatorProviderB\x0f\n\x06update\x12\x05\xbaH\x02\x08\x01\"\x1d\n\x1bPaymentIntentUpdateResponse2\x9c\x01\n\x12\x42\x65neficiaryService\x12\x85\x01\n\x13PaymentIntentUpdate\x12\x33.tzero.v1.payment_intent.PaymentIntentUpdateRequest\x1a\x34.tzero.v1.payment_intent.PaymentIntentUpdateResponse\"\x03\x90\x02\x02\x42\x80\x02\n\x1b\x63om.tzero.v1.payment_intentB\x10\x42\x65neficiaryProtoP\x01ZBgithub.com/t-0-network/provider-sdk/go/api/tzero/v1/payment_intent\xa2\x02\x03TVP\xaa\x02)T0.ProviderSdk.Api.Tzero.V1.PaymentIntent\xca\x02\x16Tzero\\V1\\PaymentIntent\xe2\x02\"Tzero\\V1\\PaymentIntent\\GPBMetadata\xea\x02\x18Tzero::V1::PaymentIntentb\x06proto3')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n)tzero/v1/payment_intent/beneficiary.proto\x12\x17tzero.v1.payment_intent\x1a\x1b\x62uf/validate/validate.proto\x1a\x1divms101/v1/ivms/ivms101.proto\x1a\x1ctzero/v1/common/common.proto\x1a$tzero/v1/common/payment_method.proto\"\xa6\x07\n\x1aPaymentIntentUpdateRequest\x12\x33\n\x11payment_intent_id\x18\n \x01(\x04\x42\x07\xbaH\x04\x32\x02 \x00R\x0fpaymentIntentId\x12j\n\x0e\x66unds_received\x18\x14 \x01(\x0b\x32\x41.tzero.v1.payment_intent.PaymentIntentUpdateRequest.FundsReceivedH\x00R\rfundsReceived\x1a\xd5\x05\n\rFundsReceived\x12\x45\n\x11settlement_amount\x18\n \x01(\x0b\x32\x18.tzero.v1.common.DecimalR\x10settlementAmount\x12,\n\x04rate\x18\x14 \x01(\x0b\x32\x18.tzero.v1.common.DecimalR\x04rate\x12?\n\x0epayment_amount\x18\x1e \x01(\x0b\x32\x18.tzero.v1.common.DecimalR\rpaymentAmount\x12I\n\x0epayment_method\x18( \x01(\x0e\x32\".tzero.v1.common.PaymentMethodTypeR\rpaymentMethod\x12?\n\x15transaction_reference\x18\x32 \x01(\tB\n\xbaH\x07r\x05\x10\x01\x18\x80\x02R\x14transactionReference\x12\x82\x01\n\x10travel_rule_data\x18< \x01(\x0b\x32P.tzero.v1.payment_intent.PaymentIntentUpdateRequest.FundsReceived.TravelRuleDataB\x06\xbaH\x03\xc8\x01\x01R\x0etravelRuleData\x12`\n\x03\x66ix\x18\x46 \x01(\x0b\x32\x18.tzero.v1.common.DecimalB4\xbaH1\xba\x01.\x12\x18\x66ix must be non-negative\x1a\x12this.unscaled >= 0R\x03\x66ix\x12:\n\x12pay_in_provider_id\x18P \x01(\rB\r\xbaH\n*\x08\x18\xff\xff\xff\xff\x07 \x00R\x0fpayInProviderId\x1a_\n\x0eTravelRuleData\x12M\n\x13originator_provider\x18\x1e \x01(\x0b\x32\x14.ivms101.LegalPersonB\x06\xbaH\x03\xc8\x01\x01R\x12originatorProviderB\x0f\n\x06update\x12\x05\xbaH\x02\x08\x01\"\x1d\n\x1bPaymentIntentUpdateResponse2\x9c\x01\n\x12\x42\x65neficiaryService\x12\x85\x01\n\x13PaymentIntentUpdate\x12\x33.tzero.v1.payment_intent.PaymentIntentUpdateRequest\x1a\x34.tzero.v1.payment_intent.PaymentIntentUpdateResponse\"\x03\x90\x02\x02\x42\x80\x02\n\x1b\x63om.tzero.v1.payment_intentB\x10\x42\x65neficiaryProtoP\x01ZBgithub.com/t-0-network/provider-sdk/go/api/tzero/v1/payment_intent\xa2\x02\x03TVP\xaa\x02)T0.ProviderSdk.Api.Tzero.V1.PaymentIntent\xca\x02\x16Tzero\\V1\\PaymentIntent\xe2\x02\"Tzero\\V1\\PaymentIntent\\GPBMetadata\xea\x02\x18Tzero::V1::PaymentIntentb\x06proto3')
 
 _globals = globals()
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, _globals)
@@ -44,6 +44,8 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_PAYMENTINTENTUPDATEREQUEST_FUNDSRECEIVED'].fields_by_name['travel_rule_data']._serialized_options = b'\272H\003\310\001\001'
   _globals['_PAYMENTINTENTUPDATEREQUEST_FUNDSRECEIVED'].fields_by_name['fix']._loaded_options = None
   _globals['_PAYMENTINTENTUPDATEREQUEST_FUNDSRECEIVED'].fields_by_name['fix']._serialized_options = b'\272H1\272\001.\022\030fix must be non-negative\032\022this.unscaled >= 0'
+  _globals['_PAYMENTINTENTUPDATEREQUEST_FUNDSRECEIVED'].fields_by_name['pay_in_provider_id']._loaded_options = None
+  _globals['_PAYMENTINTENTUPDATEREQUEST_FUNDSRECEIVED'].fields_by_name['pay_in_provider_id']._serialized_options = b'\272H\n*\010\030\377\377\377\377\007 \000'
   _globals['_PAYMENTINTENTUPDATEREQUEST'].oneofs_by_name['update']._loaded_options = None
   _globals['_PAYMENTINTENTUPDATEREQUEST'].oneofs_by_name['update']._serialized_options = b'\272H\002\010\001'
   _globals['_PAYMENTINTENTUPDATEREQUEST'].fields_by_name['payment_intent_id']._loaded_options = None
@@ -51,13 +53,13 @@ if not _descriptor._USE_C_DESCRIPTORS:
   _globals['_BENEFICIARYSERVICE'].methods_by_name['PaymentIntentUpdate']._loaded_options = None
   _globals['_BENEFICIARYSERVICE'].methods_by_name['PaymentIntentUpdate']._serialized_options = b'\220\002\002'
   _globals['_PAYMENTINTENTUPDATEREQUEST']._serialized_start=199
-  _globals['_PAYMENTINTENTUPDATEREQUEST']._serialized_end=1073
+  _globals['_PAYMENTINTENTUPDATEREQUEST']._serialized_end=1133
   _globals['_PAYMENTINTENTUPDATEREQUEST_FUNDSRECEIVED']._serialized_start=391
-  _globals['_PAYMENTINTENTUPDATEREQUEST_FUNDSRECEIVED']._serialized_end=1056
-  _globals['_PAYMENTINTENTUPDATEREQUEST_FUNDSRECEIVED_TRAVELRULEDATA']._serialized_start=961
-  _globals['_PAYMENTINTENTUPDATEREQUEST_FUNDSRECEIVED_TRAVELRULEDATA']._serialized_end=1056
-  _globals['_PAYMENTINTENTUPDATERESPONSE']._serialized_start=1075
-  _globals['_PAYMENTINTENTUPDATERESPONSE']._serialized_end=1104
-  _globals['_BENEFICIARYSERVICE']._serialized_start=1107
-  _globals['_BENEFICIARYSERVICE']._serialized_end=1263
+  _globals['_PAYMENTINTENTUPDATEREQUEST_FUNDSRECEIVED']._serialized_end=1116
+  _globals['_PAYMENTINTENTUPDATEREQUEST_FUNDSRECEIVED_TRAVELRULEDATA']._serialized_start=1021
+  _globals['_PAYMENTINTENTUPDATEREQUEST_FUNDSRECEIVED_TRAVELRULEDATA']._serialized_end=1116
+  _globals['_PAYMENTINTENTUPDATERESPONSE']._serialized_start=1135
+  _globals['_PAYMENTINTENTUPDATERESPONSE']._serialized_end=1164
+  _globals['_BENEFICIARYSERVICE']._serialized_start=1167
+  _globals['_BENEFICIARYSERVICE']._serialized_end=1323
 # @@protoc_insertion_point(module_scope)

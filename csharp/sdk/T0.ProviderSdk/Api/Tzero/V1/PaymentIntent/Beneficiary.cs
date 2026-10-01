@@ -28,11 +28,11 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
             "dHplcm8udjEucGF5bWVudF9pbnRlbnQaG2J1Zi92YWxpZGF0ZS92YWxpZGF0",
             "ZS5wcm90bxodaXZtczEwMS92MS9pdm1zL2l2bXMxMDEucHJvdG8aHHR6ZXJv",
             "L3YxL2NvbW1vbi9jb21tb24ucHJvdG8aJHR6ZXJvL3YxL2NvbW1vbi9wYXlt",
-            "ZW50X21ldGhvZC5wcm90byLqBgoaUGF5bWVudEludGVudFVwZGF0ZVJlcXVl",
+            "ZW50X21ldGhvZC5wcm90byKmBwoaUGF5bWVudEludGVudFVwZGF0ZVJlcXVl",
             "c3QSMwoRcGF5bWVudF9pbnRlbnRfaWQYCiABKARCB7pIBDICIABSD3BheW1l",
             "bnRJbnRlbnRJZBJqCg5mdW5kc19yZWNlaXZlZBgUIAEoCzJBLnR6ZXJvLnYx",
             "LnBheW1lbnRfaW50ZW50LlBheW1lbnRJbnRlbnRVcGRhdGVSZXF1ZXN0LkZ1",
-            "bmRzUmVjZWl2ZWRIAFINZnVuZHNSZWNlaXZlZBqZBQoNRnVuZHNSZWNlaXZl",
+            "bmRzUmVjZWl2ZWRIAFINZnVuZHNSZWNlaXZlZBrVBQoNRnVuZHNSZWNlaXZl",
             "ZBJFChFzZXR0bGVtZW50X2Ftb3VudBgKIAEoCzIYLnR6ZXJvLnYxLmNvbW1v",
             "bi5EZWNpbWFsUhBzZXR0bGVtZW50QW1vdW50EiwKBHJhdGUYFCABKAsyGC50",
             "emVyby52MS5jb21tb24uRGVjaW1hbFIEcmF0ZRI/Cg5wYXltZW50X2Ftb3Vu",
@@ -45,23 +45,25 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
             "dW5kc1JlY2VpdmVkLlRyYXZlbFJ1bGVEYXRhQga6SAPIAQFSDnRyYXZlbFJ1",
             "bGVEYXRhEmAKA2ZpeBhGIAEoCzIYLnR6ZXJvLnYxLmNvbW1vbi5EZWNpbWFs",
             "QjS6SDG6AS4SGGZpeCBtdXN0IGJlIG5vbi1uZWdhdGl2ZRoSdGhpcy51bnNj",
-            "YWxlZCA+PSAwUgNmaXgaXwoOVHJhdmVsUnVsZURhdGESTQoTb3JpZ2luYXRv",
-            "cl9wcm92aWRlchgeIAEoCzIULml2bXMxMDEuTGVnYWxQZXJzb25CBrpIA8gB",
-            "AVISb3JpZ2luYXRvclByb3ZpZGVyQg8KBnVwZGF0ZRIFukgCCAEiHQobUGF5",
-            "bWVudEludGVudFVwZGF0ZVJlc3BvbnNlMpwBChJCZW5lZmljaWFyeVNlcnZp",
-            "Y2UShQEKE1BheW1lbnRJbnRlbnRVcGRhdGUSMy50emVyby52MS5wYXltZW50",
-            "X2ludGVudC5QYXltZW50SW50ZW50VXBkYXRlUmVxdWVzdBo0LnR6ZXJvLnYx",
-            "LnBheW1lbnRfaW50ZW50LlBheW1lbnRJbnRlbnRVcGRhdGVSZXNwb25zZSID",
-            "kAICQoACChtjb20udHplcm8udjEucGF5bWVudF9pbnRlbnRCEEJlbmVmaWNp",
-            "YXJ5UHJvdG9QAVpCZ2l0aHViLmNvbS90LTAtbmV0d29yay9wcm92aWRlci1z",
-            "ZGsvZ28vYXBpL3R6ZXJvL3YxL3BheW1lbnRfaW50ZW50ogIDVFZQqgIpVDAu",
-            "UHJvdmlkZXJTZGsuQXBpLlR6ZXJvLlYxLlBheW1lbnRJbnRlbnTKAhZUemVy",
-            "b1xWMVxQYXltZW50SW50ZW504gIiVHplcm9cVjFcUGF5bWVudEludGVudFxH",
-            "UEJNZXRhZGF0YeoCGFR6ZXJvOjpWMTo6UGF5bWVudEludGVudGIGcHJvdG8z"));
+            "YWxlZCA+PSAwUgNmaXgSOgoScGF5X2luX3Byb3ZpZGVyX2lkGFAgASgNQg26",
+            "SAoqCBj/////ByAAUg9wYXlJblByb3ZpZGVySWQaXwoOVHJhdmVsUnVsZURh",
+            "dGESTQoTb3JpZ2luYXRvcl9wcm92aWRlchgeIAEoCzIULml2bXMxMDEuTGVn",
+            "YWxQZXJzb25CBrpIA8gBAVISb3JpZ2luYXRvclByb3ZpZGVyQg8KBnVwZGF0",
+            "ZRIFukgCCAEiHQobUGF5bWVudEludGVudFVwZGF0ZVJlc3BvbnNlMpwBChJC",
+            "ZW5lZmljaWFyeVNlcnZpY2UShQEKE1BheW1lbnRJbnRlbnRVcGRhdGUSMy50",
+            "emVyby52MS5wYXltZW50X2ludGVudC5QYXltZW50SW50ZW50VXBkYXRlUmVx",
+            "dWVzdBo0LnR6ZXJvLnYxLnBheW1lbnRfaW50ZW50LlBheW1lbnRJbnRlbnRV",
+            "cGRhdGVSZXNwb25zZSIDkAICQoACChtjb20udHplcm8udjEucGF5bWVudF9p",
+            "bnRlbnRCEEJlbmVmaWNpYXJ5UHJvdG9QAVpCZ2l0aHViLmNvbS90LTAtbmV0",
+            "d29yay9wcm92aWRlci1zZGsvZ28vYXBpL3R6ZXJvL3YxL3BheW1lbnRfaW50",
+            "ZW50ogIDVFZQqgIpVDAuUHJvdmlkZXJTZGsuQXBpLlR6ZXJvLlYxLlBheW1l",
+            "bnRJbnRlbnTKAhZUemVyb1xWMVxQYXltZW50SW50ZW504gIiVHplcm9cVjFc",
+            "UGF5bWVudEludGVudFxHUEJNZXRhZGF0YeoCGFR6ZXJvOjpWMTo6UGF5bWVu",
+            "dEludGVudGIGcHJvdG8z"));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { global::Buf.Validate.ValidateReflection.Descriptor, global::T0.ProviderSdk.Api.Ivms101.V1.Ivms.Ivms101Reflection.Descriptor, global::T0.ProviderSdk.Api.Tzero.V1.Common.CommonReflection.Descriptor, global::T0.ProviderSdk.Api.Tzero.V1.Common.PaymentMethodReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(null, null, new pbr::GeneratedClrTypeInfo[] {
-            new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.PaymentIntentUpdateRequest), global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.PaymentIntentUpdateRequest.Parser, new[]{ "PaymentIntentId", "FundsReceived" }, new[]{ "Update" }, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.PaymentIntentUpdateRequest.Types.FundsReceived), global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.PaymentIntentUpdateRequest.Types.FundsReceived.Parser, new[]{ "SettlementAmount", "Rate", "PaymentAmount", "PaymentMethod", "TransactionReference", "TravelRuleData", "Fix" }, null, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.PaymentIntentUpdateRequest.Types.FundsReceived.Types.TravelRuleData), global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.PaymentIntentUpdateRequest.Types.FundsReceived.Types.TravelRuleData.Parser, new[]{ "OriginatorProvider" }, null, null, null, null)})}),
+            new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.PaymentIntentUpdateRequest), global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.PaymentIntentUpdateRequest.Parser, new[]{ "PaymentIntentId", "FundsReceived" }, new[]{ "Update" }, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.PaymentIntentUpdateRequest.Types.FundsReceived), global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.PaymentIntentUpdateRequest.Types.FundsReceived.Parser, new[]{ "SettlementAmount", "Rate", "PaymentAmount", "PaymentMethod", "TransactionReference", "TravelRuleData", "Fix", "PayInProviderId" }, null, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.PaymentIntentUpdateRequest.Types.FundsReceived.Types.TravelRuleData), global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.PaymentIntentUpdateRequest.Types.FundsReceived.Types.TravelRuleData.Parser, new[]{ "OriginatorProvider" }, null, null, null, null)})}),
             new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.PaymentIntentUpdateResponse), global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.PaymentIntentUpdateResponse.Parser, null, null, null, null, null)
           }));
     }
@@ -409,6 +411,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
           transactionReference_ = other.transactionReference_;
           travelRuleData_ = other.travelRuleData_ != null ? other.travelRuleData_.Clone() : null;
           fix_ = other.fix_ != null ? other.fix_.Clone() : null;
+          payInProviderId_ = other.payInProviderId_;
           _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
         }
 
@@ -539,6 +542,23 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
           }
         }
 
+        /// <summary>Field number for the "pay_in_provider_id" field.</summary>
+        public const int PayInProviderIdFieldNumber = 80;
+        private uint payInProviderId_;
+        /// <summary>
+        ///*
+        /// The pay-in provider that collected the funds — the counterparty whose balance moved
+        /// against this intent. Distinguishes providers that share a payment method.
+        /// </summary>
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
+        [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
+        public uint PayInProviderId {
+          get { return payInProviderId_; }
+          set {
+            payInProviderId_ = value;
+          }
+        }
+
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
         public override bool Equals(object other) {
@@ -561,6 +581,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
           if (TransactionReference != other.TransactionReference) return false;
           if (!object.Equals(TravelRuleData, other.TravelRuleData)) return false;
           if (!object.Equals(Fix, other.Fix)) return false;
+          if (PayInProviderId != other.PayInProviderId) return false;
           return Equals(_unknownFields, other._unknownFields);
         }
 
@@ -575,6 +596,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
           if (TransactionReference.Length != 0) hash ^= TransactionReference.GetHashCode();
           if (travelRuleData_ != null) hash ^= TravelRuleData.GetHashCode();
           if (fix_ != null) hash ^= Fix.GetHashCode();
+          if (PayInProviderId != 0) hash ^= PayInProviderId.GetHashCode();
           if (_unknownFields != null) {
             hash ^= _unknownFields.GetHashCode();
           }
@@ -621,6 +643,10 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
             output.WriteRawTag(178, 4);
             output.WriteMessage(Fix);
           }
+          if (PayInProviderId != 0) {
+            output.WriteRawTag(128, 5);
+            output.WriteUInt32(PayInProviderId);
+          }
           if (_unknownFields != null) {
             _unknownFields.WriteTo(output);
           }
@@ -659,6 +685,10 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
             output.WriteRawTag(178, 4);
             output.WriteMessage(Fix);
           }
+          if (PayInProviderId != 0) {
+            output.WriteRawTag(128, 5);
+            output.WriteUInt32(PayInProviderId);
+          }
           if (_unknownFields != null) {
             _unknownFields.WriteTo(ref output);
           }
@@ -689,6 +719,9 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
           }
           if (fix_ != null) {
             size += 2 + pb::CodedOutputStream.ComputeMessageSize(Fix);
+          }
+          if (PayInProviderId != 0) {
+            size += 2 + pb::CodedOutputStream.ComputeUInt32Size(PayInProviderId);
           }
           if (_unknownFields != null) {
             size += _unknownFields.CalculateSize();
@@ -737,6 +770,9 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
               Fix = new global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal();
             }
             Fix.MergeFrom(other.Fix);
+          }
+          if (other.PayInProviderId != 0) {
+            PayInProviderId = other.PayInProviderId;
           }
           _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
         }
@@ -800,6 +836,10 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
                 input.ReadMessage(Fix);
                 break;
               }
+              case 640: {
+                PayInProviderId = input.ReadUInt32();
+                break;
+              }
             }
           }
         #endif
@@ -860,6 +900,10 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
                   Fix = new global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal();
                 }
                 input.ReadMessage(Fix);
+                break;
+              }
+              case 640: {
+                PayInProviderId = input.ReadUInt32();
                 break;
               }
             }
