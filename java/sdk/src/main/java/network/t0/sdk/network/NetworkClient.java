@@ -37,7 +37,6 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
-import java.util.regex.Pattern;
 
 /**
  * Abstract base class for gRPC clients with automatic request signing.
@@ -137,7 +136,7 @@ public abstract class NetworkClient implements Closeable {
      * Creates a channel pair for the given endpoint with the signing and default-deadline interceptors.
      *
      * @param endpoint      the T-0 Network endpoint (e.g., "https://api.t-0.network" or "api.t-0.network:443"), or {@code null} for "https://api.t-0.network";
-     *                      a path in it prefixes every call (see {@link #parseEndpoint(String)})
+     *                      a path in it prefixes every call (see {@link #parseBaseUrl(String)})
      * @param signer        the signer to use for signing requests
      * @param timeout       the default deadline for unary calls
      * @param streamTimeout the default deadline for client- and server-streaming calls
@@ -148,7 +147,8 @@ public abstract class NetworkClient implements Closeable {
     protected static ChannelPair createChannel(
             String endpoint, DigestSigner signer, Duration timeout, Duration streamTimeout) {
         // Everything is checked before there is a channel to shut down.
-        EndpointInfo endpointInfo = parseEndpoint(endpoint);
+        BaseUrl baseUrl = parseBaseUrl(endpoint);
+        EndpointInfo endpointInfo = baseUrl.endpoint();
         if (signer == null) {
             throw new IllegalArgumentException("signer must not be null");
         }
@@ -167,9 +167,9 @@ public abstract class NetworkClient implements Closeable {
         ManagedChannel channel = builder.build();
 
         // Below the other interceptors, so that they see the method as generated.
-        Channel prefixed = endpointInfo.pathPrefix().isEmpty()
+        Channel prefixed = baseUrl.pathPrefix().isEmpty()
                 ? channel
-                : ClientInterceptors.intercept(channel, new PathPrefixInterceptor(endpointInfo.pathPrefix()));
+                : ClientInterceptors.intercept(channel, new PathPrefixInterceptor(baseUrl.pathPrefix()));
         // The last listed runs first: the deadline is set before the signing interceptor creates the call.
         Channel interceptedChannel = ClientInterceptors.intercept(
                 prefixed, new SigningClientInterceptor(signer, Clock.systemUTC()), deadlines);
@@ -276,110 +276,131 @@ public abstract class NetworkClient implements Closeable {
 
     /**
      * Parsed endpoint information.
+     */
+    protected record EndpointInfo(String host, int port, boolean usePlaintext) {}
+
+    /**
+     * A checked base URL: the endpoint, and the path that prefixes every call.
      *
-     * @param pathPrefix the base URL's path without its leading and trailing {@code /} (e.g. {@code "v1"} or
+     * @param pathPrefix the path without its leading and trailing {@code /} (e.g. {@code "v1"} or
      *                   {@code "a/b"}), or {@code ""} for none
      */
-    protected record EndpointInfo(String host, int port, boolean usePlaintext, String pathPrefix) {
-
-        /** Endpoint information without a path prefix. */
-        public EndpointInfo(String host, int port, boolean usePlaintext) {
-            this(host, port, usePlaintext, "");
-        }
-    }
-
-    // A host is an IPv4 address, an IPv6 address in brackets, or a name: labels of letters, digits and
-    // inner '-', joined by '.', the last one starting with a letter.
-    // Octets without leading zeros ("01" could be read as octal).
-    private static final Pattern IPV4 = Pattern.compile("(0|[1-9][0-9]{0,2})(\\.(0|[1-9][0-9]{0,2})){3}");
-    private static final Pattern HOST_NAME = Pattern.compile(
-            "([A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?\\.)*[A-Za-z]([A-Za-z0-9-]*[A-Za-z0-9])?");
-    private static final Pattern IPV6_LITERAL = Pattern.compile("\\[[0-9A-Fa-f:.]+]");
-    private static final Pattern PORT = Pattern.compile("[1-9][0-9]{0,4}"); // no leading zero
-    // Segments of letters, digits and "-._~", each after one '/', and an optional trailing '/'. Other paths
-    // ("//", "/%41") would reach different URLs in different SDKs, whose HTTP clients normalize them
-    // differently; "." and ".." segments are refused separately.
-    private static final Pattern PATH = Pattern.compile("(/[A-Za-z0-9._~-]+)*/?");
+    record BaseUrl(EndpointInfo endpoint, String pathPrefix) {}
 
     /**
      * Parses a base URL into its components.
      *
-     * @param endpoint the endpoint (e.g., "https://api.t-0.network" or "api.t-0.network:443"): a host, an
-     *                 optional port from 1 to 65535 and an optional path, with no query or fragment;
-     *                 {@code null} for {@value #DEFAULT_ENDPOINT}. The path prefixes every call
-     *                 ({@code https://host/v1} calls {@code https://host/v1/<service>/<method>}): segments of
-     *                 letters, digits and {@code -._~} (not {@code .} or {@code ..}), each after one
-     *                 {@code /}, and an optional trailing {@code /}
+     * @param endpoint the endpoint (e.g., "https://api.t-0.network" or "api.t-0.network:443"), or
+     *                 {@code null} for {@value #DEFAULT_ENDPOINT}; see {@link #parseBaseUrl(String)}
      * @return the parsed endpoint information
      * @throws IllegalArgumentException if the base URL is empty or not valid
      */
     protected static EndpointInfo parseEndpoint(String endpoint) {
+        return parseBaseUrl(endpoint).endpoint();
+    }
+
+    /**
+     * Parses and checks a base URL.
+     *
+     * @param endpoint an http or https URL with a host, an optional port from 1 to 65535 and an optional
+     *                 path, and no user info, query or fragment; without {@code ://} it is read as https
+     *                 ({@code "api.t-0.network:443"}); {@code null} for {@value #DEFAULT_ENDPOINT}. The path
+     *                 prefixes every call ({@code https://host/v1} calls
+     *                 {@code https://host/v1/<service>/<method>}): segments of letters, digits and
+     *                 {@code -._~} (not {@code .} or {@code ..}), each after one {@code /}, and an optional
+     *                 trailing {@code /}
+     * @throws IllegalArgumentException if the base URL is empty or not valid
+     */
+    static BaseUrl parseBaseUrl(String endpoint) {
         if (endpoint == null) {
             endpoint = DEFAULT_ENDPOINT;
         }
         if (endpoint.isEmpty()) {
             throw new IllegalArgumentException("base URL is not set");
         }
-        // A value without "://" is read as https, so "host" and "host:port" work as they always did.
         if (!endpoint.contains("://")) {
             endpoint = "https://" + endpoint;
         }
-        int schemeEnd = endpoint.indexOf("://");
-        String scheme = schemeEnd < 0 ? "" : endpoint.substring(0, schemeEnd);
-        boolean usePlaintext = "http".equalsIgnoreCase(scheme);
-        if (!usePlaintext && !"https".equalsIgnoreCase(scheme)) {
-            throw invalidBaseUrl();
-        }
-        // The authority ends at the first '/'. A query or fragment fails the host and port patterns, or PATH.
-        String rest = endpoint.substring(schemeEnd + 3);
-        int slash = rest.indexOf('/');
-        String authority = slash < 0 ? rest : rest.substring(0, slash);
-        String path = slash < 0 ? "" : rest.substring(slash);
-        if (!PATH.matcher(path).matches()) {
-            throw invalidBaseUrl();
-        }
-        String trimmed = path.endsWith("/") ? path.substring(0, path.length() - 1) : path;
-        String pathPrefix = trimmed.isEmpty() ? "" : trimmed.substring(1);
-        for (String segment : pathPrefix.split("/")) {
-            if (segment.equals(".") || segment.equals("..")) {
-                throw invalidBaseUrl();
-            }
-        }
-        // The port follows the last ':' outside an IPv6 literal's brackets.
-        int colon = authority.lastIndexOf(':');
-        if (colon < authority.lastIndexOf(']')) {
-            colon = -1;
-        }
-        String host = colon < 0 ? authority : authority.substring(0, colon);
-        boolean ipv4 = IPV4.matcher(host).matches();
-        if (ipv4) {
-            for (String octet : host.split("\\.")) {
-                if (Integer.parseInt(octet) > 255) {
-                    throw invalidBaseUrl();
-                }
-            }
-        } else if (!HOST_NAME.matcher(host).matches() && !IPV6_LITERAL.matcher(host).matches()) {
-            throw invalidBaseUrl();
-        }
-        int port = usePlaintext ? 80 : 443;
-        if (colon >= 0) {
-            String digits = authority.substring(colon + 1);
-            if (!PORT.matcher(digits).matches()) {
-                throw invalidBaseUrl();
-            }
-            port = Integer.parseInt(digits);
-            if (port < 1 || port > 65535) {
-                throw invalidBaseUrl();
-            }
-        }
-        // The check grpc makes when it builds the channel ("[:::]", "a..b", "-foo" fail it): a host it
-        // cannot take is refused here with our message, not later with grpc's.
+        URI uri;
         try {
-            new URI(null, null, host, port, null, null, null);
+            uri = new URI(endpoint);
         } catch (URISyntaxException e) {
             throw invalidBaseUrl();
         }
-        return new EndpointInfo(host, port, usePlaintext, pathPrefix);
+        boolean usePlaintext = "http".equalsIgnoreCase(uri.getScheme());
+        if (!usePlaintext && !"https".equalsIgnoreCase(uri.getScheme())) {
+            throw invalidBaseUrl();
+        }
+        // The host is null when it is not an IPv4 address, an IPv6 address or a name of letters, digits and
+        // inner '-' ("my_host", "1.2.3", "256.1.1.1", "a..b", "-foo"), or the port is not a number.
+        String host = uri.getHost();
+        int port = uri.getPort();
+        if (host == null || !validHost(host) || uri.getRawUserInfo() != null || uri.getRawQuery() != null
+                || uri.getRawFragment() != null
+                // The authority holds only the host and the port as Java writes it: no "h:" and no "h:080".
+                || !uri.getRawAuthority().equals(port < 0 ? host : host + ":" + port)
+                || port == 0 || port > 65535) {
+            throw invalidBaseUrl();
+        }
+        if (port < 0) {
+            port = usePlaintext ? 80 : 443;
+        }
+        return new BaseUrl(new EndpointInfo(host, port, usePlaintext), pathPrefix(uri.getRawPath()));
+    }
+
+    /**
+     * What {@link URI} lets through of the hosts the other SDKs refuse: an IPv6 zone ({@code [fe80::1%en0]}
+     * names an interface of this machine only), an empty last label ({@code h.}), a last label that starts
+     * with a digit but is not part of an IPv4 address ({@code 1abc}), and an IPv4 octet with a leading zero
+     * ({@code 01.2.3.4} could be read as octal).
+     */
+    private static boolean validHost(String host) {
+        if (host.startsWith("[")) {
+            return host.indexOf('%') < 0;
+        }
+        String[] labels = host.split("\\.", -1);
+        String last = labels[labels.length - 1];
+        if (last.isEmpty()) {
+            return false;
+        }
+        char first = last.charAt(0);
+        if ((first >= 'a' && first <= 'z') || (first >= 'A' && first <= 'Z')) {
+            return true;
+        }
+        // URI takes a last label that starts with a digit only as part of an IPv4 address, or as the only label.
+        if (labels.length != 4) {
+            return false;
+        }
+        for (String octet : labels) {
+            if (octet.length() > 1 && octet.charAt(0) == '0') {
+                return false;
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Returns the path without its leading and trailing {@code /}. Other paths than segments of letters,
+     * digits and {@code -._~} ({@code //}, {@code /%41}, {@code /..}) are refused: the HTTP clients of the
+     * SDKs normalize them differently, so they would reach different URLs.
+     */
+    private static String pathPrefix(String path) {
+        String trimmed = path.endsWith("/") ? path.substring(0, path.length() - 1) : path;
+        if (trimmed.isEmpty()) {
+            return "";
+        }
+        String prefix = trimmed.substring(1); // after the authority, a path starts with '/'
+        for (String segment : prefix.split("/", -1)) {
+            if (segment.isEmpty() || segment.equals(".") || segment.equals("..")
+                    || !segment.chars().allMatch(NetworkClient::isUnreserved)) {
+                throw invalidBaseUrl();
+            }
+        }
+        return prefix;
+    }
+
+    private static boolean isUnreserved(int c) {
+        return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || "-._~".indexOf(c) >= 0;
     }
 
     private static IllegalArgumentException invalidBaseUrl() {

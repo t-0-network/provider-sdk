@@ -207,7 +207,8 @@ func TestNewServiceClient_ValidationErrors(t *testing.T) {
 		"ftp://h", "http://", "http://user@h", "http://my_host:8080", "https://api.t-0.network?x", "http://h:0",
 		"http://h:99999", "http://1.2.3", "http://h:080", "http://h\t", "https://api.t-0.network//",
 		"https://api.t-0.network/v1//", "https://api.t-0.network/a//b", "https://api.t-0.network/v1/..",
-		"https://api.t-0.network/v%31", "https://api.t-0.network/v1?x",
+		"https://api.t-0.network/v%31", "https://api.t-0.network/v1?x", "http://[::1%1]", "http://[v1.fe]",
+		"http://h.", "http://01.2.3.4", "http://1abc",
 	} {
 		t.Run(fmt.Sprintf("base URL %q is refused", bad), func(t *testing.T) {
 			_, err := NewServiceClient("", factory, WithSignatureFunction(testSignFn(t)), WithBaseURL(bad))
@@ -234,6 +235,10 @@ func TestNewServiceClient_ValidationErrors(t *testing.T) {
 			"https://api.t-0.network/v1":              "https://api.t-0.network/v1",
 			"https://api.t-0.network/v1/":             "https://api.t-0.network/v1/",
 			"https://api.t-0.network/sda/payments/t0": "https://api.t-0.network/sda/payments/t0",
+			"HTTPS://api.t-0.network":                 "HTTPS://api.t-0.network",
+			"http://[::1]":                            "http://[::1]",
+			"http://[::ffff:1.2.3.4]:8080":            "http://[::ffff:1.2.3.4]:8080",
+			"https://xn--bcher-kva.example":           "https://xn--bcher-kva.example",
 		} {
 			_, err := NewServiceClient("", capture, WithSignatureFunction(testSignFn(t)), WithBaseURL(good))
 			require.NoError(t, err, good)

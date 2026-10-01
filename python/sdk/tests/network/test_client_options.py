@@ -45,6 +45,10 @@ ACCEPTED_BASE_URLS = [
     "https://api.t-0.network/v1",
     "https://api.t-0.network/v1/",
     "https://api.t-0.network/sda/payments/t0",
+    "HTTPS://api.t-0.network",
+    "http://[::1]",
+    "http://[::ffff:1.2.3.4]:8080",
+    "https://xn--bcher-kva.example",
 ]
 REFUSED_BASE_URLS = [
     "ftp://h",
@@ -63,6 +67,11 @@ REFUSED_BASE_URLS = [
     "https://api.t-0.network/v1/..",
     "https://api.t-0.network/v%31",
     "https://api.t-0.network/v1?x",
+    "http://[::1%1]",
+    "http://[v1.fe]",
+    "http://h.",
+    "http://01.2.3.4",
+    "http://1abc",
 ]
 
 

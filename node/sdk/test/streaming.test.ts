@@ -406,7 +406,8 @@ describe('createClient routes unary and streaming calls to their own transport',
       'ftp://h', 'http://', 'http://user@h', 'http://my_host:8080', 'https://api.t-0.network?x', 'http://h:0',
       'http://h:99999', 'http://1.2.3', 'http://h:080', 'http://h\t', 'https://api.t-0.network//',
       'https://api.t-0.network/v1//', 'https://api.t-0.network/a//b', 'https://api.t-0.network/v1/..',
-      'https://api.t-0.network/v%31', 'https://api.t-0.network/v1?x',
+      'https://api.t-0.network/v%31', 'https://api.t-0.network/v1?x', 'http://[::1%1]', 'http://[v1.fe]',
+      'http://h.', 'http://01.2.3.4', 'http://1abc',
     ]) {
       assert.throws(() => createClient(key, url, StreamTest), { message: 'base URL is not valid' }, url);
     }
@@ -415,6 +416,7 @@ describe('createClient routes unary and streaming calls to their own transport',
       'https://api.t-0.network', 'https://api.t-0.network/', 'http://localhost:8080', 'http://127.0.0.1:1234',
       'http://[::1]:8080', 'api.t-0.network', 'api.t-0.network:443',
       'https://api.t-0.network/v1', 'https://api.t-0.network/v1/', 'https://api.t-0.network/sda/payments/t0',
+      'HTTPS://api.t-0.network', 'http://[::1]', 'http://[::ffff:1.2.3.4]:8080', 'https://xn--bcher-kva.example',
     ]) {
       assert.doesNotThrow(() => createClient(key, url, StreamTest), String(url));
     }
@@ -422,7 +424,7 @@ describe('createClient routes unary and streaming calls to their own transport',
 
   it('a path in the base URL prefixes every call, with or without a trailing "/"; the signature is unchanged', async () => {
     for (const path of ['/prefix', '/prefix/', '/sda/payments/t0']) {
-      const prefix = path.replace(/\/$/, '');
+      const prefix = path.endsWith('/') ? path.slice(0, -1) : path;
       const key = newKeypair();
       const srv = await bootStreamServer(key.publicKeyHex, prefix);
       try {

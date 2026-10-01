@@ -10,7 +10,7 @@ import ipaddress
 import math
 import re
 from typing import TYPE_CHECKING, Any, NoReturn, TypeVar
-from urllib.parse import urlsplit
+from urllib.parse import quote, urlsplit
 
 from connectrpc.code import Code
 from connectrpc.compat import google_protobuf_json_codec
@@ -38,9 +38,6 @@ T = TypeVar("T")
 # "-foo") are refused: not every client this network talks to can connect to them.
 _HOST_LABEL = r"[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?"
 _HOST_NAME = re.compile(rf"(?:{_HOST_LABEL}\.)*[A-Za-z](?:[A-Za-z0-9-]*[A-Za-z0-9])?")
-
-# A segment of the base URL's path: ASCII letters, digits and "-._~", but not "." or "..".
-_PATH_SEGMENT = re.compile(r"[A-Za-z0-9._~-]+")
 
 # The largest timeout every SDK accepts: 2^31 - 1 ms, about 24.8 days.
 MAX_TIMEOUT_MS = 2**31 - 1
@@ -154,40 +151,34 @@ def _checked_base_url(base_url: str | None) -> str:
 
 def _is_valid_base_url(base_url: str) -> bool:
     """http:// or https:// (any case), a host name or IP literal, a port of 1..65535 if given, and
-    a path (see _is_valid_path): no query or fragment."""
-    # urlsplit drops tabs and newlines instead of refusing them.
-    if any(ord(c) < 0x20 or ord(c) == 0x7F for c in base_url):
-        return False
-    scheme, separator, _ = base_url.partition("://")
-    if not separator or scheme.lower() not in ("http", "https"):
+    a path (see _is_valid_path): no user info, query or fragment."""
+    # urlsplit drops tabs and newlines, and strips leading spaces and controls, instead of refusing them.
+    if not (base_url.isascii() and base_url.isprintable()) or " " in base_url:
         return False
     try:
         parts = urlsplit(base_url)
-        port = parts.port  # ValueError outside 0..65535 or not a number
+        port = parts.port  # ValueError unless ASCII digits in 0..65535
     except ValueError:
         return False
     host = parts.hostname
-    if not host or (port is not None and not 1 <= port <= 65535):
-        return False
-    # No user info, no ':' without a port after it, and no port written with a leading zero.
-    if "@" in parts.netloc or parts.netloc.endswith(":"):
-        return False
-    if port is not None and parts.netloc.rpartition(":")[2] != str(port):
+    if parts.scheme not in ("http", "https") or not host or port == 0:
         return False
     # No query or fragment. urlsplit drops an empty "?" or "#", so look for the characters.
-    if not _is_valid_path(parts.path) or "?" in base_url or "#" in base_url:
+    if "?" in base_url or "#" in base_url or not _is_valid_path(parts.path):
         return False
-    if ":" in host:  # only a bracketed IPv6 literal keeps a ':' in its host
-        try:
-            ipaddress.IPv6Address(host)
-        except ValueError:
-            return False
-        return True
     try:
-        ipaddress.IPv4Address(host)
+        ip = ipaddress.ip_address(host)
     except ValueError:
-        return _HOST_NAME.fullmatch(host) is not None
-    return True
+        ip = None
+        if _HOST_NAME.fullmatch(host) is None:
+            return False
+    ipv6 = isinstance(ip, ipaddress.IPv6Address)
+    if ipv6 and ip.scope_id is not None:  # a zone ("[fe80::1%en0]") names an interface of this machine only
+        return False
+    # The authority as urlsplit read it, written back: this refuses user info, a ':' without a port, a
+    # port written with a leading zero, and brackets around anything but an IPv6 address ("[v1.fe]").
+    authority = (f"[{host}]" if ipv6 else host) + (f":{port}" if port is not None else "")
+    return parts.netloc.lower() == authority
 
 
 def _is_valid_path(path: str) -> bool:
@@ -196,7 +187,8 @@ def _is_valid_path(path: str) -> bool:
     ("//", "/..", "/%41") would reach different URLs in different SDKs, whose HTTP clients normalize
     them differently."""
     segments = path.removesuffix("/").split("/")[1:]
-    return all(_PATH_SEGMENT.fullmatch(s) and s not in (".", "..") for s in segments)
+    # quote leaves exactly letters, digits and "-._~" as they are.
+    return quote(path, safe="/") == path and all(s not in ("", ".", "..") for s in segments)
 
 
 def _client_kwargs(wire_format: WireFormat, protocol: Protocol) -> dict[str, Any]:

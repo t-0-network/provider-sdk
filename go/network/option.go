@@ -3,8 +3,8 @@ package network
 import (
 	"errors"
 	"math"
-	"net"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"strconv"
 	"strings"
@@ -67,24 +67,15 @@ func (c *clientOptions) validate() error {
 // without leading zeros, and a path (see validPath): no query or fragment.
 func validBaseURL(raw string) bool {
 	u, err := url.Parse(raw)
-	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.User != nil || !validHost(u) {
-		return false
-	}
-	// The path as written: u.Path is decoded ("%2F" becomes "/").
-	authorityAndPath := raw[strings.Index(raw, "://")+len("://"):]
-	path := ""
-	if i := strings.IndexByte(authorityAndPath, '/'); i >= 0 {
-		path = authorityAndPath[i:]
-	}
-	if !validPath(path) || strings.ContainsAny(raw, "?#") {
-		return false
-	}
-	if port := u.Port(); port != "" || strings.HasSuffix(u.Host, ":") {
-		n, err := strconv.Atoi(port)
-		return err == nil && port[0] != '0' && n >= 1 && n <= 65535
-	}
-	return true
+	return err == nil && (u.Scheme == "http" || u.Scheme == "https") && u.User == nil &&
+		!strings.ContainsAny(raw, "?#") && // url.Parse keeps no trace of an empty "#"
+		validHost(u) && validPort(u) && validPath(u.EscapedPath()) // the path as written: u.Path is decoded
 }
+
+const (
+	asciiLetters = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	asciiDigits  = "0123456789"
+)
 
 // validPath accepts "", "/", or segments of ASCII letters, digits and "-._~" (not "." or ".."), each
 // after one "/", with an optional trailing "/". Calls go to <path>/<service>/<method>. Other paths
@@ -96,52 +87,41 @@ func validPath(path string) bool {
 		return true
 	}
 	for _, segment := range strings.Split(path, "/")[1:] {
-		if segment == "" || segment == "." || segment == ".." {
+		if segment == "" || segment == "." || segment == ".." ||
+			strings.TrimLeft(segment, asciiLetters+asciiDigits+"-._~") != "" {
 			return false
-		}
-		for i := 0; i < len(segment); i++ {
-			if c := segment[i]; !isASCIILetter(c) && (c < '0' || c > '9') && !strings.ContainsRune("-._~", rune(c)) {
-				return false
-			}
 		}
 	}
 	return true
 }
 
-// validHost accepts an IPv4 address, an IPv6 address in brackets, or a name of labels made of
-// ASCII letters, digits and inner '-', whose last label starts with a letter. gRPC clients cannot
-// connect to other names, such as ones with '_' or an empty label.
+// validHost accepts an IPv4 address, an IPv6 address in brackets without a zone, or a name of
+// labels made of ASCII letters, digits and inner '-', whose last label starts with a letter. gRPC
+// clients cannot connect to other names, such as ones with '_' or an empty label.
 func validHost(u *url.URL) bool {
 	host := u.Hostname()
-	if strings.HasPrefix(u.Host, "[") {
-		return strings.Contains(host, ":") && net.ParseIP(host) != nil
-	}
-	if ip := net.ParseIP(host); ip != nil {
-		return ip.To4() != nil
+	if addr, err := netip.ParseAddr(host); err == nil {
+		// A zone ("[fe80::1%25en0]") names an interface of this machine only.
+		return addr.Zone() == "" && addr.Is6() == strings.HasPrefix(u.Host, "[")
 	}
 	labels := strings.Split(host, ".")
 	for _, label := range labels {
-		if !validLabel(label) {
+		if label == "" || label[0] == '-' || label[len(label)-1] == '-' ||
+			strings.TrimLeft(label, asciiLetters+asciiDigits+"-") != "" {
 			return false
 		}
 	}
-	return isASCIILetter(labels[len(labels)-1][0])
+	return strings.IndexByte(asciiLetters, labels[len(labels)-1][0]) >= 0
 }
 
-func validLabel(label string) bool {
-	if label == "" || label[0] == '-' || label[len(label)-1] == '-' {
-		return false
+// validPort accepts no port, or one in 1..65535 without leading zeros; not a ':' without a port.
+func validPort(u *url.URL) bool {
+	port := u.Port()
+	if port == "" && !strings.HasSuffix(u.Host, ":") {
+		return true
 	}
-	for i := 0; i < len(label); i++ {
-		if c := label[i]; !isASCIILetter(c) && (c < '0' || c > '9') && c != '-' {
-			return false
-		}
-	}
-	return true
-}
-
-func isASCIILetter(c byte) bool {
-	return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z')
+	_, err := strconv.ParseUint(port, 10, 16)
+	return err == nil && port[0] != '0'
 }
 
 var defaultClientOptions = clientOptions{

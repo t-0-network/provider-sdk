@@ -1,7 +1,6 @@
+using System.Buffers;
 using System.Diagnostics.CodeAnalysis;
-using System.Net;
-using System.Net.Sockets;
-using System.Text.RegularExpressions;
+using System.Text;
 
 namespace T0.ProviderSdk.Network;
 
@@ -28,7 +27,7 @@ public sealed class NetworkClientOptions
     public string BaseUrl
     {
         get => _baseUrl;
-        set => _baseUrl = value is null ? DefaultBaseUrl : ValidateBaseUrl(value);
+        set => (_baseUrl, PathPrefix) = value is null ? (DefaultBaseUrl, "") : ValidateBaseUrl(value);
     }
 
     /// <summary>
@@ -56,111 +55,84 @@ public sealed class NetworkClientOptions
         set => _streamTimeout = Validate(value, nameof(StreamTimeout));
     }
 
-    // The base URL's path without its trailing "/" (e.g. "/v1"), or "" without one. Grpc.Net ignores
+    // The base URL's path as written, without its trailing "/" (e.g. "/v1"), or "". Grpc.Net ignores
     // the path of a channel's address, so SigningDelegatingHandler puts it before each call's path.
-    internal string PathPrefix => new Uri(_baseUrl).AbsolutePath.TrimEnd('/');
+    internal string PathPrefix { get; private set; } = "";
 
-    private static string ValidateBaseUrl(string value)
+    private static (string Url, string PathPrefix) ValidateBaseUrl(string value)
     {
         if (value.Length == 0)
             throw new ArgumentException("base URL is not set", nameof(BaseUrl));
         // A value without a scheme is read as https.
-        var url = value.Contains("://", StringComparison.Ordinal) ? value : "https://" + value;
-        // Before any parsing: Uri and IPAddress drop some control characters, such as a tab in an
-        // IPv6 scope id.
-        if (value.AsSpan().IndexOfAnyInRange('\u0000', '\u001f') >= 0 || value.Contains('\u007f')
-            || !IsValidBaseUrl(url) || !Uri.TryCreate(url, UriKind.Absolute, out _))
-            throw new ArgumentException("base URL is not valid", nameof(BaseUrl));
-        return url;
+        var url = value.Contains(Uri.SchemeDelimiter, StringComparison.Ordinal) ? value : "https://" + value;
+        return IsValidBaseUrl(url, out var pathPrefix)
+            ? (url, pathPrefix)
+            : throw new ArgumentException("base URL is not valid", nameof(BaseUrl));
     }
 
-    // Checked as written: Uri alone would read "http:host" as http://host, "http://h:" as port 80 and
-    // "1.2.3" as the address 1.2.0.3, and would accept port 0, user info, names such as my_host that
-    // some gRPC clients cannot connect to, and paths that it normalizes ("/a/../b", "/%41").
-    private static bool IsValidBaseUrl(string url)
+    private static readonly SearchValues<char> HostNameChars =
+        SearchValues.Create("-.0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz");
+    private static readonly SearchValues<char> PathChars =
+        SearchValues.Create("-./0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZ_abcdefghijklmnopqrstuvwxyz~");
+
+    // Uri parses the URL. Where it reads text as something else, the authority and path are also
+    // checked as written: Uri skips leading white space, reads "h:" and "h:080" as port 80, "1.2.3"
+    // as 1.2.0.3, "[::1]x" as [::1]/x, drops an IPv6 zone and normalizes paths ("/v1/..", "/v%31").
+    private static bool IsValidBaseUrl(string url, out string pathPrefix)
     {
-        var schemeLength = url.StartsWith("http://", StringComparison.OrdinalIgnoreCase) ? "http://".Length
-            : url.StartsWith("https://", StringComparison.OrdinalIgnoreCase) ? "https://".Length
-            : 0;
-        if (schemeLength == 0)
+        pathPrefix = "";
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri)
+            || (uri.Scheme != Uri.UriSchemeHttp && uri.Scheme != Uri.UriSchemeHttps)
+            || !url.StartsWith(uri.Scheme + Uri.SchemeDelimiter, StringComparison.OrdinalIgnoreCase)
+            || uri.Port == 0 || uri.Query.Length > 0 || uri.Fragment.Length > 0)
             return false;
 
-        var rest = url.AsSpan(schemeLength);
-        var end = rest.IndexOfAny('/', '?', '#');
-        var authority = end >= 0 ? rest[..end] : rest;
-        var tail = end >= 0 ? rest[end..] : [];
-        if (!IsPath(tail))
-            return false; // a query, a fragment, or a path of other characters
+        var rest = url.AsSpan(uri.Scheme.Length + Uri.SchemeDelimiter.Length);
+        var slash = rest.IndexOf('/');
+        var authority = slash < 0 ? rest : rest[..slash];
+        var path = slash < 0 ? [] : rest[slash..];
+        if (authority.Contains('@'))
+            return false; // user info, also an empty one, which Uri does not report
 
-        ReadOnlySpan<char> host, port;
-        if (authority.StartsWith('['))
+        var hostLength = uri.HostNameType == UriHostNameType.IPv6 ? authority.IndexOf(']') + 1 : uri.Host.Length;
+        if (hostLength <= 0 || hostLength > authority.Length)
+            return false;
+        var host = authority[..hostLength];
+        var port = authority[hostLength..];
+        var validHost = uri.HostNameType switch
         {
-            var close = authority.IndexOf(']');
-            if (close < 0)
-                return false;
-            host = authority[..(close + 1)];
-            port = authority[(close + 1)..];
-        }
-        else
-        {
-            var colon = authority.IndexOf(':');
-            host = colon >= 0 ? authority[..colon] : authority;
-            port = colon >= 0 ? authority[colon..] : [];
-        }
+            UriHostNameType.IPv4 => host.SequenceEqual(uri.Host),
+            UriHostNameType.IPv6 => !uri.IdnHost.Contains('%'),
+            // Basic: a name Uri does not take for DNS, such as one with a label over 63 characters.
+            UriHostNameType.Dns or UriHostNameType.Basic => Ascii.EqualsIgnoreCase(host, uri.Host) && IsHostName(host),
+            _ => false,
+        };
+        if (!validHost || !(port.IsEmpty || port.SequenceEqual($":{uri.Port}")))
+            return false;
 
-        return IsHost(host) && IsPort(port);
+        // Uri keeps such a path as written unless a segment is "." or "..".
+        if (path.ContainsAnyExcept(PathChars) || path.Contains("//", StringComparison.Ordinal)
+            || !(path.IsEmpty || path.SequenceEqual(uri.AbsolutePath)))
+            return false;
+        pathPrefix = path.TrimEnd('/').ToString();
+        return true;
     }
 
-    // Segments of letters, digits and "-._~" (not "." or ".."), each after one "/", and an optional
-    // trailing "/". Other paths ("//", "/..", "/%41") would reach different URLs in different SDKs,
-    // whose HTTP clients normalize them differently.
-    private static bool IsPath(ReadOnlySpan<char> path)
+    // Labels of ASCII letters, digits and inner "-", the last starting with a letter; gRPC clients
+    // cannot connect to other names. Uri also takes "_", a label ending in "-", a trailing "." and a
+    // last label such as "1b".
+    private static bool IsHostName(ReadOnlySpan<char> host)
     {
-        if (!PathPattern.IsMatch(path))
+        var last = host[(host.LastIndexOf('.') + 1)..];
+        if (host.ContainsAnyExcept(HostNameChars) || last.IsEmpty || !char.IsAsciiLetter(last[0]))
             return false;
-        foreach (var range in path.Split('/'))
+        foreach (var range in host.Split('.'))
         {
-            if (path[range] is "." or "..")
+            if (host[range] is [] or ['-', ..] or [.., '-'])
                 return false;
         }
         return true;
     }
-
-    private static readonly Regex PathPattern = new(
-        @"^(?:/[A-Za-z0-9._~-]+)*/?\z", RegexOptions.CultureInvariant);
-
-    // IPv4, bracketed IPv6, or a DNS name whose last label starts with a letter.
-    private static bool IsHost(ReadOnlySpan<char> host)
-    {
-        if (host.Length > 2 && host[0] == '[' && host[^1] == ']')
-            return IPAddress.TryParse(host[1..^1], out var address)
-                && address.AddressFamily == AddressFamily.InterNetworkV6;
-        return IsIPv4(host) || HostName.IsMatch(host);
-    }
-
-    private static bool IsIPv4(ReadOnlySpan<char> host)
-    {
-        var octets = 0;
-        foreach (var range in host.Split('.'))
-        {
-            var octet = host[range];
-            // Decimal 0..255 without leading zeros, which some parsers read as octal.
-            if (++octets > 4 || octet.Length is 0 or > 3 || octet.ContainsAnyExceptInRange('0', '9')
-                || (octet.Length > 1 && octet[0] == '0') || int.Parse(octet) > 255)
-                return false;
-        }
-        return octets == 4;
-    }
-
-    // Nothing, or ':' and a port from 1 to 65535 without leading zeros.
-    private static bool IsPort(ReadOnlySpan<char> port) =>
-        port.IsEmpty
-        || (port[0] == ':' && port.Length is > 1 and <= 6 && port[1] != '0'
-            && !port[1..].ContainsAnyExceptInRange('0', '9') && int.Parse(port[1..]) <= 65535);
-
-    private static readonly Regex HostName = new(
-        @"^(?:[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?\.)*[A-Za-z](?:[A-Za-z0-9-]*[A-Za-z0-9])?\z",
-        RegexOptions.CultureInvariant);
 
     // A timeout cannot be turned off, so Timeout.InfiniteTimeSpan is refused like any other negative value.
     private static TimeSpan Validate(TimeSpan value, string name) =>

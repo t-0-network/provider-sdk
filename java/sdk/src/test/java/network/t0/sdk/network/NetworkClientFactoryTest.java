@@ -40,11 +40,16 @@ class NetworkClientFactoryTest {
             "api.t-0.network:443,                     api.t-0.network, 443,  false, ''",
             "https://api.t-0.network/v1,              api.t-0.network, 443,  false, v1",
             "https://api.t-0.network/v1/,             api.t-0.network, 443,  false, v1",
-            "https://api.t-0.network/sda/payments/t0, api.t-0.network, 443,  false, sda/payments/t0"})
+            "https://api.t-0.network/sda/payments/t0, api.t-0.network, 443,  false, sda/payments/t0",
+            "HTTPS://api.t-0.network,                 api.t-0.network, 443,  false, ''",
+            "http://[::1],                            [::1],           80,   true,  ''",
+            "http://[::ffff:1.2.3.4]:8080,            [::ffff:1.2.3.4], 8080, true, ''",
+            "https://xn--bcher-kva.example,           xn--bcher-kva.example, 443, false, ''"})
     @DisplayName("A valid base URL gives its host, its port or the scheme's, TLS for https, and its path")
     void validBaseUrls(String endpoint, String host, int port, boolean plaintext, String pathPrefix) {
-        assertThat(NetworkClient.parseEndpoint(endpoint))
-                .isEqualTo(new NetworkClient.EndpointInfo(host, port, plaintext, pathPrefix));
+        var endpointInfo = new NetworkClient.EndpointInfo(host, port, plaintext);
+        assertThat(NetworkClient.parseEndpoint(endpoint)).isEqualTo(endpointInfo);
+        assertThat(NetworkClient.parseBaseUrl(endpoint)).isEqualTo(new NetworkClient.BaseUrl(endpointInfo, pathPrefix));
         try (var client = BlockingNetworkClient.create(endpoint, SIGNER, HealthGrpc::newBlockingStub)) {
             assertThat(client.getChannel().authority()).endsWith(":" + port);
         }
@@ -65,13 +70,23 @@ class NetworkClientFactoryTest {
     @ValueSource(strings = {"ftp://h", "http://", "http://user@h", "http://my_host:8080",
             "https://api.t-0.network?x", "http://h:0", "http://h:99999", "http://1.2.3", "http://h:080", "http://h\t",
             "https://api.t-0.network//", "https://api.t-0.network/v1//", "https://api.t-0.network/a//b",
-            "https://api.t-0.network/v1/..", "https://api.t-0.network/v%31", "https://api.t-0.network/v1?x"})
+            "https://api.t-0.network/v1/..", "https://api.t-0.network/v%31", "https://api.t-0.network/v1?x",
+            "http://[::1%1]", "http://[v1.fe]", "http://h.", "http://01.2.3.4",
+            "http://1abc"})
     @DisplayName("A base URL that is not valid is refused with \"base URL is not valid\"")
     void invalidBaseUrlIsRefused(String endpoint) {
         assertThatThrownBy(() -> NetworkClient.parseEndpoint(endpoint))
                 .isInstanceOf(IllegalArgumentException.class).hasMessage("base URL is not valid");
         assertThatThrownBy(() -> BlockingNetworkClient.create(endpoint, SIGNER, HealthGrpc::newBlockingStub))
                 .isInstanceOf(IllegalArgumentException.class).hasMessage("base URL is not valid");
+    }
+
+    @Test
+    @DisplayName("A path of many segments is checked without recursion")
+    void longPathIsAccepted() {
+        String path = "/a".repeat(100_000);
+        assertThat(NetworkClient.parseBaseUrl("https://api.t-0.network" + path).pathPrefix())
+                .isEqualTo(path.substring(1));
     }
 
     @Test

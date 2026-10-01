@@ -21,7 +21,7 @@ public class NetworkClientOptionsTests
         Assert.Equal("https://api.t-0.network", new NetworkClientOptions { BaseUrl = null }.BaseUrl);
     }
 
-    // The shared base URL table: 10 accepted, 16 refused as not valid, "" refused as not set.
+    // The shared base URL table: 14 accepted, 21 refused as not valid, "" refused as not set.
     [Theory]
     [InlineData("https://api.t-0.network")]
     [InlineData("https://api.t-0.network/")]
@@ -31,6 +31,10 @@ public class NetworkClientOptionsTests
     [InlineData("https://api.t-0.network/v1")]
     [InlineData("https://api.t-0.network/v1/")]
     [InlineData("https://api.t-0.network/sda/payments/t0")]
+    [InlineData("HTTPS://api.t-0.network")]
+    [InlineData("http://[::1]")]
+    [InlineData("http://[::ffff:1.2.3.4]:8080")]
+    [InlineData("https://xn--bcher-kva.example")]
     public void BaseUrl_AcceptsHttpAndHttpsUrls(string url)
     {
         Assert.Equal(url, new NetworkClientOptions { BaseUrl = url }.BaseUrl);
@@ -59,11 +63,16 @@ public class NetworkClientOptionsTests
         Assert.StartsWith("base URL is not valid", ex.Message);
     }
 
-    // Checked before parsing: Uri drops a tab inside an IPv6 scope id.
+    // What Uri reads as something else: it drops a tab inside an IPv6 zone, reports no user info for
+    // an empty one, and decodes a zone written with "%25".
     [Theory]
     [InlineData("http://[::1%\t1]:65535/")]
     [InlineData("http://h\u007f:8080")]
-    public void BaseUrlWithAControlCharacter_IsRefused(string url)
+    [InlineData("http://@[::1]")]
+    [InlineData("http://[::1%251]:8080")]
+    [InlineData("http://[fe80::1%eth0]")]
+    [InlineData("https://http:/h")]
+    public void BaseUrlThatUriReadsDifferently_IsRefused(string url)
     {
         var ex = Assert.Throws<ArgumentException>(() => new NetworkClientOptions { BaseUrl = url });
         Assert.StartsWith("base URL is not valid", ex.Message);
@@ -93,6 +102,11 @@ public class NetworkClientOptionsTests
     [InlineData("https://api.t-0.network/v1/..")]
     [InlineData("https://api.t-0.network/v%31")]
     [InlineData("https://api.t-0.network/v1?x")]
+    [InlineData("http://[::1%1]")]
+    [InlineData("http://[v1.fe]")]
+    [InlineData("http://h.")]
+    [InlineData("http://01.2.3.4")]
+    [InlineData("http://1abc")]
     public void BaseUrlThatIsNotValid_IsRefused(string url)
     {
         var ex = Assert.Throws<ArgumentException>(() => new NetworkClientOptions { BaseUrl = url });
