@@ -15,12 +15,11 @@ The SDK uses two publishing channels:
 
 Navigate to: **Repository → Settings → Secrets and variables → Actions → Secrets**
 
-### Maven Central (OSSRH) Secrets
+### Maven Central Secrets
 
 | Secret | Description | How to Obtain |
 |--------|-------------|---------------|
-| `OSSRH_USERNAME` | Sonatype OSSRH username | Your JIRA username from [Sonatype JIRA](https://issues.sonatype.org) |
-| `OSSRH_PASSWORD` | Sonatype OSSRH password | Your JIRA password |
+| `OSSRH_PASSWORD` | Password of a Maven Central (Central Portal) user token | See [Maven Central Setup](#maven-central-setup) below |
 | `GPG_PRIVATE_KEY` | Full armored GPG private key | See [GPG Key Generation](#gpg-key-generation) below |
 
 ### Release Workflow Secrets
@@ -35,7 +34,10 @@ Navigate to: **Repository → Settings → Secrets and variables → Actions →
 
 | Variable | Description | Example |
 |----------|-------------|---------|
-| `CI_APP_ID` | GitHub App ID | `123456` |
+| `CI_APP_CLIENT_ID` | Client ID of the GitHub App | `Iv23li…` |
+| `OSSRH_USERNAME` | Username of the Maven Central user token | See [Maven Central Setup](#maven-central-setup) below |
+
+The `OSSRH_` names date from Sonatype's old OSSRH service; the values are a Central Portal user token. Every secret and variable the workflows use, and which job uses it: [`../RELEASE_AND_PUBLISH.md`](../RELEASE_AND_PUBLISH.md#secrets-variables-and-environments).
 
 ## GPG Key Generation
 
@@ -113,7 +115,7 @@ The release workflow uses a GitHub App to bypass branch protection rules and tri
      - Metadata: Read-only
    - **No organization permissions needed**
 
-4. Create the app and note the **App ID** (shown on the app's settings page)
+4. Create the app and note the **Client ID** (shown on the app's settings page)
 
 5. Generate a private key:
    - Scroll to "Private keys" section
@@ -131,31 +133,22 @@ The release workflow uses a GitHub App to bypass branch protection rules and tri
    - Copy the entire contents of the `.pem` file
    - Include `-----BEGIN RSA PRIVATE KEY-----` and `-----END RSA PRIVATE KEY-----`
 
-2. **Variable**: `CI_APP_ID`
-   - The numeric App ID from the app's settings page
+2. **Variable**: `CI_APP_CLIENT_ID`
+   - The Client ID from the app's settings page
 
-## Sonatype OSSRH Setup
+## Maven Central Setup
+
+The SDK is published through the Sonatype Central Portal: `./gradlew publishAggregationToCentralPortal` (the NMCP plugin, configured in `java/build.gradle.kts`) uploads it with a user token.
 
 ### First-Time Setup
 
-1. **Create Sonatype JIRA Account**
-   - Register at https://issues.sonatype.org
-
-2. **Request Group ID**
-   - Create a new issue: Project = "Community Support - Open Source Project Repository Hosting"
-   - Issue Type = "New Project"
-   - Group Id = `network.t0`
-   - Provide proof of domain ownership or GitHub organization
-
-3. **Wait for Approval**
-   - Sonatype team will verify and approve (usually 1-2 business days)
-   - You'll receive email confirmation
+1. **Sign in** at https://central.sonatype.com.
+2. **Verify the namespace** `network.t-0`, the SDK's Maven group (`group` in `java/gradle.properties`), following the Portal's instructions.
+3. **Generate a user token**: Account → Generate User Token. Store its username as the variable `OSSRH_USERNAME` and its password as the secret `OSSRH_PASSWORD`.
 
 ### Verify Setup
 
-After approval, verify you can access:
-- Staging: https://s01.oss.sonatype.org
-- Login with your JIRA credentials
+After a release, the upload appears under Publishing → Deployments at https://central.sonatype.com.
 
 ## JitPack Setup
 
@@ -211,8 +204,8 @@ Where `TAG` can be:
 
 ### One-Time Setup
 
-- [ ] Create Sonatype JIRA account
-- [ ] Request `network.t0` group ID approval
+- [ ] Sign in to the Central Portal and verify the `network.t-0` namespace
+- [ ] Generate a Central Portal user token
 - [ ] Generate GPG key (4096-bit RSA, no passphrase)
 - [ ] Upload GPG public key to keyservers
 - [ ] Create GitHub App for releases
@@ -220,15 +213,15 @@ Where `TAG` can be:
 
 ### GitHub Configuration
 
-- [ ] Add secret: `OSSRH_USERNAME`
+- [ ] Add variable: `OSSRH_USERNAME`
 - [ ] Add secret: `OSSRH_PASSWORD`
 - [ ] Add secret: `GPG_PRIVATE_KEY`
 - [ ] Add secret: `CI_APP_PRIVATE_KEY`
-- [ ] Add variable: `CI_APP_ID`
+- [ ] Add variable: `CI_APP_CLIENT_ID`
 
 ### Verification
 
-- [ ] Trigger a test release to staging (don't release)
+- [ ] After the first release, check the deployment in the Central Portal
 - [ ] Verify JitPack can build: https://jitpack.io/#t-0-network/provider-sdk
 - [ ] Test CLI generates projects with both repository options
 
@@ -236,9 +229,9 @@ Where `TAG` can be:
 
 | Workflow | File | Trigger | Purpose |
 |----------|------|---------|---------|
-| CI | `.github/workflows/ci-{go,node,python,java,csharp}.yaml` | Push to master, PRs (path-filtered) | Build and test per ecosystem |
+| CI | `.github/workflows/ci-{go,node,python,java,csharp,cli}.yaml` | Push to master, PRs (path-filtered) | Build and test per ecosystem |
 | Release | `.github/workflows/release.yaml` | Manual dispatch | Create release, tag, update versions |
-| Publish | `.github/workflows/publish.yaml` | Tag push | Publish to Maven Central, upload CLI to GitHub Release |
+| Publish | `.github/workflows/publish.yaml` | Tag push | Publish every SDK (Maven Central, npm, PyPI, NuGet, the Go module tag) and upload the CLI to the GitHub Release; see [`../RELEASE_AND_PUBLISH.md`](../RELEASE_AND_PUBLISH.md) |
 
 ### Release Process Flow
 
@@ -297,4 +290,4 @@ Common issues:
 
 - Initial sync can take up to 2 hours
 - Subsequent syncs usually 10-30 minutes
-- Check status: https://repo1.maven.org/maven2/network/t0/
+- Check status: https://repo1.maven.org/maven2/network/t-0/provider-sdk-java/

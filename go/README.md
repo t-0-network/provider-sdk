@@ -103,6 +103,8 @@ shutdownFunc, err := provider.StartServer(
 )
 ```
 
+`StartServer` returns once the server accepts connections, or after 5 seconds (`provider.ServerStartupTimeout`). The function it returns shuts the server down gracefully and is safe to call more than once, even concurrently; only the first call shuts down.
+
 Or create an HTTP server instance without starting it, for use with your own server setup:
 
 ```go

@@ -186,7 +186,7 @@ Where:
 
 65 bytes total:
 - **r** (32 bytes): ECDSA r component, big-endian
-- **s** (32 bytes): ECDSA s component, big-endian
+- **s** (32 bytes): ECDSA s component, big-endian, in the lower half of the curve order (a larger s is replaced by n - s)
 - **v** (1 byte): Recovery ID (0 or 1)
 
 ### Timestamp Validation
@@ -473,14 +473,7 @@ client.stub(60, TimeUnit.SECONDS).updateQuote(request);
 
 ## Contributing
 
-- Java 17+ required
-- Run `./gradlew build` to compile and test
-- Proto files in `sdk/src/main/proto/`
-- Generated code in `sdk/build/generated/source/proto/`
+The build, the tests and the pull request process are described in [CONTRIBUTING.md](../../CONTRIBUTING.md). Specific to this SDK:
 
-### Code Style
-
-- Follow existing patterns in the codebase
-- Ensure thread safety for all public APIs
-- Add tests for new functionality
-- Update this README for significant changes
+- The protos in `sdk/src/main/proto/` are synced from the backend, so don't edit them. Their Java code is generated at build time ([docs/java/PROTO_SCHEMA_MANAGEMENT.md](../../docs/java/PROTO_SCHEMA_MANAGEMENT.md)).
+- Public APIs must be thread-safe (see [Thread Safety](#thread-safety)).

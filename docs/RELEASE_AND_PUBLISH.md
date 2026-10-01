@@ -13,7 +13,11 @@ For *which files* hold versions, see [`VERSIONING.md`](./VERSIONING.md).
 
 ## release.yaml — manual bump
 
-Triggered by `gh workflow run release.yaml -f bump=<patch|minor|major> --ref master`. Default bump is `patch`. Steps in order:
+Triggered by `gh workflow run release.yaml -f bump=<patch|minor|major> --ref master`. Default bump is `patch`.
+
+**Choosing the bump.** `patch` is for fixes only. A release with new API or breaking changes needs at least `minor`, and its GitHub Release notes should list the breaking changes. The release workflow does not write notes, so add them to the GitHub Release it creates. A `major` bump needs more than the workflow: Go's module path must first move to `/v2` (semantic import versioning), or `go get` refuses a `v2.0.0` tag.
+
+Steps in order:
 
 1. **Build gate** — `build-go`, `build-node`, `build-java`, `build-python`, `build-csharp`, `build-cli` all compile in parallel against the current commit. If any fails, the release is aborted and nothing changes.
 
@@ -116,7 +120,7 @@ Inlined per-job (rather than as a single shared `validate-versions` job) so each
 | `publish-python-sdk` | blacksmith, env `pypi-sdk` | `_version.py` + `pyproject.toml` match tag | `uv build --package t0-provider-sdk` then `uv publish --trusted-publishing always`. |
 | `publish-java` | blacksmith (2vcpu — most time is Maven Central polling) | `META-INF/sdk-version.properties` + `gradle.properties` match tag | `./gradlew publishAggregationToCentralPortal`. |
 | `publish-csharp` | blacksmith, env `nuget` | sdk csproj `<Version>` matches tag | `dotnet pack` for sdk; `dotnet nuget push` to `nuget.org`. Auth via `NuGet/login@v1` OIDC → temporary key (no long-lived token). |
-| `publish-cli` | blacksmith | — (waits for all builds + all SDK publishes) | Cross-compiles `t0-init` for linux/darwin × amd64/arm64, uploads binaries to the GitHub Release. |
+| `publish-cli` | blacksmith | — (waits for all builds + all SDK publishes) | Cross-compiles `t0-init` for linux/darwin/windows × amd64/arm64, uploads binaries to the GitHub Release. |
 
 ### Post-publish verification
 
@@ -133,6 +137,27 @@ The release workflow's "Validate updated files" step ensures the bump itself is 
 - Drift between `release.yaml`'s knowledge of version sites and a new site someone added without updating both workflows.
 
 Both gates are necessary and inexpensive (each is a few greps).
+
+---
+
+## Secrets, variables and environments
+
+Repository settings → Secrets and variables → Actions:
+
+| Name | Kind | Used by | What it is |
+|---|---|---|---|
+| `CI_APP_CLIENT_ID` | variable | `release.yaml`, `publish.yaml` (`publish-go`, `publish-cli`), `generate-clients.yaml`, `cli_sync.yaml` | Client ID of the GitHub App whose token pushes the release commit and tags. A push made with `GITHUB_TOKEN` would not trigger `publish.yaml`. |
+| `CI_APP_PRIVATE_KEY` | secret | same as above | The GitHub App's private key |
+| `OSSRH_USERNAME` | variable | `publish-java` | Maven Central (Central Portal) user token name, passed as `MAVEN_CENTRAL_USERNAME` |
+| `OSSRH_PASSWORD` | secret | `publish-java` | Maven Central user token password, passed as `MAVEN_CENTRAL_PASSWORD` |
+| `GPG_PRIVATE_KEY` | secret | `publish-java` | Armored GPG key that signs the Maven artifacts |
+
+The other registries need no stored credentials:
+- **npm** uses trusted publishing over OIDC (`id-token: write`) with provenance, on a GitHub-hosted runner.
+- **PyPI** uses trusted publishing in the `pypi-sdk` environment.
+- **NuGet** uses `NuGet/login` OIDC in the `nuget` environment, which exchanges the token for a temporary API key.
+
+Setting up the GitHub App, the GPG key and the Maven Central token: [`java/GITHUB_SETUP.md`](./java/GITHUB_SETUP.md).
 
 ---
 

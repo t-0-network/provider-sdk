@@ -261,3 +261,5 @@ npm ci               # Install dependencies
 npm run build        # Build (ESM + CJS dual output)
 npm test             # Run tests
 ```
+
+The package ships an ES module build (`lib/esm/`, from `tsconfig.esm.json`) and a CommonJS build (`lib/cjs/`, from `tsconfig.cjs.json`), and its `exports` map routes `import` and `require` to them. secp256k1 comes from `@noble/curves`, and Keccak-256 from `@noble/hashes`.

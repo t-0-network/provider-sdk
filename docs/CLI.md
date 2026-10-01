@@ -142,7 +142,7 @@ Checks run in this order, each on its own exit code:
 
 What `--module` rewrites: the Go template is embedded with its real module path preserved; at scaffold time the scaffolder reads the module directive from `go.mod.tmpl` and replaces it with the `--module` value, so `go.mod` becomes `module <path>` and the imports in `cmd/main.go` become `"<path>/internal"` and `"<path>/internal/handler"`.
 
-What `--repository` rewrites: the Java template declares `val sdkRepository = "jitpack"` in `build.gradle.kts`; `--repository=maven-central` rewrites that one line to `val sdkRepository = "maven-central"`. The build file itself selects the repository and the coordinates from that value — `https://jitpack.io` with `com.github.t-0-network:provider-sdk`, or Maven Central with `network.t-0:provider-sdk-java`. A release build of the CLI additionally pins both coordinates from `:+` to its own version; a `dev` build leaves `:+`.
+What `--repository` rewrites: the Java template declares `val sdkRepository = "jitpack"` in `build.gradle.kts`; `--repository=maven-central` rewrites that one line to `val sdkRepository = "maven-central"`. The build file itself selects the repository and the coordinates from that value — `https://jitpack.io` with `com.github.t-0-network:provider-sdk`, or Maven Central with `network.t-0:provider-sdk-java`. A release build of the CLI additionally pins both coordinates from `:+` to its own version; a `dev` build leaves `:+`. Inside this repository the template is the `:starter-template` project of the `java/` build, and the same file then depends on `project(":sdk")` instead (`isSubproject`), so `./gradlew build` compiles the template against the SDK in the tree.
 
 ### `keygen`
 
