@@ -5,8 +5,6 @@ failures in the developer's own call frame. On success the input message is
 returned unchanged; on failure a ``ConnectError(Code.INTERNAL, ...)`` is
 raised with the same wording the SDK's response-validation interceptor
 emits, so propagating the error preserves the on-wire shape.
-
-Go equivalent: ``provider.Validate[T]`` (planned).
 """
 
 from __future__ import annotations

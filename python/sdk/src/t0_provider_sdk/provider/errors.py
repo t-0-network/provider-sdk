@@ -1,7 +1,4 @@
-"""Error types for signature verification.
-
-Go equivalent: provider/verify_signature.go error sentinel values.
-"""
+"""Error types for signature verification."""
 
 
 class SignatureVerificationError(Exception):

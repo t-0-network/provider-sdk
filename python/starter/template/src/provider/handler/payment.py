@@ -1,7 +1,5 @@
 """Provider service implementation.
 
-Go equivalent: internal/handler/payment.go
-
 Implements all ProviderService RPC methods. Each method returns an empty
 response with TODO comments indicating what to implement.
 

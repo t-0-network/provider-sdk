@@ -1,7 +1,5 @@
 """Confirm funds received from an end-user for a payment intent.
 
-Go equivalent: internal/confirm_funds_received.go → ConfirmFundsReceived()
-
 Pay-In Provider role — Step 3A.3. Call this after you have matched an incoming
 fiat payment to a payment intent (using the payment reference you returned from
 get_payment_details). Settlement with the beneficiary provider will proceed once

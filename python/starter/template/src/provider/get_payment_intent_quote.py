@@ -1,7 +1,5 @@
 """Payment intent indicative quote from the T-0 Network.
 
-Go equivalent: internal/get_payment_intent_quote.go → GetPaymentIntentQuote()
-
 Beneficiary Provider role — Step 3B.1. Use this to check available rates before
 creating a payment intent. The actual settlement rate is determined when the
 pay-in provider confirms funds received.

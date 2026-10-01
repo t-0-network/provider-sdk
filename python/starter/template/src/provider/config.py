@@ -1,7 +1,4 @@
-"""Configuration loading from environment variables.
-
-Go equivalent: cmd/main.go → Config struct + loadConfig()
-"""
+"""Configuration loading from environment variables."""
 
 from __future__ import annotations
 

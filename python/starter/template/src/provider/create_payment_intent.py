@@ -1,7 +1,5 @@
 """Create a payment intent via the T-0 Network.
 
-Go equivalent: internal/create_payment_intent.go → CreatePaymentIntent()
-
 Beneficiary Provider role — Step 3B.2. Store the returned payment_intent_id to
 correlate with the PaymentIntentUpdate notification you'll receive on your
 BeneficiaryService handler once the end-user completes the pay-in.

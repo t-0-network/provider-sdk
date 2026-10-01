@@ -4,8 +4,6 @@ This middleware intercepts the raw request body BEFORE ConnectRPC deserializes i
 verifies the cryptographic signature, and stores any errors in contextvars for the
 ConnectRPC interceptor to convert into proper error responses.
 
-Go equivalent: provider/verify_signature.go → newSignatureVerifierMiddleware()
-
 Architecture:
     ASGI Request → SignatureVerificationMiddleware → ConnectRPC ASGI App
                           ↓                                ↓
@@ -45,7 +43,6 @@ from t0_provider_sdk.provider.errors import (
 )
 
 # Context variable for passing signature errors from middleware to interceptor.
-# Go equivalent: context.WithValue(ctx, signatureErrorContextKey{}, errObj)
 signature_error_var: contextvars.ContextVar[SignatureVerificationError | None] = contextvars.ContextVar(
     "signature_error", default=None
 )
@@ -64,10 +61,7 @@ class VerifySignatureFn:
     network_public_key: PublicKey
 
     def __call__(self, public_key_bytes: bytes, message: bytes, signature: bytes) -> None:
-        """Verify signature, raising appropriate errors on failure.
-
-        Go equivalent: newVerifySignature() closure
-        """
+        """Verify signature, raising appropriate errors on failure."""
         if len(signature) < 64 or len(signature) > 65:
             raise SignatureFailedError()
 
@@ -171,10 +165,7 @@ def _parse_scope_headers(scope: Scope) -> dict[str, str]:
 
 
 def _parse_hex_header(headers: dict[str, str], header_name: str) -> bytes:
-    """Parse a hex-encoded header value, stripping the 0x prefix.
-
-    Go equivalent: parseRequiredHexedHeader()
-    """
+    """Parse a hex-encoded header value, stripping the 0x prefix."""
     header_key = header_name.lower()
     value = headers.get(header_key, "")
     if not value:
@@ -189,10 +180,7 @@ def _parse_hex_header(headers: dict[str, str], header_name: str) -> bytes:
 
 
 def _parse_timestamp(headers: dict[str, str]) -> tuple[int, bytes]:
-    """Parse the timestamp header and return (milliseconds, LE 8-byte encoding).
-
-    Go equivalent: parseTimestamp()
-    """
+    """Parse the timestamp header and return (milliseconds, LE 8-byte encoding)."""
     header_key = SIGNATURE_TIMESTAMP_HEADER.lower()
     value = headers.get(header_key, "")
     if not value:
@@ -206,10 +194,7 @@ def _parse_timestamp(headers: dict[str, str]) -> tuple[int, bytes]:
 
 
 async def _read_body(receive: ASGIReceive, max_size: int) -> bytes:
-    """Read the full request body from ASGI receive, enforcing size limit.
-
-    Go equivalent: readBodyWithCap()
-    """
+    """Read the full request body from ASGI receive, enforcing size limit."""
     body = bytearray()
     while True:
         message = await receive()
