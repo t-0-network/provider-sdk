@@ -20,20 +20,19 @@ export function createClient<T extends DescService>(signer: string | Buffer | ((
     const unaryTransport = createTransport(transportOptions(sign, endpoint, unaryTimeoutMs, wireFormat));
     const streamTransport = createTransport(transportOptions(sign, endpoint, streamTimeoutMs, wireFormat));
 
-    // async: a refused call fails where the call's result is awaited, and nothing is sent.
     const client = createConnectClient(svc, {
-        unary: async (method, signal, timeoutMs, header, input, contextValues) =>
-            unaryTransport.unary(method, signal, timeout("timeoutMs", timeoutMs), header, input, contextValues),
+        unary: unaryTransport.unary,
         stream: (method, signal, timeoutMs, header, input, contextValues) => {
+            // async: a refused call fails where the call's result is awaited, and nothing is sent.
             const response = (async () => {
                 // Policy: the network accepts no bidi streams (#370); over HTTP/1.1 they could not interleave anyway.
                 if (method.methodKind === "bidi_streaming") {
                     throw new ConnectError("bidirectional streams are not supported", Code.Unimplemented);
                 }
-                return streamTransport.stream(method, signal, timeout("timeoutMs", timeoutMs), header, input, contextValues);
+                return streamTransport.stream(method, signal, timeoutMs, header, input, contextValues);
             })();
-            // A server stream is awaited only once its iteration starts; until then a refusal must not
-            // count as an unhandled rejection. The caller still gets it from the first next().
+            // A stream is awaited only once its iteration starts; until then a failure must not count
+            // as an unhandled rejection. The caller still gets it from the first next().
             response.catch(() => {});
             return response;
         },
@@ -95,23 +94,18 @@ export function transportOptions(signer: SignerFunction, endpoint: string, timeo
 const DEFAULT_TIMEOUT_MS = 15_000;
 const DEFAULT_STREAM_TIMEOUT_MS = 300_000;
 
-// Node's timers fire at once from 2^31 ms, Infinity included.
+// Node's timers fire at once from 2^31 ms.
 const MAX_TIMEOUT_MS = 2 ** 31 - 1;
 
 /**
- * A timeout in ms, or undefined when none is given (the default applies). Anything else that is
- * not a positive number up to MAX_TIMEOUT_MS is refused: 0, a negative value or null would mean
- * no deadline, and NaN or a larger value would end the call at once.
+ * A configured timeout in ms, or undefined when none is given (the default applies). It must be
+ * greater than 0 and at most MAX_TIMEOUT_MS.
  */
 function timeout(name: string, ms: number | undefined): number | undefined {
-    if (ms === undefined) {
-        return undefined;
-    }
-    if (typeof ms !== "number" || !(ms > 0 && ms <= MAX_TIMEOUT_MS)) {
+    if (ms !== undefined && !(ms > 0 && ms <= MAX_TIMEOUT_MS)) {
         throw new RangeError(`${name} must be a positive duration of at most ${MAX_TIMEOUT_MS} ms`);
     }
-    // Connect-Timeout-Ms is a whole number of ms; a server refuses "1000.5".
-    return Math.ceil(ms);
+    return ms;
 }
 
 /**

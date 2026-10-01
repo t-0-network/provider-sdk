@@ -191,8 +191,7 @@ Where:
 
 ### Timestamp Validation
 
-- **Window**: 60 seconds, fixed (`Headers.TIMESTAMP_VALIDITY_WINDOW_MS`)
-- Requests with timestamps outside this window are rejected with `INVALID_ARGUMENT`
+The timestamp rule and its window are the same in every SDK: [Cross-SDK rules](https://github.com/t-0-network/provider-sdk/blob/master/docs/CROSS_SDK_RULES.md) (V3, V4). Java keeps the window in `Headers.TIMESTAMP_VALIDITY_WINDOW_MS`.
 
 ---
 
@@ -216,10 +215,10 @@ The interceptor tries the unframed payload first, then reconstructs the gRPC fra
 
 ## Streaming and timeouts
 
-Client- and server-streaming calls are signed over their first request message only, and the call goes out as soon as that message is sent. Unary calls get a default deadline of 15 seconds and streaming calls one of 5 minutes, which includes the wait for the first message. A deadline set on the stub or on the caller's `Context` replaces the default, shorter or longer. Bidirectional streams and calls with a non-identity compressor are refused with `UNIMPLEMENTED` before anything is sent.
+Client- and server-streaming calls are signed over their first request message only, and the call goes out as soon as that message is sent. Unary calls get a default deadline of 15 seconds and streaming calls one of 5 minutes, counted from when the call is created. A deadline that passes before the first message fails the call when that message, or the half-close, comes. A deadline set on the stub or on the caller's `Context` replaces the default, shorter or longer. Bidirectional streams and calls with a non-identity compressor are refused with `UNIMPLEMENTED` before anything is sent.
 
 ```java
-// 30 s for unary calls, 30 min for streaming calls; each at most 2147483647 ms
+// 30 s for unary calls, 30 min for streaming calls
 try (var client = AsyncNetworkClient.create("https://api.t-0.network", signer,
         NetworkServiceGrpc::newStub, Duration.ofSeconds(30), Duration.ofMinutes(30))) {
     client.stub(2, TimeUnit.MINUTES).updateQuote(request, responseObserver); // this call only
@@ -354,14 +353,7 @@ boolean valid = SignatureVerifier.verify(publicKey, digest, signature);
 
 ### Server-Side gRPC Status Codes
 
-| Condition | Status Code | Description |
-|-----------|-------------|-------------|
-| Missing headers | `INVALID_ARGUMENT` | Required signature headers not present |
-| Malformed headers | `INVALID_ARGUMENT` | Headers present but invalid format |
-| Timestamp expired | `INVALID_ARGUMENT` | Timestamp outside 60-second window |
-| Wrong public key | `UNAUTHENTICATED` | Request signed by unexpected key |
-| Invalid signature | `UNAUTHENTICATED` | Signature verification failed |
-| Server error | `INTERNAL` | Server misconfiguration or unexpected error |
+The status code for each verification failure is the same in every SDK: [Cross-SDK rules, error codes](https://github.com/t-0-network/provider-sdk/blob/master/docs/CROSS_SDK_RULES.md#error-codes). A server misconfiguration or unexpected error is `INTERNAL`.
 
 ### Client-Side Exceptions
 
@@ -451,7 +443,7 @@ Results are reported in operations per millisecond.
 
 **Solution**: Increase the default deadline when creating the client (unary calls get 15 seconds by default, streaming calls 5 minutes):
 ```java
-// Deadlines for unary and streaming calls: each a positive duration of at most 2147483647 ms
+// Deadlines for unary and streaming calls: each a positive duration
 BlockingNetworkClient.create(endpoint, signer, stubFactory, Duration.ofSeconds(60), Duration.ofMinutes(10));
 ```
 

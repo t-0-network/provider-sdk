@@ -95,29 +95,45 @@ class TestPrivateKeyFromHex:
 
 
 class TestPublicKeyFromHex:
+    """Deprecated; the public_key_parsing vectors run through it in test_cross_vectors."""
+
     def test_from_uncompressed_hex(self):
-        key = public_key_from_hex(PUBLIC_KEY_HEX_1)
+        with pytest.deprecated_call():
+            key = public_key_from_hex(PUBLIC_KEY_HEX_1)
         assert isinstance(key, PublicKey)
         assert key.format(compressed=False) == bytes.fromhex(PUBLIC_KEY_HEX_1.removeprefix("0x"))
 
     def test_without_0x_prefix(self):
-        key = public_key_from_hex(PUBLIC_KEY_HEX_1.removeprefix("0x"))
+        with pytest.deprecated_call():
+            key = public_key_from_hex(PUBLIC_KEY_HEX_1.removeprefix("0x"))
         assert key.format(compressed=False) == bytes.fromhex(PUBLIC_KEY_HEX_1.removeprefix("0x"))
+
+
+@pytest.mark.parametrize(
+    ("helper", "key"),
+    [(public_key_from_hex, PUBLIC_KEY_HEX_1), (public_key_from_bytes, bytes.fromhex(PUBLIC_KEY_HEX_1[2:]))],
+    ids=["public_key_from_hex", "public_key_from_bytes"],
+)
+def test_public_key_helper_warns_that_it_is_deprecated(helper, key):
+    with pytest.warns(DeprecationWarning, match="not used by the SDK; will be removed in a future major version"):
+        helper(key)
 
 
 class TestPublicKeyRoundTrip:
     def test_to_bytes_and_back(self):
-        original = public_key_from_hex(PUBLIC_KEY_HEX_1)
+        original = private_key_from_hex(PRIVATE_KEY_HEX_1).public_key
         raw = public_key_to_bytes(original)
         assert len(raw) == 65  # Uncompressed: 04 || x(32) || y(32)
         assert raw[0] == 0x04
-        recovered = public_key_from_bytes(raw)
+        with pytest.deprecated_call():
+            recovered = public_key_from_bytes(raw)
         assert recovered.format(compressed=False) == original.format(compressed=False)
 
     def test_from_compressed_bytes(self):
         """Compressed format (33 bytes) should also work."""
-        original = public_key_from_hex(PUBLIC_KEY_HEX_1)
+        original = private_key_from_hex(PRIVATE_KEY_HEX_1).public_key
         compressed = original.format(compressed=True)
         assert len(compressed) == 33
-        recovered = public_key_from_bytes(compressed)
+        with pytest.deprecated_call():
+            recovered = public_key_from_bytes(compressed)
         assert recovered.format(compressed=False) == original.format(compressed=False)

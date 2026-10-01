@@ -145,9 +145,9 @@ class TestCrossSign:
         assert result, "Python failed to verify Go's signature"
 
         # Also verify using the Go-provided public key bytes
-        from t0_provider_sdk.crypto.keys import public_key_from_bytes
+        from t0_provider_sdk.crypto.keys import _public_key_from_bytes_strict
 
-        go_pub = public_key_from_bytes(go_pub_key)
+        go_pub = _public_key_from_bytes_strict(go_pub_key)
         result2 = verify_signature(go_pub, digest, go_signature)
         assert result2, "Python failed to verify Go's signature (using Go pub key bytes)"
 

@@ -17,6 +17,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/t-0-network/provider-sdk/go/common"
 	"github.com/t-0-network/provider-sdk/go/crypto"
+	"github.com/t-0-network/provider-sdk/go/internal/pubkey"
 )
 
 type middleware func(http.Handler) http.Handler
@@ -34,7 +35,7 @@ func getSignatureErrorFromContext(ctx context.Context) (*SignatureError, bool) {
 }
 
 func newSignatureVerifierMiddleware(
-	verifySignature VerifySignature,
+	verifySignature verifyFunc,
 	maxBodySizeOpt int64,
 ) middleware {
 	return func(handler http.Handler) http.Handler {
@@ -48,7 +49,7 @@ func newSignatureVerifierMiddleware(
 				handler.ServeHTTP(writer, req.WithContext(ctx))
 			}
 
-			publicKey, err := parseRequiredHexedHeader(common.PublicKeyHeader, req.Header)
+			publicKey, err := parsePublicKeyHeader(req.Header)
 			if err != nil {
 				setErrorAndContinue(req, connect.CodeInvalidArgument, err.Error())
 				return
@@ -73,7 +74,7 @@ func newSignatureVerifierMiddleware(
 
 			body, err := readBodyWithCap(req, maxBodySizeOpt)
 			if err != nil {
-				setErrorAndContinue(req, connect.CodeInvalidArgument, err.Error())
+				setErrorAndContinue(req, connect.CodeResourceExhausted, err.Error())
 				return
 			}
 
@@ -107,6 +108,18 @@ func parseRequiredHexedHeader(headerName string, headers http.Header) ([]byte, e
 	return decodedHeader, nil
 }
 
+// parsePublicKeyHeader returns the X-Public-Key header. Whether it is the
+// network public key is checked by the verifier, which rejects anything else,
+// malformed or not, as Unauthenticated.
+func parsePublicKeyHeader(headers http.Header) (string, error) {
+	encodedHeader := headers.Get(common.PublicKeyHeader)
+	if encodedHeader == "" {
+		return "", fmt.Errorf("%w: %s", ErrMissingRequiredHeader, common.PublicKeyHeader)
+	}
+
+	return encodedHeader, nil
+}
+
 // parseTimestamp extracts the timestamp from the request headers, and returns
 // the parsed time and its byte representation in little-endian format.
 func parseTimestamp(headers http.Header) (time.Time, [8]byte, error) {
@@ -117,6 +130,10 @@ func parseTimestamp(headers http.Header) (time.Time, [8]byte, error) {
 		return time.Time{}, tsBytes, fmt.Errorf("%w: %s", ErrMissingRequiredHeader, common.SignatureTimestampHeader)
 	}
 
+	// ASCII digits only: strconv.ParseInt would also take a leading + or -.
+	if strings.TrimLeft(timestampValue, "0123456789") != "" {
+		return time.Time{}, tsBytes, errors.New("invalid timestamp header: not a decimal number")
+	}
 	timestamp, err := strconv.ParseInt(timestampValue, 10, 64)
 	if err != nil {
 		return time.Time{}, tsBytes, fmt.Errorf("invalid timestamp header: %s", err.Error())
@@ -146,20 +163,27 @@ func readBodyWithCap(r *http.Request, cap int64) ([]byte, error) {
 
 // VerifySignature accepts a public key, a message, and a signature, hashes the
 // message, and verifies the signature against the public key.
+//
+// Deprecated: not used by the SDK. WithVerifySignatureFn, which took it, has no
+// effect.
 type VerifySignature func(publicKey, message, signature []byte) error
 
-func newVerifySignature(networkPublicKeyHexed string) (VerifySignature, error) {
-	networkPublicKey, err := crypto.GetPublicKeyFromHex(networkPublicKeyHexed)
+// verifyFunc accepts a hex-encoded public key, a message, and a signature,
+// hashes the message, and verifies the signature against the network public key.
+type verifyFunc func(publicKeyHexed string, message, signature []byte) error
+
+func newVerifySignature(networkPublicKeyHexed string) (verifyFunc, error) {
+	networkPublicKey, err := pubkey.ParseHex(networkPublicKeyHexed)
 	if err != nil {
 		return nil, fmt.Errorf("invalid network public key: %w", err)
 	}
 
-	return func(publicKey, message, signature []byte) error {
+	return func(publicKeyHexed string, message, signature []byte) error {
 		if len(signature) < 64 || len(signature) > 65 {
 			return ErrInvalidSignature
 		}
 
-		signerPublicKey, err := crypto.GetPublicKeyFromBytes(publicKey)
+		signerPublicKey, err := pubkey.ParseHex(publicKeyHexed)
 		if err != nil {
 			return fmt.Errorf("invalid public key: %w", err)
 		}
@@ -190,7 +214,7 @@ func timesWithinDelta(t1, t2 time.Time, delta time.Duration) bool {
 // request is gRPC with a valid frame prefix, retries without the 5-byte prefix.
 // Required for Java SDK clients whose SigningClientInterceptor signs above the
 // gRPC framer. See go/CLAUDE.md "Dual Framing" section.
-func verifyWithFramingFallback(verify VerifySignature, req *http.Request, publicKey, body, signature []byte, timestampBytes [8]byte) error {
+func verifyWithFramingFallback(verify verifyFunc, req *http.Request, publicKey string, body, signature []byte, timestampBytes [8]byte) error {
 	err := verify(publicKey, append(body, timestampBytes[:]...), signature)
 	if err == nil {
 		return nil

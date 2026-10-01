@@ -11,9 +11,11 @@ import (
 
 	"buf.build/go/protovalidate"
 	"connectrpc.com/connect"
+	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/stretchr/testify/require"
 	"github.com/t-0-network/provider-sdk/go/api/tzero/v1/common"
 	"github.com/t-0-network/provider-sdk/go/api/tzero/v1/payment"
+	"github.com/t-0-network/provider-sdk/go/crypto"
 	"github.com/t-0-network/provider-sdk/go/sdkversion"
 )
 
@@ -189,7 +191,9 @@ func TestValidationInterceptor(t *testing.T) {
 	t.Run("NewHttpHandler continues to accept the old signature", func(t *testing.T) {
 		// Backward-compat smoke test: the original NewHttpHandler signature
 		// (no options) must keep working unchanged.
-		mux, err := NewHttpHandler("")
+		priv, err := secp256k1.GeneratePrivateKey()
+		require.NoError(t, err)
+		mux, err := NewHttpHandler(NetworkPublicKeyHexed(crypto.HexPublicKey(priv.PubKey())))
 		require.NoError(t, err)
 		require.NotNil(t, mux)
 	})

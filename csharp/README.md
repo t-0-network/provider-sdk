@@ -42,7 +42,7 @@ var client = NetworkClient.CreateNetworkServiceClient(options, signer);
 await client.UpdateQuoteAsync(request, deadline: DateTime.UtcNow.AddMinutes(1));
 ```
 
-A client or server stream is signed over its first message and sent as soon as that message is written; bidirectional streams are refused. A timeout must be positive and at most 2147483647 ms. The streaming rules shared by all SDKs: [`docs/STREAMING.md`](../docs/STREAMING.md).
+A client or server stream is signed over its first message and sent as soon as that message is written; bidirectional streams are refused. A timeout must be greater than zero. The streaming rules shared by all SDKs: [`docs/STREAMING.md`](../docs/STREAMING.md).
 
 ## Available Commands
 
@@ -64,6 +64,6 @@ docker run -p 8080:8080 --env-file .env my-provider
 | Issue | Solution |
 |-------|----------|
 | `PROVIDER_PRIVATE_KEY is required` | `.env` is generated with a fresh key next to the `.csproj`; run from that directory. To generate a new key, run `t0-init keygen` and set `PROVIDER_PRIVATE_KEY` to the private key it prints (see [`cli/README.md`](../cli/README.md)) |
-| Signature verification failures | Ensure system clock is synchronized (NTP). Tolerance is +/- 60 seconds |
+| Signature verification failures | Ensure system clock is synchronized (NTP); timestamps outside the allowed window are rejected ([rules](../docs/CROSS_SDK_RULES.md)) |
 | gRPC connection refused | Verify `TZERO_ENDPOINT` is correct and reachable |
 | Port already in use | Change `PORT` in `.env` or stop the conflicting process |

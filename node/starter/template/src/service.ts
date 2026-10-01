@@ -38,7 +38,7 @@ const CreateProviderService = (networkClient: Client<typeof NetworkService>) => 
             // return { result: { case: "manualAmlCheck", value: {} } } as PayoutResponse
 
             // TODO: finalizePayout should be called when your system completes (or fails) the payout
-            setInterval(() => {
+            setTimeout(() => {
                 networkClient.finalizePayout({
                     paymentId: req.paymentId,
                     result: {
@@ -54,7 +54,7 @@ const CreateProviderService = (networkClient: Client<typeof NetworkService>) => 
                             },
                         },
                     }
-                })
+                }).catch((err) => console.error(`finalizePayout failed for ${req.paymentId}:`, err))
             }, 2000);
             // optional: if your provider has multiple legal entities, set beneficiaryProviderLegalEntityId
             // `validate(...)` checks the response against buf.validate rules and surfaces

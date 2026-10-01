@@ -13,7 +13,7 @@ Protobuf encoding is not canonical — re-encoding a deserialized message produc
 - **Full body** — Connect-protocol callers (Go, Node, Python) and gRPC-protocol callers whose signer covers the framed body (C# SDK's `SigningDelegatingHandler` sits below the gRPC framer in the HttpClient pipeline, so it signs the already-framed bytes).
 - **Unframed fallback** — gRPC-protocol callers whose signing interceptor sits above the gRPC framer (Java SDK's `SigningClientInterceptor`). The signed payload is unframed protobuf, but the HTTP body includes the gRPC frame prefix.
 
-Removing the fallback silently breaks **Java SDK** clients with `UNAUTHENTICATED`. The Java SDK has the same dual-path on its server side — see [`docs/java/SIGNATURE_VERIFICATION.md`](../docs/java/SIGNATURE_VERIFICATION.md).
+Removing the fallback silently breaks **Java SDK** clients with `UNAUTHENTICATED`. Every SDK's server follows the same rule (V6 in [`docs/CROSS_SDK_RULES.md`](../docs/CROSS_SDK_RULES.md)); Java's is explained in [`docs/java/SIGNATURE_VERIFICATION.md`](../docs/java/SIGNATURE_VERIFICATION.md).
 
 ## Build Commands
 
@@ -32,6 +32,7 @@ go/
 ├── api/                  # Generated protobuf code (committed)
 ├── common/               # Shared constants (header names)
 ├── crypto/               # Keccak256, secp256k1 signing/verification
+├── internal/pubkey/      # The one public key parser (network key, X-Public-Key, crypto helpers)
 ├── network/              # Network client with signing transport
 ├── provider/             # Server, handler, signature verification middleware
 └── starter/template/     # Starter template (scaffolded by the unified CLI)
@@ -41,7 +42,7 @@ go/
 
 - `provider.StartServer()` — Starts HTTP/2 (h2c) server, returns immediately with shutdown function
 - `provider.NewHttpHandler()` — Creates handler with signature verification middleware.
-- `provider.Handler()` — Registers ConnectRPC service with options (`WithMaxBodySize`, `WithVerifySignatureFn`)
+- `provider.Handler()` — Registers ConnectRPC service with options (`WithMaxBodySize`, `WithConnectHandlerOptions`)
 - `network.NewServiceClient()` — Creates auto-signing ConnectRPC client: unary calls signed over the whole body, client-/server-streaming calls over their first request envelope (by content type; see [`docs/STREAMING.md`](../docs/STREAMING.md)); `WithTimeout` (unary, 15s), `WithStreamTimeout` (streams, 5 min), a context deadline replaces them; `WithWireFormat`, `WithProtocol` (gRPC on `http://` runs over HTTP/2 without TLS); GET and bidi calls are refused.
 - `crypto.NewSigner()` / `crypto.VerifySignature()` — secp256k1 operations
 - `sdkversion.Version` — the version the running SDK reports about itself. Bumped by `release.yaml`, validated by `publish.yaml`. See [`docs/VERSIONING.md`](../docs/VERSIONING.md).
@@ -57,8 +58,8 @@ The SDK module requires a separate tag for releases:
 - Server uses functional options pattern for configuration
 - `StartServer()` is async — returns after confirming server is listening (5s timeout)
 - Shutdown function is idempotent and safe for concurrent calls
-- Default max request body size: 10 MiB (configurable via `WithMaxBodySize`)
-- Signature errors stored in context, converted to ConnectRPC errors by interceptor
+- Default max request body size: 10 MiB (configurable via `WithMaxBodySize`); a larger body is `ResourceExhausted`. `http.MaxBytesHandler` stops every read at the limit, including connect-go's read of a rejected request's body.
+- Signature errors stored in context, converted to ConnectRPC errors by interceptor. connect-go decodes the request before the interceptor runs, so a body over the limit fails as `ResourceExhausted` first.
 - Uses `github.com/decred/dcrd/dcrec/secp256k1/v4` for signing/verification
 - Uses `golang.org/x/crypto/sha3.NewLegacyKeccak256()` — must be Legacy variant, not standard SHA-3
 

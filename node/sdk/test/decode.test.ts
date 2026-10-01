@@ -95,6 +95,23 @@ describe('createRequestDecoder (generic)', () => {
     assert.ok(wire.body instanceof Uint8Array);
   });
 
+  it('accepts a request whose X-Public-Key is the compressed network key', () => {
+    const { priv, publicKeyHex } = newKeypair();
+    const decode = createGenericDecoder({ networkPublicKey: publicKeyHex });
+
+    const protoBody = toBinary(HealthCheckRequestSchema, create(HealthCheckRequestSchema, { service: 'compressed' }));
+    const headers = {
+      ...sign(protoBody, priv),
+      'x-public-key': '0x' + Buffer.from(secp256k1.getPublicKey(priv, true)).toString('hex'),
+      'content-type': 'application/proto',
+    };
+
+    const result = decode(HealthCheckRequestSchema, { body: protoBody, headers });
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+    assert.equal(result.request.service, 'compressed');
+  });
+
   it('encodeResponse accepts a different schema than the request', () => {
     const { priv, publicKeyHex } = newKeypair();
     const decode = createGenericDecoder({ networkPublicKey: publicKeyHex });
@@ -253,6 +270,29 @@ describe('createRequestDecoder (generic)', () => {
     assert.equal(result.ok, false);
     if (result.ok) return;
     assert.ok(result.error.status === 400 || result.error.status === 401);
+  });
+
+  it('rejects a signed timestamp followed by other characters with invalid_timestamp', () => {
+    const { priv, publicKeyHex } = newKeypair();
+    const decode = createGenericDecoder({ networkPublicKey: publicKeyHex });
+
+    const body = new TextEncoder().encode('{}');
+    const signed = sign(body, priv);
+    const headers = { ...signed, 'x-signature-timestamp': signed['x-signature-timestamp'] + 'abc', 'content-type': 'application/json' };
+
+    const result = decode(HealthCheckRequestSchema, { body, headers });
+    assert.equal(result.ok, false);
+    if (result.ok) return;
+    assert.deepEqual(result.error, rejectRequest('invalid_timestamp'));
+  });
+
+  it('throws at creation on a toleranceMs that is not in (0, 60000]', () => {
+    const { publicKeyHex } = newKeypair();
+    for (const toleranceMs of [Infinity, NaN, 0, -1, 60_001]) {
+      assert.throws(() => createGenericDecoder({ networkPublicKey: publicKeyHex, toleranceMs }), /toleranceMs must be/, String(toleranceMs));
+      assert.throws(() => createRequestDecoder({ networkPublicKey: publicKeyHex, toleranceMs }), /toleranceMs must be/, String(toleranceMs));
+    }
+    assert.doesNotThrow(() => createGenericDecoder({ networkPublicKey: publicKeyHex, toleranceMs: 60_000 }));
   });
 
   it('rejects unsupported Content-Type with 415', () => {

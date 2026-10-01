@@ -54,14 +54,13 @@ internal sealed class DefaultDeadlineInterceptor : Interceptor
         AsyncDuplexStreamingCallContinuation<TRequest, TResponse> continuation) =>
         throw new RpcException(new Status(StatusCode.Unimplemented, "bidirectional streams are not supported"));
 
-    // The caller's own deadline replaces the default, longer or shorter. DateTime.MaxValue means no
-    // deadline to gRPC, so it gets the default: a timeout cannot be turned off.
+    // The caller's own deadline replaces the default, longer or shorter.
     private ClientInterceptorContext<TRequest, TResponse> WithDefaultDeadline<TRequest, TResponse>(
         ClientInterceptorContext<TRequest, TResponse> context)
         where TRequest : class
         where TResponse : class
     {
-        if (context.Options.Deadline is { } deadline && deadline != DateTime.MaxValue)
+        if (context.Options.Deadline is not null)
             return context;
 
         var timeout = context.Method.Type == MethodType.Unary ? _unaryTimeout : _streamTimeout;

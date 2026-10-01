@@ -7,12 +7,10 @@ import io.grpc.ClientCall;
 import io.grpc.ClientInterceptor;
 import io.grpc.ClientInterceptors;
 import io.grpc.Context;
-import io.grpc.Deadline;
 import io.grpc.ManagedChannel;
 import io.grpc.Metadata;
 import io.grpc.MethodDescriptor;
 import io.grpc.Status;
-import io.grpc.SynchronizationContext;
 import io.grpc.okhttp.OkHttpChannelBuilder;
 import network.t0.sdk.common.Headers;
 import network.t0.sdk.crypto.Keccak256;
@@ -28,14 +26,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.Clock;
 import java.time.Duration;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.concurrent.Executor;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.ScheduledFuture;
-import java.util.concurrent.ScheduledThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -70,10 +61,11 @@ import java.util.concurrent.TimeUnit;
  * holds the key in memory.
  *
  * <p>Unary calls get a default deadline of 15 seconds, client- and server-streaming calls one of
- * 5 minutes, which includes the wait for the first message. A deadline the caller sets on a call or on
- * its {@link Context} replaces the default, shorter or longer. Streaming calls are signed over their
- * first request message only; bidirectional streams and calls with a non-identity compressor fail
- * with {@code UNIMPLEMENTED}. See {@code docs/STREAMING.md}.
+ * 5 minutes, counted from when the call is created. A call starts with its first message, so a deadline
+ * that passed before then fails the call when that message, or the half-close, comes. A deadline the
+ * caller sets on a call or on its {@link Context} replaces the default, shorter or longer. Streaming
+ * calls are signed over their first request message only; bidirectional streams and calls with a
+ * non-identity compressor fail with {@code UNIMPLEMENTED}. See {@code docs/STREAMING.md}.
  *
  * <p><b>Thread Safety:</b> Client instances are thread-safe. The underlying gRPC channel
  * and stubs support concurrent use from multiple threads. The signing interceptor creates
@@ -96,12 +88,9 @@ public abstract class NetworkClient implements Closeable {
     protected static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(15);
 
     /**
-     * Default deadline for client- and server-streaming calls, including the wait for the first message.
+     * Default deadline for client- and server-streaming calls, counted from when the call is created.
      */
     protected static final Duration DEFAULT_STREAM_TIMEOUT = Duration.ofMinutes(5);
-
-    /** The longest timeout accepted, 2^31 - 1 ms (about 24.8 days). */
-    static final Duration MAX_TIMEOUT = Duration.ofMillis(Integer.MAX_VALUE);
 
     /**
      * The underlying gRPC managed channel.
@@ -142,7 +131,7 @@ public abstract class NetworkClient implements Closeable {
      * @param streamTimeout the default deadline for client- and server-streaming calls
      * @return a ChannelPair containing the managed channel and intercepted channel
      * @throws IllegalArgumentException if the endpoint or signer is invalid, or a timeout is not a positive
-     *                                  duration of at most 2147483647 ms
+     *                                  duration
      */
     protected static ChannelPair createChannel(
             String endpoint, DigestSigner signer, Duration timeout, Duration streamTimeout) {
@@ -178,29 +167,15 @@ public abstract class NetworkClient implements Closeable {
     }
 
     /**
-     * Returns {@code value} if it is a positive duration of at most {@link #MAX_TIMEOUT}.
+     * Returns {@code value} if it is a positive duration.
      *
      * @throws IllegalArgumentException otherwise, naming {@code option}
      */
     static Duration checkTimeout(String option, Duration value) {
-        if (value == null || value.isNegative() || value.isZero() || value.compareTo(MAX_TIMEOUT) > 0) {
-            throw new IllegalArgumentException(
-                    option + " must be a positive duration of at most " + MAX_TIMEOUT.toMillis() + " ms");
+        if (value == null || value.isNegative() || value.isZero()) {
+            throw new IllegalArgumentException(option + " must be a positive duration");
         }
         return value;
-    }
-
-    /**
-     * Checks a per-call timeout as {@link #checkTimeout(String, Duration)} does.
-     *
-     * @throws IllegalArgumentException if {@code unit} is null or the timeout is out of range
-     */
-    static void checkTimeout(String option, long value, TimeUnit unit) {
-        if (unit == null) {
-            throw new IllegalArgumentException("unit must not be null");
-        }
-        // toNanos saturates, so a huge value stays above the bound instead of overflowing.
-        checkTimeout(option, value <= 0 ? Duration.ZERO : Duration.ofNanos(unit.toNanos(value)));
     }
 
     /**
@@ -305,10 +280,7 @@ public abstract class NetworkClient implements Closeable {
      * @param endpoint an http or https URL with a host, an optional port from 1 to 65535 and an optional
      *                 path, and no user info, query or fragment; without {@code ://} it is read as https
      *                 ({@code "api.t-0.network:443"}); {@code null} for {@value #DEFAULT_ENDPOINT}. The path
-     *                 prefixes every call ({@code https://host/v1} calls
-     *                 {@code https://host/v1/<service>/<method>}): segments of letters, digits and
-     *                 {@code -._~} (not {@code .} or {@code ..}), each after one {@code /}, and an optional
-     *                 trailing {@code /}
+     *                 prefixes every call ({@code https://host/v1} calls {@code https://host/v1/<service>/<method>})
      * @throws IllegalArgumentException if the base URL is empty or not valid
      */
     static BaseUrl parseBaseUrl(String endpoint) {
@@ -328,79 +300,20 @@ public abstract class NetworkClient implements Closeable {
             throw invalidBaseUrl();
         }
         boolean usePlaintext = "http".equalsIgnoreCase(uri.getScheme());
-        if (!usePlaintext && !"https".equalsIgnoreCase(uri.getScheme())) {
-            throw invalidBaseUrl();
-        }
-        // The host is null when it is not an IPv4 address, an IPv6 address or a name of letters, digits and
-        // inner '-' ("my_host", "1.2.3", "256.1.1.1", "a..b", "-foo"), or the port is not a number.
-        String host = uri.getHost();
         int port = uri.getPort();
-        if (host == null || !validHost(host) || uri.getRawUserInfo() != null || uri.getRawQuery() != null
-                || uri.getRawFragment() != null
-                // The authority holds only the host and the port as Java writes it: no "h:" and no "h:080".
-                || !uri.getRawAuthority().equals(port < 0 ? host : host + ":" + port)
+        if ((!usePlaintext && !"https".equalsIgnoreCase(uri.getScheme())) || uri.getHost() == null
+                || uri.getRawUserInfo() != null || uri.getRawQuery() != null || uri.getRawFragment() != null
                 || port == 0 || port > 65535) {
             throw invalidBaseUrl();
         }
         if (port < 0) {
             port = usePlaintext ? 80 : 443;
         }
-        return new BaseUrl(new EndpointInfo(host, port, usePlaintext), pathPrefix(uri.getRawPath()));
-    }
-
-    /**
-     * What {@link URI} lets through of the hosts the other SDKs refuse: an IPv6 zone ({@code [fe80::1%en0]}
-     * names an interface of this machine only), an empty last label ({@code h.}), a last label that starts
-     * with a digit but is not part of an IPv4 address ({@code 1abc}), and an IPv4 octet with a leading zero
-     * ({@code 01.2.3.4} could be read as octal).
-     */
-    private static boolean validHost(String host) {
-        if (host.startsWith("[")) {
-            return host.indexOf('%') < 0;
-        }
-        String[] labels = host.split("\\.", -1);
-        String last = labels[labels.length - 1];
-        if (last.isEmpty()) {
-            return false;
-        }
-        char first = last.charAt(0);
-        if ((first >= 'a' && first <= 'z') || (first >= 'A' && first <= 'Z')) {
-            return true;
-        }
-        // URI takes a last label that starts with a digit only as part of an IPv4 address, or as the only label.
-        if (labels.length != 4) {
-            return false;
-        }
-        for (String octet : labels) {
-            if (octet.length() > 1 && octet.charAt(0) == '0') {
-                return false;
-            }
-        }
-        return true;
-    }
-
-    /**
-     * Returns the path without its leading and trailing {@code /}. Other paths than segments of letters,
-     * digits and {@code -._~} ({@code //}, {@code /%41}, {@code /..}) are refused: the HTTP clients of the
-     * SDKs normalize them differently, so they would reach different URLs.
-     */
-    private static String pathPrefix(String path) {
-        String trimmed = path.endsWith("/") ? path.substring(0, path.length() - 1) : path;
-        if (trimmed.isEmpty()) {
-            return "";
-        }
-        String prefix = trimmed.substring(1); // after the authority, a path starts with '/'
-        for (String segment : prefix.split("/", -1)) {
-            if (segment.isEmpty() || segment.equals(".") || segment.equals("..")
-                    || !segment.chars().allMatch(NetworkClient::isUnreserved)) {
-                throw invalidBaseUrl();
-            }
-        }
-        return prefix;
-    }
-
-    private static boolean isUnreserved(int c) {
-        return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z') || (c >= '0' && c <= '9') || "-._~".indexOf(c) >= 0;
+        // The path without its leading '/' and one trailing '/'.
+        String path = uri.getRawPath();
+        int end = path.endsWith("/") ? path.length() - 1 : path.length();
+        String pathPrefix = end > 0 ? path.substring(1, end) : "";
+        return new BaseUrl(new EndpointInfo(uri.getHost(), port, usePlaintext), pathPrefix);
     }
 
     private static IllegalArgumentException invalidBaseUrl() {
@@ -447,9 +360,10 @@ public abstract class NetworkClient implements Closeable {
      *
      * <p>Only the first request message is signed, without its 5-byte gRPC prefix (this interceptor
      * sits above the framer); later stream messages are sent unsigned. The underlying call starts on
-     * that first message, since the headers must be complete by then, or unsigned when it is cancelled
-     * or its deadline or context ends first (see {@code docs/STREAMING.md}). Bidirectional streams and
-     * calls with a non-identity compressor are refused with {@code UNIMPLEMENTED} before anything is sent.
+     * that first message, since the headers must be complete by then, or on a half-close without one,
+     * signed over empty bytes. A call cancelled before then sends nothing (see {@code docs/STREAMING.md}).
+     * Bidirectional streams and calls with a non-identity compressor are refused with
+     * {@code UNIMPLEMENTED} before anything is sent.
      *
      * <p>This class is thread-safe. Each call to {@link #interceptCall} creates
      * independent state for that specific call.
@@ -462,18 +376,6 @@ public abstract class NetworkClient implements Closeable {
                 Metadata.Key.of(Headers.PUBLIC_KEY, Metadata.ASCII_STRING_MARSHALLER);
         private static final Metadata.Key<String> SIGNATURE_TIMESTAMP_KEY =
                 Metadata.Key.of(Headers.SIGNATURE_TIMESTAMP, Metadata.ASCII_STRING_MARSHALLER);
-
-        // Deadlines of calls still waiting for their first message; a started call enforces its own.
-        // One thread for every call in the JVM, so it only hands the start on to CALLBACK_EXECUTOR.
-        private static final ScheduledExecutorService DEADLINE_TIMER = newDeadlineTimer();
-        // Runs the first onReady of calls whose CallOptions have no executor, and the unsigned start of
-        // calls whose deadline or context ends first. That start may run the caller's listener inline,
-        // which must not hold up the shared timer or the thread that cancelled the context.
-        private static final ExecutorService CALLBACK_EXECUTOR = Executors.newCachedThreadPool(task -> {
-            Thread thread = new Thread(task, "t0-network-client-callback");
-            thread.setDaemon(true);
-            return thread;
-        });
 
         private final DigestSigner signer;
         private final Clock clock;
@@ -495,18 +397,21 @@ public abstract class NetworkClient implements Closeable {
                 CallOptions callOptions,
                 Channel next) {
 
+            // Where this wrapper calls the listener on its own: the call's executor, or in place.
+            Executor executor = callOptions.getExecutor() != null ? callOptions.getExecutor() : Runnable::run;
+
             // The network accepts no bidi streams, and with the deferred start a bidi caller that
             // awaits a response before sending would hang: fail fast.
             if (method.getType() == MethodDescriptor.MethodType.BIDI_STREAMING) {
                 return new RefusedCall<>(Status.UNIMPLEMENTED.withDescription("bidirectional streams are not supported"),
-                        callOptions);
+                        executor);
             }
             // The signature covers the message as serialized here, and a non-identity compressor would
             // change the bytes on the wire after that, so the network would refuse the call: refuse it first.
             String compressor = callOptions.getCompressor();
             if (compressor != null && !"identity".equals(compressor)) {
                 return new RefusedCall<>(Status.UNIMPLEMENTED.withDescription("compressed requests are not supported"),
-                        callOptions);
+                        executor);
             }
 
             // Create a method descriptor that accepts raw bytes for the request.
@@ -517,18 +422,7 @@ public abstract class NetworkClient implements Closeable {
             ).build();
 
             // Create the underlying call with the raw method descriptor
-            // The caller's context, whose end before the first message starts rawCall unsigned.
-            Context context = Context.current();
-            // rawCall is created in a child of it: cancel() before the first message cancels the child,
-            // so that rawCall starts already cancelled, closes its listener and sends nothing.
-            Context.CancellableContext callContext = context.withCancellation();
-            ClientCall<byte[], RespT> rawCall;
-            Context previous = callContext.attach();
-            try {
-                rawCall = next.newCall(rawMethod, callOptions);
-            } finally {
-                callContext.detach(previous);
-            }
+            ClientCall<byte[], RespT> rawCall = next.newCall(rawMethod, callOptions);
 
             // Extend ClientCall directly instead of ForwardingClientCall to avoid
             // the delegate() issue. ForwardingClientCall requires delegate() to return
@@ -536,57 +430,31 @@ public abstract class NetworkClient implements Closeable {
             // while we need to return ClientCall<ReqT, RespT>.
             return new ClientCall<ReqT, RespT>() {
 
-                // Guards the start of rawCall and the hand-off of request() calls made before it. The
-                // first of sendMessage, halfClose and cancel to find the call unstarted claims the start
-                // via starter; the others wait until it has started. cancel() may come from another thread.
+                // Held from rawCall.start() until the signed first message is sent, so that no message
+                // from another thread reaches the wire before it.
                 private final Object lock = new Object();
                 private Listener<RespT> responseListener;
                 private Metadata headers;
-                private volatile boolean started = false;
-                private Thread starter; // the thread that claimed rawCall.start(), until it returns
-                private int pendingRequests = 0;
-                private Thread firstSender; // sending the signed first message, until it is out
-                private final List<Runnable> held = new ArrayList<>(); // callbacks raised meanwhile
-                // Where the listener is called when this wrapper calls it on its own: the caller's executor.
-                private final Executor callExecutor =
-                        callOptions.getExecutor() != null ? callOptions.getExecutor() : CALLBACK_EXECUTOR;
-                private ScheduledFuture<?> deadlineTimer;
-                private final Context.CancellationListener contextListener = cancelled -> startUnsigned();
-                // The listener's callbacks, one at a time: its onReady before the first message (see
-                // start()) and rawCall's. One that throws cancels the call.
-                private final SynchronizationContext callbacks = new SynchronizationContext((thread, e) -> {
-                    log.warn("Call listener threw", e);
-                    cancel("Call listener threw", e);
-                });
+                private boolean started; // rawCall started, with the first message sent if there is one
+                private boolean cancelled; // before rawCall started
+                private int pendingRequests;
 
                 @Override
                 public void start(Listener<RespT> responseListener, Metadata headers) {
                     // Delay start until we have the first message and can compute the signature.
-                    // grpc enforces the deadline and the context only from rawCall's start: until then,
-                    // whichever ends first starts rawCall unsigned, and grpc fails it without sending.
                     synchronized (lock) {
                         this.responseListener = responseListener;
                         this.headers = headers;
-                        // Under the lock, so that no start (which removes the listener) can come first
-                        // and leave the listener on a long-lived context. CALLBACK_EXECUTOR runs it later.
-                        context.addListener(contextListener, CALLBACK_EXECUTOR);
-                        Deadline deadline = callOptions.getDeadline();
-                        if (deadline != null) {
-                            deadlineTimer = deadline.runOnExpiration(
-                                    () -> CALLBACK_EXECUTOR.execute(this::startUnsigned), DEADLINE_TIMER);
-                        }
                     }
-
                     // The call is ready for its first message, and only that message starts rawCall: a
                     // sender that sends only on onReady needs this one, or both wait for ever.
-                    callExecutor.execute(() -> deliver(() -> {
-                        boolean waiting;
+                    executor.execute(Context.current().wrap(() -> {
                         synchronized (lock) {
-                            waiting = !started && starter == null;
+                            if (started || cancelled) {
+                                return;
+                            }
                         }
-                        if (waiting) {
-                            responseListener.onReady();
-                        }
+                        responseListener.onReady();
                     }));
                 }
 
@@ -603,42 +471,34 @@ public abstract class NetworkClient implements Closeable {
                     // CRITICAL: Send the EXACT bytes we signed, not the original message.
                     // This prevents double-serialization which would produce different bytes.
                     // Only the first message is signed; later stream messages go out as-is.
-                    if (claimStart(messageBytes)) {
-                        // rawCall may call the listener back before the signed message is out, inside
-                        // start() on this thread (a direct executor) or on another: every such callback is
-                        // held until then (see deliver), so that nothing a listener sends overtakes it.
-                        synchronized (lock) {
-                            firstSender = Thread.currentThread();
-                        }
-                        try {
-                            startRawCall();
+                    synchronized (lock) {
+                        if (!started && !cancelled) {
+                            startSigned(messageBytes);
                             rawCall.sendMessage(messageBytes);
-                        } finally {
-                            openAndRelease();
+                            started = true;
+                            return;
                         }
-                        return;
                     }
                     rawCall.sendMessage(messageBytes);
                 }
 
                 @Override
                 public void halfClose() {
-                    // If no message was sent, start with empty body signature
-                    if (claimStart(new byte[0])) {
-                        startRawCall();
+                    synchronized (lock) {
+                        if (!started && !cancelled) {
+                            startSigned(new byte[0]); // no message: signed over empty bytes
+                            started = true;
+                        }
                     }
                     rawCall.halfClose();
                 }
 
                 @Override
                 public void request(int numMessages) {
-                    // Buffer requests if the call hasn't started yet
-                    if (!started) {
-                        synchronized (lock) {
-                            if (!started) {
-                                pendingRequests += numMessages;
-                                return;
-                            }
+                    synchronized (lock) {
+                        if (!started) {
+                            pendingRequests += numMessages; // passed on when rawCall starts
+                            return;
                         }
                     }
                     rawCall.request(numMessages);
@@ -646,28 +506,29 @@ public abstract class NetworkClient implements Closeable {
 
                 @Override
                 public void cancel(String message, Throwable cause) {
-                    // An unstarted call never notifies its listener: start it (unsigned, in its
-                    // cancelled context, so nothing is sent) so the listener still gets
-                    // onClose(CANCELLED). Before start() there is no listener.
-                    boolean startCalled;
+                    Listener<RespT> unstarted = null;
                     synchronized (lock) {
-                        startCalled = responseListener != null;
-                    }
-                    if (startCalled && claimStart(null)) {
-                        callContext.cancel(Status.CANCELLED
-                                .withDescription(message)
-                                .withCause(cause)
-                                .asRuntimeException());
-                        startRawCall();
+                        if (!started && !cancelled) {
+                            cancelled = true;
+                            unstarted = responseListener; // null before start()
+                        }
                     }
                     rawCall.cancel(message, cause);
+                    // rawCall never started, so it sent nothing and will not close the listener: close it here.
+                    if (unstarted != null) {
+                        unstarted.onClose(Status.CANCELLED.withDescription(message).withCause(cause), new Metadata());
+                    }
                 }
 
                 @Override
                 public boolean isReady() {
-                    // Unstarted, the call can never become ready: report ready so that
-                    // isReady-gated senders send the first message, which starts it.
-                    return !started || rawCall.isReady();
+                    synchronized (lock) {
+                        if (!started) {
+                            // Ready for the first message, which starts the call.
+                            return !cancelled;
+                        }
+                    }
+                    return rawCall.isReady();
                 }
 
                 @Override
@@ -680,143 +541,13 @@ public abstract class NetworkClient implements Closeable {
                     return rawCall.getAttributes();
                 }
 
-                /**
-                 * Returns true if the caller is to start rawCall, with the headers signed over
-                 * {@code signed} (unsigned if null). Otherwise rawCall has started, if need be after
-                 * waiting for the thread that claimed it.
-                 */
-                private boolean claimStart(byte[] signed) {
-                    synchronized (lock) {
-                        if (!started && starter == null) {
-                            if (signed != null) {
-                                addSignatureHeaders(signed, clock.millis());
-                            }
-                            starter = Thread.currentThread();
-                            return true;
-                        }
-                        // grpc may run a listener inline in rawCall.start(): that thread must not wait for itself.
-                        if (starter == Thread.currentThread() || firstSender == Thread.currentThread()) {
-                            return false;
-                        }
-                        // Until the first message is out, so that nothing another thread sends overtakes it.
-                        while (!started || firstSender != null) {
-                            try {
-                                lock.wait();
-                            } catch (InterruptedException e) {
-                                Thread.currentThread().interrupt();
-                                throw Status.CANCELLED
-                                        .withDescription("interrupted while waiting for the call to start")
-                                        .withCause(e)
-                                        .asRuntimeException();
-                            }
-                        }
-                        return false;
-                    }
-                }
-
-                // The deadline or the context ended before the first message; a started call has its own.
-                private void startUnsigned() {
-                    synchronized (lock) {
-                        if (started || starter != null) {
-                            return;
-                        }
-                        starter = Thread.currentThread();
-                    }
-                    startRawCall();
-                }
-
-                // Outside the lock: request() from another thread must not block on it meanwhile. Opens the
-                // call to the threads waiting in claimStart, unless a first message still has to go out.
-                private void startRawCall() {
-                    Listener<RespT> listener;
-                    Metadata startHeaders;
-                    ScheduledFuture<?> timer;
-                    synchronized (lock) {
-                        listener = responseListener;
-                        startHeaders = headers;
-                        timer = deadlineTimer;
-                    }
-                    if (timer != null) {
-                        timer.cancel(false);
-                    }
-                    context.removeListener(contextListener);
-                    int requests;
-                    // rawCall runs its callbacks in callContext, which cancel() may have cancelled: the
-                    // caller's listener runs in the caller's context, so that a call it makes there
-                    // (a retry, say) does not end at once as cancelled.
-                    Listener<RespT> inCallerContext = new Listener<RespT>() {
-                        @Override
-                        public void onHeaders(Metadata responseHeaders) {
-                            deliver(() -> listener.onHeaders(responseHeaders));
-                        }
-
-                        @Override
-                        public void onMessage(RespT message) {
-                            deliver(() -> listener.onMessage(message));
-                        }
-
-                        @Override
-                        public void onClose(Status status, Metadata trailers) {
-                            deliver(() -> listener.onClose(status, trailers));
-                        }
-
-                        @Override
-                        public void onReady() {
-                            deliver(listener::onReady);
-                        }
-                    };
-                    // Started in callContext too, so a call that is created only now cannot open a
-                    // stream in whatever context this thread has.
-                    Context previous = callContext.attach();
-                    try {
-                        rawCall.start(inCallerContext, startHeaders);
-                    } finally {
-                        callContext.detach(previous);
-                        synchronized (lock) {
-                            started = true;
-                            starter = null;
-                            requests = pendingRequests;
-                            pendingRequests = 0;
-                            lock.notifyAll();
-                        }
-                    }
-                    // Flush any pending request() calls that happened before start
-                    if (requests > 0) {
-                        rawCall.request(requests);
-                    }
-                }
-
-                // A listener callback, in the caller's context. While the signed first message is pending it
-                // is held apart from `callbacks`, where a drain already under way on another thread would
-                // run it at once; openAndRelease queues it once the message is out. Queued under the lock,
-                // so held and later callbacks keep their order.
-                private void deliver(Runnable callback) {
-                    Runnable task = context.wrap(callback);
-                    synchronized (lock) {
-                        if (firstSender != null) {
-                            held.add(task);
-                            return;
-                        }
-                        callbacks.executeLater(task);
-                    }
-                    callbacks.drain();
-                }
-
-                // The signed first message is out (or failed): open the call to the threads waiting in
-                // claimStart, and run the callbacks held meanwhile, in order, before any later one. They
-                // run on the call's executor, as they would have without the hold, not on the sender's
-                // thread (with a direct executor that is the sender's thread).
-                private void openAndRelease() {
-                    boolean released;
-                    synchronized (lock) {
-                        firstSender = null;
-                        released = !held.isEmpty();
-                        held.forEach(callbacks::executeLater);
-                        held.clear();
-                        lock.notifyAll();
-                    }
-                    if (released) {
-                        callExecutor.execute(callbacks::drain);
+                // Under the lock: starts rawCall with the headers signed over `signed`, then passes on the
+                // request() calls made before.
+                private void startSigned(byte[] signed) {
+                    addSignatureHeaders(signed, clock.millis());
+                    rawCall.start(responseListener, headers);
+                    if (pendingRequests > 0) {
+                        rawCall.request(pendingRequests);
                     }
                 }
 
@@ -849,13 +580,11 @@ public abstract class NetworkClient implements Closeable {
             private final Executor executor;
             private final Context context = Context.current();
 
-            RefusedCall(Status status, CallOptions callOptions) {
+            RefusedCall(Status status, Executor executor) {
                 this.status = status;
-                this.executor = callOptions.getExecutor() != null ? callOptions.getExecutor() : CALLBACK_EXECUTOR;
+                this.executor = executor;
             }
 
-            // On the call's executor, as for any other call: an async caller's onError must not run
-            // inside the call that started it.
             @Override
             public void start(Listener<RespT> responseListener, Metadata headers) {
                 executor.execute(context.wrap(() -> responseListener.onClose(status, new Metadata())));
@@ -884,16 +613,6 @@ public abstract class NetworkClient implements Closeable {
         }
     }
 
-    private static ScheduledExecutorService newDeadlineTimer() {
-        ScheduledThreadPoolExecutor timer = new ScheduledThreadPoolExecutor(1, task -> {
-            Thread thread = new Thread(task, "t0-network-client-deadline");
-            thread.setDaemon(true);
-            return thread;
-        });
-        timer.setRemoveOnCancelPolicy(true);
-        return timer;
-    }
-
     // --- Default deadlines ---
 
     /**
@@ -912,7 +631,7 @@ public abstract class NetworkClient implements Closeable {
          *
          * @param timeout       the deadline for unary calls
          * @param streamTimeout the deadline for client- and server-streaming calls
-         * @throws IllegalArgumentException if a timeout is not a positive duration of at most 2147483647 ms
+         * @throws IllegalArgumentException if a timeout is not a positive duration
          */
         DefaultDeadlineInterceptor(Duration timeout, Duration streamTimeout) {
             this.timeout = checkTimeout("timeout", timeout);

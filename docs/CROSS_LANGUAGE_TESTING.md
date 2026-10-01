@@ -18,6 +18,8 @@ All SDKs share cross-language test infrastructure in `cross_test/` to verify cry
 
 `stream_signing_cases` covers streaming RPCs, whose signature covers only the first request message. See [`cross_test/README.md`](../cross_test/README.md).
 
+`public_key_parsing` is the rule every provider server applies to its configured network key and to the `X-Public-Key` header, `timestamp_parsing` the rule for `X-Signature-Timestamp`, and `base_url_parsing` the base URL rule of every client. Go and Java run it from the provider package, where the parser lives: `go/provider/cross_test.go` and `java/sdk/src/test/java/network/t0/sdk/provider/PublicKeyParsingVectorTest.java`. Node, Python and C# run it from the files above.
+
 ## Go helper
 
 A single Go binary at `cross_test/go_helper/` that all server-to-server tests share.
@@ -72,9 +74,7 @@ Streaming runs one way only: providers don't serve streaming RPCs, so there is n
 
 ## Dual-framing (gRPC interop)
 
-The Go server's signature verification middleware accepts signatures over both gRPC-framed and unframed protobuf bodies. This enables Java gRPC clients (whose `SigningClientInterceptor` signs above the gRPC framer) to interoperate with the Go server (which reads the gRPC-framed HTTP body). C# clients sign the framed body (`SigningDelegatingHandler` sits below the gRPC framer in the HttpClient pipeline) and pass on the primary verification path.
-
-The fallback logic: try full body first; if that fails AND the request is `application/grpc` with a valid 5-byte gRPC frame prefix, strip the prefix and retry. See `go/provider/verify_signature.go`.
+Every provider server accepts a gRPC body signed with or without its 5-byte frame prefix: rule V6 in [`CROSS_SDK_RULES.md`](CROSS_SDK_RULES.md). The Java ↔ Go cross tests exercise the fallback, because Java's `SigningClientInterceptor` signs above the gRPC framer. C# clients sign the framed body (`SigningDelegatingHandler` sits below the framer) and pass on the primary path.
 
 ## CI integration
 

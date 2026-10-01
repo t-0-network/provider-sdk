@@ -4,7 +4,6 @@ import com.google.protobuf.StringValue;
 import io.grpc.CallOptions;
 import io.grpc.Channel;
 import io.grpc.ClientInterceptors;
-import io.grpc.Context;
 import io.grpc.ManagedChannel;
 import io.grpc.MethodDescriptor;
 import io.grpc.MethodDescriptor.MethodType;
@@ -45,8 +44,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -332,7 +329,7 @@ class CrossServerTests {
         }
     }
 
-    /** The stream timeout also covers the wait for the first message. */
+    /** The stream timeout counts from the call's creation: one that passed before the first message fails it then. */
     @Test
     @Timeout(30)
     void javaClient_goServer_streamTimeoutBeforeTheFirstMessage() throws Exception {
@@ -342,9 +339,11 @@ class CrossServerTests {
         try (var client = BlockingNetworkClient.create("http://localhost:" + goServer.port(),
                 Signer.fromHex(PRIVATE_KEY), HealthGrpc::newBlockingStub, Duration.ofSeconds(15), Duration.ofMillis(50))) {
             CompletableFuture<String> result = new CompletableFuture<>();
-            // No message and no half-close: only the stream timeout can end the call.
-            ClientCalls.asyncClientStreamingCall(
+            StreamObserver<StringValue> requests = ClientCalls.asyncClientStreamingCall(
                     client.getChannel().newCall(CLIENT_STREAM, CallOptions.DEFAULT), resultObserver(result));
+            TimeUnit.MILLISECONDS.sleep(200);
+            requests.onNext(StringValue.of("m1"));
+            requests.onCompleted();
 
             ExecutionException thrown = org.junit.jupiter.api.Assertions.assertThrows(
                     ExecutionException.class, () -> result.get(10, TimeUnit.SECONDS));
@@ -353,33 +352,6 @@ class CrossServerTests {
             TimeUnit.MILLISECONDS.sleep(200);
             assertThat(goServer.logText()).doesNotContain("/test.v1.StreamTest/ClientStream");
         } finally {
-            stop(goServer);
-        }
-    }
-
-    /** A Context deadline takes the place of the stream timeout, and it too covers the wait. */
-    @Test
-    @Timeout(30)
-    void javaClient_goServer_contextDeadlineBeforeTheFirstMessage() throws Exception {
-        skipOrFailIfNoHelper();
-        GoServer goServer = startGoServer();
-        ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
-        Context.CancellableContext context = Context.current().withDeadlineAfter(50, TimeUnit.MILLISECONDS, scheduler);
-
-        try (var client = streamClient(goServer.port(), PRIVATE_KEY)) {
-            CompletableFuture<String> result = new CompletableFuture<>();
-            // No message and no half-close: only the Context deadline can end the call.
-            context.run(() -> ClientCalls.asyncClientStreamingCall(
-                    client.getChannel().newCall(CLIENT_STREAM, CallOptions.DEFAULT), resultObserver(result)));
-
-            ExecutionException thrown = org.junit.jupiter.api.Assertions.assertThrows(
-                    ExecutionException.class, () -> result.get(10, TimeUnit.SECONDS));
-            assertThat(Status.fromThrowable(thrown.getCause()).getCode()).isEqualTo(Status.Code.DEADLINE_EXCEEDED);
-            TimeUnit.MILLISECONDS.sleep(200);
-            assertThat(goServer.logText()).doesNotContain("/test.v1.StreamTest/ClientStream");
-        } finally {
-            context.cancel(null);
-            scheduler.shutdownNow();
             stop(goServer);
         }
     }

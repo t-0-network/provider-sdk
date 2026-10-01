@@ -77,6 +77,8 @@ The helper's stream verifier refuses a `test.v1.StreamTest` request with an `una
 
 ## Definition of Done
 
+A change to a rule in [`docs/CROSS_SDK_RULES.md`](docs/CROSS_SDK_RULES.md) updates that page, the shared vectors or tests that check the rule, and all five SDKs, in the same pull request.
+
 Before a change is considered complete, cross-language tests must pass:
 
 ```bash
@@ -96,16 +98,16 @@ digest  = Keccak256(body_bytes || little_endian_uint64(timestamp_ms))
 headers = { X-Public-Key: "0x...", X-Signature: "0x...", X-Signature-Timestamp: "<ms>" }
 ```
 
-- Timestamp tolerance: ±60 seconds
-- Public keys: uncompressed secp256k1 (65 bytes, 0x04 prefix)
 - Signatures: 64 or 65 bytes (r + s + optional recovery id)
 - Hash: Keccak-256 (NOT NIST SHA-3)
+
+**Every rule the five SDKs share** (signing, client calls, how a provider server checks the network key, the timestamp, the body and the signature, and the error codes), with the shared vector or test that checks each one: [`docs/CROSS_SDK_RULES.md`](docs/CROSS_SDK_RULES.md). Read it before changing any of these in one SDK.
 
 ### body_bytes framing — depends on signer position
 
 `body_bytes` is whichever bytes the signer covers at its own layer. For a unary Connect call (Go, Node and Python by default) there is no frame, so that is the **unframed protobuf** body. The Java SDK's `NetworkClient` signs above the gRPC framer, so it also covers **unframed protobuf**. Clients that sign the HTTP body of a gRPC call sit below the framer and sign the **gRPC-framed body**: C#'s `SigningDelegatingHandler`, and Go and Python with the gRPC protocol option — matching Go's primary verification path, not the fallback. The T-0 Network signs unframed bytes when calling a provider via Connect protocol, and signs the **gRPC-framed body** (5-byte prefix + protobuf) when calling via gRPC protocol — in that case the signer sits below the framer.
 
-Consequently the Java SDK's `SignatureVerificationInterceptor` accepts both framings. **This dual-path is required, not defensive** — see [`docs/java/SIGNATURE_VERIFICATION.md`](docs/java/SIGNATURE_VERIFICATION.md) before touching it.
+Consequently every provider server accepts both framings of a gRPC body: it verifies over the whole body, and if that fails and the body is exactly one uncompressed frame of an `application/grpc*` request, over the message without its 5-byte prefix (Go's `verifyWithFramingFallback` is the reference; the Java interceptor rebuilds the frame instead). **This dual-path is required, not defensive** — see [`docs/java/SIGNATURE_VERIFICATION.md`](docs/java/SIGNATURE_VERIFICATION.md) before touching it.
 
 ### Streaming RPCs — only the first message is signed
 

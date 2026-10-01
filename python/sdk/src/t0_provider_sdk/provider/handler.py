@@ -11,6 +11,7 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from typing import Any, TypeVar
 
+from t0_provider_sdk.provider.errors import NetworkPublicKeyRequiredError
 from t0_provider_sdk.provider.health import (
     HEALTH_SERVICE_FQN,
     HealthASGIApplication,
@@ -22,6 +23,7 @@ from t0_provider_sdk.provider.interceptor import SignatureErrorInterceptor, Sign
 from t0_provider_sdk.provider.middleware import (
     DEFAULT_MAX_BODY_SIZE,
     ASGIApp,
+    VerifySignatureFn,
     new_verify_signature,
     signature_verification_middleware,
 )
@@ -76,10 +78,33 @@ def handler(
         for opt in options:
             opt(opts)
 
-        app = asgi_app_factory(service_impl, interceptors=opts.interceptors)
+        app = asgi_app_factory(
+            service_impl, interceptors=_signature_check_first(opts.interceptors, SignatureErrorInterceptor)
+        )
         return app.path, app
 
     return build
+
+
+def _signature_check_first(interceptors: list[Any], signature_interceptor: type[Any]) -> list[Any]:
+    """The interceptors an app is built with: the signature check first, whatever the options did.
+
+    An option can change or empty the list it is given; the check is added here instead, ahead of
+    every other interceptor, so none of them runs on an unverified request.
+    """
+    return [signature_interceptor(), *(i for i in interceptors if not isinstance(i, signature_interceptor))]
+
+
+def _network_verify_fn(network_public_key: str) -> VerifySignatureFn:
+    """Parse the network public key at startup, so a missing or mistyped key fails
+    here rather than on every request."""
+    key = (network_public_key or "").strip()
+    if not key:
+        raise NetworkPublicKeyRequiredError()
+    try:
+        return new_verify_signature(key)
+    except ValueError as e:
+        raise ValueError(f"invalid network public key: {e}") from e
 
 
 def new_asgi_app(
@@ -92,7 +117,7 @@ def new_asgi_app(
 
     Args:
         network_public_key: Hex-encoded T-0 Network public key for signature verification.
-            Pass empty string to disable signature verification.
+            Required; surrounding whitespace is stripped.
         *build_handlers: Handler builders created via handler().
         logger: Optional logger used by the response-validation interceptor when
             it catches an invalid response. Defaults to
@@ -103,7 +128,12 @@ def new_asgi_app(
 
     Returns:
         An ASGI application with signature verification middleware.
+
+    Raises:
+        NetworkPublicKeyRequiredError: The key is empty or whitespace only.
+        ValueError: The key is malformed ("invalid network public key: ...").
     """
+    verify_fn = _network_verify_fn(network_public_key)
     default_options = _HandlerOptions(
         interceptors=[SignatureErrorInterceptor(), ValidationInterceptor(logger=logger)],
     )
@@ -128,12 +158,7 @@ def new_asgi_app(
     # Create router ASGI app
     router = _create_router(routes)
 
-    # Wrap with signature verification middleware if key provided
-    if network_public_key:
-        verify_fn = new_verify_signature(network_public_key)
-        return signature_verification_middleware(router, verify_fn, default_options.max_body_size)
-
-    return router
+    return signature_verification_middleware(router, verify_fn, default_options.max_body_size)
 
 
 def handler_sync(
@@ -163,7 +188,9 @@ def handler_sync(
         for opt in options:
             opt(opts)
 
-        app = wsgi_app_factory(service_impl, interceptors=opts.interceptors)
+        app = wsgi_app_factory(
+            service_impl, interceptors=_signature_check_first(opts.interceptors, SignatureErrorInterceptorSync)
+        )
         return app.path, app
 
     return build
@@ -181,7 +208,7 @@ def new_wsgi_app(
 
     Args:
         network_public_key: Hex-encoded T-0 Network public key for signature verification.
-            Pass empty string to disable signature verification.
+            Required; surrounding whitespace is stripped.
         *build_handlers: Handler builders created via handler_sync().
         logger: Optional logger used by the response-validation interceptor when
             it catches an invalid response. Defaults to
@@ -192,7 +219,12 @@ def new_wsgi_app(
 
     Returns:
         A WSGI application with signature verification middleware.
+
+    Raises:
+        NetworkPublicKeyRequiredError: The key is empty or whitespace only.
+        ValueError: The key is malformed ("invalid network public key: ...").
     """
+    verify_fn = _network_verify_fn(network_public_key)
     default_options = _HandlerOptions(
         interceptors=[SignatureErrorInterceptorSync(), ValidationInterceptorSync(logger=logger)],
     )
@@ -217,12 +249,7 @@ def new_wsgi_app(
     # Create router WSGI app
     router = _create_wsgi_router(routes)
 
-    # Wrap with signature verification middleware if key provided
-    if network_public_key:
-        verify_fn = new_verify_signature(network_public_key)
-        return signature_verification_middleware_wsgi(router, verify_fn, default_options.max_body_size)
-
-    return router
+    return signature_verification_middleware_wsgi(router, verify_fn, default_options.max_body_size)
 
 
 def _create_router(routes: dict[str, ASGIApp]) -> ASGIApp:

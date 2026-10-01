@@ -2,7 +2,7 @@ using Org.BouncyCastle.Crypto.EC;
 using Org.BouncyCastle.Crypto.Parameters;
 using Org.BouncyCastle.Crypto.Signers;
 using Org.BouncyCastle.Math;
-using T0.ProviderSdk.Common;
+using T0.ProviderSdk.Provider;
 
 namespace T0.ProviderSdk.Crypto;
 
@@ -61,17 +61,13 @@ public static class SignatureVerifier
     }
 
     /// <summary>
-    /// Parses a hex-encoded public key.
+    /// Parses a hex-encoded public key (optional 0x or 0X prefix) by the rule the server applies
+    /// to the network key and X-Public-Key: an encoded secp256k1 point, such as 33 bytes
+    /// compressed (0x02/0x03) or 65 bytes uncompressed (0x04). Returns the 65-byte uncompressed encoding.
     /// </summary>
-    public static byte[] ParsePublicKeyHex(string hexPublicKey)
-    {
-        if (string.IsNullOrEmpty(hexPublicKey))
-            throw new ArgumentException("public key must not be null or empty");
-
-        var cleanHex = HexUtils.StripHexPrefix(hexPublicKey.ToLowerInvariant());
-        if (cleanHex.Length != PublicKeyLength * 2)
-            throw new ArgumentException("public key must be 65 bytes (130 hex characters)");
-
-        return HexUtils.HexToBytes(cleanHex);
-    }
+    /// <exception cref="FormatException">The value is null, empty or not hex.</exception>
+    /// <exception cref="ArgumentException">The bytes are not a point on the curve.</exception>
+    [Obsolete("Not used by the SDK; will be removed in a future major version.")]
+    public static byte[] ParsePublicKeyHex(string hexPublicKey) =>
+        SignatureVerificationMiddleware.ParsePublicKey(hexPublicKey);
 }

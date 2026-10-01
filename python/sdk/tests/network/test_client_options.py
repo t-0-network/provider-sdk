@@ -2,6 +2,10 @@
 
 from __future__ import annotations
 
+import json
+import re
+from pathlib import Path
+
 import pytest
 from connectrpc.client import ConnectClient, ConnectClientSync
 from connectrpc.compat import google_protobuf_binary_codec
@@ -22,6 +26,8 @@ PRIVATE_KEY = "0x6b30303de7b26bfb1222b317a52113357f8bb06de00160b4261a2fef9c8b9bd
 OTHER_PRIVATE_KEY = "0x691db48202ca70d83cc7f5f3aa219536f9bb2dfe12ebb78a7bb634544858ee92"
 OTHER_PUBLIC_KEY = "0x049bb924680bfba3f64d924bf9040c45dcc215b124b5b9ee73ca8e32c050d042c0bbd8dbb98e3929ed5bc2967f28c3a3b72dd5e24312404598bbf6c6cc47708dc7"
 FACTORIES = [new_service_client, new_service_client_sync]
+VECTORS_PATH = Path(__file__).resolve().parents[4] / "cross_test" / "test_vectors.json"
+BASE_URL_VECTORS = json.loads(VECTORS_PATH.read_text())["base_url_parsing"]
 
 UNARY = MethodInfo(
     name="Unary",
@@ -30,49 +36,6 @@ UNARY = MethodInfo(
     output=StringValue,
     idempotency_level=IdempotencyLevel.UNKNOWN,
 )
-
-
-# The same rows in every SDK.
-ACCEPTED_BASE_URLS = [
-    "https://api.t-0.network",
-    "https://api.t-0.network/",
-    "http://localhost:8080",
-    "http://127.0.0.1:1234",
-    "http://[::1]:8080",
-    "api.t-0.network",
-    "api.t-0.network:443",
-    # A path prefixes every call.
-    "https://api.t-0.network/v1",
-    "https://api.t-0.network/v1/",
-    "https://api.t-0.network/sda/payments/t0",
-    "HTTPS://api.t-0.network",
-    "http://[::1]",
-    "http://[::ffff:1.2.3.4]:8080",
-    "https://xn--bcher-kva.example",
-]
-REFUSED_BASE_URLS = [
-    "ftp://h",
-    "http://",
-    "http://user@h",
-    "http://my_host:8080",
-    "https://api.t-0.network?x",
-    "http://h:0",
-    "http://h:99999",
-    "http://1.2.3",
-    "http://h:080",
-    "http://h\t",
-    "https://api.t-0.network//",
-    "https://api.t-0.network/v1//",
-    "https://api.t-0.network/a//b",
-    "https://api.t-0.network/v1/..",
-    "https://api.t-0.network/v%31",
-    "https://api.t-0.network/v1?x",
-    "http://[::1%1]",
-    "http://[v1.fe]",
-    "http://h.",
-    "http://01.2.3.4",
-    "http://1abc",
-]
 
 
 class _Client(ConnectClient):
@@ -111,25 +74,20 @@ class TestBaseURL:
         client = factory(PRIVATE_KEY, client_class, base_url=None)
         assert client._address == DEFAULT_BASE_URL
 
+    @pytest.mark.parametrize("vec", BASE_URL_VECTORS, ids=lambda vec: vec["name"])
     @pytest.mark.parametrize("factory", FACTORIES)
-    def test_empty_is_refused(self, factory) -> None:
-        with pytest.raises(ValueError, match="^base URL is not set$"):
-            factory(PRIVATE_KEY, _Client, base_url="")
-
-    @pytest.mark.parametrize("base_url", ACCEPTED_BASE_URLS)
-    @pytest.mark.parametrize("factory", FACTORIES)
-    def test_valid_url_is_accepted(self, factory, base_url: str) -> None:
-        client = factory(PRIVATE_KEY, _Client, base_url=base_url)
-        # Read as https without "://", and a trailing "/" is dropped: connectrpc appends
-        # "/<service>/<method>" to the address.
-        expected = base_url if "://" in base_url else "https://" + base_url
-        assert client._address == expected.removesuffix("/")
-
-    @pytest.mark.parametrize("base_url", REFUSED_BASE_URLS)
-    @pytest.mark.parametrize("factory", FACTORIES)
-    def test_invalid_url_is_refused(self, factory, base_url: str) -> None:
-        with pytest.raises(ValueError, match="^base URL is not valid$"):
-            factory(PRIVATE_KEY, _Client, base_url=base_url)
+    def test_cross_vector(self, factory, vec) -> None:
+        """The rows every SDK shares (base_url_parsing in cross_test/test_vectors.json)."""
+        base_url = vec["input"]
+        if vec["valid"]:
+            client = factory(PRIVATE_KEY, _Client, base_url=base_url)
+            # Read as https without "://", and a trailing "/" is dropped: connectrpc appends
+            # "/<service>/<method>" to the address.
+            expected = base_url if "://" in base_url else "https://" + base_url
+            assert client._address == expected.removesuffix("/")
+        else:
+            with pytest.raises(ValueError, match=f"^{re.escape(vec['error'])}$"):
+                factory(PRIVATE_KEY, _Client, base_url=base_url)
 
 
 class TestSigner:

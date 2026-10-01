@@ -49,10 +49,12 @@ func WithSDKVersion(version string) HttpHandlerOption {
 //
 // Parameters:
 //   - networkPublicKey: hex-encoded T-0 Network public key used for signature
-//     verification (empty disables verification).
+//     verification. Required; surrounding whitespace is trimmed.
 //   - buildHandlers: zero or more handlers built via provider.Handler(...).
 //
-// Returns the mux + any setup error (typically a malformed public key).
+// Returns the mux + any setup error: ErrNetworkPublicKeyIsRequired for an
+// empty or whitespace-only key, an "invalid network public key" error for a
+// malformed one.
 //
 // Equivalent to NewHttpHandlerWithOptions(networkPublicKey, nil, buildHandlers...).
 func NewHttpHandler(
@@ -76,13 +78,13 @@ func NewHttpHandlerWithOptions(
 	opts []HttpHandlerOption,
 	buildHandlers ...BuildHandler,
 ) (http.Handler, error) {
-	var verifySignatureFn VerifySignature = nil
-	if networkPublicKey != "" {
-		var err error
-		verifySignatureFn, err = newVerifySignature(string(networkPublicKey))
-		if err != nil {
-			return nil, err
-		}
+	key := strings.TrimSpace(string(networkPublicKey))
+	if key == "" {
+		return nil, ErrNetworkPublicKeyIsRequired
+	}
+	verifySignatureFn, err := newVerifySignature(key)
+	if err != nil {
+		return nil, err
 	}
 
 	// Apply caller-supplied overrides to a scratch struct, then thread the
@@ -138,6 +140,9 @@ func Handler[T any](handler func(svc T, option ...connect.HandlerOption) (string
 		}
 		path, h := handler(p, defaultOptions.connectHandlerOptions...)
 		h = newSignatureVerifierMiddleware(defaultOptions.verifySignatureFn, defaultOptions.verifySignatureMaxBodySize)(h)
+		// The middleware passes a rejected request on with its body unread, and
+		// connect-go reads all of it; this stops every read at the limit.
+		h = http.MaxBytesHandler(h, defaultOptions.verifySignatureMaxBodySize)
 		return path, h
 	}
 }

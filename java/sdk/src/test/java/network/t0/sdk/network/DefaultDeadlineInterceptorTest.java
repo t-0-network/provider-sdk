@@ -45,7 +45,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Tests {@link NetworkClient.DefaultDeadlineInterceptor}: which deadline each call type gets,
- * that a deadline the caller set is kept, the bounds of the timeouts, and that the clients apply them.
+ * that a deadline the caller set is kept, that a timeout must be positive, and that the clients apply them.
  */
 class DefaultDeadlineInterceptorTest {
 
@@ -105,19 +105,17 @@ class DefaultDeadlineInterceptorTest {
     }
 
     @Test
-    @DisplayName("A timeout must be a positive duration of at most 2147483647 ms")
+    @DisplayName("A timeout must be a positive duration")
     void timeoutsAreValidated() {
         Duration ok = Duration.ofSeconds(1);
-        for (Duration bad : new Duration[] {null, Duration.ZERO, Duration.ofMillis(2147483648L)}) {
+        for (Duration bad : new Duration[] {null, Duration.ZERO, Duration.ofMillis(-1)}) {
             assertThatThrownBy(() -> new NetworkClient.DefaultDeadlineInterceptor(bad, ok))
                     .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessage("timeout must be a positive duration of at most 2147483647 ms");
+                    .hasMessage("timeout must be a positive duration");
             assertThatThrownBy(() -> new NetworkClient.DefaultDeadlineInterceptor(ok, bad))
                     .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessage("streamTimeout must be a positive duration of at most 2147483647 ms");
+                    .hasMessage("streamTimeout must be a positive duration");
         }
-        Duration max = Duration.ofMillis(2147483647L);
-        new NetworkClient.DefaultDeadlineInterceptor(max, max);
     }
 
     @Test
@@ -128,36 +126,15 @@ class DefaultDeadlineInterceptorTest {
         assertThatThrownBy(() -> BlockingNetworkClient.create(endpoint, signer, HealthGrpc::newBlockingStub,
                 Duration.ZERO, Duration.ofMinutes(5)))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("timeout must be a positive duration of at most 2147483647 ms");
+                .hasMessage("timeout must be a positive duration");
         assertThatThrownBy(() -> AsyncNetworkClient.create(endpoint, signer, HealthGrpc::newStub,
                 Duration.ofSeconds(1), null))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("streamTimeout must be a positive duration of at most 2147483647 ms");
+                .hasMessage("streamTimeout must be a positive duration");
         assertThatThrownBy(() -> FutureNetworkClient.create(endpoint, signer, HealthGrpc::newFutureStub,
-                Duration.ofSeconds(1), Duration.ofDays(25)))
+                Duration.ofSeconds(1), Duration.ofSeconds(-1)))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("streamTimeout must be a positive duration of at most 2147483647 ms");
-    }
-
-    @Test
-    @DisplayName("A per-call timeout from stub(timeout, unit) has the same bounds")
-    void perCallTimeoutsAreValidated() {
-        Signer signer = Signer.fromHex(PRIVATE_KEY_HEX);
-        String endpoint = "http://localhost:1";
-        try (var blocking = BlockingNetworkClient.create(endpoint, signer, HealthGrpc::newBlockingStub);
-             var async = AsyncNetworkClient.create(endpoint, signer, HealthGrpc::newStub);
-             var future = FutureNetworkClient.create(endpoint, signer, HealthGrpc::newFutureStub)) {
-            for (long bad : new long[] {0, 2147483648L}) {
-                String message = "timeout must be a positive duration of at most 2147483647 ms";
-                assertThatThrownBy(() -> blocking.stub(bad, TimeUnit.MILLISECONDS)).hasMessage(message);
-                assertThatThrownBy(() -> async.stub(bad, TimeUnit.MILLISECONDS)).hasMessage(message);
-                assertThatThrownBy(() -> future.stub(bad, TimeUnit.MILLISECONDS)).hasMessage(message);
-            }
-            assertThatThrownBy(() -> blocking.stub(1, null))
-                    .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessage("unit must not be null");
-            assertThat(blocking.stub(2147483647L, TimeUnit.MILLISECONDS).getCallOptions().getDeadline()).isNotNull();
-        }
+                .hasMessage("streamTimeout must be a positive duration");
     }
 
     @Nested
@@ -201,11 +178,9 @@ class DefaultDeadlineInterceptorTest {
 
             assertThat(remainingMs.get("Check")).hasValueSatisfying(ms -> assertThat(ms).isBetween(6_000L, 7_000L));
             assertThat(remainingMs.get("Watch")).hasValueSatisfying(ms -> assertThat(ms).isBetween(299_000L, 300_000L));
-            for (int bad : new int[] {0, Integer.MAX_VALUE}) {
-                assertThatThrownBy(() -> client.create(endpoint, signer, bad))
-                        .isInstanceOf(IllegalArgumentException.class)
-                        .hasMessage("timeout must be a positive duration of at most 2147483647 ms");
-            }
+            assertThatThrownBy(() -> client.create(endpoint, signer, 0))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessage("timeout must be a positive duration");
         }
 
         @Test

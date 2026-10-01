@@ -27,6 +27,8 @@ public sealed class T0ProviderServer
     {
         ArgumentNullException.ThrowIfNull(config);
         ArgumentNullException.ThrowIfNull(signer);
+        // Fails here, before anything is built, for a missing or malformed key.
+        SignatureVerificationMiddleware.ParseNetworkPublicKey(config.NetworkPublicKey);
 
         _config = config;
         _builder = WebApplication.CreateBuilder(args ?? []);

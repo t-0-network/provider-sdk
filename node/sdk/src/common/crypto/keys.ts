@@ -31,18 +31,51 @@ export function publicKeyFromPrivateKey(hex: string): string {
   return `0x${uncompressedPublicKeyFromPrivateKey(parsePrivateKey(hex)).toString('hex')}`;
 }
 
+/**
+ * Parses a secp256k1 public key by the rule the SDK applies to the network key and the
+ * X-Public-Key header, and returns its 65-byte uncompressed encoding.
+ *
+ * @deprecated Not used by the SDK; will be removed in a future major version.
+ */
 export function parsePublicKey(key: string | Buffer): Buffer {
+  return parsePublicKeyPoint(key);
+}
+
+// The one parser of the configured network key and the X-Public-Key header (the deprecated
+// parsePublicKey delegates to it): hex with an optional 0x or 0X prefix and nothing else, of a
+// compressed (33 bytes, 02 or 03) or uncompressed (65 bytes, 04) point on secp256k1. Returns the
+// 65-byte uncompressed encoding, so the two forms of a key compare equal. Not exported from the package.
+export function parsePublicKeyPoint(key: string | Uint8Array): Buffer {
   if (typeof key === 'string') {
-    const hex = key.startsWith('0x') ? key.slice(2) : key;
-    if (!/^[0-9a-fA-F]*$/.test(hex) || hex.length % 2 !== 0) {
-      throw new Error('Public key contains invalid hex characters');
+    const hex = key.startsWith('0x') || key.startsWith('0X') ? key.slice(2) : key;
+    // Checked before decoding: Buffer.from(hex, 'hex') stops at the first bad character.
+    if (!/^(?:[0-9a-fA-F]{2})+$/.test(hex)) {
+      throw new Error('must be hex, with an optional 0x or 0X prefix');
     }
     key = Buffer.from(hex, 'hex');
   }
-  if (key.length !== 65 || key[0] !== 0x04) {
-    throw new Error('Public key must be 65 bytes in uncompressed format (0x04 prefix)');
+  try {
+    return Buffer.from(secp256k1.Point.fromBytes(key).toBytes(false));
+  } catch {
+    throw new Error('not a point on secp256k1');
   }
-  return Buffer.from(key);
+}
+
+// The configured network key is checked once, at startup, so a missing or
+// mistyped key fails there rather than on every request with "unknown public key".
+export function parseNetworkPublicKey(key: string | Buffer): Buffer {
+  if (typeof key === 'string') {
+    key = key.trim();
+  }
+  if (key === undefined || key === null || key.length === 0) {
+    throw new Error('network public key is not set');
+  }
+  try {
+    return parsePublicKeyPoint(key);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    throw new Error(`invalid network public key: ${msg}`);
+  }
 }
 
 export function publicKeysEqual(a: Uint8Array, b: Uint8Array): boolean {

@@ -11,14 +11,14 @@ const (
 )
 
 type providerHandlerOptions struct {
-	verifySignatureFn          VerifySignature
+	verifySignatureFn          verifyFunc
 	verifySignatureMaxBodySize int64
 	connectHandlerOptions      []connect.HandlerOption
 	logger                     *slog.Logger
 	sdkVersion                 string
 }
 
-func newDefaultHandlerOptions(verifySignatureFn VerifySignature, logger *slog.Logger) (providerHandlerOptions, error) {
+func newDefaultHandlerOptions(verifySignatureFn verifyFunc, logger *slog.Logger) (providerHandlerOptions, error) {
 	if logger == nil {
 		logger = slog.Default()
 	}
@@ -34,10 +34,13 @@ func newDefaultHandlerOptions(verifySignatureFn VerifySignature, logger *slog.Lo
 
 type HandlerOption func(*providerHandlerOptions)
 
+// WithVerifySignatureFn returns an option that leaves the handler as it is.
+//
+// Deprecated: has no effect. Every handler verifies requests against the
+// network public key given to NewHttpHandler; there is no way to replace or
+// turn off that check.
 func WithVerifySignatureFn(fn VerifySignature) HandlerOption {
-	return func(h *providerHandlerOptions) {
-		h.verifySignatureFn = fn
-	}
+	return func(*providerHandlerOptions) {}
 }
 
 func WithConnectHandlerOptions(opts ...connect.HandlerOption) HandlerOption {
@@ -46,8 +49,8 @@ func WithConnectHandlerOptions(opts ...connect.HandlerOption) HandlerOption {
 	}
 }
 
-// WithMaxBodySize sets the maximum allowed request body size for signature verification.
-// If size is <= 0, the default size will be used.
+// WithMaxBodySize sets the maximum allowed request body size; a larger body is
+// rejected with ResourceExhausted. If size is <= 0, the default size will be used.
 func WithMaxBodySize(size int64) HandlerOption {
 	return func(h *providerHandlerOptions) {
 		if size > 0 {

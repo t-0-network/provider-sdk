@@ -21,10 +21,11 @@ import io
 from collections.abc import Callable, Iterable
 from typing import Any
 
-from t0_provider_sdk.provider.errors import BodyTooLargeError
+from t0_provider_sdk.provider.errors import BodyTooLargeError, SignatureVerificationError
 from t0_provider_sdk.provider.middleware import (
     DEFAULT_MAX_BODY_SIZE,
     VerifySignatureFn,
+    _empty_message_body,
     _verify_request,
     signature_error_var,
 )
@@ -53,23 +54,24 @@ def signature_verification_middleware_wsgi(
     def middleware(environ: WSGIEnviron, start_response: StartResponse) -> Iterable[bytes]:
         headers = _parse_wsgi_headers(environ)
 
-        # Read the full body
+        # Read the full body, then parse and verify
+        error: SignatureVerificationError | None
         try:
             body = _read_wsgi_body(environ, max_body_size)
+            error = _verify_request(verify_fn, headers, body)
         except BodyTooLargeError as e:
-            signature_error_var.set(e)
-            environ["wsgi.input"] = io.BytesIO(b"")
-            environ["CONTENT_LENGTH"] = "0"
-            return app(environ, start_response)
+            body, error = _empty_message_body(headers), e
 
-        # Parse and verify
-        error = _verify_request(verify_fn, headers, body)
-        signature_error_var.set(error)
-
-        # Replay body to downstream
+        # Replay body to downstream. A unary call has passed the interceptor by the time the app
+        # returns, so the result is reset then: the thread serves other requests in this context,
+        # and the response iterable, which may run later, never needs it.
         environ["wsgi.input"] = io.BytesIO(body)
         environ["CONTENT_LENGTH"] = str(len(body))
-        return app(environ, start_response)
+        token = signature_error_var.set(error)
+        try:
+            return app(environ, start_response)
+        finally:
+            signature_error_var.reset(token)
 
     return middleware
 
