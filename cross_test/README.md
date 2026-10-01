@@ -121,8 +121,8 @@ A refused request fails with an RPC error whose message is the reason, and the h
 
 | Reason | Code |
 |---|---|
-| a missing or malformed header; `timestamp is outside the allowed time window` | `invalid_argument` |
-| `request signed with unknown public key`; `signature verification failed`; `no first message`; `truncated first message` | `unauthenticated` |
+| a missing header; `X-Signature` not hex; a malformed `X-Signature-Timestamp`; `timestamp is outside the allowed time window` | `invalid_argument` |
+| `X-Public-Key` not the network key (`invalid public key`, `request signed with unknown public key`); a signature not 64 or 65 bytes (`invalid signature`); `signature verification failed`; `no first message`; `truncated first message` | `unauthenticated` |
 | a first message over the size limit (10 MiB) | `resource_exhausted` |
 
 A streaming procedure called with a unary content type (`application/proto`) gets HTTP 415 from
