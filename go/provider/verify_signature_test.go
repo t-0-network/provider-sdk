@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -32,16 +33,12 @@ func envelopeOf(flags byte, payload []byte) []byte {
 	return append(prefix, payload...)
 }
 
-func concat(parts ...[]byte) []byte {
-	return bytes.Join(parts, nil)
-}
-
 // signedHeaders signs bytes the way every SDK does: Keccak256(bytes || uint64le(ts_ms)).
 func signedHeaders(t *testing.T, key *secp256k1.PrivateKey, signed []byte, ts time.Time) http.Header {
 	t.Helper()
 	var tsBytes [8]byte
 	binary.LittleEndian.PutUint64(tsBytes[:], uint64(ts.UnixMilli()))
-	signature, publicKey, err := crypto.NewSigner(key)(crypto.LegacyKeccak256(concat(signed, tsBytes[:])))
+	signature, publicKey, err := crypto.NewSigner(key)(crypto.LegacyKeccak256Concat(signed, tsBytes[:]))
 	require.NoError(t, err)
 	h := http.Header{}
 	h.Set(common.PublicKeyHeader, "0x"+hex.EncodeToString(publicKey))
@@ -68,7 +65,7 @@ func TestSignatureVerifierMiddleware(t *testing.T) {
 	require.NoError(t, err)
 	otherKey, err := secp256k1.GeneratePrivateKey()
 	require.NoError(t, err)
-	verifier, err := newVerifySignature(crypto.HexPublicKey(networkKey.PubKey()))
+	verifier, err := newSignatureVerifier(crypto.HexPublicKey(networkKey.PubKey()))
 	require.NoError(t, err)
 
 	now := time.Now()
@@ -76,14 +73,14 @@ func TestSignatureVerifierMiddleware(t *testing.T) {
 
 	p1, p2 := []byte("\x0a\x02m1"), []byte("\x0a\x02m2")
 	env1, env2 := envelopeOf(0, p1), envelopeOf(0, p2)
-	stream := concat(env1, env2)
+	stream := slices.Concat(env1, env2)
 	// The codec does not matter: Connect JSON streams are enveloped and signed alike.
 	jsonEnv1 := envelopeOf(0, []byte(`"m1"`))
-	jsonStream := concat(jsonEnv1, envelopeOf(0, []byte(`"m2"`)))
+	jsonStream := slices.Concat(jsonEnv1, envelopeOf(0, []byte(`"m2"`)))
 	compressedEnv1 := envelopeOf(1, p1)
 	atLimit := envelopeOf(0, bytes.Repeat([]byte("x"), limit-5))
 	overLimit := envelopeOf(0, bytes.Repeat([]byte("x"), limit-4))
-	longStream := concat(env1, bytes.Repeat(env2, limit)) // the first envelope is what is limited
+	longStream := slices.Concat(env1, bytes.Repeat(env2, limit)) // the first envelope is what is limited
 	unaryBody := []byte("\x08\x2a\x10\x01\x1a\x03EUR")
 	fullSignature := sign(p1).Get(common.SignatureHeader)
 
@@ -172,8 +169,7 @@ func TestSignatureVerifierMiddleware(t *testing.T) {
 				require.NoError(t, verifyErr)
 				require.Equal(t, tc.part, part)
 			} else {
-				require.Equal(t, tc.code, connect.CodeOf(verifyErr), "error: %v", verifyErr)
-				require.ErrorContains(t, verifyErr, tc.reason)
+				requireRefused(t, verifyErr, tc.code, tc.reason)
 			}
 
 			// The handler reads the whole body, the part read for the signature included. The body of
@@ -284,7 +280,7 @@ func TestSignatureVerification_BodyOverTheLimit(t *testing.T) {
 	const limit = 1024
 	networkKey, err := secp256k1.GeneratePrivateKey()
 	require.NoError(t, err)
-	verify, err := newVerifySignature(crypto.HexPublicKey(networkKey.PubKey()))
+	verify, err := newSignatureVerifier(crypto.HexPublicKey(networkKey.PubKey()))
 	require.NoError(t, err)
 	defaultOptions, err := newDefaultHandlerOptions(verify, nil)
 	require.NoError(t, err)

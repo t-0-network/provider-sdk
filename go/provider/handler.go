@@ -82,7 +82,7 @@ func NewHttpHandlerWithOptions(
 	if key == "" {
 		return nil, ErrNetworkPublicKeyIsRequired
 	}
-	verifier, err := newVerifySignature(key)
+	verifier, err := newSignatureVerifier(key)
 	if err != nil {
 		return nil, err
 	}

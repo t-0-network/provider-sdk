@@ -3,7 +3,6 @@ package provider
 import (
 	"bytes"
 	"context"
-	"encoding/hex"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -119,7 +118,7 @@ var streamProtocols = []struct {
 
 func (s *streamServer) client(t *testing.T, key *secp256k1.PrivateKey, opts []network.ClientOption) *streamTestClient {
 	t.Helper()
-	client, err := network.NewServiceClient(network.PrivateKeyHexed(hex.EncodeToString(key.Serialize())), newStreamTestClient,
+	client, err := network.NewServiceClient(network.PrivateKeyHexed(crypto.HexPrivateKey(key)), newStreamTestClient,
 		append([]network.ClientOption{network.WithBaseURL(s.url)}, opts...)...)
 	require.NoError(t, err)
 	return client

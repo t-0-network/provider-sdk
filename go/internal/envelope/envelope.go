@@ -5,23 +5,27 @@ package envelope
 
 import "strings"
 
-// MediaType returns the media type of a Content-Type value: lower case, without its parameters
+// mediaType returns the media type of a Content-Type value: lower case, without its parameters
 // and surrounding spaces.
-func MediaType(contentType string) string {
+func mediaType(contentType string) string {
 	if i := strings.IndexByte(contentType, ';'); i >= 0 {
 		contentType = contentType[:i]
 	}
 	return strings.ToLower(strings.TrimSpace(contentType))
 }
 
-// IsGRPC reports whether a media type is gRPC: application/grpc or application/grpc+<codec>.
-func IsGRPC(mediaType string) bool {
+func isGRPC(mediaType string) bool {
 	return mediaType == "application/grpc" || strings.HasPrefix(mediaType, "application/grpc+")
+}
+
+// IsGRPC reports whether a Content-Type is gRPC: application/grpc or application/grpc+<codec>.
+func IsGRPC(contentType string) bool {
+	return isGRPC(mediaType(contentType))
 }
 
 // IsEnveloped reports whether a body of this Content-Type is a sequence of envelopes,
 // flags (1) || uint32be(length) || payload: application/connect+<codec> or gRPC.
 func IsEnveloped(contentType string) bool {
-	mt := MediaType(contentType)
-	return strings.HasPrefix(mt, "application/connect+") || IsGRPC(mt)
+	mt := mediaType(contentType)
+	return strings.HasPrefix(mt, "application/connect+") || isGRPC(mt)
 }
