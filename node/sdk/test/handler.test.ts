@@ -67,6 +67,45 @@ describe('createHandler', () => {
     }
   });
 
+  describe('network public key is checked at startup', () => {
+    const malformed: [string, string | Buffer][] = [
+      ['empty', ''],
+      ['whitespace only', '  \n'],
+      ['non-hex', '0xnot-a-key'],
+      ['truncated', newKeypair().publicKeyHex.slice(0, -2)],
+      ['wrong prefix', '0x02' + newKeypair().publicKeyHex.slice(4)],
+      ['off-curve', '0x04' + '00'.repeat(64)],
+      ['33-byte Buffer', Buffer.alloc(33, 1)],
+    ];
+    for (const [name, key] of malformed) {
+      it(`rejects ${name}`, () => {
+        assert.throws(() => createHandler(key, () => {}), /invalid network public key/);
+      });
+    }
+
+    it('accepts a key with surrounding whitespace', () => {
+      const { publicKeyHex } = newKeypair();
+      assert.doesNotThrow(() => createHandler(`  ${publicKeyHex}\n`, () => {}));
+    });
+
+    it('accepts a Buffer', () => {
+      const { publicKeyHex } = newKeypair();
+      assert.doesNotThrow(() => createHandler(Buffer.from(publicKeyHex.slice(2), 'hex'), () => {}));
+    });
+
+    it('a server with a whitespace-padded key answers a signed call', async () => {
+      const { privateKeyHex, publicKeyHex } = newKeypair();
+      const { url, close } = await bootServer(`  ${publicKeyHex}\n`);
+      try {
+        const client = createClient(privateKeyHex, url, Health);
+        const resp = await client.check({ service: '' });
+        assert.equal(resp.status, HealthCheckResponse_ServingStatus.SERVING);
+      } finally {
+        await close();
+      }
+    });
+  });
+
   it('unsigned request is rejected', async () => {
     const { publicKeyHex } = newKeypair();
     const { url, close } = await bootServer(publicKeyHex);

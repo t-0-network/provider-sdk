@@ -5,6 +5,10 @@ import { SDK_VERSION } from "../version.js";
 export { signatureValidation } from "../common/node.js";
 export type { NodeHandlerFn } from "../common/node.js";
 
+/**
+ * Throws if the network public key is missing or malformed; surrounding
+ * whitespace is trimmed.
+ */
 export const createHandler = (
   networkPublicKey: string | Buffer,
   registerRoutes: (router: Router) => void,
