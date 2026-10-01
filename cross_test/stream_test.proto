@@ -7,10 +7,8 @@
 // code for it.
 //
 // Every reply starts with what the signature was verified over, "envelope" or "payload", and ":".
-// A request the verifier refuses fails with the reason as its message: INVALID_ARGUMENT for a
-// missing or malformed header or a stale timestamp, UNAUTHENTICATED for another key, a signature
-// that does not verify or no whole first message, RESOURCE_EXHAUSTED for a first message over the
-// size limit.
+// A request the verifier refuses fails with the code from docs/CROSS_SDK_RULES.md and the reason
+// as its message.
 syntax = "proto3";
 
 package test.v1;

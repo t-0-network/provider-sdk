@@ -49,14 +49,11 @@ func WithConnectHandlerOptions(opts ...connect.HandlerOption) HandlerOption {
 	}
 }
 
-// WithMaxBodySize sets the size limit of a request message, 10 MiB by default: the
-// body of a unary call, and each message of a stream. A larger one is rejected
-// with ResourceExhausted. The first message of a stream, its 5-byte prefix
-// included, is checked before the signature is verified; a stream as a whole has
-// no limit. The limit is also passed to connect.WithReadMaxBytes, which then
-// applies to messages after decompression too; a connect.WithReadMaxBytes given to
-// WithConnectHandlerOptions replaces it. If size is <= 0, the default size will be
-// used.
+// WithMaxBodySize sets the largest request message, 10 MiB by default: the body
+// of a unary call, or each message of a stream (the first one with its 5-byte
+// prefix, checked before the signature). A larger one is rejected with
+// ResourceExhausted. The limit is also passed to connect.WithReadMaxBytes; a
+// caller's own replaces it. If size is <= 0, the default size will be used.
 func WithMaxBodySize(size int64) HandlerOption {
 	return func(h *providerHandlerOptions) {
 		if size > 0 {

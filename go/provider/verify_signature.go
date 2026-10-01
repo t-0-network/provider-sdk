@@ -65,8 +65,8 @@ func SignatureVerification(ctx context.Context) (SignedPart, error) {
 	return v.part, nil
 }
 
-func rejected(code connect.Code, err error) verdict {
-	return verdict{err: &SignatureError{ConnectCode: code, Message: err.Error()}}
+func signatureError(code connect.Code, err error) *SignatureError {
+	return &SignatureError{ConnectCode: code, Message: err.Error()}
 }
 
 // newSignatureVerifierMiddleware verifies the signature of each request and passes the request on
@@ -118,32 +118,27 @@ func (v *signatureVerifier) verify(req *http.Request, body io.Reader, maxBodySiz
 		return verdict{err: rejection}, nil
 	}
 
+	// Of an enveloped body only the first envelope is signed. A gRPC unary body is a single
+	// envelope, so the rule covers it as well.
 	contentType := req.Header.Get("Content-Type")
-	if !envelope.IsEnveloped(contentType) {
-		whole, rejection := readBodyWithCap(req, body, maxBodySize)
-		switch {
-		case rejection != nil:
-			return verdict{err: rejection}, whole
-		case v.verifies(whole, timestampBytes, signature):
-			return verdict{part: SignedBody}, whole
-		default:
-			return rejected(connect.CodeUnauthenticated, ErrSignatureVerificationFailed), whole
-		}
+	part, read := SignedBody, []byte(nil)
+	if envelope.IsEnveloped(contentType) {
+		part = SignedEnvelope
+		read, rejection = readFirstEnvelope(body, maxBodySize)
+	} else {
+		read, rejection = readBodyWithCap(req.ContentLength, body, maxBodySize)
 	}
 
-	// Only the first envelope is signed. A gRPC unary body is a single envelope, so the rule covers
-	// it as well.
-	first, rejection := readFirstEnvelope(body, maxBodySize)
 	switch {
 	case rejection != nil:
-		return verdict{err: rejection}, first
-	case v.verifies(first, timestampBytes, signature):
-		return verdict{part: SignedEnvelope}, first
-	case envelope.IsGRPC(envelope.MediaType(contentType)) && first[0] == 0 && v.verifies(first[5:], timestampBytes, signature):
+		return verdict{err: rejection}, read
+	case v.verifies(read, timestampBytes, signature):
+		return verdict{part: part}, read
+	case envelope.IsGRPC(envelope.MediaType(contentType)) && read[0] == 0 && v.verifies(read[5:], timestampBytes, signature):
 		// A signer above the gRPC framer covers the uncompressed message alone (the Java SDK).
-		return verdict{part: SignedPayload}, first
+		return verdict{part: SignedPayload}, read
 	default:
-		return rejected(connect.CodeUnauthenticated, ErrSignatureVerificationFailed), first
+		return verdict{err: signatureError(connect.CodeUnauthenticated, ErrSignatureVerificationFailed)}, read
 	}
 }
 
@@ -151,38 +146,33 @@ func (v *signatureVerifier) verify(req *http.Request, body io.Reader, maxBodySiz
 // read: that the three are present and well-formed, the timestamp window, that the public key is
 // the network key, and the signature length. It returns the signature and the timestamp bytes.
 func (v *signatureVerifier) checkHeaders(headers http.Header) ([]byte, [8]byte, *SignatureError) {
-	invalidArgument := func(err error) ([]byte, [8]byte, *SignatureError) {
-		return nil, [8]byte{}, &SignatureError{ConnectCode: connect.CodeInvalidArgument, Message: err.Error()}
-	}
-	unauthenticated := func(err error) ([]byte, [8]byte, *SignatureError) {
-		return nil, [8]byte{}, &SignatureError{ConnectCode: connect.CodeUnauthenticated, Message: err.Error()}
-	}
+	var noTimestamp [8]byte
 
 	publicKey, err := parsePublicKeyHeader(headers)
 	if err != nil {
-		return invalidArgument(err)
+		return nil, noTimestamp, signatureError(connect.CodeInvalidArgument, err)
 	}
 	signature, err := parseRequiredHexedHeader(common.SignatureHeader, headers)
 	if err != nil {
-		return invalidArgument(err)
+		return nil, noTimestamp, signatureError(connect.CodeInvalidArgument, err)
 	}
 	timestamp, timestampBytes, err := parseTimestamp(headers)
 	if err != nil {
-		return invalidArgument(err)
+		return nil, noTimestamp, signatureError(connect.CodeInvalidArgument, err)
 	}
 	if !timesWithinDelta(timestamp, time.Now(), time.Minute) {
-		return invalidArgument(errors.New("timestamp is outside the allowed time window"))
+		return nil, noTimestamp, signatureError(connect.CodeInvalidArgument, errors.New("timestamp is outside the allowed time window"))
 	}
 
 	signerPublicKey, err := pubkey.ParseHex(publicKey)
 	if err != nil {
-		return unauthenticated(fmt.Errorf("invalid public key: %w", err))
+		return nil, noTimestamp, signatureError(connect.CodeUnauthenticated, fmt.Errorf("invalid public key: %w", err))
 	}
 	if !signerPublicKey.IsEqual(v.networkPublicKey) {
-		return unauthenticated(ErrUnknownPublicKey)
+		return nil, noTimestamp, signatureError(connect.CodeUnauthenticated, ErrUnknownPublicKey)
 	}
 	if len(signature) < 64 || len(signature) > 65 {
-		return unauthenticated(ErrInvalidSignature)
+		return nil, noTimestamp, signatureError(connect.CodeUnauthenticated, ErrInvalidSignature)
 	}
 
 	return signature, timestampBytes, nil
@@ -248,10 +238,10 @@ func parseTimestamp(headers http.Header) (time.Time, [8]byte, error) {
 
 // readBodyWithCap reads the whole body from body, which http.MaxBytesReader limits to maxBodySize
 // bytes. It returns what it read, error or not.
-func readBodyWithCap(req *http.Request, body io.Reader, maxBodySize int64) ([]byte, *SignatureError) {
+func readBodyWithCap(contentLength int64, body io.Reader, maxBodySize int64) ([]byte, *SignatureError) {
 	// The Content-Length header is optional, and not trusted: it only saves reading a body that is
 	// too large.
-	if req.ContentLength > maxBodySize {
+	if contentLength > maxBodySize {
 		return nil, tooLarge(maxBodySize)
 	}
 	whole, err := io.ReadAll(body)
@@ -282,10 +272,7 @@ func readFirstEnvelope(body io.Reader, maxBodySize int64) ([]byte, *SignatureErr
 }
 
 func tooLarge(maxBodySize int64) *SignatureError {
-	return &SignatureError{
-		ConnectCode: connect.CodeResourceExhausted,
-		Message:     fmt.Sprintf("max payload size of %d bytes exceeded", maxBodySize),
-	}
+	return signatureError(connect.CodeResourceExhausted, fmt.Errorf("max payload size of %d bytes exceeded", maxBodySize))
 }
 
 // bodyReadError is ResourceExhausted for a body over the limit. Any other failure leaves nothing
@@ -294,7 +281,7 @@ func bodyReadError(reason string, err error, maxBodySize int64) *SignatureError 
 	if _, ok := errors.AsType[*http.MaxBytesError](err); ok {
 		return tooLarge(maxBodySize)
 	}
-	return &SignatureError{ConnectCode: connect.CodeUnauthenticated, Message: reason + ": " + err.Error()}
+	return signatureError(connect.CodeUnauthenticated, fmt.Errorf("%s: %w", reason, err))
 }
 
 // VerifySignature accepts a public key, a message, and a signature, hashes the
