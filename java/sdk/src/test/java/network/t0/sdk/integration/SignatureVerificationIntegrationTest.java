@@ -276,21 +276,21 @@ class SignatureVerificationIntegrationTest {
         }
 
         @Test
-        @DisplayName("X-Public-Key that is not hex should return INVALID_ARGUMENT")
-        void nonHexPublicKey_shouldReturnInvalidArgument() throws Exception {
+        @DisplayName("X-Public-Key that is not hex should return UNAUTHENTICATED")
+        void nonHexPublicKey_shouldReturnUnauthenticated() throws Exception {
             startServer(NETWORK_PUBLIC_KEY_HEX);
 
             assertRefused("0x" + NETWORK_PUBLIC_KEY_HEX + "zz",
-                    io.grpc.Status.Code.INVALID_ARGUMENT, "invalid header encoding");
+                    io.grpc.Status.Code.UNAUTHENTICATED, "request signed with unknown public key");
         }
 
         @Test
-        @DisplayName("X-Public-Key that is not a key (hybrid encoding) should return UNAUTHENTICATED")
-        void hybridPublicKey_shouldReturnUnauthenticated() throws Exception {
+        @DisplayName("X-Public-Key that is not a key (off the curve) should return UNAUTHENTICATED")
+        void offCurvePublicKey_shouldReturnUnauthenticated() throws Exception {
             startServer(NETWORK_PUBLIC_KEY_HEX);
 
-            assertRefused("0x06" + NETWORK_PUBLIC_KEY_HEX.substring(2),
-                    io.grpc.Status.Code.UNAUTHENTICATED, "invalid public key");
+            assertRefused("0x04" + "00".repeat(64),
+                    io.grpc.Status.Code.UNAUTHENTICATED, "request signed with unknown public key");
         }
 
         @Test

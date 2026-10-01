@@ -15,6 +15,7 @@ import java.nio.file.Path;
 import java.util.Arrays;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Tests using shared cross-language test vectors from cross_test/test_vectors.json.
@@ -157,6 +158,30 @@ class CrossVectorTest {
             assertThat(SignatureVerifier.verify(publicKey, requestDigest(vec), signature))
                     .as("%s: %s", vec.get("name").getAsString(), vec.get("note").getAsString())
                     .isEqualTo(vec.get("valid").getAsBoolean());
+        }
+    }
+
+    /** The deprecated public helper follows the SDK's one key rule (the provider delegates to it). */
+    @Test
+    @SuppressWarnings("deprecation")
+    void publicKeyParsing_shouldMatchAllVectors() {
+        JsonArray cases = vectors.getAsJsonArray("public_key_parsing");
+        assertThat(cases).isNotEmpty();
+
+        for (var element : cases) {
+            JsonObject vec = element.getAsJsonObject();
+            String name = vec.get("name").getAsString();
+            String input = vec.get("input").getAsString();
+
+            if (vec.get("valid").getAsBoolean()) {
+                assertThat(HexUtils.bytesToHex(SignatureVerifier.parsePublicKeyHex(input)))
+                        .as(name)
+                        .isEqualTo(vec.get("uncompressed").getAsString());
+            } else {
+                assertThatThrownBy(() -> SignatureVerifier.parsePublicKeyHex(input))
+                        .as(name)
+                        .isInstanceOf(IllegalArgumentException.class);
+            }
         }
     }
 

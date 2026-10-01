@@ -1,5 +1,7 @@
 # Signature Verification — Dual-Path Design
 
+Every SDK's server accepts both framings: rule V6 in [`docs/CROSS_SDK_RULES.md`](../CROSS_SDK_RULES.md). This page explains why, and how Java does it.
+
 ## TL;DR
 
 `SignatureVerificationInterceptor.verifySignature` accepts a request if the signature validates against **either** of two payload framings:

@@ -185,7 +185,7 @@ If omitted, the SDK logs to **stderr** as a single JSON line per event (same def
 <details>
 <summary>Lower-level primitives</summary>
 
-The individual building blocks are also exported: `createRequestVerifier`, `rejectRequest`, `verifySignature`, `computeDigest`, `keccak256`, `parsePublicKey`, `publicKeyFromPrivateKey`, `publicKeysEqual`, and the `NetworkHeaders` header-name enum. You can import just the crypto module via the `./crypto` subpath: `import { createRequestVerifier } from "@t-0/provider-sdk/crypto"`.
+The individual building blocks are also exported: `createRequestVerifier`, `rejectRequest`, `verifySignature`, `computeDigest`, `keccak256`, `parsePublicKey` (deprecated: not used by the SDK, and will be removed in a future major version), `publicKeyFromPrivateKey`, `publicKeysEqual`, and the `NetworkHeaders` header-name enum. You can import just the crypto module via the `./crypto` subpath: `import { createRequestVerifier } from "@t-0/provider-sdk/crypto"`.
 </details>
 
 ### Provider Public Key

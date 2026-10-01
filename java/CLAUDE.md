@@ -23,7 +23,7 @@ verifySignature(rawBytes, signature);
 - **Unframed path** — Java SDK's own `NetworkClient` (signs above the gRPC framer), unary Connect-protocol calls from Go / Node / Python (a unary Connect body has no frame), and the T-0 Network when configured to call this provider via Connect protocol.
 - **gRPC-framed path** — T-0 Network when configured to call this provider via gRPC protocol. The signer sits below the gRPC framer, so the signed payload covers the 5-byte frame prefix (1 byte compressed flag + 4 bytes big-endian length) followed by the protobuf message bytes.
 
-Removing either path silently breaks one class of caller with `UNAUTHENTICATED` errors.
+Removing either path silently breaks one class of caller with `UNAUTHENTICATED` errors. Every SDK's server accepts both framings (rule V6 in [`docs/CROSS_SDK_RULES.md`](../docs/CROSS_SDK_RULES.md)); Java rebuilds the frame from the message, the others strip it from the body.
 
 GitHub issue #89 raised concern that the framed path looked like dead code — investigation confirmed it is alive and required because the network's gRPC-protocol path signs framed bodies. See [`docs/java/SIGNATURE_VERIFICATION.md`](../docs/java/SIGNATURE_VERIFICATION.md) for the precise signing-payload definitions per transport and conditions under which simplification would be safe.
 

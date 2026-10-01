@@ -131,13 +131,14 @@ headers = { X-Public-Key: "0x"+pk.hex(), X-Signature: "0x"+sig.hex(), X-Signatur
 
 `body_bytes` is the whole body of a Connect unary call, and the first envelope as sent of a Connect stream or any gRPC call (for gRPC unary, that is the whole body).
 
-Timestamp tolerance: ±60 seconds. Max body: 10 MiB default.
+How the server checks the key, the timestamp, the ±60 s window, the gRPC framing and the body (10 MiB by default), and its error codes, is the same in every SDK: [`docs/CROSS_SDK_RULES.md`](../docs/CROSS_SDK_RULES.md).
 
 ## Error Hierarchy
 
 `SignatureVerificationError` (base) with 6 subclasses:
-- → `INVALID_ARGUMENT`: `MissingRequiredHeaderError`, `InvalidHeaderEncodingError`, `TimestampOutOfRangeError`, `BodyTooLargeError`
-- → `UNAUTHENTICATED`: `UnknownPublicKeyError`, `SignatureFailedError`
+- → `INVALID_ARGUMENT`: `MissingRequiredHeaderError`, `InvalidHeaderEncodingError`, `TimestampOutOfRangeError`
+- → `RESOURCE_EXHAUSTED`: `BodyTooLargeError`
+- → `UNAUTHENTICATED`: `UnknownPublicKeyError` (an `X-Public-Key` that is present but not the network key, hex or not), `SignatureFailedError`
 
 ## Public API Surface
 
@@ -151,8 +152,8 @@ Timestamp tolerance: ±60 seconds. Max body: 10 MiB default.
 )
 (
     private_key_from_hex,
-    public_key_from_hex,
-    public_key_from_bytes,
+    public_key_from_hex,  # deprecated: not used by the SDK
+    public_key_from_bytes,  # deprecated: not used by the SDK
     public_key_to_bytes,
 )
 verify_signature

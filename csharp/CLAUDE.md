@@ -74,8 +74,7 @@ headers = { X-Public-Key: "0x...", X-Signature: "0x...", X-Signature-Timestamp: 
 ```
 
 - `body_bytes`: for enveloped content the first envelope only, prefix included (for a unary or server-streaming gRPC call that is the whole body); otherwise the whole body
-- Timestamp tolerance: ±60 seconds
-- Public keys: secp256k1, sent uncompressed (65 bytes, 0x04 prefix); the server accepts the configured key and `X-Public-Key` uncompressed or compressed (33 bytes) and compares points (rule and vectors: root `CLAUDE.md`)
+- Server (`SignatureVerificationMiddleware`): the key, timestamp, ±60 s window, gRPC framing, body limit and error codes follow [`docs/CROSS_SDK_RULES.md`](../docs/CROSS_SDK_RULES.md), the same in every SDK
 - Signatures: 65 bytes (r[32] + s[32] + v[1]), verification accepts 64 bytes too
 - Canonical signatures: s ≤ n/2 enforced
 

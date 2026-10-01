@@ -5,8 +5,6 @@ import network.t0.sdk.common.Headers;
 import network.t0.sdk.common.HexUtils;
 import network.t0.sdk.crypto.Keccak256;
 import network.t0.sdk.crypto.SignatureVerifier;
-import org.bouncycastle.crypto.ec.CustomNamedCurves;
-import org.bouncycastle.math.ec.ECCurve;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,10 +37,12 @@ import java.time.Clock;
  *
  * <p>Error handling:
  * <ul>
- *   <li>Missing/invalid headers (including X-Public-Key that is not hex) → INVALID_ARGUMENT</li>
+ *   <li>Missing headers, X-Signature that is not hex, X-Signature-Timestamp that is not ASCII
+ *       digits → INVALID_ARGUMENT</li>
  *   <li>Timestamp outside window → INVALID_ARGUMENT</li>
- *   <li>X-Public-Key that is not a secp256k1 key, or another key → UNAUTHENTICATED; the
- *       compressed and the uncompressed form of the network key are both accepted</li>
+ *   <li>X-Public-Key that is anything but the network key (not hex, not a secp256k1 key, or
+ *       another key) → UNAUTHENTICATED; the compressed and the uncompressed form of the network
+ *       key are both accepted</li>
  *   <li>Invalid signature → UNAUTHENTICATED</li>
  * </ul>
  *
@@ -65,10 +65,6 @@ public final class SignatureVerificationInterceptor implements ServerInterceptor
             Metadata.Key.of(Headers.PUBLIC_KEY, Metadata.ASCII_STRING_MARSHALLER);
     private static final Metadata.Key<String> TIMESTAMP_KEY =
             Metadata.Key.of(Headers.SIGNATURE_TIMESTAMP, Metadata.ASCII_STRING_MARSHALLER);
-
-    private static final ECCurve SECP256K1 = CustomNamedCurves.getByName("secp256k1").getCurve();
-    private static final int COMPRESSED_PUBLIC_KEY_LENGTH = 33;
-    private static final int UNCOMPRESSED_PUBLIC_KEY_LENGTH = 65;
 
     private final byte[] expectedNetworkPublicKey;
     private final Clock clock;
@@ -112,43 +108,41 @@ public final class SignatureVerificationInterceptor implements ServerInterceptor
         }
         try {
             return parsePublicKey(key);
-        } catch (IllegalArgumentException | ArithmeticException e) {
+        } catch (IllegalArgumentException e) {
             throw new IllegalArgumentException("invalid network public key: " + e.getMessage(), e);
         }
     }
 
     /**
-     * Parses a secp256k1 public key given in hex: an optional 0x or 0X prefix, then a 33-byte
-     * compressed (0x02/0x03) or 65-byte uncompressed (0x04) key. Used for the configured key
-     * and, in its two steps, for the X-Public-Key header.
+     * Parses a secp256k1 public key given in hex: an optional 0x or 0X prefix, then a point on the
+     * curve, such as a 33-byte compressed (0x02/0x03) or 65-byte uncompressed (0x04) key. Used for
+     * the configured key and for the X-Public-Key header.
      *
-     * @return the key's 65-byte uncompressed encoding, the same for both forms of one key
+     * @return the key's 65-byte uncompressed encoding, the same for every form of one key
      * @throws IllegalArgumentException if the hex is malformed or the bytes are not a key on the curve
      */
+    @SuppressWarnings("deprecation") // The SDK's one key parser; deprecated only for applications.
     static byte[] parsePublicKey(String publicKeyHex) {
-        return decodePublicKey(decodePublicKeyHex(publicKeyHex));
+        return SignatureVerifier.parsePublicKeyHex(publicKeyHex);
     }
 
-    /** Strict hex (no whitespace, even length) after an optional 0x or 0X prefix; at least one byte. */
-    private static byte[] decodePublicKeyHex(String publicKeyHex) {
-        byte[] bytes = HexUtils.hexToBytes(HexUtils.stripHexPrefix(publicKeyHex));
-        if (bytes.length == 0) {
-            throw new IllegalArgumentException("public key must not be empty");
+    /**
+     * Parses X-Signature-Timestamp: ASCII digits 0-9 only (no sign, spaces or anything else), at
+     * least one, of a value up to {@link Long#MAX_VALUE}. Leading zeros are allowed.
+     *
+     * @return the timestamp in milliseconds
+     * @throws NumberFormatException if the value is not such a number
+     */
+    static long parseTimestamp(String timestamp) {
+        // Long.parseLong alone also takes a leading + or - and non-ASCII digits.
+        for (int i = 0; i < timestamp.length(); i++) {
+            char c = timestamp.charAt(i);
+            if (c < '0' || c > '9') {
+                throw new NumberFormatException("not ASCII digits 0-9");
+            }
         }
-        return bytes;
-    }
-
-    private static byte[] decodePublicKey(byte[] publicKey) {
-        // Checked here: decodePoint also accepts the 65-byte hybrid encodings 0x06 and 0x07.
-        boolean compressed = publicKey.length == COMPRESSED_PUBLIC_KEY_LENGTH
-                && (publicKey[0] == 0x02 || publicKey[0] == 0x03);
-        boolean uncompressed = publicKey.length == UNCOMPRESSED_PUBLIC_KEY_LENGTH && publicKey[0] == 0x04;
-        if (!compressed && !uncompressed) {
-            throw new IllegalArgumentException(
-                    "public key must be 33 bytes compressed (0x02/0x03 prefix) or 65 bytes uncompressed (0x04 prefix)");
-        }
-        // Throws for a point off the curve.
-        return SECP256K1.decodePoint(publicKey).getEncoded(false);
+        // Throws for an empty value and for one above Long.MAX_VALUE.
+        return Long.parseLong(timestamp);
     }
 
     @Override
@@ -167,7 +161,6 @@ public final class SignatureVerificationInterceptor implements ServerInterceptor
         if (publicKeyResult instanceof ValidationResult.Invalid invalid) {
             return rejectCall(call, invalid.status(), invalid.message());
         }
-        byte[] publicKeyBytes = ((ValidationResult.ValidBytes) publicKeyResult).bytes();
 
         // Validate signature header
         ValidationResult signatureResult = validateSignatureHeader(signatureHex);
@@ -184,15 +177,7 @@ public final class SignatureVerificationInterceptor implements ServerInterceptor
         long timestampMs = ((ValidationResult.ValidTimestamp) timestampResult).timestamp();
 
         // Verify public key matches expected network public key, compressed or uncompressed.
-        // Both are compared, and the signature verified, as 65-byte uncompressed encodings.
-        byte[] publicKey;
-        try {
-            publicKey = decodePublicKey(publicKeyBytes);
-        } catch (IllegalArgumentException | ArithmeticException e) {
-            log.warn("Request signed with invalid public key: {}", e.getMessage());
-            return rejectCall(call, Status.UNAUTHENTICATED, "invalid public key: " + e.getMessage());
-        }
-        if (!SignatureVerifier.publicKeysEqual(publicKey, expectedNetworkPublicKey)) {
+        if (!isNetworkPublicKey(publicKeyHex)) {
             log.warn("Request signed with unknown public key");
             return rejectCall(call, Status.UNAUTHENTICATED, "request signed with unknown public key");
         }
@@ -211,7 +196,7 @@ public final class SignatureVerificationInterceptor implements ServerInterceptor
                         byte[] bodyBytes = inputStream.readAllBytes();
 
                         // Verify signature
-                        if (!verifySignature(publicKey, bodyBytes, timestampMs, signature)) {
+                        if (!verifySignature(expectedNetworkPublicKey, bodyBytes, timestampMs, signature)) {
                             log.warn("Signature verification failed");
                             call.close(Status.UNAUTHENTICATED.withDescription("signature verification failed"), new Metadata());
                             return;
@@ -330,13 +315,20 @@ public final class SignatureVerificationInterceptor implements ServerInterceptor
             return new ValidationResult.Invalid(Status.INVALID_ARGUMENT,
                     "missing required header: " + Headers.PUBLIC_KEY);
         }
+        // What it holds is checked in interceptCall, by isNetworkPublicKey.
+        return new ValidationResult.Valid();
+    }
 
-        // Only the hex here: bytes that are not a key are refused as UNAUTHENTICATED in interceptCall.
+    /**
+     * Whether the X-Public-Key header is the network key, compressed or uncompressed (compared as
+     * 65-byte uncompressed encodings). Anything else, including a value that is not hex or not a key,
+     * is an unknown key.
+     */
+    private boolean isNetworkPublicKey(String publicKeyHex) {
         try {
-            return new ValidationResult.ValidBytes(decodePublicKeyHex(publicKeyHex));
+            return SignatureVerifier.publicKeysEqual(parsePublicKey(publicKeyHex), expectedNetworkPublicKey);
         } catch (IllegalArgumentException e) {
-            return new ValidationResult.Invalid(Status.INVALID_ARGUMENT,
-                    "invalid header encoding: " + Headers.PUBLIC_KEY);
+            return false;
         }
     }
 
@@ -369,7 +361,7 @@ public final class SignatureVerificationInterceptor implements ServerInterceptor
 
         long timestampMs;
         try {
-            timestampMs = Long.parseLong(timestampStr);
+            timestampMs = parseTimestamp(timestampStr);
         } catch (NumberFormatException e) {
             return new ValidationResult.Invalid(Status.INVALID_ARGUMENT,
                     "invalid timestamp header: " + e.getMessage());
@@ -399,6 +391,7 @@ public final class SignatureVerificationInterceptor implements ServerInterceptor
      */
     private sealed interface ValidationResult {
         record Invalid(Status status, String message) implements ValidationResult {}
+        record Valid() implements ValidationResult {}
         record ValidBytes(byte[] bytes) implements ValidationResult {}
         record ValidTimestamp(long timestamp) implements ValidationResult {}
     }

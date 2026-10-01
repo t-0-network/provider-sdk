@@ -9,7 +9,7 @@ from t0_provider_sdk.common.headers import (
     SIGNATURE_TIMESTAMP_HEADER,
 )
 from t0_provider_sdk.crypto.hash import legacy_keccak256
-from t0_provider_sdk.crypto.keys import public_key_from_bytes
+from t0_provider_sdk.crypto.keys import _public_key_from_bytes_strict
 from t0_provider_sdk.crypto.signer import new_signer_from_hex
 from t0_provider_sdk.crypto.verifier import verify_signature
 from t0_provider_sdk.network.signing import _sign_request
@@ -59,7 +59,7 @@ class TestSignRequest:
         digest = legacy_keccak256(message)
 
         # Verify
-        pub_key = public_key_from_bytes(pub_key_bytes)
+        pub_key = _public_key_from_bytes_strict(pub_key_bytes)
         assert verify_signature(pub_key, digest, signature)
 
     def test_preserves_existing_headers(self):
@@ -91,5 +91,5 @@ class TestSignRequest:
         timestamp_bytes = struct.pack("<Q", timestamp_ms)
 
         digest = legacy_keccak256(b"" + timestamp_bytes)
-        pub_key = public_key_from_bytes(pub_key_bytes)
+        pub_key = _public_key_from_bytes_strict(pub_key_bytes)
         assert verify_signature(pub_key, digest, signature)

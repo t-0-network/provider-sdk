@@ -22,6 +22,7 @@ from t0_provider_sdk.provider import (
 )
 from t0_provider_sdk.provider.health import HealthASGIApplication, HealthImpl, HealthImplSync, HealthWSGIApplication
 from t0_provider_sdk.provider.interceptor import SignatureErrorInterceptor, SignatureErrorInterceptorSync
+from t0_provider_sdk.provider.middleware import DEFAULT_MAX_BODY_SIZE
 from tzero.v1.payment import provider_pb2 as payment_pb2
 from tzero.v1.payment.provider_connect import ProviderServiceASGIApplication, ProviderServiceWSGIApplication
 
@@ -52,11 +53,10 @@ def test_missing_key_is_rejected(build, key):
         "0x",
         PUBLIC_KEY[:-2],
         "0x04" + "00" * 64,
-        "0x06" + PUBLIC_KEY[4:],
         "0x02" + PUBLIC_KEY[4:],
         PUBLIC_KEY[:40] + " " + PUBLIC_KEY[40:],
     ],
-    ids=["non-hex", "prefix only", "truncated", "off-curve", "hybrid", "02 prefix on 65 bytes", "whitespace inside"],
+    ids=["non-hex", "prefix only", "truncated", "off-curve", "02 prefix on 65 bytes", "whitespace inside"],
 )
 def test_malformed_key_is_rejected(build, key):
     with pytest.raises(ValueError, match="invalid network public key") as exc_info:
@@ -122,35 +122,47 @@ def _answer(status: int, body: bytes) -> tuple[str, str]:
     return error["code"], error.get("message", "")
 
 
-async def _call_asgi(app, path: str, headers: dict[str, str]) -> tuple[str, str]:
+async def _send_asgi(
+    app, path: str, headers: dict[str, str], body: bytes = b"", content_type: str = "application/proto"
+) -> list[dict]:
     scope = {
         "type": "http",
         "method": "POST",
         "path": path,
         "root_path": "",
         "query_string": b"",
-        "headers": [(b"content-type", b"application/proto")] + [(k.encode(), v.encode()) for k, v in headers.items()],
+        "headers": [(b"content-type", content_type.encode())] + [(k.encode(), v.encode()) for k, v in headers.items()],
+        "extensions": {"http.response.trailers": {}},  # gRPC needs trailers
     }
     sent = []
 
     async def receive():
-        return {"type": "http.request", "body": b"", "more_body": False}
+        return {"type": "http.request", "body": body, "more_body": False}
 
     async def send(message):
         sent.append(message)
 
     await app(scope, receive, send)
+    return sent
+
+
+async def _call_asgi(
+    app, path: str, headers: dict[str, str], body: bytes = b"", content_type: str = "application/proto"
+) -> tuple[str, str]:
+    sent = await _send_asgi(app, path, headers, body, content_type)
     return _answer(sent[0]["status"], b"".join(m.get("body", b"") for m in sent[1:]))
 
 
-def _call_wsgi(app, path: str, headers: dict[str, str]) -> tuple[str, str]:
+def _call_wsgi(
+    app, path: str, headers: dict[str, str], body: bytes = b"", content_type: str = "application/proto"
+) -> tuple[str, str]:
     environ = {
         "REQUEST_METHOD": "POST",
         "PATH_INFO": path,
         "SCRIPT_NAME": "",
-        "CONTENT_TYPE": "application/proto",
-        "CONTENT_LENGTH": "0",
-        "wsgi.input": io.BytesIO(b""),
+        "CONTENT_TYPE": content_type,
+        "CONTENT_LENGTH": str(len(body)),
+        "wsgi.input": io.BytesIO(body),
         "wsgi.errors": io.StringIO(),
     }
     for name, value in headers.items():
@@ -160,17 +172,24 @@ def _call_wsgi(app, path: str, headers: dict[str, str]) -> tuple[str, str]:
     def start_response(status, response_headers, exc_info=None):
         statuses.append(int(status.split()[0]))
 
-    body = b"".join(app(environ, start_response))
-    return _answer(statuses[0], body)
+    response = b"".join(app(environ, start_response))
+    return _answer(statuses[0], response)
 
 
-def _call(transport: str, headers: dict[str, str], *options, path: str = CHECK_PATH) -> tuple[str, str]:
+def _call(
+    transport: str,
+    headers: dict[str, str],
+    *options,
+    path: str = CHECK_PATH,
+    body: bytes = b"",
+    content_type: str = "application/proto",
+) -> tuple[str, str]:
     """Call new_asgi_app / new_wsgi_app, with a ProviderService registered with the given options."""
     if transport == "asgi":
         app = new_asgi_app(PUBLIC_KEY, handler(ProviderServiceASGIApplication, _StubProviderService(), *options))
-        return asyncio.run(_call_asgi(app, path, headers))
+        return asyncio.run(_call_asgi(app, path, headers, body, content_type))
     app = new_wsgi_app(PUBLIC_KEY, handler_sync(ProviderServiceWSGIApplication, _StubProviderServiceSync(), *options))
-    return _call_wsgi(app, path, headers)
+    return _call_wsgi(app, path, headers, body, content_type)
 
 
 @pytest.mark.parametrize("transport", TRANSPORTS)
@@ -180,12 +199,11 @@ def _call(transport: str, headers: dict[str, str], *options, path: str = CHECK_P
         (PUBLIC_KEY, "ok"),
         (COMPRESSED_PUBLIC_KEY, "ok"),
         ("0X" + PUBLIC_KEY[2:], "ok"),
-        ("0xnot-a-key", "invalid_argument"),
-        (PUBLIC_KEY[:-1], "invalid_argument"),
-        (PUBLIC_KEY[:40] + " " + PUBLIC_KEY[40:], "invalid_argument"),
-        (PUBLIC_KEY + "zz", "invalid_argument"),
-        ("0x", "invalid_argument"),
-        ("0x06" + PUBLIC_KEY[4:], "unauthenticated"),
+        ("0xnot-a-key", "unauthenticated"),
+        (PUBLIC_KEY[:-1], "unauthenticated"),
+        (PUBLIC_KEY[:40] + " " + PUBLIC_KEY[40:], "unauthenticated"),
+        (PUBLIC_KEY + "zz", "unauthenticated"),
+        ("0x", "unauthenticated"),
         ("0x02" + PUBLIC_KEY[4:], "unauthenticated"),
         (PUBLIC_KEY[:-2], "unauthenticated"),
         ("0x04" + "00" * 64, "unauthenticated"),
@@ -200,7 +218,6 @@ def _call(transport: str, headers: dict[str, str], *options, path: str = CHECK_P
         "whitespace inside",
         "trailing junk",
         "prefix only",
-        "hybrid",
         "02 prefix on 65 bytes",
         "wrong length",
         "off-curve",
@@ -208,8 +225,8 @@ def _call(transport: str, headers: dict[str, str], *options, path: str = CHECK_P
     ],
 )
 def test_public_key_header(transport, public_key, code):
-    """X-Public-Key: either form of the network key passes; not hex is a bad request; hex that is not
-    the network key, or not a key at all, is unauthenticated."""
+    """X-Public-Key: either form of the network key passes; anything else present (not hex, not a key,
+    another key) is unauthenticated."""
     assert _call(transport, _signed_headers(**{"x-public-key": public_key}))[0] == code
 
 
@@ -224,6 +241,26 @@ def test_missing_public_key_header(transport):
 @pytest.mark.parametrize("timestamp", ["-1", str(2**63), str(2**64), "+1"])
 def test_malformed_timestamp_is_a_bad_request(transport, timestamp):
     assert _call(transport, _signed_headers(**{"x-signature-timestamp": timestamp}))[0] == "invalid_argument"
+
+
+@pytest.mark.parametrize("transport", TRANSPORTS)
+@pytest.mark.parametrize("content_type", ["application/proto", "application/json"])
+def test_body_over_the_limit_is_resource_exhausted(transport, content_type):
+    body = b"\x00" * (DEFAULT_MAX_BODY_SIZE + 1)
+    assert _call(transport, _signed_headers(), body=body, content_type=content_type) == (
+        "resource_exhausted",
+        f"max payload size of {DEFAULT_MAX_BODY_SIZE} bytes exceeded",
+    )
+
+
+def test_body_over_the_limit_is_resource_exhausted_over_grpc():
+    """The body replayed after the refusal decodes as one empty message, so the answer is the
+    interceptor's, not a decoding error ("unary request has zero messages")."""
+    app = new_asgi_app(PUBLIC_KEY, handler(ProviderServiceASGIApplication, _StubProviderService()))
+    body = b"\x00" * (DEFAULT_MAX_BODY_SIZE + 1)
+    sent = asyncio.run(_send_asgi(app, CHECK_PATH, _signed_headers(), body, "application/grpc"))
+    statuses = [v for m in sent for k, v in m.get("headers", []) if k == b"grpc-status"]
+    assert statuses == [b"8"]  # RESOURCE_EXHAUSTED
 
 
 @pytest.mark.parametrize("transport", TRANSPORTS)

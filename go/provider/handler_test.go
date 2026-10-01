@@ -17,9 +17,6 @@ func TestNewHttpHandler_NetworkPublicKey(t *testing.T) {
 	require.NoError(t, err)
 	validKey := crypto.HexPublicKey(priv.PubKey())
 	uncompressed := priv.PubKey().SerializeUncompressed()
-	// A hybrid key names the same point; its prefix carries the parity of y, so
-	// only the explicit prefix check rejects it.
-	hybrid := append([]byte{0x06 | uncompressed[64]&1}, uncompressed[1:]...)
 	compressedPrefixOn65Bytes := append([]byte{0x02}, uncompressed[1:]...)
 
 	tests := []struct {
@@ -32,7 +29,6 @@ func TestNewHttpHandler_NetworkPublicKey(t *testing.T) {
 		{name: "whitespace only", key: "  \n", required: true},
 		{name: "non-hex", key: "0xnot-a-key", invalid: true},
 		{name: "off-curve", key: "0x04" + strings.Repeat("0", 128), invalid: true},
-		{name: "hybrid", key: "0x" + hex.EncodeToString(hybrid), invalid: true},
 		{name: "02 prefix on 65 bytes", key: "0x" + hex.EncodeToString(compressedPrefixOn65Bytes), invalid: true},
 		{name: "prefix only", key: "0x", invalid: true},
 		{name: "valid", key: validKey},

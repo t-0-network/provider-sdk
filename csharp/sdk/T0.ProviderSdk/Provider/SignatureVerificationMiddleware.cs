@@ -1,3 +1,5 @@
+using System.Buffers.Binary;
+using System.Globalization;
 using Grpc.Core;
 using Microsoft.AspNetCore.Http;
 using T0.ProviderSdk.Common;
@@ -55,36 +57,22 @@ public sealed class SignatureVerificationMiddleware
 
     /// <summary>
     /// Parses a public key, the configured network key and the X-Public-Key header alike: hex with
-    /// an optional 0x prefix of a 33-byte compressed (0x02/0x03) or 65-byte uncompressed (0x04)
-    /// secp256k1 point. Returns the 65-byte uncompressed encoding, so both forms of a key compare equal.
+    /// an optional 0x prefix of an encoded secp256k1 point, such as 33 bytes compressed (0x02/0x03)
+    /// or 65 bytes uncompressed (0x04). Returns the 65-byte uncompressed encoding, so all forms of
+    /// a key compare equal.
     /// </summary>
     /// <exception cref="FormatException">The value is not hex.</exception>
-    /// <exception cref="ArgumentException">The bytes are not a public key.</exception>
+    /// <exception cref="ArgumentException">The bytes are not a point on the curve.</exception>
     internal static byte[] ParsePublicKey(string value) =>
         ParseHex(value) is { } encoded
-            ? DecodePublicKey(encoded)
+            ? Secp256k1.DecodePoint(encoded).GetEncoded(false)
             : throw new FormatException("public key must be hex with an optional 0x prefix");
-
-    /// <summary>
-    /// Decodes the bytes of a public key (see <see cref="ParsePublicKey"/>) to its 65-byte
-    /// uncompressed encoding.
-    /// </summary>
-    /// <exception cref="ArgumentException">The bytes are not a public key.</exception>
-    private static byte[] DecodePublicKey(byte[] encoded)
-    {
-        // Checked here: DecodePoint also accepts the 65-byte hybrid encodings 0x06 and 0x07.
-        if (!(encoded.Length == 33 && encoded[0] is 0x02 or 0x03) && !(encoded.Length == 65 && encoded[0] == 0x04))
-            throw new ArgumentException(
-                "public key must be 33 bytes compressed (0x02 or 0x03 prefix) or 65 bytes uncompressed (0x04 prefix)");
-        // Throws for a point off the curve.
-        return Secp256k1.DecodePoint(encoded).GetEncoded(false);
-    }
 
     public async Task InvokeAsync(HttpContext context)
     {
-        // 1. Parse public key header
-        var publicKey = ParseHexHeader(context, Headers.PublicKey);
-        if (publicKey is null)
+        // 1. Check the public key header is present (whether it is the network key: step 4)
+        var publicKeyHex = context.Request.Headers[Headers.PublicKey].FirstOrDefault();
+        if (string.IsNullOrEmpty(publicKeyHex))
         {
             await WriteGrpcError(context, StatusCode.InvalidArgument,
                 $"missing or invalid header: {Headers.PublicKey}");
@@ -101,7 +89,7 @@ public sealed class SignatureVerificationMiddleware
         }
 
         // 3. Parse and validate timestamp
-        if (!TryParseTimestamp(context, out var timestampMs))
+        if (!TryParseTimestamp(context.Request.Headers[Headers.SignatureTimestamp].FirstOrDefault(), out var timestampMs))
         {
             await WriteGrpcError(context, StatusCode.InvalidArgument,
                 $"missing or invalid header: {Headers.SignatureTimestamp}");
@@ -122,9 +110,9 @@ public sealed class SignatureVerificationMiddleware
         byte[]? signerPublicKey;
         try
         {
-            signerPublicKey = DecodePublicKey(publicKey);
+            signerPublicKey = ParsePublicKey(publicKeyHex);
         }
-        catch (Exception e) when (e is ArgumentException or ArithmeticException)
+        catch (Exception e) when (e is FormatException or ArgumentException or ArithmeticException)
         {
             signerPublicKey = null;
         }
@@ -139,7 +127,7 @@ public sealed class SignatureVerificationMiddleware
         var body = await ReadBodyWithCap(context.Request, _maxBodySize);
         if (body is null)
         {
-            await WriteGrpcError(context, StatusCode.InvalidArgument,
+            await WriteGrpcError(context, StatusCode.ResourceExhausted,
                 $"max payload size of {_maxBodySize} bytes exceeded");
             return;
         }
@@ -147,20 +135,32 @@ public sealed class SignatureVerificationMiddleware
         // Rewind body stream for downstream handlers
         context.Request.Body.Position = 0;
 
-        // 6. Compute digest = Keccak256(body || timestampBytes)
-        var digest = Keccak256.Hash(body, timestampBytes);
-
-        // 7. Verify signature
-        if (!SignatureVerifier.Verify(signerPublicKey, digest, signature))
+        // 6. Verify the signature over Keccak256(body || timestampBytes)
+        if (!VerifyWithFramingFallback(signerPublicKey, body, timestampBytes, signature, context.Request.ContentType))
         {
             await WriteGrpcError(context, StatusCode.Unauthenticated,
                 "signature verification failed");
             return;
         }
 
-        // 8. Proceed to next middleware/handler
+        // 7. Proceed to next middleware/handler
         await _next(context);
     }
+
+    /// <summary>
+    /// Verifies the signature over the whole body; failing that, for a gRPC request whose body is
+    /// exactly one uncompressed frame, over the message without its 5-byte prefix, which is what a
+    /// signer above the gRPC framer covers (the Java SDK's NetworkClient). Same rule as Go's
+    /// <c>verifyWithFramingFallback</c>.
+    /// </summary>
+    private static bool VerifyWithFramingFallback(
+        byte[] publicKey, byte[] body, byte[] timestampBytes, byte[] signature, string? contentType) =>
+        SignatureVerifier.Verify(publicKey, Keccak256.Hash(body, timestampBytes), signature)
+        || (contentType?.StartsWith("application/grpc", StringComparison.Ordinal) == true
+            && body.Length >= 5
+            && body[0] == 0
+            && BinaryPrimitives.ReadUInt32BigEndian(body.AsSpan(1, 4)) == body.Length - 5
+            && SignatureVerifier.Verify(publicKey, Keccak256.Hash(body[5..], timestampBytes), signature));
 
     /// <summary>
     /// Parses a hex-encoded header value (0x prefix optional). Returns null on failure.
@@ -188,13 +188,14 @@ public sealed class SignatureVerificationMiddleware
     }
 
     /// <summary>
-    /// Parses the timestamp header. Returns false on failure.
+    /// Parses the timestamp header: decimal digits only (no sign, no spaces), at most
+    /// <see cref="long.MaxValue"/>. Returns false on failure.
     /// </summary>
-    private static bool TryParseTimestamp(HttpContext context, out long timestampMs)
+    internal static bool TryParseTimestamp(string? value, out long timestampMs)
     {
         timestampMs = 0;
-        var tsValue = context.Request.Headers[Headers.SignatureTimestamp].FirstOrDefault();
-        return !string.IsNullOrEmpty(tsValue) && long.TryParse(tsValue, out timestampMs);
+        return !string.IsNullOrEmpty(value)
+            && long.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out timestampMs);
     }
 
     private static async Task<byte[]?> ReadBodyWithCap(HttpRequest request, long maxSize)

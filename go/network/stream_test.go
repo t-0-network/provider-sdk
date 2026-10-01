@@ -230,7 +230,7 @@ func (s *streamTestServer) checkSignature(r *http.Request) (verified, error) {
 		candidates["body"], order = body, append(order, "body")
 	}
 
-	pubKey, err := crypto.GetPublicKeyFromBytes(publicKey)
+	pubKey, err := secp256k1.ParsePubKey(publicKey)
 	if err != nil {
 		return verified{}, err
 	}
@@ -488,7 +488,7 @@ func TestSigningTransport_EmptyStreamSignsEmptyBytes(t *testing.T) {
 			require.NoError(t, err)
 			signature, err := hex.DecodeString(strings.TrimPrefix(sent.Header.Get(common.SignatureHeader), "0x"))
 			require.NoError(t, err)
-			pubKey, err := crypto.GetPublicKeyFromBytes(key.publicKey)
+			pubKey, err := secp256k1.ParsePubKey(key.publicKey)
 			require.NoError(t, err)
 			require.True(t, crypto.VerifySignature(pubKey, digestOf(nil, timestamp), signature), "signed over empty bytes")
 		})
@@ -664,7 +664,7 @@ func TestSigningTransport_WholeBodyDoesNotModifyRequest(t *testing.T) {
 	require.NoError(t, err)
 	signature, err := hex.DecodeString(strings.TrimPrefix(sent.Header.Get(common.SignatureHeader), "0x"))
 	require.NoError(t, err)
-	pubKey, err := crypto.GetPublicKeyFromBytes(key.publicKey)
+	pubKey, err := secp256k1.ParsePubKey(key.publicKey)
 	require.NoError(t, err)
 	require.True(t, crypto.VerifySignature(pubKey, digestOf(whole, timestamp), signature), "signed over the whole body")
 }

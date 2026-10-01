@@ -21,10 +21,11 @@ import io
 from collections.abc import Callable, Iterable
 from typing import Any
 
-from t0_provider_sdk.provider.errors import BodyTooLargeError, InvalidHeaderEncodingError, SignatureVerificationError
+from t0_provider_sdk.provider.errors import BodyTooLargeError, SignatureVerificationError
 from t0_provider_sdk.provider.middleware import (
     DEFAULT_MAX_BODY_SIZE,
     VerifySignatureFn,
+    _empty_message_body,
     _verify_request,
     signature_error_var,
 )
@@ -58,8 +59,8 @@ def signature_verification_middleware_wsgi(
         try:
             body = _read_wsgi_body(environ, max_body_size)
             error = _verify_request(verify_fn, headers, body)
-        except (BodyTooLargeError, InvalidHeaderEncodingError) as e:
-            body, error = b"", e
+        except BodyTooLargeError as e:
+            body, error = _empty_message_body(headers), e
 
         # Replay body to downstream. A unary call has passed the interceptor by the time the app
         # returns, so the result is reset then: the thread serves other requests in this context,
@@ -99,10 +100,6 @@ def _read_wsgi_body(environ: WSGIEnviron, max_size: int) -> bytes:
     """Read the full request body from WSGI environ, enforcing size limit."""
     content_length = environ.get("CONTENT_LENGTH", "")
     if content_length:
-        # ASCII digits only: some servers (wsgiref) pass the header through unchecked, and int()
-        # would fail on junk or take a negative length, which read() treats as "read everything".
-        if not (content_length.isascii() and content_length.isdigit()):
-            raise InvalidHeaderEncodingError("Content-Length")
         length = int(content_length)
         if length > max_size:
             raise BodyTooLargeError(max_size)

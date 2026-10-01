@@ -1,4 +1,5 @@
 using System.Buffers.Binary;
+using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using T0.ProviderSdk.Common;
@@ -173,8 +174,9 @@ public class CrossTestVectors
     }
 
     /// <summary>
-    /// The rule the middleware parses the configured network key and X-Public-Key with: valid keys
-    /// in their 65-byte uncompressed encoding, everything else rejected.
+    /// The rule the middleware parses the configured network key and X-Public-Key with, and the
+    /// deprecated <see cref="SignatureVerifier.ParsePublicKeyHex"/> with it: valid keys in their
+    /// 65-byte uncompressed encoding, everything else rejected.
     /// </summary>
     [Fact]
     public void PublicKeyParsing_ShouldMatchVectorOutcomes()
@@ -182,23 +184,53 @@ public class CrossTestVectors
         var cases = Vectors.RootElement.GetProperty("public_key_parsing");
         Assert.NotEmpty(cases.EnumerateArray());
 
+#pragma warning disable CS0618 // ParsePublicKeyHex is obsolete; it must still follow the rule
+        Func<string, byte[]>[] parsers = [SignatureVerificationMiddleware.ParsePublicKey, SignatureVerifier.ParsePublicKeyHex];
+#pragma warning restore CS0618
+        foreach (var parse in parsers)
+        {
+            foreach (var vec in cases.EnumerateArray())
+            {
+                var name = $"{parse.Method.Name} {vec.GetProperty("name").GetString()}";
+                var expected = vec.GetProperty("valid").GetBoolean()
+                    ? vec.GetProperty("uncompressed").GetString()!
+                    : "rejected";
+
+                string parsed;
+                try
+                {
+                    parsed = HexUtils.BytesToHex(parse(vec.GetProperty("input").GetString()!));
+                }
+                catch (Exception e) when (e is FormatException or ArgumentException or ArithmeticException)
+                {
+                    parsed = "rejected";
+                }
+                Assert.Equal($"{name}: {expected}", $"{name}: {parsed}");
+            }
+        }
+    }
+
+    /// <summary>
+    /// The rule the middleware parses X-Signature-Timestamp with: decimal digits only, at most
+    /// <see cref="long.MaxValue"/>.
+    /// </summary>
+    [Fact]
+    public void TimestampParsing_ShouldMatchVectorOutcomes()
+    {
+        var cases = Vectors.RootElement.GetProperty("timestamp_parsing");
+        Assert.NotEmpty(cases.EnumerateArray());
+
         foreach (var vec in cases.EnumerateArray())
         {
             var name = vec.GetProperty("name").GetString();
             var expected = vec.GetProperty("valid").GetBoolean()
-                ? vec.GetProperty("uncompressed").GetString()!
+                ? vec.GetProperty("value").GetString()!
                 : "rejected";
 
-            string parsed;
-            try
-            {
-                parsed = HexUtils.BytesToHex(SignatureVerificationMiddleware.ParsePublicKey(
-                    vec.GetProperty("input").GetString()!));
-            }
-            catch (Exception e) when (e is FormatException or ArgumentException or ArithmeticException)
-            {
-                parsed = "rejected";
-            }
+            var parsed = SignatureVerificationMiddleware.TryParseTimestamp(
+                vec.GetProperty("input").GetString(), out var timestampMs)
+                ? timestampMs.ToString(CultureInfo.InvariantCulture)
+                : "rejected";
             Assert.Equal($"{name}: {expected}", $"{name}: {parsed}");
         }
     }

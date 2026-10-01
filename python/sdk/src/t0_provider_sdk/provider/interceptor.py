@@ -14,6 +14,7 @@ from connectrpc.errors import ConnectError
 from connectrpc.request import RequestContext
 
 from t0_provider_sdk.provider.errors import (
+    BodyTooLargeError,
     SignatureFailedError,
     UnknownPublicKeyError,
 )
@@ -33,7 +34,10 @@ def _raise_if_signature_error() -> None:
     if isinstance(err, (UnknownPublicKeyError, SignatureFailedError)):
         raise ConnectError(Code.UNAUTHENTICATED, str(err))
 
-    # All other signature errors (missing header, invalid encoding, timestamp, body too large)
+    if isinstance(err, BodyTooLargeError):
+        raise ConnectError(Code.RESOURCE_EXHAUSTED, str(err))
+
+    # All other signature errors (missing header, invalid encoding, timestamp)
     raise ConnectError(Code.INVALID_ARGUMENT, str(err))
 
 

@@ -1,6 +1,8 @@
 package network.t0.sdk.crypto;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.math.BigInteger;
 import java.util.Arrays;
@@ -16,6 +18,7 @@ class SignatureVerifierTest {
     // Test vectors
     private static final String PRIVATE_KEY_HEX = "6b30303de7b26bfb1222b317a52113357f8bb06de00160b4261a2fef9c8b9bd8";
     private static final String PUBLIC_KEY_HEX = "044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0";
+    private static final String COMPRESSED_PUBLIC_KEY_HEX = "024fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567";
     private static final String MESSAGE_KECCAK_HASH = "46d5cbf7d8477720c337b94a2fe332fe54205914619e7e4889595c3c944b646b";
 
     @Test
@@ -171,6 +174,7 @@ class SignatureVerifierTest {
     }
 
     @Test
+    @SuppressWarnings("deprecation")
     void parsePublicKeyHex_validKey_shouldWork() {
         byte[] publicKey = SignatureVerifier.parsePublicKeyHex(PUBLIC_KEY_HEX);
 
@@ -179,6 +183,7 @@ class SignatureVerifierTest {
     }
 
     @Test
+    @SuppressWarnings("deprecation")
     void parsePublicKeyHex_with0xPrefix_shouldWork() {
         byte[] publicKey = SignatureVerifier.parsePublicKeyHex("0x" + PUBLIC_KEY_HEX);
 
@@ -186,6 +191,7 @@ class SignatureVerifierTest {
     }
 
     @Test
+    @SuppressWarnings("deprecation")
     void parsePublicKeyHex_uppercase_shouldWork() {
         byte[] publicKey = SignatureVerifier.parsePublicKeyHex(PUBLIC_KEY_HEX.toUpperCase());
 
@@ -193,14 +199,32 @@ class SignatureVerifierTest {
     }
 
     @Test
+    @SuppressWarnings("deprecation")
+    void parsePublicKeyHex_compressedKey_shouldReturnUncompressed() {
+        byte[] publicKey = SignatureVerifier.parsePublicKeyHex("0x" + COMPRESSED_PUBLIC_KEY_HEX);
+
+        assertThat(publicKey).isEqualTo(hexToBytes(PUBLIC_KEY_HEX));
+    }
+
+    @Test
+    @SuppressWarnings("deprecation")
     void parsePublicKeyHex_null_shouldThrow() {
         assertThatThrownBy(() -> SignatureVerifier.parsePublicKeyHex(null))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
+    @ParameterizedTest(name = "rejects \"{0}\"")
+    @ValueSource(strings = {"", "0x", "abcd", "0x0400", PUBLIC_KEY_HEX + "zz", " " + PUBLIC_KEY_HEX})
+    @SuppressWarnings("deprecation")
+    void parsePublicKeyHex_notAKey_shouldThrow(String publicKeyHex) {
+        assertThatThrownBy(() -> SignatureVerifier.parsePublicKeyHex(publicKeyHex))
+                .isInstanceOf(IllegalArgumentException.class);
+    }
+
     @Test
-    void parsePublicKeyHex_wrongLength_shouldThrow() {
-        assertThatThrownBy(() -> SignatureVerifier.parsePublicKeyHex("abcd"))
+    @SuppressWarnings("deprecation")
+    void parsePublicKeyHex_offCurve_shouldThrow() {
+        assertThatThrownBy(() -> SignatureVerifier.parsePublicKeyHex("04" + "00".repeat(64)))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 

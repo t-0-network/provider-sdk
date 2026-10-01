@@ -1,11 +1,28 @@
 import { verifySignature } from './verify.js';
 import { computeDigest } from './hash.js';
-import { parseNetworkPublicKey, parsePublicKeyPoint, PublicKeyHexError, publicKeysEqual } from './keys.js';
+import { parseNetworkPublicKey, parsePublicKeyPoint, publicKeysEqual } from './keys.js';
 
 export const DEFAULT_TOLERANCE_MS = 60_000;
 
+const INT64_MAX = 9223372036854775807n;
+
+// The one parser of the X-Signature-Timestamp header, in milliseconds: ASCII digits only (leading
+// zeros allowed) of a value that fits a signed 64-bit integer, else undefined. A bigint, so the
+// value is exact. Not exported from the package.
+export function parseTimestamp(value: string): bigint | undefined {
+  if (!/^[0-9]+$/.test(value)) {
+    return undefined;
+  }
+  const ts = BigInt(value);
+  return ts <= INT64_MAX ? ts : undefined;
+}
+
 export interface CreateVerifierOptions {
   networkPublicKey: string | Buffer;
+  /**
+   * How far the signature timestamp may be from now, in milliseconds: a finite number greater
+   * than 0 and at most 60000 (the default). Anything else throws when the verifier is created.
+   */
   toleranceMs?: number;
 }
 
@@ -19,6 +36,8 @@ export interface VerifyRequest {
 export type VerifyRequestFailure =
   | 'invalid_timestamp'
   | 'timestamp_out_of_range'
+  // Returned only for a missing (empty) X-Public-Key header; any other value that is not the
+  // network key is unknown_public_key.
   | 'invalid_public_key'
   | 'unknown_public_key'
   | 'invalid_signature_format'
@@ -33,25 +52,33 @@ export type RequestVerifier = (req: VerifyRequest) => VerifyRequestResult;
 export function createRequestVerifier(opts: CreateVerifierOptions): RequestVerifier {
   const networkKey = parseNetworkPublicKey(opts.networkPublicKey);
   const tolerance = opts.toleranceMs ?? DEFAULT_TOLERANCE_MS;
+  if (!Number.isFinite(tolerance) || tolerance <= 0 || tolerance > DEFAULT_TOLERANCE_MS) {
+    throw new Error(`toleranceMs must be a finite number greater than 0 and at most ${DEFAULT_TOLERANCE_MS}`);
+  }
 
   return (req: VerifyRequest): VerifyRequestResult => {
-    const ts = parseInt(req.timestampHeader, 10);
-    if (!Number.isFinite(ts) || ts < 0) {
+    const parsed = parseTimestamp(req.timestampHeader);
+    if (parsed === undefined) {
       return { valid: false, reason: 'invalid_timestamp' };
     }
 
+    // Exact for any timestamp inside the window, which is all the digest below sees.
+    const ts = Number(parsed);
     if (Math.abs(Date.now() - ts) > tolerance) {
       return { valid: false, reason: 'timestamp_out_of_range' };
     }
 
-    // Not hex is invalid_public_key; hex that is not a key is not the network key either, so it is
-    // unknown_public_key (unauthenticated, as in every SDK). The compressed form of the network key
-    // is the network key.
+    // A missing header is invalid_public_key. Anything else that is not a key is not the network key
+    // either, so it is unknown_public_key (unauthenticated, as in every SDK). The compressed form of
+    // the network key is the network key.
+    if (req.publicKeyHeader === '') {
+      return { valid: false, reason: 'invalid_public_key' };
+    }
     let publicKey: Buffer;
     try {
       publicKey = parsePublicKeyPoint(req.publicKeyHeader);
-    } catch (e) {
-      return { valid: false, reason: e instanceof PublicKeyHexError ? 'invalid_public_key' : 'unknown_public_key' };
+    } catch {
+      return { valid: false, reason: 'unknown_public_key' };
     }
 
     if (!publicKeysEqual(publicKey, networkKey)) {

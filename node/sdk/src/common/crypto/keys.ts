@@ -31,41 +31,28 @@ export function publicKeyFromPrivateKey(hex: string): string {
   return `0x${uncompressedPublicKeyFromPrivateKey(parsePrivateKey(hex)).toString('hex')}`;
 }
 
+/**
+ * Parses a secp256k1 public key by the rule the SDK applies to the network key and the
+ * X-Public-Key header, and returns its 65-byte uncompressed encoding.
+ *
+ * @deprecated Not used by the SDK; will be removed in a future major version.
+ */
 export function parsePublicKey(key: string | Buffer): Buffer {
-  if (typeof key === 'string') {
-    const hex = key.startsWith('0x') ? key.slice(2) : key;
-    if (!/^[0-9a-fA-F]*$/.test(hex) || hex.length % 2 !== 0) {
-      throw new Error('Public key contains invalid hex characters');
-    }
-    key = Buffer.from(hex, 'hex');
-  }
-  if (key.length !== 65 || key[0] !== 0x04) {
-    throw new Error('Public key must be 65 bytes in uncompressed format (0x04 prefix)');
-  }
-  return Buffer.from(key);
+  return parsePublicKeyPoint(key);
 }
 
-// Thrown by parsePublicKeyPoint for a value that is not hex, as opposed to hex that is not a key.
-export class PublicKeyHexError extends Error {}
-
-// The one parser of the configured network key and the X-Public-Key header (parsePublicKey keeps its
-// own rules): hex with an optional 0x or 0X prefix and nothing else, of a compressed (33 bytes, 02 or
-// 03) or uncompressed (65 bytes, 04) point on secp256k1. Returns the 65-byte uncompressed encoding,
-// so the two forms of a key compare equal. Not exported from the package.
+// The one parser of the configured network key and the X-Public-Key header (the deprecated
+// parsePublicKey delegates to it): hex with an optional 0x or 0X prefix and nothing else, of a
+// compressed (33 bytes, 02 or 03) or uncompressed (65 bytes, 04) point on secp256k1. Returns the
+// 65-byte uncompressed encoding, so the two forms of a key compare equal. Not exported from the package.
 export function parsePublicKeyPoint(key: string | Uint8Array): Buffer {
   if (typeof key === 'string') {
     const hex = key.startsWith('0x') || key.startsWith('0X') ? key.slice(2) : key;
     // Checked before decoding: Buffer.from(hex, 'hex') stops at the first bad character.
     if (!/^(?:[0-9a-fA-F]{2})+$/.test(hex)) {
-      throw new PublicKeyHexError('must be hex, with an optional 0x or 0X prefix');
+      throw new Error('must be hex, with an optional 0x or 0X prefix');
     }
     key = Buffer.from(hex, 'hex');
-  }
-  // The hybrid encodings (06, 07) name a point too; noble rejects them, and so does this check.
-  const compressed = key.length === 33 && (key[0] === 0x02 || key[0] === 0x03);
-  const uncompressed = key.length === 65 && key[0] === 0x04;
-  if (!compressed && !uncompressed) {
-    throw new Error('must be 33 bytes with prefix 02 or 03, or 65 bytes with prefix 04');
   }
   try {
     return Buffer.from(secp256k1.Point.fromBytes(key).toBytes(false));

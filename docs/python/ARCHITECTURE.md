@@ -141,7 +141,7 @@ graph TB
 
 ## 2. Protocol Specification
 
-This chapter defines the T-0 Network signature protocol as a language-independent specification. No implementation details, libraries, or code are referenced here.
+The rules every SDK shares (key, timestamp, window, framing, body limit, error codes) are in [`docs/CROSS_SDK_RULES.md`](../CROSS_SDK_RULES.md); if this chapter and that page differ, that page is right. This chapter walks through the signature protocol without referring to Python code.
 
 ### 2.1 Signature Protocol
 
@@ -213,13 +213,13 @@ The receiving party verifies an incoming request through the following steps:
 flowchart TD
     A[Receive HTTP Request] --> B{All 3 headers<br/>present?}
     B -->|No| E1["INVALID_ARGUMENT<br/>Missing required header"]
-    B -->|Yes| C{Headers decode<br/>correctly?}
+    B -->|Yes| C{Signature and timestamp<br/>headers decode?}
     C -->|No| E2["INVALID_ARGUMENT<br/>Invalid header encoding"]
     C -->|Yes| D{Timestamp within<br/>±60 seconds?}
     D -->|No| E3["INVALID_ARGUMENT<br/>Timestamp out of range"]
     D -->|Yes| F{Body size<br/>≤ 10 MiB?}
-    F -->|No| E4["INVALID_ARGUMENT<br/>Body too large"]
-    F -->|Yes| G{Public key matches<br/>expected sender?}
+    F -->|No| E4["RESOURCE_EXHAUSTED<br/>Body too large"]
+    F -->|Yes| G{X-Public-Key is the network key,<br/>compressed or uncompressed?}
     G -->|No| E5["UNAUTHENTICATED<br/>Unknown public key"]
     G -->|Yes| H["Compute digest:<br/>Keccak256(body ∥ LE_u64(timestamp))"]
     H --> I{Signature valid<br/>for digest + key?}
@@ -231,18 +231,18 @@ Verification uses public key **recovery**: the public key is recovered from the 
 
 ### 2.2 Error Classification
 
-Signature verification errors fall into two categories based on the nature of the failure:
+Signature verification errors fall into three categories based on the nature of the failure. The codes are the same in every SDK: [`docs/CROSS_SDK_RULES.md`](../CROSS_SDK_RULES.md).
 
 | Error Condition | ConnectRPC Code | Category |
 |----------------|-----------------|----------|
 | Missing required header | `INVALID_ARGUMENT` | Malformed request |
 | Invalid header encoding | `INVALID_ARGUMENT` | Malformed request |
 | Timestamp out of range | `INVALID_ARGUMENT` | Clock drift / replay |
-| Body too large | `INVALID_ARGUMENT` | Size constraint |
-| Unknown public key | `UNAUTHENTICATED` | Authentication failure |
+| Body too large | `RESOURCE_EXHAUSTED` | Size constraint |
+| `X-Public-Key` present but not the network key (bad hex, not a key, or another key) | `UNAUTHENTICATED` | Authentication failure |
 | Signature verification failed | `UNAUTHENTICATED` | Authentication failure |
 
-The distinction determines the appropriate response: `INVALID_ARGUMENT` indicates the request was structurally invalid, while `UNAUTHENTICATED` indicates the request could not be authenticated.
+The distinction determines the appropriate response: `INVALID_ARGUMENT` indicates the request was structurally invalid, `RESOURCE_EXHAUSTED` that its body was over the limit, and `UNAUTHENTICATED` that the request could not be authenticated.
 
 ### 2.3 RPC Service Definitions
 
@@ -479,7 +479,7 @@ classDiagram
     }
     class BodyTooLargeError {
         max_size: int
-        → INVALID_ARGUMENT
+        → RESOURCE_EXHAUSTED
     }
     class UnknownPublicKeyError {
         → UNAUTHENTICATED
@@ -498,6 +498,7 @@ classDiagram
 
 The interceptor uses `isinstance()` checks to determine the ConnectRPC error code:
 - `UnknownPublicKeyError`, `SignatureFailedError` → `Code.UNAUTHENTICATED`
+- `BodyTooLargeError` → `Code.RESOURCE_EXHAUSTED`
 - All others → `Code.INVALID_ARGUMENT`
 
 ### 3.7 Go SDK Correspondence
@@ -591,9 +592,9 @@ All functions use `coincurve.PrivateKey` and `coincurve.PublicKey`. Hex strings 
 | Function | Signature | Notes |
 |----------|-----------|-------|
 | `private_key_from_hex` | `(hex_key: str) -> PrivateKey` | 64 hex digits after an optional `0x`/`0X`, value in [1, n-1]; `ValueError` otherwise |
-| `public_key_from_hex` | `(hex_key: str) -> PublicKey` | Accepts compressed (33B) or uncompressed (65B) |
+| `public_key_from_hex` | `(hex_key: str) -> PublicKey` | Deprecated (not used by the SDK). Optional `0x`/`0X`, strict hex, compressed (33B) or uncompressed (65B) |
 | `public_key_to_bytes` | `(key: PublicKey) -> bytes` | Returns 65-byte uncompressed: `04 ∥ x(32) ∥ y(32)` |
-| `public_key_from_bytes` | `(data: bytes) -> PublicKey` | Accepts compressed or uncompressed format |
+| `public_key_from_bytes` | `(data: bytes) -> PublicKey` | Deprecated (not used by the SDK). Compressed or uncompressed |
 
 #### 4.1.3 `signer.py` -- ECDSA Signing
 
@@ -762,7 +763,7 @@ The most complex modules in the SDK. Implement Phase 1 of the [two-phase verific
 5. Forwards to the downstream ASGI app, and resets `signature_error_var` when it returns
 
 **`signature_verification_middleware_wsgi(app, verify_fn, max_body_size)`** (in `middleware_wsgi.py`) returns a WSGI middleware that:
-1. Reads the full request body from `environ["wsgi.input"]` via `_read_wsgi_body()` (a `Content-Length` that is not ASCII digits is `InvalidHeaderEncodingError`)
+1. Reads the full request body from `environ["wsgi.input"]` via `_read_wsgi_body()`
 2. Calls the same `_verify_request()` for header parsing and verification
 3. Stores the result (an error, or `None`) in `signature_error_var`
 4. Replaces `environ["wsgi.input"]` with a `BytesIO` to replay the body
@@ -772,7 +773,7 @@ The most complex modules in the SDK. Implement Phase 1 of the [two-phase verific
 
 | Function | Purpose |
 |----------|---------|
-| `_verify_request(verify_fn, headers, body)` | Orchestrates header parsing and signature verification |
+| `_verify_request(verify_fn, headers, body)` | Orchestrates header parsing and signature verification. If the signature does not verify over the whole body and the request is `application/grpc*` with a body of exactly one uncompressed frame, it verifies again over the message without its 5-byte prefix |
 | `_parse_scope_headers(scope)` | Extracts headers from ASGI scope as a dict |
 | `_parse_hex_header(headers, name)` | Strips an optional `0x`/`0X` prefix and decodes strict hex (no whitespace) |
 | `_parse_timestamp(headers)` | Parses the timestamp header (ASCII digits, below 2^63), returns `(ms_int, LE_8bytes)` |

@@ -128,7 +128,7 @@ def signature_verification_middleware(
             body = await _read_body(receive, max_body_size)
             error = _verify_request(verify_fn, headers, body)
         except BodyTooLargeError as e:
-            body, error = b"", e
+            body, error = _empty_message_body(headers), e
 
         # Replay body to downstream. The result is reset when the request ends, so a server that
         # serves another request in this context never finds it there.
@@ -148,7 +148,7 @@ def _verify_request(
 ) -> SignatureVerificationError | None:
     """Parse headers and verify signature, returning error or None on success."""
     try:
-        public_key = _parse_hex_header(headers, PUBLIC_KEY_HEADER)
+        public_key = _parse_public_key_header(headers)
         sig = _parse_hex_header(headers, SIGNATURE_HEADER)
         timestamp_ms, timestamp_bytes = _parse_timestamp(headers)
     except SignatureVerificationError as e:
@@ -160,13 +160,40 @@ def _verify_request(
         return TimestampOutOfRangeError()
 
     # Verify signature: message = body + timestamp_le_bytes
-    message = body + timestamp_bytes
     try:
-        verify_fn(public_key, message, sig)
+        verify_fn(public_key, body + timestamp_bytes, sig)
     except SignatureVerificationError as e:
-        return e
+        # A client that signs above the gRPC framer (the Java SDK) covers the message without its
+        # 5-byte prefix: retried over that for a gRPC body of exactly one uncompressed frame.
+        payload = _grpc_frame_payload(headers, body)
+        if payload is None:
+            return e
+        try:
+            verify_fn(public_key, payload + timestamp_bytes, sig)
+        except SignatureVerificationError:
+            return e
 
     return None
+
+
+def _empty_message_body(headers: dict[str, str]) -> bytes:
+    """The body replayed in place of one over the limit: it decodes to an empty request message, so
+    connectrpc reaches the interceptor, which answers RESOURCE_EXHAUSTED, instead of failing to decode."""
+    content_type = headers.get("content-type", "")
+    if content_type.startswith("application/grpc"):
+        return b"\x00\x00\x00\x00\x00"  # one uncompressed frame holding an empty message
+    if content_type.startswith("application/json"):
+        return b"{}"
+    return b""
+
+
+def _grpc_frame_payload(headers: dict[str, str], body: bytes) -> bytes | None:
+    """The message of a gRPC body that is exactly one uncompressed frame, else None."""
+    if not headers.get("content-type", "").startswith("application/grpc"):
+        return None
+    if len(body) < 5 or body[0] != 0 or int.from_bytes(body[1:5], "big") != len(body) - 5:
+        return None
+    return body[5:]
 
 
 def _parse_scope_headers(scope: Scope) -> dict[str, str]:
@@ -188,6 +215,17 @@ def _parse_hex_header(headers: dict[str, str], header_name: str) -> bytes:
         return _decode_hex_strict(value)
     except ValueError:
         raise InvalidHeaderEncodingError(header_name)
+
+
+def _parse_public_key_header(headers: dict[str, str]) -> bytes:
+    """Decode X-Public-Key: missing is a bad request, and a value that is not hex is an unknown key.
+
+    Hex that is not the network key is unknown too (checked by VerifySignatureFn).
+    """
+    try:
+        return _parse_hex_header(headers, PUBLIC_KEY_HEADER)
+    except InvalidHeaderEncodingError:
+        raise UnknownPublicKeyError()
 
 
 def _parse_timestamp(headers: dict[str, str]) -> tuple[int, bytes]:

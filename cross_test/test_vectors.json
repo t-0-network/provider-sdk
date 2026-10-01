@@ -256,13 +256,6 @@
       "note": "Compressed key with prefix 03."
     },
     {
-      "name": "hybrid",
-      "input": "0x064fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0",
-      "valid": false,
-      "uncompressed": "",
-      "note": "65-byte hybrid encoding (06/07): rejected, although it names a point on the curve."
-    },
-    {
       "name": "compressed-prefix-on-65-bytes",
       "input": "0x024fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0",
       "valid": false,
@@ -331,6 +324,107 @@
       "valid": false,
       "uncompressed": "",
       "note": ""
+    }
+  ],
+  "timestamp_parsing_note": "Every SDK parses X-Signature-Timestamp with this rule: ASCII digits 0-9 only (no sign, no spaces, nothing else), a value that fits a signed 64-bit integer. Anything else is InvalidArgument. The +-60 s window is checked after parsing.",
+  "timestamp_parsing": [
+    {
+      "name": "plain",
+      "input": "1706000000000",
+      "valid": true,
+      "value": "1706000000000",
+      "note": ""
+    },
+    {
+      "name": "zero",
+      "input": "0",
+      "valid": true,
+      "value": "0",
+      "note": ""
+    },
+    {
+      "name": "leading-zeros",
+      "input": "0001706000000000",
+      "valid": true,
+      "value": "1706000000000",
+      "note": "Leading zeros are allowed: the signature covers the parsed value."
+    },
+    {
+      "name": "int64-max",
+      "input": "9223372036854775807",
+      "valid": true,
+      "value": "9223372036854775807",
+      "note": "The largest value; the time window rejects it later."
+    },
+    {
+      "name": "int64-max-plus-one",
+      "input": "9223372036854775808",
+      "valid": false,
+      "value": "",
+      "note": "Does not fit a signed 64-bit integer."
+    },
+    {
+      "name": "plus-sign",
+      "input": "+1706000000000",
+      "valid": false,
+      "value": "",
+      "note": "No sign."
+    },
+    {
+      "name": "minus-sign",
+      "input": "-1",
+      "valid": false,
+      "value": "",
+      "note": ""
+    },
+    {
+      "name": "leading-space",
+      "input": " 1706000000000",
+      "valid": false,
+      "value": "",
+      "note": "Not trimmed by the SDK (an HTTP server may strip spaces around a header value before the SDK sees it)."
+    },
+    {
+      "name": "trailing-space",
+      "input": "1706000000000 ",
+      "valid": false,
+      "value": "",
+      "note": ""
+    },
+    {
+      "name": "trailing-junk",
+      "input": "1706000000000abc",
+      "valid": false,
+      "value": "",
+      "note": ""
+    },
+    {
+      "name": "hex",
+      "input": "0x1F",
+      "valid": false,
+      "value": "",
+      "note": ""
+    },
+    {
+      "name": "float",
+      "input": "1.706e12",
+      "valid": false,
+      "value": "",
+      "note": ""
+    },
+    {
+      "name": "underscore",
+      "input": "1_706_000_000_000",
+      "valid": false,
+      "value": "",
+      "note": ""
+    },
+    {
+      "name": "empty",
+      "input": "",
+      "valid": false,
+      "value": "",
+      "note": "A missing or empty header is rejected as missing."
     }
   ]
 }

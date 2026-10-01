@@ -44,7 +44,6 @@ public class SignatureVerificationMiddlewareTests
             "0x",
             valid[..128],
             "02" + valid[2..],
-            "06" + valid[2..],
             "04" + new string('0', 128),
         };
     }
@@ -96,24 +95,10 @@ public class SignatureVerificationMiddlewareTests
         Assert.True(handlerCalled);
     }
 
-    public static TheoryData<string?> NonHexPublicKeyHeaders()
-    {
-        var valid = Signer.FromHex(TestPrivateKey).GetPublicKeyHexPrefixed();
-        return new TheoryData<string?>
-        {
-            null,
-            "0x",
-            "0xnot-a-key",
-            valid[..^1],
-            valid[..66] + " " + valid[66..],
-            valid + "zz",
-            " " + valid,
-        };
-    }
-
     [Theory]
-    [MemberData(nameof(NonHexPublicKeyHeaders))]
-    public async Task NonHexPublicKeyHeader_ShouldReturnInvalidArgument(string? publicKeyHeader)
+    [InlineData(null)]
+    [InlineData("")]
+    public async Task MissingPublicKeyHeader_ShouldReturnInvalidArgument(string? publicKeyHeader)
     {
         var (handlerCalled, context) = await InvokeSignedAsync(publicKeyHeader);
         Assert.False(handlerCalled);
@@ -126,10 +111,15 @@ public class SignatureVerificationMiddlewareTests
         var valid = Signer.FromHex(TestPrivateKey).GetPublicKeyHex();
         return new TheoryData<string>
         {
+            "0x",
+            "0xnot-a-key",
+            "0x" + valid[..^1],
+            "0x" + valid[..66] + " " + valid[66..],
+            "0x" + valid + "zz",
+            " 0x" + valid,
             "0x" + valid[..128],
             "0x02" + valid[2..],
             "0x04" + valid[2..66],
-            "0x06" + valid[2..],
             "0x04" + new string('0', 128),
         };
     }
@@ -295,18 +285,54 @@ public class SignatureVerificationMiddlewareTests
         Assert.Equal("16", context.Response.Headers["grpc-status"].ToString());
     }
 
+    private static readonly byte[] GrpcPayload = "test body"u8.ToArray();
+
+    [Theory]
+    [InlineData("application/grpc", false)]      // signed below the gRPC framer: the whole body
+    [InlineData("application/grpc", true)]       // signed above it (Java SDK): the payload alone
+    [InlineData("application/grpc+proto", true)]
+    public async Task GrpcFrame_SignedOverBodyOrPayload_ShouldPassThrough(string contentType, bool signPayload)
+    {
+        var body = GrpcFrame(0, GrpcPayload);
+        var (handlerCalled, _) = await InvokeSignedAsync(
+            _signer.GetPublicKeyHexPrefixed(), body, signPayload ? GrpcPayload : body, contentType);
+        Assert.True(handlerCalled);
+    }
+
+    public static TheoryData<string, byte[]> NotOneUncompressedGrpcFrame() => new()
+    {
+        { "application/proto", GrpcFrame(0, GrpcPayload) },
+        { "application/grpc", GrpcFrame(1, GrpcPayload) },
+        { "application/grpc", [.. GrpcFrame(0, GrpcPayload), .. GrpcFrame(0, GrpcPayload)] },
+    };
+
+    [Theory]
+    [MemberData(nameof(NotOneUncompressedGrpcFrame))]
+    public async Task NotOneUncompressedGrpcFrame_SignedWithoutPrefix_ShouldReturnUnauthenticated(
+        string contentType, byte[] body)
+    {
+        var (handlerCalled, context) = await InvokeSignedAsync(
+            _signer.GetPublicKeyHexPrefixed(), body, body[5..], contentType);
+        Assert.False(handlerCalled);
+        Assert.Equal("16", context.Response.Headers["grpc-status"].ToString());
+        Assert.Equal("signature verification failed", context.Response.Headers["grpc-message"].ToString());
+    }
+
     /// <summary>
     /// Runs a request signed with the network key through the middleware, with
-    /// <paramref name="publicKeyHeader"/> as X-Public-Key (none for null).
+    /// <paramref name="publicKeyHeader"/> as X-Public-Key (none for null), <paramref name="body"/>
+    /// (default "test body") as body, the signature over <paramref name="signedBytes"/> (default:
+    /// the body) and <paramref name="contentType"/> as Content-Type.
     /// </summary>
-    private async Task<(bool HandlerCalled, DefaultHttpContext Context)> InvokeSignedAsync(string? publicKeyHeader)
+    private async Task<(bool HandlerCalled, DefaultHttpContext Context)> InvokeSignedAsync(
+        string? publicKeyHeader, byte[]? body = null, byte[]? signedBytes = null, string? contentType = null)
     {
-        var body = "test body"u8.ToArray();
+        body ??= "test body"u8.ToArray();
         var timestampMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
 
         var tsBytes = new byte[8];
         BinaryPrimitives.WriteUInt64LittleEndian(tsBytes, (ulong)timestampMs);
-        var result = _signer.Sign(Keccak256.Hash(body, tsBytes));
+        var result = _signer.Sign(Keccak256.Hash(signedBytes ?? body, tsBytes));
 
         var handlerCalled = false;
         var middleware = new SignatureVerificationMiddleware(
@@ -315,8 +341,21 @@ public class SignatureVerificationMiddlewareTests
             new FakeTimeProvider(DateTimeOffset.FromUnixTimeMilliseconds(timestampMs)));
 
         var context = CreateContext(body, result.SignatureHex, publicKeyHeader, timestampMs);
+        context.Request.ContentType = contentType;
         await middleware.InvokeAsync(context);
         return (handlerCalled, context);
+    }
+
+    /// <summary>
+    /// A gRPC length-prefixed message: the flags byte, the payload length (big-endian uint32), the payload.
+    /// </summary>
+    private static byte[] GrpcFrame(byte flags, byte[] payload)
+    {
+        var frame = new byte[5 + payload.Length];
+        frame[0] = flags;
+        BinaryPrimitives.WriteUInt32BigEndian(frame.AsSpan(1, 4), (uint)payload.Length);
+        payload.CopyTo(frame, 5);
+        return frame;
     }
 
     /// <summary>

@@ -191,8 +191,7 @@ Where:
 
 ### Timestamp Validation
 
-- **Window**: 60 seconds, fixed (`Headers.TIMESTAMP_VALIDITY_WINDOW_MS`)
-- Requests with timestamps outside this window are rejected with `INVALID_ARGUMENT`
+The timestamp rule and its window are the same in every SDK: [Cross-SDK rules](https://github.com/t-0-network/provider-sdk/blob/master/docs/CROSS_SDK_RULES.md) (V3, V4). Java keeps the window in `Headers.TIMESTAMP_VALIDITY_WINDOW_MS`.
 
 ---
 
@@ -354,14 +353,7 @@ boolean valid = SignatureVerifier.verify(publicKey, digest, signature);
 
 ### Server-Side gRPC Status Codes
 
-| Condition | Status Code | Description |
-|-----------|-------------|-------------|
-| Missing headers | `INVALID_ARGUMENT` | Required signature headers not present |
-| Malformed headers | `INVALID_ARGUMENT` | Headers present but invalid format |
-| Timestamp expired | `INVALID_ARGUMENT` | Timestamp outside 60-second window |
-| Wrong public key | `UNAUTHENTICATED` | Request signed by unexpected key |
-| Invalid signature | `UNAUTHENTICATED` | Signature verification failed |
-| Server error | `INTERNAL` | Server misconfiguration or unexpected error |
+The status code for each verification failure is the same in every SDK: [Cross-SDK rules, error codes](https://github.com/t-0-network/provider-sdk/blob/master/docs/CROSS_SDK_RULES.md#error-codes). A server misconfiguration or unexpected error is `INTERNAL`.
 
 ### Client-Side Exceptions
 

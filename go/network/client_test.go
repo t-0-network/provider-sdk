@@ -80,7 +80,7 @@ func TestNewServiceClient_SignsRequests(t *testing.T) {
 	pubKeyHex := strings.TrimPrefix(captured.Header.Get(common.PublicKeyHeader), "0x")
 	pubKeyBytes, err := hex.DecodeString(pubKeyHex)
 	require.NoError(t, err)
-	pubKey, err := crypto.GetPublicKeyFromBytes(pubKeyBytes)
+	pubKey, err := secp256k1.ParsePubKey(pubKeyBytes)
 	require.NoError(t, err)
 
 	sigHex := strings.TrimPrefix(captured.Header.Get(common.SignatureHeader), "0x")

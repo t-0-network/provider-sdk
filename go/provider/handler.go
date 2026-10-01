@@ -140,6 +140,9 @@ func Handler[T any](handler func(svc T, option ...connect.HandlerOption) (string
 		}
 		path, h := handler(p, defaultOptions.connectHandlerOptions...)
 		h = newSignatureVerifierMiddleware(defaultOptions.verifySignatureFn, defaultOptions.verifySignatureMaxBodySize)(h)
+		// The middleware passes a rejected request on with its body unread, and
+		// connect-go reads all of it; this stops every read at the limit.
+		h = http.MaxBytesHandler(h, defaultOptions.verifySignatureMaxBodySize)
 		return path, h
 	}
 }

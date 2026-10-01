@@ -11,7 +11,11 @@ import pytest
 from t0_provider_sdk.crypto.hash import legacy_keccak256
 from t0_provider_sdk.crypto.keys import private_key_from_hex
 from t0_provider_sdk.crypto.signer import new_signer
-from t0_provider_sdk.provider.errors import InvalidHeaderEncodingError, TimestampOutOfRangeError
+from t0_provider_sdk.provider.errors import (
+    InvalidHeaderEncodingError,
+    SignatureFailedError,
+    TimestampOutOfRangeError,
+)
 from t0_provider_sdk.provider.middleware import (
     DEFAULT_MAX_BODY_SIZE,
     NOT_VERIFIED,
@@ -29,12 +33,17 @@ OTHER_PUBLIC_KEY = "0x049bb924680bfba3f64d924bf9040c45dcc215b124b5b9ee73ca8e32c0
 # non-ASCII digits, and more digits than int() parses.
 MALFORMED_TIMESTAMPS = ["-1", str(2**63), str(2**64), " 1", "1 ", "+1", "1_0", "\u0661\u0662", "1" * 5000]
 
+# A gRPC body: one uncompressed frame (flag 0, uint32be length, message).
+GRPC_MESSAGE = b"grpc message"
+GRPC_FRAME = b"\x00" + len(GRPC_MESSAGE).to_bytes(4, "big") + GRPC_MESSAGE
+
 
 def _make_signed_environ(
     body: bytes = b"test body",
     private_key: str = PRIVATE_KEY,
     timestamp_ms: int | None = None,
     override_headers: dict[str, str] | None = None,
+    signed_body: bytes | None = None,
 ) -> dict:
     """Create a valid signed WSGI environ dict."""
     key = private_key_from_hex(private_key)
@@ -44,7 +53,8 @@ def _make_signed_environ(
         timestamp_ms = int(time.time() * 1000)
 
     timestamp_bytes = struct.pack("<Q", timestamp_ms)
-    digest = legacy_keccak256(body + timestamp_bytes)
+    # The signature covers signed_body when given, the body otherwise.
+    digest = legacy_keccak256((body if signed_body is None else signed_body) + timestamp_bytes)
     signature, pub_key = sign_fn(digest)
 
     headers = {
@@ -128,21 +138,6 @@ class TestSignatureVerificationMiddlewareWSGI:
         error, body = _run_middleware(environ)
         assert error is None
         assert body == b"chunked body"
-
-    @pytest.mark.parametrize("content_length", ["abc", "-1", "+5", " 5", "1_0"])
-    def test_malformed_content_length_is_a_bad_request(self, content_length):
-        """Junk or a negative length is refused before anything is read, not a 500 or a read to the end."""
-
-        class _Unread:
-            def read(self, *args):
-                raise AssertionError("must not read")
-
-        environ = _make_signed_environ()
-        environ["CONTENT_LENGTH"] = content_length
-        environ["wsgi.input"] = _Unread()
-        error, body = _run_middleware(environ)
-        assert isinstance(error, InvalidHeaderEncodingError)
-        assert body == b""
 
     def test_terminated_input_is_read_only_past_the_limit(self):
         body = b"x" * 100
@@ -244,6 +239,32 @@ class TestSignatureVerificationMiddlewareWSGI:
         error, _ = _run_middleware(environ, max_body_size=50)
         assert error is not None
         assert "max payload size" in str(error)
+
+    @pytest.mark.parametrize("content_type", ["application/grpc", "application/grpc+proto"])
+    @pytest.mark.parametrize("signed_body", [GRPC_FRAME, GRPC_MESSAGE], ids=["framed body", "message"])
+    def test_grpc_request_signed_over_framed_body_or_message(self, content_type, signed_body):
+        """A gRPC body signed below the framer (the network) or above it (the Java SDK) passes."""
+        environ = _make_signed_environ(body=GRPC_FRAME, signed_body=signed_body)
+        environ["CONTENT_TYPE"] = content_type
+        error, body = _run_middleware(environ)
+        assert error is None
+        assert body == GRPC_FRAME
+
+    @pytest.mark.parametrize(
+        ("content_type", "body"),
+        [
+            ("application/proto", GRPC_FRAME),
+            ("application/grpc", b"\x01" + GRPC_FRAME[1:]),
+            ("application/grpc", GRPC_FRAME + GRPC_FRAME),
+        ],
+        ids=["not grpc", "compressed flag", "two frames"],
+    )
+    def test_signature_without_prefix_needs_one_uncompressed_grpc_frame(self, content_type, body):
+        """Signed over everything after the first 5 bytes: refused unless the body is one gRPC frame."""
+        environ = _make_signed_environ(body=body, signed_body=body[5:])
+        environ["CONTENT_TYPE"] = content_type
+        error, _ = _run_middleware(environ)
+        assert isinstance(error, SignatureFailedError)
 
     def test_body_replayed_to_downstream(self):
         """Body is correctly replayed to the downstream app."""
