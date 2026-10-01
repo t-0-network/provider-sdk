@@ -39,6 +39,9 @@ const (
 	// PaymentIntentServiceGetQuoteProcedure is the fully-qualified name of the PaymentIntentService's
 	// GetQuote RPC.
 	PaymentIntentServiceGetQuoteProcedure = "/tzero.v1.payment_intent.PaymentIntentService/GetQuote"
+	// PaymentIntentServiceGetQuotesProcedure is the fully-qualified name of the PaymentIntentService's
+	// GetQuotes RPC.
+	PaymentIntentServiceGetQuotesProcedure = "/tzero.v1.payment_intent.PaymentIntentService/GetQuotes"
 	// PaymentIntentServiceCreatePaymentIntentProcedure is the fully-qualified name of the
 	// PaymentIntentService's CreatePaymentIntent RPC.
 	PaymentIntentServiceCreatePaymentIntentProcedure = "/tzero.v1.payment_intent.PaymentIntentService/CreatePaymentIntent"
@@ -63,6 +66,10 @@ type PaymentIntentServiceClient interface {
 	// Note: Quotes are indicative only. The actual rate used for settlement is determined
 	// at the time of ConfirmFundsReceived.
 	GetQuote(context.Context, *connect.Request[payment_intent.GetQuoteRequest]) (*connect.Response[payment_intent.GetQuoteResponse], error)
+	// * Lists the active pay-in quotes the caller can collect against, grouped by currency, then
+	// payment method: for each, the pay-in providers permitted to the caller and their tiered rate
+	// bands. Indicative — request a priced quote via GetQuote to act on one.
+	GetQuotes(context.Context, *connect.Request[payment_intent.GetQuotesRequest]) (*connect.Response[payment_intent.GetQuotesResponse], error)
 	// *
 	// CreatePaymentIntent initiates a new payment intent.
 	//
@@ -105,6 +112,13 @@ func NewPaymentIntentServiceClient(httpClient connect.HTTPClient, baseURL string
 			connect.WithIdempotency(connect.IdempotencyIdempotent),
 			connect.WithClientOptions(opts...),
 		),
+		getQuotes: connect.NewClient[payment_intent.GetQuotesRequest, payment_intent.GetQuotesResponse](
+			httpClient,
+			baseURL+PaymentIntentServiceGetQuotesProcedure,
+			connect.WithSchema(paymentIntentServiceMethods.ByName("GetQuotes")),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+			connect.WithClientOptions(opts...),
+		),
 		createPaymentIntent: connect.NewClient[payment_intent.CreatePaymentIntentRequest, payment_intent.CreatePaymentIntentResponse](
 			httpClient,
 			baseURL+PaymentIntentServiceCreatePaymentIntentProcedure,
@@ -126,6 +140,7 @@ func NewPaymentIntentServiceClient(httpClient connect.HTTPClient, baseURL string
 type paymentIntentServiceClient struct {
 	updateQuote          *connect.Client[payment_intent.UpdateQuoteRequest, payment_intent.UpdateQuoteResponse]
 	getQuote             *connect.Client[payment_intent.GetQuoteRequest, payment_intent.GetQuoteResponse]
+	getQuotes            *connect.Client[payment_intent.GetQuotesRequest, payment_intent.GetQuotesResponse]
 	createPaymentIntent  *connect.Client[payment_intent.CreatePaymentIntentRequest, payment_intent.CreatePaymentIntentResponse]
 	confirmFundsReceived *connect.Client[payment_intent.ConfirmFundsReceivedRequest, payment_intent.ConfirmFundsReceivedResponse]
 }
@@ -138,6 +153,11 @@ func (c *paymentIntentServiceClient) UpdateQuote(ctx context.Context, req *conne
 // GetQuote calls tzero.v1.payment_intent.PaymentIntentService.GetQuote.
 func (c *paymentIntentServiceClient) GetQuote(ctx context.Context, req *connect.Request[payment_intent.GetQuoteRequest]) (*connect.Response[payment_intent.GetQuoteResponse], error) {
 	return c.getQuote.CallUnary(ctx, req)
+}
+
+// GetQuotes calls tzero.v1.payment_intent.PaymentIntentService.GetQuotes.
+func (c *paymentIntentServiceClient) GetQuotes(ctx context.Context, req *connect.Request[payment_intent.GetQuotesRequest]) (*connect.Response[payment_intent.GetQuotesResponse], error) {
+	return c.getQuotes.CallUnary(ctx, req)
 }
 
 // CreatePaymentIntent calls tzero.v1.payment_intent.PaymentIntentService.CreatePaymentIntent.
@@ -166,6 +186,10 @@ type PaymentIntentServiceHandler interface {
 	// Note: Quotes are indicative only. The actual rate used for settlement is determined
 	// at the time of ConfirmFundsReceived.
 	GetQuote(context.Context, *connect.Request[payment_intent.GetQuoteRequest]) (*connect.Response[payment_intent.GetQuoteResponse], error)
+	// * Lists the active pay-in quotes the caller can collect against, grouped by currency, then
+	// payment method: for each, the pay-in providers permitted to the caller and their tiered rate
+	// bands. Indicative — request a priced quote via GetQuote to act on one.
+	GetQuotes(context.Context, *connect.Request[payment_intent.GetQuotesRequest]) (*connect.Response[payment_intent.GetQuotesResponse], error)
 	// *
 	// CreatePaymentIntent initiates a new payment intent.
 	//
@@ -203,6 +227,13 @@ func NewPaymentIntentServiceHandler(svc PaymentIntentServiceHandler, opts ...con
 		connect.WithIdempotency(connect.IdempotencyIdempotent),
 		connect.WithHandlerOptions(opts...),
 	)
+	paymentIntentServiceGetQuotesHandler := connect.NewUnaryHandler(
+		PaymentIntentServiceGetQuotesProcedure,
+		svc.GetQuotes,
+		connect.WithSchema(paymentIntentServiceMethods.ByName("GetQuotes")),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
+		connect.WithHandlerOptions(opts...),
+	)
 	paymentIntentServiceCreatePaymentIntentHandler := connect.NewUnaryHandler(
 		PaymentIntentServiceCreatePaymentIntentProcedure,
 		svc.CreatePaymentIntent,
@@ -223,6 +254,8 @@ func NewPaymentIntentServiceHandler(svc PaymentIntentServiceHandler, opts ...con
 			paymentIntentServiceUpdateQuoteHandler.ServeHTTP(w, r)
 		case PaymentIntentServiceGetQuoteProcedure:
 			paymentIntentServiceGetQuoteHandler.ServeHTTP(w, r)
+		case PaymentIntentServiceGetQuotesProcedure:
+			paymentIntentServiceGetQuotesHandler.ServeHTTP(w, r)
 		case PaymentIntentServiceCreatePaymentIntentProcedure:
 			paymentIntentServiceCreatePaymentIntentHandler.ServeHTTP(w, r)
 		case PaymentIntentServiceConfirmFundsReceivedProcedure:
@@ -242,6 +275,10 @@ func (UnimplementedPaymentIntentServiceHandler) UpdateQuote(context.Context, *co
 
 func (UnimplementedPaymentIntentServiceHandler) GetQuote(context.Context, *connect.Request[payment_intent.GetQuoteRequest]) (*connect.Response[payment_intent.GetQuoteResponse], error) {
 	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("tzero.v1.payment_intent.PaymentIntentService.GetQuote is not implemented"))
+}
+
+func (UnimplementedPaymentIntentServiceHandler) GetQuotes(context.Context, *connect.Request[payment_intent.GetQuotesRequest]) (*connect.Response[payment_intent.GetQuotesResponse], error) {
+	return nil, connect.NewError(connect.CodeUnimplemented, errors.New("tzero.v1.payment_intent.PaymentIntentService.GetQuotes is not implemented"))
 }
 
 func (UnimplementedPaymentIntentServiceHandler) CreatePaymentIntent(context.Context, *connect.Request[payment_intent.CreatePaymentIntentRequest]) (*connect.Response[payment_intent.CreatePaymentIntentResponse], error) {

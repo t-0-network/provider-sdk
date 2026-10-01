@@ -18,7 +18,7 @@ from connectrpc.protocol import ProtocolType
 from connectrpc.server import ConnectASGIApplication, ConnectWSGIApplication, DEFAULT_READ_MAX_BYTES, Endpoint, EndpointSync
 from pyqwest import Client, SyncClient
 
-from .network_pb2 import ConfirmFundsReceivedRequest, ConfirmFundsReceivedResponse, CreatePaymentIntentRequest, CreatePaymentIntentResponse, GetQuoteRequest, GetQuoteResponse, UpdateQuoteRequest, UpdateQuoteResponse
+from .network_pb2 import ConfirmFundsReceivedRequest, ConfirmFundsReceivedResponse, CreatePaymentIntentRequest, CreatePaymentIntentResponse, GetQuoteRequest, GetQuoteResponse, GetQuotesRequest, GetQuotesResponse, UpdateQuoteRequest, UpdateQuoteResponse
 
 if TYPE_CHECKING:
     from collections.abc import AsyncGenerator, Iterable, Mapping
@@ -63,6 +63,14 @@ class PaymentIntentService(Protocol):
 
         Note: Quotes are indicative only. The actual rate used for settlement is determined
         at the time of ConfirmFundsReceived.
+        """
+        raise ConnectError(Code.UNIMPLEMENTED, 'Not implemented')
+
+    async def get_quotes(self, request: GetQuotesRequest, ctx: RequestContext[GetQuotesRequest, GetQuotesResponse], /) -> GetQuotesResponse:
+        """
+        * Lists the active pay-in quotes the caller can collect against, grouped by currency, then
+        payment method: for each, the pay-in providers permitted to the caller and their tiered rate
+        bands. Indicative — request a priced quote via GetQuote to act on one.
         """
         raise ConnectError(Code.UNIMPLEMENTED, 'Not implemented')
 
@@ -121,6 +129,16 @@ class PaymentIntentServiceASGIApplication(ConnectASGIApplication[PaymentIntentSe
                         idempotency_level=IdempotencyLevel.IDEMPOTENT,
                     ),
                     function=svc.get_quote,
+                ),
+                "/tzero.v1.payment_intent.PaymentIntentService/GetQuotes": Endpoint.unary(
+                    method=MethodInfo(
+                        name="GetQuotes",
+                        service_name="tzero.v1.payment_intent.PaymentIntentService",
+                        input=GetQuotesRequest,
+                        output=GetQuotesResponse,
+                        idempotency_level=IdempotencyLevel.NO_SIDE_EFFECTS,
+                    ),
+                    function=svc.get_quotes,
                 ),
                 "/tzero.v1.payment_intent.PaymentIntentService/CreatePaymentIntent": Endpoint.unary(
                     method=MethodInfo(
@@ -245,6 +263,33 @@ class PaymentIntentServiceClient(ConnectClient):
             timeout_ms=timeout_ms,
         )
 
+    async def get_quotes(
+        self,
+        request: GetQuotesRequest,
+        *,
+        headers: Headers | Mapping[str, str] | None = None, 
+        timeout_ms: int | None = None,
+        use_get: bool = False,
+    ) -> GetQuotesResponse:
+        """
+        * Lists the active pay-in quotes the caller can collect against, grouped by currency, then
+        payment method: for each, the pay-in providers permitted to the caller and their tiered rate
+        bands. Indicative — request a priced quote via GetQuote to act on one.
+        """
+        return await self.execute_unary(
+            request=request,
+            method=MethodInfo(
+                name="GetQuotes",
+                service_name="tzero.v1.payment_intent.PaymentIntentService",
+                input=GetQuotesRequest,
+                output=GetQuotesResponse,
+                idempotency_level=IdempotencyLevel.NO_SIDE_EFFECTS,
+            ),
+            headers=headers,
+            timeout_ms=timeout_ms,
+            use_get=use_get,
+        )
+
     async def create_payment_intent(
         self,
         request: CreatePaymentIntentRequest,
@@ -333,6 +378,14 @@ class PaymentIntentServiceSync(Protocol):
         """
         raise ConnectError(Code.UNIMPLEMENTED, 'Not implemented')
 
+    def get_quotes(self, request: GetQuotesRequest, ctx: RequestContext[GetQuotesRequest, GetQuotesResponse], /) -> GetQuotesResponse:
+        """
+        * Lists the active pay-in quotes the caller can collect against, grouped by currency, then
+        payment method: for each, the pay-in providers permitted to the caller and their tiered rate
+        bands. Indicative — request a priced quote via GetQuote to act on one.
+        """
+        raise ConnectError(Code.UNIMPLEMENTED, 'Not implemented')
+
     def create_payment_intent(self, request: CreatePaymentIntentRequest, ctx: RequestContext[CreatePaymentIntentRequest, CreatePaymentIntentResponse], /) -> CreatePaymentIntentResponse:
         """
         *
@@ -386,6 +439,16 @@ class PaymentIntentServiceWSGIApplication(ConnectWSGIApplication):
                         idempotency_level=IdempotencyLevel.IDEMPOTENT,
                     ),
                     function=service.get_quote,
+                ),
+                "/tzero.v1.payment_intent.PaymentIntentService/GetQuotes": EndpointSync.unary(
+                    method=MethodInfo(
+                        name="GetQuotes",
+                        service_name="tzero.v1.payment_intent.PaymentIntentService",
+                        input=GetQuotesRequest,
+                        output=GetQuotesResponse,
+                        idempotency_level=IdempotencyLevel.NO_SIDE_EFFECTS,
+                    ),
+                    function=service.get_quotes,
                 ),
                 "/tzero.v1.payment_intent.PaymentIntentService/CreatePaymentIntent": EndpointSync.unary(
                     method=MethodInfo(
@@ -507,6 +570,32 @@ class PaymentIntentServiceClientSync(ConnectClientSync):
             ),
             headers=headers,
             timeout_ms=timeout_ms,
+        )
+    def get_quotes(
+        self,
+        request: GetQuotesRequest,
+        *,
+        headers: Headers | Mapping[str, str] | None = None, 
+        timeout_ms: int | None = None,
+        use_get: bool = False,
+    ) -> GetQuotesResponse:
+        """
+        * Lists the active pay-in quotes the caller can collect against, grouped by currency, then
+        payment method: for each, the pay-in providers permitted to the caller and their tiered rate
+        bands. Indicative — request a priced quote via GetQuote to act on one.
+        """
+        return self.execute_unary(
+            request=request,
+            method=MethodInfo(
+                name="GetQuotes",
+                service_name="tzero.v1.payment_intent.PaymentIntentService",
+                input=GetQuotesRequest,
+                output=GetQuotesResponse,
+                idempotency_level=IdempotencyLevel.NO_SIDE_EFFECTS,
+            ),
+            headers=headers,
+            timeout_ms=timeout_ms,
+            use_get=use_get,
         )
     def create_payment_intent(
         self,

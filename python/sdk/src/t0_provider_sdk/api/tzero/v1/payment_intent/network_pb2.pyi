@@ -87,6 +87,48 @@ class GetQuoteResponse(_message.Message):
     quote_not_found: GetQuoteResponse.QuoteNotFound
     def __init__(self, success: _Optional[_Union[GetQuoteResponse.Success, _Mapping]] = ..., quote_not_found: _Optional[_Union[GetQuoteResponse.QuoteNotFound, _Mapping]] = ...) -> None: ...
 
+class GetQuotesRequest(_message.Message):
+    __slots__ = ()
+    def __init__(self) -> None: ...
+
+class GetQuotesResponse(_message.Message):
+    __slots__ = ("quotes",)
+    class CurrencyQuote(_message.Message):
+        __slots__ = ("currency", "payment_method_quotes")
+        class PaymentMethodQuote(_message.Message):
+            __slots__ = ("payment_method", "provider_quotes")
+            class ProviderQuote(_message.Message):
+                __slots__ = ("provider_id", "quotes")
+                class Quote(_message.Message):
+                    __slots__ = ("max_amount", "rate", "fix", "expires_at")
+                    MAX_AMOUNT_FIELD_NUMBER: _ClassVar[int]
+                    RATE_FIELD_NUMBER: _ClassVar[int]
+                    FIX_FIELD_NUMBER: _ClassVar[int]
+                    EXPIRES_AT_FIELD_NUMBER: _ClassVar[int]
+                    max_amount: _common_pb2.Decimal
+                    rate: _common_pb2.Decimal
+                    fix: _common_pb2.Decimal
+                    expires_at: _timestamp_pb2.Timestamp
+                    def __init__(self, max_amount: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ..., rate: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ..., fix: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ..., expires_at: _Optional[_Union[datetime.datetime, _timestamp_pb2.Timestamp, _Mapping]] = ...) -> None: ...
+                PROVIDER_ID_FIELD_NUMBER: _ClassVar[int]
+                QUOTES_FIELD_NUMBER: _ClassVar[int]
+                provider_id: int
+                quotes: _containers.RepeatedCompositeFieldContainer[GetQuotesResponse.CurrencyQuote.PaymentMethodQuote.ProviderQuote.Quote]
+                def __init__(self, provider_id: _Optional[int] = ..., quotes: _Optional[_Iterable[_Union[GetQuotesResponse.CurrencyQuote.PaymentMethodQuote.ProviderQuote.Quote, _Mapping]]] = ...) -> None: ...
+            PAYMENT_METHOD_FIELD_NUMBER: _ClassVar[int]
+            PROVIDER_QUOTES_FIELD_NUMBER: _ClassVar[int]
+            payment_method: _payment_method_pb2.PaymentMethodType
+            provider_quotes: _containers.RepeatedCompositeFieldContainer[GetQuotesResponse.CurrencyQuote.PaymentMethodQuote.ProviderQuote]
+            def __init__(self, payment_method: _Optional[_Union[_payment_method_pb2.PaymentMethodType, str]] = ..., provider_quotes: _Optional[_Iterable[_Union[GetQuotesResponse.CurrencyQuote.PaymentMethodQuote.ProviderQuote, _Mapping]]] = ...) -> None: ...
+        CURRENCY_FIELD_NUMBER: _ClassVar[int]
+        PAYMENT_METHOD_QUOTES_FIELD_NUMBER: _ClassVar[int]
+        currency: str
+        payment_method_quotes: _containers.RepeatedCompositeFieldContainer[GetQuotesResponse.CurrencyQuote.PaymentMethodQuote]
+        def __init__(self, currency: _Optional[str] = ..., payment_method_quotes: _Optional[_Iterable[_Union[GetQuotesResponse.CurrencyQuote.PaymentMethodQuote, _Mapping]]] = ...) -> None: ...
+    QUOTES_FIELD_NUMBER: _ClassVar[int]
+    quotes: _containers.RepeatedCompositeFieldContainer[GetQuotesResponse.CurrencyQuote]
+    def __init__(self, quotes: _Optional[_Iterable[_Union[GetQuotesResponse.CurrencyQuote, _Mapping]]] = ...) -> None: ...
+
 class PaymentIntentPayInDetails(_message.Message):
     __slots__ = ("payment_method", "provider_id", "payment_details", "indicative_rate", "indicative_fix")
     PAYMENT_METHOD_FIELD_NUMBER: _ClassVar[int]

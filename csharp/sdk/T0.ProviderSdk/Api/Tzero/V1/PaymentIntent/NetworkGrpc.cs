@@ -64,6 +64,10 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
     [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
     static readonly grpc::Marshaller<global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.GetQuoteResponse> __Marshaller_tzero_v1_payment_intent_GetQuoteResponse = grpc::Marshallers.Create(__Helper_SerializeMessage, context => __Helper_DeserializeMessage(context, global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.GetQuoteResponse.Parser));
     [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+    static readonly grpc::Marshaller<global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.GetQuotesRequest> __Marshaller_tzero_v1_payment_intent_GetQuotesRequest = grpc::Marshallers.Create(__Helper_SerializeMessage, context => __Helper_DeserializeMessage(context, global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.GetQuotesRequest.Parser));
+    [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+    static readonly grpc::Marshaller<global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.GetQuotesResponse> __Marshaller_tzero_v1_payment_intent_GetQuotesResponse = grpc::Marshallers.Create(__Helper_SerializeMessage, context => __Helper_DeserializeMessage(context, global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.GetQuotesResponse.Parser));
+    [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
     static readonly grpc::Marshaller<global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.CreatePaymentIntentRequest> __Marshaller_tzero_v1_payment_intent_CreatePaymentIntentRequest = grpc::Marshallers.Create(__Helper_SerializeMessage, context => __Helper_DeserializeMessage(context, global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.CreatePaymentIntentRequest.Parser));
     [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
     static readonly grpc::Marshaller<global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.CreatePaymentIntentResponse> __Marshaller_tzero_v1_payment_intent_CreatePaymentIntentResponse = grpc::Marshallers.Create(__Helper_SerializeMessage, context => __Helper_DeserializeMessage(context, global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.CreatePaymentIntentResponse.Parser));
@@ -87,6 +91,14 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
         "GetQuote",
         __Marshaller_tzero_v1_payment_intent_GetQuoteRequest,
         __Marshaller_tzero_v1_payment_intent_GetQuoteResponse);
+
+    [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+    static readonly grpc::Method<global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.GetQuotesRequest, global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.GetQuotesResponse> __Method_GetQuotes = new grpc::Method<global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.GetQuotesRequest, global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.GetQuotesResponse>(
+        grpc::MethodType.Unary,
+        __ServiceName,
+        "GetQuotes",
+        __Marshaller_tzero_v1_payment_intent_GetQuotesRequest,
+        __Marshaller_tzero_v1_payment_intent_GetQuotesResponse);
 
     [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
     static readonly grpc::Method<global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.CreatePaymentIntentRequest, global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.CreatePaymentIntentResponse> __Method_CreatePaymentIntent = new grpc::Method<global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.CreatePaymentIntentRequest, global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.CreatePaymentIntentResponse>(
@@ -143,6 +155,20 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
       /// <returns>The response to send back to the client (wrapped by a task).</returns>
       [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
       public virtual global::System.Threading.Tasks.Task<global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.GetQuoteResponse> GetQuote(global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.GetQuoteRequest request, grpc::ServerCallContext context)
+      {
+        throw new grpc::RpcException(new grpc::Status(grpc::StatusCode.Unimplemented, ""));
+      }
+
+      /// <summary>
+      ///* Lists the active pay-in quotes the caller can collect against, grouped by currency, then
+      /// payment method: for each, the pay-in providers permitted to the caller and their tiered rate
+      /// bands. Indicative — request a priced quote via GetQuote to act on one. 
+      /// </summary>
+      /// <param name="request">The request received from the client.</param>
+      /// <param name="context">The context of the server-side call handler being invoked.</param>
+      /// <returns>The response to send back to the client (wrapped by a task).</returns>
+      [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+      public virtual global::System.Threading.Tasks.Task<global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.GetQuotesResponse> GetQuotes(global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.GetQuotesRequest request, grpc::ServerCallContext context)
       {
         throw new grpc::RpcException(new grpc::Status(grpc::StatusCode.Unimplemented, ""));
       }
@@ -343,6 +369,62 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
         return CallInvoker.AsyncUnaryCall(__Method_GetQuote, null, options, request);
       }
       /// <summary>
+      ///* Lists the active pay-in quotes the caller can collect against, grouped by currency, then
+      /// payment method: for each, the pay-in providers permitted to the caller and their tiered rate
+      /// bands. Indicative — request a priced quote via GetQuote to act on one. 
+      /// </summary>
+      /// <param name="request">The request to send to the server.</param>
+      /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
+      /// <param name="deadline">An optional deadline for the call. The call will be cancelled if deadline is hit.</param>
+      /// <param name="cancellationToken">An optional token for canceling the call.</param>
+      /// <returns>The response received from the server.</returns>
+      [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+      public virtual global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.GetQuotesResponse GetQuotes(global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.GetQuotesRequest request, grpc::Metadata headers = null, global::System.DateTime? deadline = null, global::System.Threading.CancellationToken cancellationToken = default(global::System.Threading.CancellationToken))
+      {
+        return GetQuotes(request, new grpc::CallOptions(headers, deadline, cancellationToken));
+      }
+      /// <summary>
+      ///* Lists the active pay-in quotes the caller can collect against, grouped by currency, then
+      /// payment method: for each, the pay-in providers permitted to the caller and their tiered rate
+      /// bands. Indicative — request a priced quote via GetQuote to act on one. 
+      /// </summary>
+      /// <param name="request">The request to send to the server.</param>
+      /// <param name="options">The options for the call.</param>
+      /// <returns>The response received from the server.</returns>
+      [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+      public virtual global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.GetQuotesResponse GetQuotes(global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.GetQuotesRequest request, grpc::CallOptions options)
+      {
+        return CallInvoker.BlockingUnaryCall(__Method_GetQuotes, null, options, request);
+      }
+      /// <summary>
+      ///* Lists the active pay-in quotes the caller can collect against, grouped by currency, then
+      /// payment method: for each, the pay-in providers permitted to the caller and their tiered rate
+      /// bands. Indicative — request a priced quote via GetQuote to act on one. 
+      /// </summary>
+      /// <param name="request">The request to send to the server.</param>
+      /// <param name="headers">The initial metadata to send with the call. This parameter is optional.</param>
+      /// <param name="deadline">An optional deadline for the call. The call will be cancelled if deadline is hit.</param>
+      /// <param name="cancellationToken">An optional token for canceling the call.</param>
+      /// <returns>The call object.</returns>
+      [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+      public virtual grpc::AsyncUnaryCall<global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.GetQuotesResponse> GetQuotesAsync(global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.GetQuotesRequest request, grpc::Metadata headers = null, global::System.DateTime? deadline = null, global::System.Threading.CancellationToken cancellationToken = default(global::System.Threading.CancellationToken))
+      {
+        return GetQuotesAsync(request, new grpc::CallOptions(headers, deadline, cancellationToken));
+      }
+      /// <summary>
+      ///* Lists the active pay-in quotes the caller can collect against, grouped by currency, then
+      /// payment method: for each, the pay-in providers permitted to the caller and their tiered rate
+      /// bands. Indicative — request a priced quote via GetQuote to act on one. 
+      /// </summary>
+      /// <param name="request">The request to send to the server.</param>
+      /// <param name="options">The options for the call.</param>
+      /// <returns>The call object.</returns>
+      [global::System.CodeDom.Compiler.GeneratedCode("grpc_csharp_plugin", null)]
+      public virtual grpc::AsyncUnaryCall<global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.GetQuotesResponse> GetQuotesAsync(global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.GetQuotesRequest request, grpc::CallOptions options)
+      {
+        return CallInvoker.AsyncUnaryCall(__Method_GetQuotes, null, options, request);
+      }
+      /// <summary>
       ///*
       /// CreatePaymentIntent initiates a new payment intent.
       ///
@@ -494,6 +576,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
       return grpc::ServerServiceDefinition.CreateBuilder()
           .AddMethod(__Method_UpdateQuote, serviceImpl.UpdateQuote)
           .AddMethod(__Method_GetQuote, serviceImpl.GetQuote)
+          .AddMethod(__Method_GetQuotes, serviceImpl.GetQuotes)
           .AddMethod(__Method_CreatePaymentIntent, serviceImpl.CreatePaymentIntent)
           .AddMethod(__Method_ConfirmFundsReceived, serviceImpl.ConfirmFundsReceived).Build();
     }
@@ -507,6 +590,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
     {
       serviceBinder.AddMethod(__Method_UpdateQuote, serviceImpl == null ? null : new grpc::UnaryServerMethod<global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.UpdateQuoteRequest, global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.UpdateQuoteResponse>(serviceImpl.UpdateQuote));
       serviceBinder.AddMethod(__Method_GetQuote, serviceImpl == null ? null : new grpc::UnaryServerMethod<global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.GetQuoteRequest, global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.GetQuoteResponse>(serviceImpl.GetQuote));
+      serviceBinder.AddMethod(__Method_GetQuotes, serviceImpl == null ? null : new grpc::UnaryServerMethod<global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.GetQuotesRequest, global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.GetQuotesResponse>(serviceImpl.GetQuotes));
       serviceBinder.AddMethod(__Method_CreatePaymentIntent, serviceImpl == null ? null : new grpc::UnaryServerMethod<global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.CreatePaymentIntentRequest, global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.CreatePaymentIntentResponse>(serviceImpl.CreatePaymentIntent));
       serviceBinder.AddMethod(__Method_ConfirmFundsReceived, serviceImpl == null ? null : new grpc::UnaryServerMethod<global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.ConfirmFundsReceivedRequest, global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.ConfirmFundsReceivedResponse>(serviceImpl.ConfirmFundsReceived));
     }

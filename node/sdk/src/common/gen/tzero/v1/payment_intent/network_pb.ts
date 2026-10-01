@@ -19,7 +19,7 @@ import type { Message } from "@bufbuild/protobuf";
  * Describes the file tzero/v1/payment_intent/network.proto.
  */
 export const file_tzero_v1_payment_intent_network: GenFile = /*@__PURE__*/
-  fileDesc("CiV0emVyby92MS9wYXltZW50X2ludGVudC9uZXR3b3JrLnByb3RvEhd0emVyby52MS5wYXltZW50X2ludGVudCKRBgoSVXBkYXRlUXVvdGVSZXF1ZXN0ElAKFXBheW1lbnRfaW50ZW50X3F1b3RlcxgKIAMoCzIxLnR6ZXJvLnYxLnBheW1lbnRfaW50ZW50LlVwZGF0ZVF1b3RlUmVxdWVzdC5RdW90ZRqoBQoFUXVvdGUSJgoIY3VycmVuY3kYCiABKAlCFLpIEXIPMgpeW0EtWl17M30kmAEDEkYKDnBheW1lbnRfbWV0aG9kGBkgASgOMiIudHplcm8udjEuY29tbW9uLlBheW1lbnRNZXRob2RUeXBlQgq6SAeCAQQQASAAEk8KBWJhbmRzGB4gAygLMjYudHplcm8udjEucGF5bWVudF9pbnRlbnQuVXBkYXRlUXVvdGVSZXF1ZXN0LlF1b3RlLkJhbmRCCLpIBZIBAggBEjgKCmV4cGlyYXRpb24YPCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQgi6SAWyAQJAARI1Cgl0aW1lc3RhbXAYRiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQga6SAPIAQEa7AIKBEJhbmQSIgoPY2xpZW50X3F1b3RlX2lkGAogASgJQgm6SAZyBBABGEAScAoKbWF4X2Ftb3VudBgoIAEoCzIYLnR6ZXJvLnYxLmNvbW1vbi5EZWNpbWFsQkK6SD+6ATkSJG1heF9hbW91bnQgbXVzdCBiZSBncmVhdGVyIHRoYW4gemVybxoRdGhpcy51bnNjYWxlZCA+IDDIAQESZAoEcmF0ZRgyIAEoCzIYLnR6ZXJvLnYxLmNvbW1vbi5EZWNpbWFsQjy6SDm6ATMSHnJhdGUgbXVzdCBiZSBncmVhdGVyIHRoYW4gemVybxoRdGhpcy51bnNjYWxlZCA+IDDIAQESYAoDZml4GDwgASgLMhgudHplcm8udjEuY29tbW9uLkRlY2ltYWxCNLpIMboBLhIYZml4IG11c3QgYmUgbm9uLW5lZ2F0aXZlGhJ0aGlzLnVuc2NhbGVkID49IDBIAIgBAUIGCgRfZml4IhUKE1VwZGF0ZVF1b3RlUmVzcG9uc2UiygEKD0dldFF1b3RlUmVxdWVzdBImCghjdXJyZW5jeRgUIAEoCUIUukgRcg8yCl5bQS1aXXszfSSYAQMSaAoGYW1vdW50GB4gASgLMhgudHplcm8udjEuY29tbW9uLkRlY2ltYWxCPrpIO7oBNRIgYW1vdW50IG11c3QgYmUgZ3JlYXRlciB0aGFuIHplcm8aEXRoaXMudW5zY2FsZWQgPiAwyAEBEiUKE3BheV9pbl9wcm92aWRlcl9pZHMYKCADKA1CCLpIBZIBAhBkIuwFChBHZXRRdW90ZVJlc3BvbnNlEkQKB3N1Y2Nlc3MYCiABKAsyMS50emVyby52MS5wYXltZW50X2ludGVudC5HZXRRdW90ZVJlc3BvbnNlLlN1Y2Nlc3NIABJSCg9xdW90ZV9ub3RfZm91bmQYFCABKAsyNy50emVyby52MS5wYXltZW50X2ludGVudC5HZXRRdW90ZVJlc3BvbnNlLlF1b3RlTm90Rm91bmRIABqbBAoHU3VjY2VzcxJWCgtiZXN0X3F1b3RlcxgKIAMoCzJBLnR6ZXJvLnYxLnBheW1lbnRfaW50ZW50LkdldFF1b3RlUmVzcG9uc2UuU3VjY2Vzcy5JbmRpY2F0aXZlUXVvdGUSVQoKYWxsX3F1b3RlcxgUIAMoCzJBLnR6ZXJvLnYxLnBheW1lbnRfaW50ZW50LkdldFF1b3RlUmVzcG9uc2UuU3VjY2Vzcy5JbmRpY2F0aXZlUXVvdGUa4AIKD0luZGljYXRpdmVRdW90ZRJGCg5wYXltZW50X21ldGhvZBgKIAEoDjIiLnR6ZXJvLnYxLmNvbW1vbi5QYXltZW50TWV0aG9kVHlwZUIKukgHggEEEAEgABITCgtwcm92aWRlcl9pZBgUIAEoDRJ6Cg9pbmRpY2F0aXZlX3JhdGUYHiABKAsyGC50emVyby52MS5jb21tb24uRGVjaW1hbEJHukhEugE+EilpbmRpY2F0aXZlX3JhdGUgbXVzdCBiZSBncmVhdGVyIHRoYW4gemVybxoRdGhpcy51bnNjYWxlZCA+IDDIAQESdAoOaW5kaWNhdGl2ZV9maXgYKCABKAsyGC50emVyby52MS5jb21tb24uRGVjaW1hbEJCukg/ugE5EiNpbmRpY2F0aXZlX2ZpeCBtdXN0IGJlIG5vbi1uZWdhdGl2ZRoSdGhpcy51bnNjYWxlZCA+PSAwyAEBGg8KDVF1b3RlTm90Rm91bmRCDwoGcmVzdWx0EgW6SAIIASKsAwoZUGF5bWVudEludGVudFBheUluRGV0YWlscxJGCg5wYXltZW50X21ldGhvZBgKIAEoDjIiLnR6ZXJvLnYxLmNvbW1vbi5QYXltZW50TWV0aG9kVHlwZUIKukgHggEEEAEgABITCgtwcm92aWRlcl9pZBgUIAEoDRJACg9wYXltZW50X2RldGFpbHMYHiABKAsyHy50emVyby52MS5jb21tb24uUGF5bWVudERldGFpbHNCBrpIA8gBARJ6Cg9pbmRpY2F0aXZlX3JhdGUYKCABKAsyGC50emVyby52MS5jb21tb24uRGVjaW1hbEJHukhEugE+EilpbmRpY2F0aXZlX3JhdGUgbXVzdCBiZSBncmVhdGVyIHRoYW4gemVybxoRdGhpcy51bnNjYWxlZCA+IDDIAQESdAoOaW5kaWNhdGl2ZV9maXgYMiABKAsyGC50emVyby52MS5jb21tb24uRGVjaW1hbEJCukg/ugE5EiNpbmRpY2F0aXZlX2ZpeCBtdXN0IGJlIG5vbi1uZWdhdGl2ZRoSdGhpcy51bnNjYWxlZCA+PSAwyAEBItQDChpDcmVhdGVQYXltZW50SW50ZW50UmVxdWVzdBImChJleHRlcm5hbF9yZWZlcmVuY2UYCiABKAlCCrpIB3IFEAEYgAISJgoIY3VycmVuY3kYFCABKAlCFLpIEXIPMgpeW0EtWl17M30kmAEDEmgKBmFtb3VudBgeIAEoCzIYLnR6ZXJvLnYxLmNvbW1vbi5EZWNpbWFsQj66SDu6ATUSIGFtb3VudCBtdXN0IGJlIGdyZWF0ZXIgdGhhbiB6ZXJvGhF0aGlzLnVuc2NhbGVkID4gMMgBARJkChB0cmF2ZWxfcnVsZV9kYXRhGCggASgLMkIudHplcm8udjEucGF5bWVudF9pbnRlbnQuQ3JlYXRlUGF5bWVudEludGVudFJlcXVlc3QuVHJhdmVsUnVsZURhdGFCBrpIA8gBARIlChNwYXlfaW5fcHJvdmlkZXJfaWRzGDIgAygNQgi6SAWSAQIQZBpvCg5UcmF2ZWxSdWxlRGF0YRIuCgtiZW5lZmljaWFyeRgKIAMoCzIPLml2bXMxMDEuUGVyc29uQgi6SAWSAQIIARIjCgVwYXllchgoIAEoCzIPLml2bXMxMDEuUGVyc29uSACIAQFCCAoGX3BheWVyIqEEChtDcmVhdGVQYXltZW50SW50ZW50UmVzcG9uc2USTwoHc3VjY2VzcxgKIAEoCzI8LnR6ZXJvLnYxLnBheW1lbnRfaW50ZW50LkNyZWF0ZVBheW1lbnRJbnRlbnRSZXNwb25zZS5TdWNjZXNzSAASTwoHZmFpbHVyZRgUIAEoCzI8LnR6ZXJvLnYxLnBheW1lbnRfaW50ZW50LkNyZWF0ZVBheW1lbnRJbnRlbnRSZXNwb25zZS5GYWlsdXJlSAAaeQoHU3VjY2VzcxIiChFwYXltZW50X2ludGVudF9pZBgKIAEoBEIHukgEMgIgABJKCg5wYXlfaW5fZGV0YWlscxgUIAMoCzIyLnR6ZXJvLnYxLnBheW1lbnRfaW50ZW50LlBheW1lbnRJbnRlbnRQYXlJbkRldGFpbHMa0wEKB0ZhaWx1cmUSXQoGcmVhc29uGAogASgOMkMudHplcm8udjEucGF5bWVudF9pbnRlbnQuQ3JlYXRlUGF5bWVudEludGVudFJlc3BvbnNlLkZhaWx1cmUuUmVhc29uQgi6SAWCAQIgACJpCgZSZWFzb24SHgoaRkFJTFVSRV9SRUFTT05fVU5TUEVDSUZJRUQQABIiCh5GQUlMVVJFX1JFQVNPTl9RVU9URV9OT1RfRk9VTkQQChIbChdGQUlMVVJFX1JFQVNPTl9SRUpFQ1RFRBAUQg8KBnJlc3VsdBIFukgCCAEivQIKG0NvbmZpcm1GdW5kc1JlY2VpdmVkUmVxdWVzdBIiChFwYXltZW50X2ludGVudF9pZBgKIAEoBEIHukgEMgIgABIkChFjb25maXJtYXRpb25fY29kZRgUIAEoCUIJukgGcgQQARhAEkYKDnBheW1lbnRfbWV0aG9kGB4gASgOMiIudHplcm8udjEuY29tbW9uLlBheW1lbnRNZXRob2RUeXBlQgq6SAeCAQQQASAAEikKFXRyYW5zYWN0aW9uX3JlZmVyZW5jZRgoIAEoCUIKukgHcgUQARiAAhI5CiNvcmlnaW5hdG9yX3Byb3ZpZGVyX2xlZ2FsX2VudGl0eV9pZBgyIAEoDUIHukgEKgIgAEgAiAEBQiYKJF9vcmlnaW5hdG9yX3Byb3ZpZGVyX2xlZ2FsX2VudGl0eV9pZCKpBwocQ29uZmlybUZ1bmRzUmVjZWl2ZWRSZXNwb25zZRJOCgZhY2NlcHQYCiABKAsyPC50emVyby52MS5wYXltZW50X2ludGVudC5Db25maXJtRnVuZHNSZWNlaXZlZFJlc3BvbnNlLkFjY2VwdEgAEk4KBnJlamVjdBgUIAEoCzI8LnR6ZXJvLnYxLnBheW1lbnRfaW50ZW50LkNvbmZpcm1GdW5kc1JlY2VpdmVkUmVzcG9uc2UuUmVqZWN0SAAazgIKBkFjY2VwdBJ+ChFzZXR0bGVtZW50X2Ftb3VudBgKIAEoCzIYLnR6ZXJvLnYxLmNvbW1vbi5EZWNpbWFsQkm6SEa6AUASK3NldHRsZW1lbnRfYW1vdW50IG11c3QgYmUgZ3JlYXRlciB0aGFuIHplcm8aEXRoaXMudW5zY2FsZWQgPiAwyAEBEmQKBHJhdGUYFCABKAsyGC50emVyby52MS5jb21tb24uRGVjaW1hbEI8ukg5ugEzEh5yYXRlIG11c3QgYmUgZ3JlYXRlciB0aGFuIHplcm8aEXRoaXMudW5zY2FsZWQgPiAwyAEBEl4KA2ZpeBgeIAEoCzIYLnR6ZXJvLnYxLmNvbW1vbi5EZWNpbWFsQje6SDS6AS4SGGZpeCBtdXN0IGJlIG5vbi1uZWdhdGl2ZRoSdGhpcy51bnNjYWxlZCA+PSAwyAEBGoYDCgZSZWplY3QSXQoGcmVhc29uGAogASgOMkMudHplcm8udjEucGF5bWVudF9pbnRlbnQuQ29uZmlybUZ1bmRzUmVjZWl2ZWRSZXNwb25zZS5SZWplY3QuUmVhc29uQgi6SAWCAQIgACKcAgoGUmVhc29uEh0KGVJFSkVDVF9SRUFTT05fVU5TUEVDSUZJRUQQABIsCihSRUpFQ1RfUkVBU09OX0NPTkZJUk1BVElPTl9DT0RFX01JU01BVENIEAoSIQodUkVKRUNUX1JFQVNPTl9OT19BQ1RJVkVfUVVPVEUQFBImCiJSRUpFQ1RfUkVBU09OX1BST1ZJREVSX05PVF9BTExPV0VEEB4SIgoeUkVKRUNUX1JFQVNPTl9BTU9VTlRfVE9PX1NNQUxMECgSIAocUkVKRUNUX1JFQVNPTl9OT19WQUxJRF9PRkZFUhAyEjQKMFJFSkVDVF9SRUFTT05fVFJBTlNBQ1RJT05fUkVGRVJFTkNFX0FMUkVBRFlfVVNFRBA8Qg8KBnJlc3VsdBIFukgCCAEy/gMKFFBheW1lbnRJbnRlbnRTZXJ2aWNlEm0KC1VwZGF0ZVF1b3RlEisudHplcm8udjEucGF5bWVudF9pbnRlbnQuVXBkYXRlUXVvdGVSZXF1ZXN0GiwudHplcm8udjEucGF5bWVudF9pbnRlbnQuVXBkYXRlUXVvdGVSZXNwb25zZSIDkAICEmQKCEdldFF1b3RlEigudHplcm8udjEucGF5bWVudF9pbnRlbnQuR2V0UXVvdGVSZXF1ZXN0GikudHplcm8udjEucGF5bWVudF9pbnRlbnQuR2V0UXVvdGVSZXNwb25zZSIDkAICEoUBChNDcmVhdGVQYXltZW50SW50ZW50EjMudHplcm8udjEucGF5bWVudF9pbnRlbnQuQ3JlYXRlUGF5bWVudEludGVudFJlcXVlc3QaNC50emVyby52MS5wYXltZW50X2ludGVudC5DcmVhdGVQYXltZW50SW50ZW50UmVzcG9uc2UiA5ACAhKIAQoUQ29uZmlybUZ1bmRzUmVjZWl2ZWQSNC50emVyby52MS5wYXltZW50X2ludGVudC5Db25maXJtRnVuZHNSZWNlaXZlZFJlcXVlc3QaNS50emVyby52MS5wYXltZW50X2ludGVudC5Db25maXJtRnVuZHNSZWNlaXZlZFJlc3BvbnNlIgOQAgJC/AEKG2NvbS50emVyby52MS5wYXltZW50X2ludGVudEIMTmV0d29ya1Byb3RvUAFaQmdpdGh1Yi5jb20vdC0wLW5ldHdvcmsvcHJvdmlkZXItc2RrL2dvL2FwaS90emVyby92MS9wYXltZW50X2ludGVudKICA1RWUKoCKVQwLlByb3ZpZGVyU2RrLkFwaS5UemVyby5WMS5QYXltZW50SW50ZW50ygIWVHplcm9cVjFcUGF5bWVudEludGVudOICIlR6ZXJvXFYxXFBheW1lbnRJbnRlbnRcR1BCTWV0YWRhdGHqAhhUemVybzo6VjE6OlBheW1lbnRJbnRlbnRiBnByb3RvMw", [file_buf_validate_validate, file_google_protobuf_timestamp, file_ivms101_v1_ivms_ivms101, file_tzero_v1_common_common, file_tzero_v1_common_payment_method]);
+  fileDesc("CiV0emVyby92MS9wYXltZW50X2ludGVudC9uZXR3b3JrLnByb3RvEhd0emVyby52MS5wYXltZW50X2ludGVudCKRBgoSVXBkYXRlUXVvdGVSZXF1ZXN0ElAKFXBheW1lbnRfaW50ZW50X3F1b3RlcxgKIAMoCzIxLnR6ZXJvLnYxLnBheW1lbnRfaW50ZW50LlVwZGF0ZVF1b3RlUmVxdWVzdC5RdW90ZRqoBQoFUXVvdGUSJgoIY3VycmVuY3kYCiABKAlCFLpIEXIPMgpeW0EtWl17M30kmAEDEkYKDnBheW1lbnRfbWV0aG9kGBkgASgOMiIudHplcm8udjEuY29tbW9uLlBheW1lbnRNZXRob2RUeXBlQgq6SAeCAQQQASAAEk8KBWJhbmRzGB4gAygLMjYudHplcm8udjEucGF5bWVudF9pbnRlbnQuVXBkYXRlUXVvdGVSZXF1ZXN0LlF1b3RlLkJhbmRCCLpIBZIBAggBEjgKCmV4cGlyYXRpb24YPCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQgi6SAWyAQJAARI1Cgl0aW1lc3RhbXAYRiABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQga6SAPIAQEa7AIKBEJhbmQSIgoPY2xpZW50X3F1b3RlX2lkGAogASgJQgm6SAZyBBABGEAScAoKbWF4X2Ftb3VudBgoIAEoCzIYLnR6ZXJvLnYxLmNvbW1vbi5EZWNpbWFsQkK6SD+6ATkSJG1heF9hbW91bnQgbXVzdCBiZSBncmVhdGVyIHRoYW4gemVybxoRdGhpcy51bnNjYWxlZCA+IDDIAQESZAoEcmF0ZRgyIAEoCzIYLnR6ZXJvLnYxLmNvbW1vbi5EZWNpbWFsQjy6SDm6ATMSHnJhdGUgbXVzdCBiZSBncmVhdGVyIHRoYW4gemVybxoRdGhpcy51bnNjYWxlZCA+IDDIAQESYAoDZml4GDwgASgLMhgudHplcm8udjEuY29tbW9uLkRlY2ltYWxCNLpIMboBLhIYZml4IG11c3QgYmUgbm9uLW5lZ2F0aXZlGhJ0aGlzLnVuc2NhbGVkID49IDBIAIgBAUIGCgRfZml4IhUKE1VwZGF0ZVF1b3RlUmVzcG9uc2UiygEKD0dldFF1b3RlUmVxdWVzdBImCghjdXJyZW5jeRgUIAEoCUIUukgRcg8yCl5bQS1aXXszfSSYAQMSaAoGYW1vdW50GB4gASgLMhgudHplcm8udjEuY29tbW9uLkRlY2ltYWxCPrpIO7oBNRIgYW1vdW50IG11c3QgYmUgZ3JlYXRlciB0aGFuIHplcm8aEXRoaXMudW5zY2FsZWQgPiAwyAEBEiUKE3BheV9pbl9wcm92aWRlcl9pZHMYKCADKA1CCLpIBZIBAhBkIuwFChBHZXRRdW90ZVJlc3BvbnNlEkQKB3N1Y2Nlc3MYCiABKAsyMS50emVyby52MS5wYXltZW50X2ludGVudC5HZXRRdW90ZVJlc3BvbnNlLlN1Y2Nlc3NIABJSCg9xdW90ZV9ub3RfZm91bmQYFCABKAsyNy50emVyby52MS5wYXltZW50X2ludGVudC5HZXRRdW90ZVJlc3BvbnNlLlF1b3RlTm90Rm91bmRIABqbBAoHU3VjY2VzcxJWCgtiZXN0X3F1b3RlcxgKIAMoCzJBLnR6ZXJvLnYxLnBheW1lbnRfaW50ZW50LkdldFF1b3RlUmVzcG9uc2UuU3VjY2Vzcy5JbmRpY2F0aXZlUXVvdGUSVQoKYWxsX3F1b3RlcxgUIAMoCzJBLnR6ZXJvLnYxLnBheW1lbnRfaW50ZW50LkdldFF1b3RlUmVzcG9uc2UuU3VjY2Vzcy5JbmRpY2F0aXZlUXVvdGUa4AIKD0luZGljYXRpdmVRdW90ZRJGCg5wYXltZW50X21ldGhvZBgKIAEoDjIiLnR6ZXJvLnYxLmNvbW1vbi5QYXltZW50TWV0aG9kVHlwZUIKukgHggEEEAEgABITCgtwcm92aWRlcl9pZBgUIAEoDRJ6Cg9pbmRpY2F0aXZlX3JhdGUYHiABKAsyGC50emVyby52MS5jb21tb24uRGVjaW1hbEJHukhEugE+EilpbmRpY2F0aXZlX3JhdGUgbXVzdCBiZSBncmVhdGVyIHRoYW4gemVybxoRdGhpcy51bnNjYWxlZCA+IDDIAQESdAoOaW5kaWNhdGl2ZV9maXgYKCABKAsyGC50emVyby52MS5jb21tb24uRGVjaW1hbEJCukg/ugE5EiNpbmRpY2F0aXZlX2ZpeCBtdXN0IGJlIG5vbi1uZWdhdGl2ZRoSdGhpcy51bnNjYWxlZCA+PSAwyAEBGg8KDVF1b3RlTm90Rm91bmRCDwoGcmVzdWx0EgW6SAIIASISChBHZXRRdW90ZXNSZXF1ZXN0IoYIChFHZXRRdW90ZXNSZXNwb25zZRJICgZxdW90ZXMYCiADKAsyOC50emVyby52MS5wYXltZW50X2ludGVudC5HZXRRdW90ZXNSZXNwb25zZS5DdXJyZW5jeVF1b3RlGqYHCg1DdXJyZW5jeVF1b3RlEiYKCGN1cnJlbmN5GAogASgJQhS6SBFyDzIKXltBLVpdezN9JJgBAxJ0ChVwYXltZW50X21ldGhvZF9xdW90ZXMYFCADKAsySy50emVyby52MS5wYXltZW50X2ludGVudC5HZXRRdW90ZXNSZXNwb25zZS5DdXJyZW5jeVF1b3RlLlBheW1lbnRNZXRob2RRdW90ZUIIukgFkgECCAEa9gUKElBheW1lbnRNZXRob2RRdW90ZRJGCg5wYXltZW50X21ldGhvZBgKIAEoDjIiLnR6ZXJvLnYxLmNvbW1vbi5QYXltZW50TWV0aG9kVHlwZUIKukgHggEEEAEgABJ8Cg9wcm92aWRlcl9xdW90ZXMYFCADKAsyWS50emVyby52MS5wYXltZW50X2ludGVudC5HZXRRdW90ZXNSZXNwb25zZS5DdXJyZW5jeVF1b3RlLlBheW1lbnRNZXRob2RRdW90ZS5Qcm92aWRlclF1b3RlQgi6SAWSAQIIARqZBAoNUHJvdmlkZXJRdW90ZRITCgtwcm92aWRlcl9pZBgKIAEoDRJ5CgZxdW90ZXMYFCADKAsyXy50emVyby52MS5wYXltZW50X2ludGVudC5HZXRRdW90ZXNSZXNwb25zZS5DdXJyZW5jeVF1b3RlLlBheW1lbnRNZXRob2RRdW90ZS5Qcm92aWRlclF1b3RlLlF1b3RlQgi6SAWSAQIIARr3AgoFUXVvdGUScAoKbWF4X2Ftb3VudBgKIAEoCzIYLnR6ZXJvLnYxLmNvbW1vbi5EZWNpbWFsQkK6SD+6ATkSJG1heF9hbW91bnQgbXVzdCBiZSBncmVhdGVyIHRoYW4gemVybxoRdGhpcy51bnNjYWxlZCA+IDDIAQESZAoEcmF0ZRgUIAEoCzIYLnR6ZXJvLnYxLmNvbW1vbi5EZWNpbWFsQjy6SDm6ATMSHnJhdGUgbXVzdCBiZSBncmVhdGVyIHRoYW4gemVybxoRdGhpcy51bnNjYWxlZCA+IDDIAQESXgoDZml4GB4gASgLMhgudHplcm8udjEuY29tbW9uLkRlY2ltYWxCN7pINLoBLhIYZml4IG11c3QgYmUgbm9uLW5lZ2F0aXZlGhJ0aGlzLnVuc2NhbGVkID49IDDIAQESNgoKZXhwaXJlc19hdBgoIAEoCzIaLmdvb2dsZS5wcm90b2J1Zi5UaW1lc3RhbXBCBrpIA8gBASKsAwoZUGF5bWVudEludGVudFBheUluRGV0YWlscxJGCg5wYXltZW50X21ldGhvZBgKIAEoDjIiLnR6ZXJvLnYxLmNvbW1vbi5QYXltZW50TWV0aG9kVHlwZUIKukgHggEEEAEgABITCgtwcm92aWRlcl9pZBgUIAEoDRJACg9wYXltZW50X2RldGFpbHMYHiABKAsyHy50emVyby52MS5jb21tb24uUGF5bWVudERldGFpbHNCBrpIA8gBARJ6Cg9pbmRpY2F0aXZlX3JhdGUYKCABKAsyGC50emVyby52MS5jb21tb24uRGVjaW1hbEJHukhEugE+EilpbmRpY2F0aXZlX3JhdGUgbXVzdCBiZSBncmVhdGVyIHRoYW4gemVybxoRdGhpcy51bnNjYWxlZCA+IDDIAQESdAoOaW5kaWNhdGl2ZV9maXgYMiABKAsyGC50emVyby52MS5jb21tb24uRGVjaW1hbEJCukg/ugE5EiNpbmRpY2F0aXZlX2ZpeCBtdXN0IGJlIG5vbi1uZWdhdGl2ZRoSdGhpcy51bnNjYWxlZCA+PSAwyAEBItQDChpDcmVhdGVQYXltZW50SW50ZW50UmVxdWVzdBImChJleHRlcm5hbF9yZWZlcmVuY2UYCiABKAlCCrpIB3IFEAEYgAISJgoIY3VycmVuY3kYFCABKAlCFLpIEXIPMgpeW0EtWl17M30kmAEDEmgKBmFtb3VudBgeIAEoCzIYLnR6ZXJvLnYxLmNvbW1vbi5EZWNpbWFsQj66SDu6ATUSIGFtb3VudCBtdXN0IGJlIGdyZWF0ZXIgdGhhbiB6ZXJvGhF0aGlzLnVuc2NhbGVkID4gMMgBARJkChB0cmF2ZWxfcnVsZV9kYXRhGCggASgLMkIudHplcm8udjEucGF5bWVudF9pbnRlbnQuQ3JlYXRlUGF5bWVudEludGVudFJlcXVlc3QuVHJhdmVsUnVsZURhdGFCBrpIA8gBARIlChNwYXlfaW5fcHJvdmlkZXJfaWRzGDIgAygNQgi6SAWSAQIQZBpvCg5UcmF2ZWxSdWxlRGF0YRIuCgtiZW5lZmljaWFyeRgKIAMoCzIPLml2bXMxMDEuUGVyc29uQgi6SAWSAQIIARIjCgVwYXllchgoIAEoCzIPLml2bXMxMDEuUGVyc29uSACIAQFCCAoGX3BheWVyIqEEChtDcmVhdGVQYXltZW50SW50ZW50UmVzcG9uc2USTwoHc3VjY2VzcxgKIAEoCzI8LnR6ZXJvLnYxLnBheW1lbnRfaW50ZW50LkNyZWF0ZVBheW1lbnRJbnRlbnRSZXNwb25zZS5TdWNjZXNzSAASTwoHZmFpbHVyZRgUIAEoCzI8LnR6ZXJvLnYxLnBheW1lbnRfaW50ZW50LkNyZWF0ZVBheW1lbnRJbnRlbnRSZXNwb25zZS5GYWlsdXJlSAAaeQoHU3VjY2VzcxIiChFwYXltZW50X2ludGVudF9pZBgKIAEoBEIHukgEMgIgABJKCg5wYXlfaW5fZGV0YWlscxgUIAMoCzIyLnR6ZXJvLnYxLnBheW1lbnRfaW50ZW50LlBheW1lbnRJbnRlbnRQYXlJbkRldGFpbHMa0wEKB0ZhaWx1cmUSXQoGcmVhc29uGAogASgOMkMudHplcm8udjEucGF5bWVudF9pbnRlbnQuQ3JlYXRlUGF5bWVudEludGVudFJlc3BvbnNlLkZhaWx1cmUuUmVhc29uQgi6SAWCAQIgACJpCgZSZWFzb24SHgoaRkFJTFVSRV9SRUFTT05fVU5TUEVDSUZJRUQQABIiCh5GQUlMVVJFX1JFQVNPTl9RVU9URV9OT1RfRk9VTkQQChIbChdGQUlMVVJFX1JFQVNPTl9SRUpFQ1RFRBAUQg8KBnJlc3VsdBIFukgCCAEivQIKG0NvbmZpcm1GdW5kc1JlY2VpdmVkUmVxdWVzdBIiChFwYXltZW50X2ludGVudF9pZBgKIAEoBEIHukgEMgIgABIkChFjb25maXJtYXRpb25fY29kZRgUIAEoCUIJukgGcgQQARhAEkYKDnBheW1lbnRfbWV0aG9kGB4gASgOMiIudHplcm8udjEuY29tbW9uLlBheW1lbnRNZXRob2RUeXBlQgq6SAeCAQQQASAAEikKFXRyYW5zYWN0aW9uX3JlZmVyZW5jZRgoIAEoCUIKukgHcgUQARiAAhI5CiNvcmlnaW5hdG9yX3Byb3ZpZGVyX2xlZ2FsX2VudGl0eV9pZBgyIAEoDUIHukgEKgIgAEgAiAEBQiYKJF9vcmlnaW5hdG9yX3Byb3ZpZGVyX2xlZ2FsX2VudGl0eV9pZCKpBwocQ29uZmlybUZ1bmRzUmVjZWl2ZWRSZXNwb25zZRJOCgZhY2NlcHQYCiABKAsyPC50emVyby52MS5wYXltZW50X2ludGVudC5Db25maXJtRnVuZHNSZWNlaXZlZFJlc3BvbnNlLkFjY2VwdEgAEk4KBnJlamVjdBgUIAEoCzI8LnR6ZXJvLnYxLnBheW1lbnRfaW50ZW50LkNvbmZpcm1GdW5kc1JlY2VpdmVkUmVzcG9uc2UuUmVqZWN0SAAazgIKBkFjY2VwdBJ+ChFzZXR0bGVtZW50X2Ftb3VudBgKIAEoCzIYLnR6ZXJvLnYxLmNvbW1vbi5EZWNpbWFsQkm6SEa6AUASK3NldHRsZW1lbnRfYW1vdW50IG11c3QgYmUgZ3JlYXRlciB0aGFuIHplcm8aEXRoaXMudW5zY2FsZWQgPiAwyAEBEmQKBHJhdGUYFCABKAsyGC50emVyby52MS5jb21tb24uRGVjaW1hbEI8ukg5ugEzEh5yYXRlIG11c3QgYmUgZ3JlYXRlciB0aGFuIHplcm8aEXRoaXMudW5zY2FsZWQgPiAwyAEBEl4KA2ZpeBgeIAEoCzIYLnR6ZXJvLnYxLmNvbW1vbi5EZWNpbWFsQje6SDS6AS4SGGZpeCBtdXN0IGJlIG5vbi1uZWdhdGl2ZRoSdGhpcy51bnNjYWxlZCA+PSAwyAEBGoYDCgZSZWplY3QSXQoGcmVhc29uGAogASgOMkMudHplcm8udjEucGF5bWVudF9pbnRlbnQuQ29uZmlybUZ1bmRzUmVjZWl2ZWRSZXNwb25zZS5SZWplY3QuUmVhc29uQgi6SAWCAQIgACKcAgoGUmVhc29uEh0KGVJFSkVDVF9SRUFTT05fVU5TUEVDSUZJRUQQABIsCihSRUpFQ1RfUkVBU09OX0NPTkZJUk1BVElPTl9DT0RFX01JU01BVENIEAoSIQodUkVKRUNUX1JFQVNPTl9OT19BQ1RJVkVfUVVPVEUQFBImCiJSRUpFQ1RfUkVBU09OX1BST1ZJREVSX05PVF9BTExPV0VEEB4SIgoeUkVKRUNUX1JFQVNPTl9BTU9VTlRfVE9PX1NNQUxMECgSIAocUkVKRUNUX1JFQVNPTl9OT19WQUxJRF9PRkZFUhAyEjQKMFJFSkVDVF9SRUFTT05fVFJBTlNBQ1RJT05fUkVGRVJFTkNFX0FMUkVBRFlfVVNFRBA8Qg8KBnJlc3VsdBIFukgCCAEy5wQKFFBheW1lbnRJbnRlbnRTZXJ2aWNlEm0KC1VwZGF0ZVF1b3RlEisudHplcm8udjEucGF5bWVudF9pbnRlbnQuVXBkYXRlUXVvdGVSZXF1ZXN0GiwudHplcm8udjEucGF5bWVudF9pbnRlbnQuVXBkYXRlUXVvdGVSZXNwb25zZSIDkAICEmQKCEdldFF1b3RlEigudHplcm8udjEucGF5bWVudF9pbnRlbnQuR2V0UXVvdGVSZXF1ZXN0GikudHplcm8udjEucGF5bWVudF9pbnRlbnQuR2V0UXVvdGVSZXNwb25zZSIDkAICEmcKCUdldFF1b3RlcxIpLnR6ZXJvLnYxLnBheW1lbnRfaW50ZW50LkdldFF1b3Rlc1JlcXVlc3QaKi50emVyby52MS5wYXltZW50X2ludGVudC5HZXRRdW90ZXNSZXNwb25zZSIDkAIBEoUBChNDcmVhdGVQYXltZW50SW50ZW50EjMudHplcm8udjEucGF5bWVudF9pbnRlbnQuQ3JlYXRlUGF5bWVudEludGVudFJlcXVlc3QaNC50emVyby52MS5wYXltZW50X2ludGVudC5DcmVhdGVQYXltZW50SW50ZW50UmVzcG9uc2UiA5ACAhKIAQoUQ29uZmlybUZ1bmRzUmVjZWl2ZWQSNC50emVyby52MS5wYXltZW50X2ludGVudC5Db25maXJtRnVuZHNSZWNlaXZlZFJlcXVlc3QaNS50emVyby52MS5wYXltZW50X2ludGVudC5Db25maXJtRnVuZHNSZWNlaXZlZFJlc3BvbnNlIgOQAgJC/AEKG2NvbS50emVyby52MS5wYXltZW50X2ludGVudEIMTmV0d29ya1Byb3RvUAFaQmdpdGh1Yi5jb20vdC0wLW5ldHdvcmsvcHJvdmlkZXItc2RrL2dvL2FwaS90emVyby92MS9wYXltZW50X2ludGVudKICA1RWUKoCKVQwLlByb3ZpZGVyU2RrLkFwaS5UemVyby5WMS5QYXltZW50SW50ZW50ygIWVHplcm9cVjFcUGF5bWVudEludGVudOICIlR6ZXJvXFYxXFBheW1lbnRJbnRlbnRcR1BCTWV0YWRhdGHqAhhUemVybzo6VjE6OlBheW1lbnRJbnRlbnRiBnByb3RvMw", [file_buf_validate_validate, file_google_protobuf_timestamp, file_ivms101_v1_ivms_ivms101, file_tzero_v1_common_common, file_tzero_v1_common_payment_method]);
 
 /**
  *
@@ -326,6 +326,173 @@ export const GetQuoteResponse_QuoteNotFoundSchema: GenMessage<GetQuoteResponse_Q
 
 /**
  * *
+ * Request to browse the pay-in quotes available to the calling beneficiary.
+ *
+ * @generated from message tzero.v1.payment_intent.GetQuotesRequest
+ */
+export type GetQuotesRequest = Message<"tzero.v1.payment_intent.GetQuotesRequest"> & {
+};
+
+/**
+ * Describes the message tzero.v1.payment_intent.GetQuotesRequest.
+ * Use `create(GetQuotesRequestSchema)` to create a new message.
+ */
+export const GetQuotesRequestSchema: GenMessage<GetQuotesRequest> = /*@__PURE__*/
+  messageDesc(file_tzero_v1_payment_intent_network, 4);
+
+/**
+ * *
+ * The pay-in quotes the caller can collect against, grouped by currency.
+ *
+ * @generated from message tzero.v1.payment_intent.GetQuotesResponse
+ */
+export type GetQuotesResponse = Message<"tzero.v1.payment_intent.GetQuotesResponse"> & {
+  /**
+   * * One entry per pay-in currency with at least one quoting permitted provider. 
+   *
+   * no validation: any count is valid, including none
+   *
+   * @generated from field: repeated tzero.v1.payment_intent.GetQuotesResponse.CurrencyQuote quotes = 10;
+   */
+  quotes: GetQuotesResponse_CurrencyQuote[];
+};
+
+/**
+ * Describes the message tzero.v1.payment_intent.GetQuotesResponse.
+ * Use `create(GetQuotesResponseSchema)` to create a new message.
+ */
+export const GetQuotesResponseSchema: GenMessage<GetQuotesResponse> = /*@__PURE__*/
+  messageDesc(file_tzero_v1_payment_intent_network, 5);
+
+/**
+ * * All pay-in quotes for one currency, grouped by payment method. 
+ *
+ * @generated from message tzero.v1.payment_intent.GetQuotesResponse.CurrencyQuote
+ */
+export type GetQuotesResponse_CurrencyQuote = Message<"tzero.v1.payment_intent.GetQuotesResponse.CurrencyQuote"> & {
+  /**
+   * * ISO 4217 pay-in currency code, e.g. EUR, GBP. 
+   *
+   * @generated from field: string currency = 10;
+   */
+  currency: string;
+
+  /**
+   * * The payment methods this currency can be collected through. 
+   *
+   * @generated from field: repeated tzero.v1.payment_intent.GetQuotesResponse.CurrencyQuote.PaymentMethodQuote payment_method_quotes = 20;
+   */
+  paymentMethodQuotes: GetQuotesResponse_CurrencyQuote_PaymentMethodQuote[];
+};
+
+/**
+ * Describes the message tzero.v1.payment_intent.GetQuotesResponse.CurrencyQuote.
+ * Use `create(GetQuotesResponse_CurrencyQuoteSchema)` to create a new message.
+ */
+export const GetQuotesResponse_CurrencyQuoteSchema: GenMessage<GetQuotesResponse_CurrencyQuote> = /*@__PURE__*/
+  messageDesc(file_tzero_v1_payment_intent_network, 5, 0);
+
+/**
+ * * All pay-in quotes for one payment method within the enclosing currency, across providers. 
+ *
+ * @generated from message tzero.v1.payment_intent.GetQuotesResponse.CurrencyQuote.PaymentMethodQuote
+ */
+export type GetQuotesResponse_CurrencyQuote_PaymentMethodQuote = Message<"tzero.v1.payment_intent.GetQuotesResponse.CurrencyQuote.PaymentMethodQuote"> & {
+  /**
+   * @generated from field: tzero.v1.common.PaymentMethodType payment_method = 10;
+   */
+  paymentMethod: PaymentMethodType;
+
+  /**
+   * * The permitted pay-in providers quoting this currency and payment method. 
+   *
+   * @generated from field: repeated tzero.v1.payment_intent.GetQuotesResponse.CurrencyQuote.PaymentMethodQuote.ProviderQuote provider_quotes = 20;
+   */
+  providerQuotes: GetQuotesResponse_CurrencyQuote_PaymentMethodQuote_ProviderQuote[];
+};
+
+/**
+ * Describes the message tzero.v1.payment_intent.GetQuotesResponse.CurrencyQuote.PaymentMethodQuote.
+ * Use `create(GetQuotesResponse_CurrencyQuote_PaymentMethodQuoteSchema)` to create a new message.
+ */
+export const GetQuotesResponse_CurrencyQuote_PaymentMethodQuoteSchema: GenMessage<GetQuotesResponse_CurrencyQuote_PaymentMethodQuote> = /*@__PURE__*/
+  messageDesc(file_tzero_v1_payment_intent_network, 5, 0, 0);
+
+/**
+ * * One pay-in provider's offering for the enclosing currency and payment method. 
+ *
+ * @generated from message tzero.v1.payment_intent.GetQuotesResponse.CurrencyQuote.PaymentMethodQuote.ProviderQuote
+ */
+export type GetQuotesResponse_CurrencyQuote_PaymentMethodQuote_ProviderQuote = Message<"tzero.v1.payment_intent.GetQuotesResponse.CurrencyQuote.PaymentMethodQuote.ProviderQuote"> & {
+  /**
+   * * The T-0 provider ID of the pay-in provider that published these bands. 
+   *
+   * @generated from field: uint32 provider_id = 10;
+   */
+  providerId: number;
+
+  /**
+   * * Tiered rate bands, ascending by max_amount. 
+   *
+   * @generated from field: repeated tzero.v1.payment_intent.GetQuotesResponse.CurrencyQuote.PaymentMethodQuote.ProviderQuote.Quote quotes = 20;
+   */
+  quotes: GetQuotesResponse_CurrencyQuote_PaymentMethodQuote_ProviderQuote_Quote[];
+};
+
+/**
+ * Describes the message tzero.v1.payment_intent.GetQuotesResponse.CurrencyQuote.PaymentMethodQuote.ProviderQuote.
+ * Use `create(GetQuotesResponse_CurrencyQuote_PaymentMethodQuote_ProviderQuoteSchema)` to create a new message.
+ */
+export const GetQuotesResponse_CurrencyQuote_PaymentMethodQuote_ProviderQuoteSchema: GenMessage<GetQuotesResponse_CurrencyQuote_PaymentMethodQuote_ProviderQuote> = /*@__PURE__*/
+  messageDesc(file_tzero_v1_payment_intent_network, 5, 0, 0, 0);
+
+/**
+ * * One pricing band: the rate and fixed charge that apply up to max_amount. 
+ *
+ * @generated from message tzero.v1.payment_intent.GetQuotesResponse.CurrencyQuote.PaymentMethodQuote.ProviderQuote.Quote
+ */
+export type GetQuotesResponse_CurrencyQuote_PaymentMethodQuote_ProviderQuote_Quote = Message<"tzero.v1.payment_intent.GetQuotesResponse.CurrencyQuote.PaymentMethodQuote.ProviderQuote.Quote"> & {
+  /**
+   * *
+   * USD ceiling this band applies up to. A pay-in amount falls in this band when
+   * amount / rate is at or below the ceiling — the ceiling is in USD, not in the
+   * pay-in currency.
+   *
+   * @generated from field: tzero.v1.common.Decimal max_amount = 10;
+   */
+  maxAmount?: Decimal | undefined;
+
+  /**
+   * * Indicative exchange rate, pay-in currency per USD. 
+   *
+   * @generated from field: tzero.v1.common.Decimal rate = 20;
+   */
+  rate?: Decimal | undefined;
+
+  /**
+   * * Fixed charge in USD retained by the pay-in provider per transfer. 
+   *
+   * @generated from field: tzero.v1.common.Decimal fix = 30;
+   */
+  fix?: Decimal | undefined;
+
+  /**
+   * * When these terms stop being offered. 
+   *
+   * @generated from field: google.protobuf.Timestamp expires_at = 40;
+   */
+  expiresAt?: Timestamp | undefined;
+};
+
+/**
+ * Describes the message tzero.v1.payment_intent.GetQuotesResponse.CurrencyQuote.PaymentMethodQuote.ProviderQuote.Quote.
+ * Use `create(GetQuotesResponse_CurrencyQuote_PaymentMethodQuote_ProviderQuote_QuoteSchema)` to create a new message.
+ */
+export const GetQuotesResponse_CurrencyQuote_PaymentMethodQuote_ProviderQuote_QuoteSchema: GenMessage<GetQuotesResponse_CurrencyQuote_PaymentMethodQuote_ProviderQuote_Quote> = /*@__PURE__*/
+  messageDesc(file_tzero_v1_payment_intent_network, 5, 0, 0, 0, 0);
+
+/**
+ * *
  * Represents pay-in details for a payment intent option.
  *
  * @generated from message tzero.v1.payment_intent.PaymentIntentPayInDetails
@@ -389,7 +556,7 @@ export type PaymentIntentPayInDetails = Message<"tzero.v1.payment_intent.Payment
  * Use `create(PaymentIntentPayInDetailsSchema)` to create a new message.
  */
 export const PaymentIntentPayInDetailsSchema: GenMessage<PaymentIntentPayInDetails> = /*@__PURE__*/
-  messageDesc(file_tzero_v1_payment_intent_network, 4);
+  messageDesc(file_tzero_v1_payment_intent_network, 6);
 
 /**
  * *
@@ -452,7 +619,7 @@ export type CreatePaymentIntentRequest = Message<"tzero.v1.payment_intent.Create
  * Use `create(CreatePaymentIntentRequestSchema)` to create a new message.
  */
 export const CreatePaymentIntentRequestSchema: GenMessage<CreatePaymentIntentRequest> = /*@__PURE__*/
-  messageDesc(file_tzero_v1_payment_intent_network, 5);
+  messageDesc(file_tzero_v1_payment_intent_network, 7);
 
 /**
  * *
@@ -483,7 +650,7 @@ export type CreatePaymentIntentRequest_TravelRuleData = Message<"tzero.v1.paymen
  * Use `create(CreatePaymentIntentRequest_TravelRuleDataSchema)` to create a new message.
  */
 export const CreatePaymentIntentRequest_TravelRuleDataSchema: GenMessage<CreatePaymentIntentRequest_TravelRuleData> = /*@__PURE__*/
-  messageDesc(file_tzero_v1_payment_intent_network, 5, 0);
+  messageDesc(file_tzero_v1_payment_intent_network, 7, 0);
 
 /**
  * @generated from message tzero.v1.payment_intent.CreatePaymentIntentResponse
@@ -518,7 +685,7 @@ export type CreatePaymentIntentResponse = Message<"tzero.v1.payment_intent.Creat
  * Use `create(CreatePaymentIntentResponseSchema)` to create a new message.
  */
 export const CreatePaymentIntentResponseSchema: GenMessage<CreatePaymentIntentResponse> = /*@__PURE__*/
-  messageDesc(file_tzero_v1_payment_intent_network, 6);
+  messageDesc(file_tzero_v1_payment_intent_network, 8);
 
 /**
  * *
@@ -557,7 +724,7 @@ export type CreatePaymentIntentResponse_Success = Message<"tzero.v1.payment_inte
  * Use `create(CreatePaymentIntentResponse_SuccessSchema)` to create a new message.
  */
 export const CreatePaymentIntentResponse_SuccessSchema: GenMessage<CreatePaymentIntentResponse_Success> = /*@__PURE__*/
-  messageDesc(file_tzero_v1_payment_intent_network, 6, 0);
+  messageDesc(file_tzero_v1_payment_intent_network, 8, 0);
 
 /**
  * *
@@ -580,7 +747,7 @@ export type CreatePaymentIntentResponse_Failure = Message<"tzero.v1.payment_inte
  * Use `create(CreatePaymentIntentResponse_FailureSchema)` to create a new message.
  */
 export const CreatePaymentIntentResponse_FailureSchema: GenMessage<CreatePaymentIntentResponse_Failure> = /*@__PURE__*/
-  messageDesc(file_tzero_v1_payment_intent_network, 6, 1);
+  messageDesc(file_tzero_v1_payment_intent_network, 8, 1);
 
 /**
  * @generated from enum tzero.v1.payment_intent.CreatePaymentIntentResponse.Failure.Reason
@@ -615,7 +782,7 @@ export enum CreatePaymentIntentResponse_Failure_Reason {
  * Describes the enum tzero.v1.payment_intent.CreatePaymentIntentResponse.Failure.Reason.
  */
 export const CreatePaymentIntentResponse_Failure_ReasonSchema: GenEnum<CreatePaymentIntentResponse_Failure_Reason> = /*@__PURE__*/
-  enumDesc(file_tzero_v1_payment_intent_network, 6, 1, 0);
+  enumDesc(file_tzero_v1_payment_intent_network, 8, 1, 0);
 
 /**
  * *
@@ -677,7 +844,7 @@ export type ConfirmFundsReceivedRequest = Message<"tzero.v1.payment_intent.Confi
  * Use `create(ConfirmFundsReceivedRequestSchema)` to create a new message.
  */
 export const ConfirmFundsReceivedRequestSchema: GenMessage<ConfirmFundsReceivedRequest> = /*@__PURE__*/
-  messageDesc(file_tzero_v1_payment_intent_network, 7);
+  messageDesc(file_tzero_v1_payment_intent_network, 9);
 
 /**
  * @generated from message tzero.v1.payment_intent.ConfirmFundsReceivedResponse
@@ -712,7 +879,7 @@ export type ConfirmFundsReceivedResponse = Message<"tzero.v1.payment_intent.Conf
  * Use `create(ConfirmFundsReceivedResponseSchema)` to create a new message.
  */
 export const ConfirmFundsReceivedResponseSchema: GenMessage<ConfirmFundsReceivedResponse> = /*@__PURE__*/
-  messageDesc(file_tzero_v1_payment_intent_network, 8);
+  messageDesc(file_tzero_v1_payment_intent_network, 10);
 
 /**
  * *
@@ -758,7 +925,7 @@ export type ConfirmFundsReceivedResponse_Accept = Message<"tzero.v1.payment_inte
  * Use `create(ConfirmFundsReceivedResponse_AcceptSchema)` to create a new message.
  */
 export const ConfirmFundsReceivedResponse_AcceptSchema: GenMessage<ConfirmFundsReceivedResponse_Accept> = /*@__PURE__*/
-  messageDesc(file_tzero_v1_payment_intent_network, 8, 0);
+  messageDesc(file_tzero_v1_payment_intent_network, 10, 0);
 
 /**
  * *
@@ -778,7 +945,7 @@ export type ConfirmFundsReceivedResponse_Reject = Message<"tzero.v1.payment_inte
  * Use `create(ConfirmFundsReceivedResponse_RejectSchema)` to create a new message.
  */
 export const ConfirmFundsReceivedResponse_RejectSchema: GenMessage<ConfirmFundsReceivedResponse_Reject> = /*@__PURE__*/
-  messageDesc(file_tzero_v1_payment_intent_network, 8, 1);
+  messageDesc(file_tzero_v1_payment_intent_network, 10, 1);
 
 /**
  * @generated from enum tzero.v1.payment_intent.ConfirmFundsReceivedResponse.Reject.Reason
@@ -839,7 +1006,7 @@ export enum ConfirmFundsReceivedResponse_Reject_Reason {
  * Describes the enum tzero.v1.payment_intent.ConfirmFundsReceivedResponse.Reject.Reason.
  */
 export const ConfirmFundsReceivedResponse_Reject_ReasonSchema: GenEnum<ConfirmFundsReceivedResponse_Reject_Reason> = /*@__PURE__*/
-  enumDesc(file_tzero_v1_payment_intent_network, 8, 1, 0);
+  enumDesc(file_tzero_v1_payment_intent_network, 10, 1, 0);
 
 /**
  * *
@@ -882,6 +1049,18 @@ export const PaymentIntentService: GenService<{
     methodKind: "unary";
     input: typeof GetQuoteRequestSchema;
     output: typeof GetQuoteResponseSchema;
+  },
+  /**
+   * * Lists the active pay-in quotes the caller can collect against, grouped by currency, then
+   * payment method: for each, the pay-in providers permitted to the caller and their tiered rate
+   * bands. Indicative — request a priced quote via GetQuote to act on one. 
+   *
+   * @generated from rpc tzero.v1.payment_intent.PaymentIntentService.GetQuotes
+   */
+  getQuotes: {
+    methodKind: "unary";
+    input: typeof GetQuotesRequestSchema;
+    output: typeof GetQuotesResponseSchema;
   },
   /**
    * *
