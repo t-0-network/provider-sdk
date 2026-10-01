@@ -53,7 +53,8 @@ public final class ProviderServer implements Closeable {
      * @param port             the port to listen on (use 0 for any available port)
      * @param networkPublicKey the T-0 Network public key in hex format (with or without 0x prefix)
      * @return a new Builder instance
-     * @throws IllegalArgumentException if port is out of range or networkPublicKey is null/empty
+     * @throws IllegalArgumentException if port is out of range, or networkPublicKey is missing or malformed
+     *                                  (surrounding whitespace is stripped)
      */
     public static Builder create(int port, String networkPublicKey) {
         return new Builder(port, networkPublicKey);
@@ -183,11 +184,10 @@ public final class ProviderServer implements Closeable {
             if (port < 0 || port > 65535) {
                 throw new IllegalArgumentException("port must be between 0 and 65535");
             }
-            if (networkPublicKey == null || networkPublicKey.isEmpty()) {
-                throw new IllegalArgumentException("networkPublicKey must not be null or empty");
-            }
+            // Fails here, at create(), for a missing or malformed key.
+            SignatureVerificationInterceptor.parseNetworkPublicKey(networkPublicKey);
             this.port = port;
-            this.networkPublicKey = networkPublicKey;
+            this.networkPublicKey = networkPublicKey.strip();
         }
 
         /**

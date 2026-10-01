@@ -11,6 +11,12 @@ import (
 	"github.com/t-0-network/provider-sdk/go/crypto"
 )
 
+func TestWithVerifySignatureFn_NilPanics(t *testing.T) {
+	require.PanicsWithValue(t, "provider: WithVerifySignatureFn: nil verifier", func() {
+		WithVerifySignatureFn(nil)
+	})
+}
+
 func TestNewHttpHandler_NetworkPublicKey(t *testing.T) {
 	priv, err := secp256k1.GeneratePrivateKey()
 	require.NoError(t, err)

@@ -26,10 +26,37 @@ public sealed class SignatureVerificationMiddleware
         _maxBodySize = options.MaxBodySize;
         _timeProvider = timeProvider ?? TimeProvider.System;
 
-        if (string.IsNullOrEmpty(options.NetworkPublicKeyHex))
-            throw new ArgumentException("network public key is required");
+        _networkPublicKey = ParseNetworkPublicKey(options.NetworkPublicKeyHex);
+    }
 
-        _networkPublicKey = SignatureVerifier.ParsePublicKeyHex(options.NetworkPublicKeyHex);
+    private static readonly Org.BouncyCastle.Math.EC.ECCurve Secp256k1 =
+        Org.BouncyCastle.Crypto.EC.CustomNamedCurves.GetByName("secp256k1").Curve;
+
+    /// <summary>
+    /// Parses the configured network public key, so a missing or mistyped key fails at startup
+    /// rather than on every request. Surrounding whitespace is trimmed.
+    /// </summary>
+    /// <exception cref="ArgumentException">"network public key is not set" for a null, empty or
+    /// whitespace-only key; "invalid network public key: ..." for a malformed one.</exception>
+    internal static byte[] ParseNetworkPublicKey(string? networkPublicKeyHex)
+    {
+        var key = networkPublicKeyHex?.Trim() ?? "";
+        if (key.Length == 0)
+            throw new ArgumentException("network public key is not set");
+        try
+        {
+            var publicKey = SignatureVerifier.ParsePublicKeyHex(key);
+            // Checked here: DecodePoint also accepts the 65-byte hybrid encodings 0x06 and 0x07.
+            if (publicKey[0] != 0x04)
+                throw new ArgumentException("public key must be uncompressed (0x04 prefix)");
+            // Throws for a point off the curve.
+            Secp256k1.DecodePoint(publicKey);
+            return publicKey;
+        }
+        catch (Exception e) when (e is ArgumentException or FormatException or ArithmeticException)
+        {
+            throw new ArgumentException($"invalid network public key: {e.Message}", e);
+        }
     }
 
     public async Task InvokeAsync(HttpContext context)

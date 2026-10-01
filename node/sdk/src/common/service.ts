@@ -11,8 +11,7 @@ import type { Interceptor } from "@connectrpc/connect";
 import NetworkHeaders from "./headers.js";
 import {Hash} from "@noble/hashes/utils.js";
 import { verifySignature } from './crypto/verify.js';
-import { parsePublicKey } from './crypto/keys.js';
-import { secp256k1 } from '@noble/curves/secp256k1.js';
+import { parseNetworkPublicKey } from './crypto/keys.js';
 import type {DescService, Registry} from "@bufbuild/protobuf";
 import type {ServiceImpl} from "@connectrpc/connect";
 import {createValidationInterceptor, type Logger} from "./validation.js";
@@ -117,28 +116,6 @@ export const createService = (
 }
 
 const kHash = createContextKey<Hash<Hash<any>>| undefined>(undefined);
-
-// Checked at startup, so a missing or mistyped key fails here rather than on
-// every request with "value is not network public key".
-function parseNetworkPublicKey(key: string | Buffer): Buffer {
-  try {
-    if (typeof key === "string") {
-      key = key.trim();
-    }
-    if (key === undefined || key === null || key.length === 0) {
-      throw new Error("key is not set");
-    }
-    const parsed = parsePublicKey(key);
-    // parsePublicKey checks only length and prefix; Go also rejects a point off the curve.
-    if (!secp256k1.utils.isValidPublicKey(parsed, false)) {
-      throw new Error("not a point on secp256k1");
-    }
-    return parsed;
-  } catch (e) {
-    const msg = e instanceof Error ? e.message : String(e);
-    throw new Error(`invalid network public key: ${msg}`);
-  }
-}
 
 function getHeader(req: UnaryRequest | StreamRequest, header: NetworkHeaders) {
   const raw = req.header.get(header);

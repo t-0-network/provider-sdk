@@ -45,6 +45,28 @@ export function parsePublicKey(key: string | Buffer): Buffer {
   return Buffer.from(key);
 }
 
+// The configured network key is checked once, at startup, so a missing or
+// mistyped key fails there rather than on every request with "unknown public key".
+export function parseNetworkPublicKey(key: string | Buffer): Buffer {
+  try {
+    if (typeof key === 'string') {
+      key = key.trim();
+    }
+    if (key === undefined || key === null || key.length === 0) {
+      throw new Error('key is not set');
+    }
+    const parsed = parsePublicKey(key);
+    // parsePublicKey checks only length and prefix; Go also rejects a point off the curve.
+    if (!secp256k1.utils.isValidPublicKey(parsed, false)) {
+      throw new Error('not a point on secp256k1');
+    }
+    return parsed;
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    throw new Error(`invalid network public key: ${msg}`);
+  }
+}
+
 export function publicKeysEqual(a: Uint8Array, b: Uint8Array): boolean {
   if (a.length !== b.length) {
     return false;

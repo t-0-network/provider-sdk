@@ -277,6 +277,26 @@ class SignatureVerificationIntegrationTest {
         }
 
         @Test
+        @DisplayName("create() rejects a malformed networkPublicKey before anything is built")
+        void malformedNetworkPublicKey_shouldThrowAtCreate() {
+            assertThatThrownBy(() -> ProviderServer.create(0, "  \n"))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessage("network public key is not set");
+            assertThatThrownBy(() -> ProviderServer.create(0, "04" + "00".repeat(64)))
+                    .isInstanceOf(IllegalArgumentException.class)
+                    .hasMessageStartingWith("invalid network public key: ");
+        }
+
+        @Test
+        @DisplayName("create() accepts a networkPublicKey with surrounding whitespace")
+        void paddedNetworkPublicKey_shouldBuild() {
+            ProviderServer server = ProviderServer.create(0, "  " + NETWORK_PUBLIC_KEY_HEX + "\n")
+                    .withService(new TestProviderServiceImpl())
+                    .build();
+            assertThat(server).isNotNull();
+        }
+
+        @Test
         @DisplayName("Server without service should throw")
         void missingService_shouldThrow() {
             assertThatThrownBy(() -> ProviderServer.create(8080, NETWORK_PUBLIC_KEY_HEX)

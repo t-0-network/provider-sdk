@@ -1,6 +1,6 @@
 import { verifySignature } from './verify.js';
 import { computeDigest } from './hash.js';
-import { parsePublicKey, publicKeysEqual } from './keys.js';
+import { parseNetworkPublicKey, parsePublicKey, publicKeysEqual } from './keys.js';
 
 export const DEFAULT_TOLERANCE_MS = 60_000;
 
@@ -31,7 +31,7 @@ export type VerifyRequestResult =
 export type RequestVerifier = (req: VerifyRequest) => VerifyRequestResult;
 
 export function createRequestVerifier(opts: CreateVerifierOptions): RequestVerifier {
-  const networkKey = parsePublicKey(opts.networkPublicKey);
+  const networkKey = parseNetworkPublicKey(opts.networkPublicKey);
   const tolerance = opts.toleranceMs ?? DEFAULT_TOLERANCE_MS;
 
   return (req: VerifyRequest): VerifyRequestResult => {

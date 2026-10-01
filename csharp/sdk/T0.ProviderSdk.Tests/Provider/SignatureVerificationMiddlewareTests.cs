@@ -17,6 +17,56 @@ public class SignatureVerificationMiddlewareTests
         NetworkPublicKeyHex = _signer.GetPublicKeyHexPrefixed()
     };
 
+    private static SignatureVerificationMiddleware NewMiddleware(string? key) =>
+        new(_ => Task.CompletedTask, new ProviderServerOptions { NetworkPublicKeyHex = key! });
+
+    private static T0ProviderServer NewServer(string key) =>
+        new(new T0Config { ProviderPrivateKey = TestPrivateKey, NetworkPublicKey = key, Port = 0 }, Signer.FromHex(TestPrivateKey));
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("  \n")]
+    public void MissingNetworkPublicKey_ShouldThrowAtStartup(string? key)
+    {
+        var ex = Assert.Throws<ArgumentException>(() => NewMiddleware(key));
+        Assert.Equal("network public key is not set", ex.Message);
+        ex = Assert.Throws<ArgumentException>(() => NewServer(key!));
+        Assert.Equal("network public key is not set", ex.Message);
+    }
+
+    public static TheoryData<string> MalformedNetworkPublicKeys()
+    {
+        var valid = Signer.FromHex(TestPrivateKey).GetPublicKeyHex();
+        return new TheoryData<string>
+        {
+            "0xnot-a-key",
+            "0x",
+            valid[..128],
+            "02" + valid[2..],
+            "06" + valid[2..],
+            "04" + new string('0', 128),
+        };
+    }
+
+    [Theory]
+    [MemberData(nameof(MalformedNetworkPublicKeys))]
+    public void MalformedNetworkPublicKey_ShouldThrowAtStartup(string key)
+    {
+        var ex = Assert.Throws<ArgumentException>(() => NewMiddleware(key));
+        Assert.StartsWith("invalid network public key: ", ex.Message);
+        ex = Assert.Throws<ArgumentException>(() => NewServer(key));
+        Assert.StartsWith("invalid network public key: ", ex.Message);
+    }
+
+    [Fact]
+    public void PaddedNetworkPublicKey_ShouldBeAccepted()
+    {
+        var key = $"  {_signer.GetPublicKeyHexPrefixed()}\n";
+        NewMiddleware(key);
+        NewServer(key);
+    }
+
     [Fact]
     public async Task ValidSignature_ShouldPassThrough()
     {

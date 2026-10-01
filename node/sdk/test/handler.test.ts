@@ -4,7 +4,7 @@ import http from 'node:http';
 import { randomBytes } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
 import { createClient } from '../src/client/client.js';
-import { createHandler } from '../src/index.js';
+import { createHandler, createRequestVerifier } from '../src/index.js';
 import { SDK_VERSION } from '../src/version.js';
 import { SDK_VERSION_HEADER } from '../src/service/health.js';
 import {
@@ -80,6 +80,9 @@ describe('createHandler', () => {
     for (const [name, key] of malformed) {
       it(`rejects ${name}`, () => {
         assert.throws(() => createHandler(key, () => {}), /invalid network public key/);
+      });
+      it(`createRequestVerifier rejects ${name}`, () => {
+        assert.throws(() => createRequestVerifier({ networkPublicKey: key }), /invalid network public key/);
       });
     }
 

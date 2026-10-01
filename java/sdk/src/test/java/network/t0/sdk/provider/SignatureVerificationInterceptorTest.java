@@ -12,6 +12,11 @@ import network.t0.sdk.crypto.SignResult;
 import network.t0.sdk.crypto.SignatureVerifier;
 import network.t0.sdk.crypto.Signer;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.NullSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -414,20 +419,38 @@ class SignatureVerificationInterceptorTest {
 
     // ==================== Constructor Validation Tests ====================
 
-    @Test
-    @DisplayName("Constructor should reject null public key")
-    void constructorShouldRejectNullPublicKey() {
-        assertThatThrownBy(() -> new SignatureVerificationInterceptor(null))
+    @ParameterizedTest(name = "rejects missing key {0}")
+    @NullSource
+    @ValueSource(strings = {"", "  \n"})
+    void constructorShouldRejectMissingPublicKey(String key) {
+        assertThatThrownBy(() -> new SignatureVerificationInterceptor(key))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("null or empty");
+                .hasMessage("network public key is not set");
+    }
+
+    static List<Arguments> malformedPublicKeys() {
+        return List.of(
+                Arguments.of("non-hex", "0xnot-a-key"),
+                Arguments.of("prefix only", "0x"),
+                Arguments.of("truncated", PUBLIC_KEY_HEX.substring(0, 128)),
+                Arguments.of("compressed prefix", "02" + PUBLIC_KEY_HEX.substring(2)),
+                Arguments.of("hybrid prefix", "06" + PUBLIC_KEY_HEX.substring(2)),
+                Arguments.of("off-curve", "04" + "00".repeat(64)));
+    }
+
+    @ParameterizedTest(name = "rejects {0}")
+    @MethodSource("malformedPublicKeys")
+    void constructorShouldRejectMalformedPublicKey(String name, String key) {
+        assertThatThrownBy(() -> new SignatureVerificationInterceptor(key))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageStartingWith("invalid network public key: ");
     }
 
     @Test
-    @DisplayName("Constructor should reject empty public key")
-    void constructorShouldRejectEmptyPublicKey() {
-        assertThatThrownBy(() -> new SignatureVerificationInterceptor(""))
-                .isInstanceOf(IllegalArgumentException.class)
-                .hasMessageContaining("null or empty");
+    @DisplayName("Constructor should accept public key with surrounding whitespace")
+    void constructorShouldAcceptPaddedPublicKey() {
+        SignatureVerificationInterceptor interceptor = new SignatureVerificationInterceptor("  0x" + PUBLIC_KEY_HEX + "\n");
+        assertThat(interceptor).isNotNull();
     }
 
     @Test

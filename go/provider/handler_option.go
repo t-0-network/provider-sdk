@@ -34,7 +34,12 @@ func newDefaultHandlerOptions(verifySignatureFn VerifySignature, logger *slog.Lo
 
 type HandlerOption func(*providerHandlerOptions)
 
+// WithVerifySignatureFn replaces the verifier built from the network public key.
+// It panics on a nil fn: there is no way to serve without signature verification.
 func WithVerifySignatureFn(fn VerifySignature) HandlerOption {
+	if fn == nil {
+		panic("provider: WithVerifySignatureFn: nil verifier")
+	}
 	return func(h *providerHandlerOptions) {
 		h.verifySignatureFn = fn
 	}

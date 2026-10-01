@@ -116,7 +116,7 @@ public class Main {
                     "Generate a keypair with: t0-init keygen");
         }
 
-        if (networkPublicKey == null || networkPublicKey.isEmpty()) {
+        if (networkPublicKey == null || networkPublicKey.isBlank()) {
             throw new ConfigurationException(
                     "NETWORK_PUBLIC_KEY not set in .env file",
                     "Contact T-0 team to get the network public key");

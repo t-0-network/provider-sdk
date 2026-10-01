@@ -5,6 +5,8 @@ import network.t0.sdk.common.Headers;
 import network.t0.sdk.common.HexUtils;
 import network.t0.sdk.crypto.Keccak256;
 import network.t0.sdk.crypto.SignatureVerifier;
+import org.bouncycastle.crypto.ec.CustomNamedCurves;
+import org.bouncycastle.math.ec.ECCurve;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -63,6 +65,8 @@ public final class SignatureVerificationInterceptor implements ServerInterceptor
     private static final Metadata.Key<String> TIMESTAMP_KEY =
             Metadata.Key.of(Headers.SIGNATURE_TIMESTAMP, Metadata.ASCII_STRING_MARSHALLER);
 
+    private static final ECCurve SECP256K1 = CustomNamedCurves.getByName("secp256k1").getCurve();
+
     private final byte[] expectedNetworkPublicKey;
     private final Clock clock;
 
@@ -82,14 +86,38 @@ public final class SignatureVerificationInterceptor implements ServerInterceptor
      * @param clock               the clock to use for timestamp validation
      */
     public SignatureVerificationInterceptor(String networkPublicKeyHex, Clock clock) {
-        if (networkPublicKeyHex == null || networkPublicKeyHex.isEmpty()) {
-            throw new IllegalArgumentException("networkPublicKeyHex must not be null or empty");
-        }
+        byte[] networkPublicKey = parseNetworkPublicKey(networkPublicKeyHex);
         if (clock == null) {
             throw new IllegalArgumentException("clock must not be null");
         }
-        this.expectedNetworkPublicKey = SignatureVerifier.parsePublicKeyHex(networkPublicKeyHex);
+        this.expectedNetworkPublicKey = networkPublicKey;
         this.clock = clock;
+    }
+
+    /**
+     * Parses the configured network public key, so a missing or mistyped key fails at startup
+     * rather than on every request. Surrounding whitespace is stripped.
+     *
+     * @throws IllegalArgumentException "network public key is not set" for a null, empty or blank key;
+     *                                  "invalid network public key: ..." for a malformed one
+     */
+    static byte[] parseNetworkPublicKey(String networkPublicKeyHex) {
+        String key = networkPublicKeyHex == null ? "" : networkPublicKeyHex.strip();
+        if (key.isEmpty()) {
+            throw new IllegalArgumentException("network public key is not set");
+        }
+        try {
+            byte[] publicKey = SignatureVerifier.parsePublicKeyHex(key);
+            // Checked here: decodePoint also accepts the 65-byte hybrid encodings 0x06 and 0x07.
+            if (publicKey[0] != 0x04) {
+                throw new IllegalArgumentException("public key must be uncompressed (0x04 prefix)");
+            }
+            // Throws for a point off the curve.
+            SECP256K1.decodePoint(publicKey);
+            return publicKey;
+        } catch (IllegalArgumentException | ArithmeticException e) {
+            throw new IllegalArgumentException("invalid network public key: " + e.getMessage(), e);
+        }
     }
 
     @Override
