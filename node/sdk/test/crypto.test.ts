@@ -10,6 +10,7 @@ import type { TestContext } from 'node:test';
 import { Code, ConnectError } from '@connectrpc/connect';
 import type { UniversalClientFn } from '@connectrpc/connect/protocol';
 import { createSigningHttpClient } from '../src/common/client/signing-http-client.js';
+import { parsePublicKeyPoint } from '../src/common/crypto/keys.js';
 import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -260,6 +261,19 @@ describe('Signature verification cases', () => {
       }
 
       nodeAssert.equal(valid, vec.valid);
+    });
+  }
+});
+
+describe('Public key parsing cases', () => {
+  // The parser of the configured network key and the X-Public-Key header.
+  for (const vec of vectors.public_key_parsing) {
+    it(`${vec.name} is ${vec.valid ? 'parsed' : 'rejected'}`, () => {
+      if (vec.valid) {
+        nodeAssert.equal(parsePublicKeyPoint(vec.input).toString('hex'), vec.uncompressed);
+      } else {
+        nodeAssert.throws(() => parsePublicKeyPoint(vec.input));
+      }
     });
   }
 });
@@ -814,13 +828,44 @@ describe('crypto/createRequestVerifier', () => {
 
   it('rejects short public key', () => {
     const result = verify(makeReq({ publicKeyHeader: '0x0401020304' }));
-    nodeAssert.deepStrictEqual(result, { valid: false, reason: 'invalid_public_key' });
+    nodeAssert.deepStrictEqual(result, { valid: false, reason: 'unknown_public_key' });
   });
 
   it('rejects unknown public key (impostor)', () => {
     const result = verify(makeReq({
       publicKeyHeader: '0x' + vectors.impostor_keys.public_key,
     }));
+    nodeAssert.deepStrictEqual(result, { valid: false, reason: 'unknown_public_key' });
+  });
+
+  const keyRow = (name: string) => vectors.public_key_parsing.find((v: any) => v.name === name).input;
+
+  it('accepts the compressed form of the network key and a 0X prefix', () => {
+    for (const name of ['compressed-0x', 'compressed-no-prefix', 'uncompressed-0X']) {
+      nodeAssert.deepStrictEqual(verify(makeReq({ publicKeyHeader: keyRow(name) })), { valid: true }, name);
+    }
+  });
+
+  it('a compressed network key accepts the uncompressed header', () => {
+    const v = createRequestVerifier({ networkPublicKey: keyRow('compressed-0x'), toleranceMs: Infinity });
+    nodeAssert.deepStrictEqual(v(makeReq()), { valid: true });
+  });
+
+  it('rejects a header that is not hex as invalid_public_key', () => {
+    for (const name of ['trailing-junk', 'odd-length', 'whitespace-inside', 'prefix-only']) {
+      nodeAssert.deepStrictEqual(verify(makeReq({ publicKeyHeader: keyRow(name) })), { valid: false, reason: 'invalid_public_key' }, name);
+    }
+  });
+
+  it('rejects a header that is hex but not a key as unknown_public_key', () => {
+    for (const name of ['hybrid', 'off-curve', 'compressed-prefix-on-65-bytes', 'truncated']) {
+      nodeAssert.deepStrictEqual(verify(makeReq({ publicKeyHeader: keyRow(name) })), { valid: false, reason: 'unknown_public_key' }, name);
+    }
+  });
+
+  it('rejects the compressed form of another key as unknown_public_key', () => {
+    const impostor = secp256k1.Point.fromBytes(Buffer.from(vectors.impostor_keys.public_key, 'hex')).toBytes(true);
+    const result = verify(makeReq({ publicKeyHeader: '0x' + Buffer.from(impostor).toString('hex') }));
     nodeAssert.deepStrictEqual(result, { valid: false, reason: 'unknown_public_key' });
   });
 

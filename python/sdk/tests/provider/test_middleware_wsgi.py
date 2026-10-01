@@ -7,11 +7,14 @@ import io
 import struct
 import time
 
+import pytest
 from t0_provider_sdk.crypto.hash import legacy_keccak256
 from t0_provider_sdk.crypto.keys import private_key_from_hex
 from t0_provider_sdk.crypto.signer import new_signer
+from t0_provider_sdk.provider.errors import InvalidHeaderEncodingError, TimestampOutOfRangeError
 from t0_provider_sdk.provider.middleware import (
     DEFAULT_MAX_BODY_SIZE,
+    NOT_VERIFIED,
     new_verify_signature,
     signature_error_var,
 )
@@ -21,6 +24,10 @@ PRIVATE_KEY = "0x6b30303de7b26bfb1222b317a52113357f8bb06de00160b4261a2fef9c8b9bd
 PUBLIC_KEY = "0x044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0"
 
 OTHER_PUBLIC_KEY = "0x049bb924680bfba3f64d924bf9040c45dcc215b124b5b9ee73ca8e32c050d042c0bbd8dbb98e3929ed5bc2967f28c3a3b72dd5e24312404598bbf6c6cc47708dc7"
+
+# Not ASCII digits below 2^63: negative, 2^63, 2^64, surrounding space, a sign, an underscore,
+# non-ASCII digits, and more digits than int() parses.
+MALFORMED_TIMESTAMPS = ["-1", str(2**63), str(2**64), " 1", "1 ", "+1", "1_0", "\u0661\u0662", "1" * 5000]
 
 
 def _make_signed_environ(
@@ -122,6 +129,21 @@ class TestSignatureVerificationMiddlewareWSGI:
         assert error is None
         assert body == b"chunked body"
 
+    @pytest.mark.parametrize("content_length", ["abc", "-1", "+5", " 5", "1_0"])
+    def test_malformed_content_length_is_a_bad_request(self, content_length):
+        """Junk or a negative length is refused before anything is read, not a 500 or a read to the end."""
+
+        class _Unread:
+            def read(self, *args):
+                raise AssertionError("must not read")
+
+        environ = _make_signed_environ()
+        environ["CONTENT_LENGTH"] = content_length
+        environ["wsgi.input"] = _Unread()
+        error, body = _run_middleware(environ)
+        assert isinstance(error, InvalidHeaderEncodingError)
+        assert body == b""
+
     def test_terminated_input_is_read_only_past_the_limit(self):
         body = b"x" * 100
         environ = _make_signed_environ(body=body)
@@ -178,6 +200,18 @@ class TestSignatureVerificationMiddlewareWSGI:
         assert error is not None
         assert "time window" in str(error)
 
+    @pytest.mark.parametrize("timestamp", MALFORMED_TIMESTAMPS)
+    def test_malformed_timestamp(self, timestamp):
+        """Anything but ASCII digits below 2^63 -> invalid encoding, never an exception."""
+        environ = _make_signed_environ(override_headers={"x-signature-timestamp": timestamp})
+        error, _ = _run_middleware(environ)
+        assert isinstance(error, InvalidHeaderEncodingError)
+
+    def test_largest_timestamp_is_out_of_range(self):
+        environ = _make_signed_environ(override_headers={"x-signature-timestamp": str(2**63 - 1)})
+        error, _ = _run_middleware(environ)
+        assert isinstance(error, TimestampOutOfRangeError)
+
     def test_timestamp_too_new(self):
         """Timestamp >60s in the future -> error."""
         future_ts = int(time.time() * 1000) + 120_000  # 2 minutes ahead
@@ -218,3 +252,11 @@ class TestSignatureVerificationMiddlewareWSGI:
         error, downstream_body = _run_middleware(environ)
         assert error is None
         assert downstream_body == test_body
+
+    def test_result_does_not_outlive_the_request(self):
+        """Once the app has returned the thread's context holds no result, so the next request the
+        thread serves is not taken as verified."""
+        environ = _make_signed_environ()
+        error, _ = _run_middleware(environ)
+        assert error is None
+        assert signature_error_var.get() is NOT_VERIFIED

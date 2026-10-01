@@ -11,7 +11,7 @@ import type { Interceptor } from "@connectrpc/connect";
 import NetworkHeaders from "./headers.js";
 import {Hash} from "@noble/hashes/utils.js";
 import { verifySignature } from './crypto/verify.js';
-import { parseNetworkPublicKey } from './crypto/keys.js';
+import { parseNetworkPublicKey, parsePublicKeyPoint, PublicKeyHexError } from './crypto/keys.js';
 import type {DescService, Registry} from "@bufbuild/protobuf";
 import type {ServiceImpl} from "@connectrpc/connect";
 import {createValidationInterceptor, type Logger} from "./validation.js";
@@ -57,7 +57,8 @@ const createSignatureVerification: (networkPublicKey: Buffer) => Interceptor = (
     throw new ConnectError(`${NetworkHeaders.SignatureTimestamp} must be within ${REQUEST_VALIDITY_MILLIS} milliseconds from now` , Code.InvalidArgument);
   }
 
-  const publicKey = decodeHex(getHeader(req, NetworkHeaders.PublicKey))
+  // Both are 65-byte uncompressed encodings, so the compressed form of the network key matches.
+  const publicKey = parsePublicKeyHeader(getHeader(req, NetworkHeaders.PublicKey))
   if (networkPublicKey.compare(publicKey) !== 0 ) {
     throw new ConnectError(`${NetworkHeaders.PublicKey} value is not network public key`, Code.Unauthenticated);
   }
@@ -123,6 +124,19 @@ function getHeader(req: UnaryRequest | StreamRequest, header: NetworkHeaders) {
     throw new ConnectError(`missing required header '${header}'`, Code.InvalidArgument);
   }
   return raw;
+}
+
+// Not hex: InvalidArgument, as for the other headers. Hex but not a key: Unauthenticated.
+function parsePublicKeyHeader(value: string) {
+  try {
+    return parsePublicKeyPoint(value);
+  } catch (e) {
+    if (e instanceof PublicKeyHexError) {
+      throw new ConnectError(`invalid header format. '${value}' must be hex encoded`, Code.InvalidArgument);
+    }
+    const msg = e instanceof Error ? e.message : String(e);
+    throw new ConnectError(`${NetworkHeaders.PublicKey} value is not a public key: ${msg}`, Code.Unauthenticated);
+  }
 }
 
 function decodeHex(value: string) {

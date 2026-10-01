@@ -737,7 +737,7 @@ The most complex modules in the SDK. Implement Phase 1 of the [two-phase verific
 
 | Name | Type | Purpose |
 |------|------|---------|
-| `signature_error_var` | `ContextVar[SignatureVerificationError \| None]` | Communication channel to interceptor |
+| `signature_error_var` | `ContextVar[SignatureVerificationError \| NOT_VERIFIED \| None]` | Communication channel to interceptor. Defaults to `NOT_VERIFIED`, so a call the middleware did not verify is refused |
 | `VerifySignatureFn` | `dataclass` | Callable that verifies signature against network public key |
 | `signature_verification_middleware` | `function` | ASGI middleware factory |
 | `signature_verification_middleware_wsgi` | `function` | WSGI middleware factory (in `middleware_wsgi.py`) |
@@ -751,22 +751,22 @@ The most complex modules in the SDK. Implement Phase 1 of the [two-phase verific
 
 **`VerifySignatureFn`** is a frozen dataclass holding the network's public key. When called, it:
 1. Validates signature length (64-65 bytes)
-2. Compares the signer's public key to the network public key (raises `UnknownPublicKeyError` on mismatch)
+2. Parses the signer's public key (33-byte compressed or 65-byte uncompressed) and compares it to the network public key as a point (raises `UnknownPublicKeyError` for bytes that are not a key, or for another key)
 3. Computes `Keccak256(message)` and verifies the signature (raises `SignatureFailedError` on failure)
 
 **`signature_verification_middleware(app, verify_fn, max_body_size)`** returns an ASGI middleware that:
 1. Reads the full request body via `_read_body()` (enforcing size limit)
 2. Calls `_verify_request()` which parses headers and runs verification
-3. Stores any error in `signature_error_var`
+3. Stores the result (an error, or `None`) in `signature_error_var`
 4. Creates a synthetic `receive` via `_replay_receive()` to replay the buffered body
-5. Forwards to the downstream ASGI app
+5. Forwards to the downstream ASGI app, and resets `signature_error_var` when it returns
 
 **`signature_verification_middleware_wsgi(app, verify_fn, max_body_size)`** (in `middleware_wsgi.py`) returns a WSGI middleware that:
-1. Reads the full request body from `environ["wsgi.input"]` via `_read_wsgi_body()`
+1. Reads the full request body from `environ["wsgi.input"]` via `_read_wsgi_body()` (a `Content-Length` that is not ASCII digits is `InvalidHeaderEncodingError`)
 2. Calls the same `_verify_request()` for header parsing and verification
-3. Stores any error in `signature_error_var`
+3. Stores the result (an error, or `None`) in `signature_error_var`
 4. Replaces `environ["wsgi.input"]` with a `BytesIO` to replay the body
-5. Forwards to the downstream WSGI app
+5. Forwards to the downstream WSGI app, and resets `signature_error_var` when it returns
 
 **Internal helpers:**
 
@@ -774,8 +774,8 @@ The most complex modules in the SDK. Implement Phase 1 of the [two-phase verific
 |----------|---------|
 | `_verify_request(verify_fn, headers, body)` | Orchestrates header parsing and signature verification |
 | `_parse_scope_headers(scope)` | Extracts headers from ASGI scope as a dict |
-| `_parse_hex_header(headers, name)` | Strips `0x` prefix and hex-decodes a header value |
-| `_parse_timestamp(headers)` | Parses timestamp header, returns `(ms_int, LE_8bytes)` |
+| `_parse_hex_header(headers, name)` | Strips an optional `0x`/`0X` prefix and decodes strict hex (no whitespace) |
+| `_parse_timestamp(headers)` | Parses the timestamp header (ASCII digits, below 2^63), returns `(ms_int, LE_8bytes)` |
 | `_read_body(receive, max_size)` | Reads full ASGI body with size enforcement |
 | `_replay_receive(body)` | Returns a synthetic ASGI `receive` callable |
 
@@ -793,7 +793,7 @@ class SignatureErrorInterceptorSync:
     def intercept_unary_sync(self, call_next, request, ctx) -> Any: ...
 ```
 
-Both interceptors call `_raise_if_signature_error()` which reads from `signature_error_var` and raises `ConnectError` with the appropriate code.
+Both interceptors call `_raise_if_signature_error()` which reads from `signature_error_var` and raises `ConnectError` with the appropriate code, or `INTERNAL` ("no signature result in context") when the value is still `NOT_VERIFIED`.
 
 > **ConnectRPC Python specifics:** `Interceptor` is a **Union type**, not a base class. Async interceptors implement the `UnaryInterceptor` Protocol with `intercept_unary(self, call_next, request, ctx)`. Sync interceptors implement `UnaryInterceptorSync` with `intercept_unary_sync(self, call_next, request, ctx)`.
 
@@ -835,7 +835,9 @@ Creates the composite WSGI application (parallel to `new_asgi_app()`):
 
 Both routers use simple path-prefix matching. ConnectRPC request paths follow the pattern `/<package>.<Service>/<Method>`, so prefix matching on the service path correctly routes all methods of a service.
 
-`network_public_key` is required, and surrounding whitespace is stripped. Both functions check it before building anything: an empty or whitespace-only key raises `NetworkPublicKeyRequiredError` (a `ValueError`), and a malformed key raises `ValueError("invalid network public key: ...")`.
+`network_public_key` is required, and surrounding whitespace is stripped. It may be compressed (33 bytes) or uncompressed (65 bytes), with an optional `0x`/`0X` prefix (the rule shared by every SDK: root `CLAUDE.md`). Both functions check it before building anything: an empty or whitespace-only key raises `NetworkPublicKeyRequiredError` (a `ValueError`), and a malformed key raises `ValueError("invalid network public key: ...")`.
+
+`handler()` and `handler_sync()` build each service app with the signature interceptor first, after the `HandlerOption`s have run, so no option can remove it.
 
 ### 4.5 Generated Code (`api/`)
 

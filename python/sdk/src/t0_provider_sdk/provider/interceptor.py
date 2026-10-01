@@ -17,7 +17,7 @@ from t0_provider_sdk.provider.errors import (
     SignatureFailedError,
     UnknownPublicKeyError,
 )
-from t0_provider_sdk.provider.middleware import signature_error_var
+from t0_provider_sdk.provider.middleware import NOT_VERIFIED, signature_error_var
 
 
 def _raise_if_signature_error() -> None:
@@ -25,6 +25,10 @@ def _raise_if_signature_error() -> None:
     err = signature_error_var.get()
     if err is None:
         return
+
+    if err is NOT_VERIFIED:
+        # The signature middleware did not run for this request: refuse it rather than serve it unverified.
+        raise ConnectError(Code.INTERNAL, "no signature result in context")
 
     if isinstance(err, (UnknownPublicKeyError, SignatureFailedError)):
         raise ConnectError(Code.UNAUTHENTICATED, str(err))

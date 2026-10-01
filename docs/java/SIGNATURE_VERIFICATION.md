@@ -38,7 +38,7 @@ signature = secp256k1_sign(network_private_key, digest)
 
 with `payload_bytes` being whichever of the framings above corresponds to the configured transport. Headers sent on the request:
 
-- `X-Public-Key` — uncompressed secp256k1 public key, hex-encoded with `0x` prefix (65 bytes raw, 0x04 prefix on the key itself)
+- `X-Public-Key` — uncompressed secp256k1 public key, hex-encoded with `0x` prefix (65 bytes raw, 0x04 prefix on the key itself). The interceptor also accepts the 33-byte compressed form and compares keys as points.
 - `X-Signature` — signature, hex-encoded with `0x` prefix (64 or 65 bytes raw)
 - `X-Signature-Timestamp` — millisecond Unix timestamp as a decimal string
 

@@ -6,6 +6,7 @@ import io.grpc.Channel;
 import io.grpc.ClientCall;
 import io.grpc.ClientInterceptor;
 import io.grpc.ClientInterceptors;
+import io.grpc.ForwardingClientCall;
 import io.grpc.ManagedChannel;
 import io.grpc.Metadata;
 import io.grpc.MethodDescriptor;
@@ -18,9 +19,12 @@ import network.t0.sdk.crypto.SignResult;
 import network.t0.sdk.crypto.Signer;
 import network.t0.sdk.network.BlockingNetworkClient;
 import network.t0.sdk.network.ByteArrayMarshaller;
+import network.t0.sdk.network.SigningInterceptors;
 import network.t0.sdk.provider.ProviderServer;
 import network.t0.sdk.proto.tzero.v1.payment.*;
 import org.junit.jupiter.api.*;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -53,6 +57,7 @@ class SignatureVerificationIntegrationTest {
     // Test key pairs (same as SignerTest for consistency)
     private static final String NETWORK_PRIVATE_KEY = "6b30303de7b26bfb1222b317a52113357f8bb06de00160b4261a2fef9c8b9bd8";
     private static final String NETWORK_PUBLIC_KEY_HEX = "044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0";
+    private static final String NETWORK_COMPRESSED_PUBLIC_KEY_HEX = "024fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567";
 
     // Alternative key for testing wrong key scenarios (secp256k1 private key = 1)
     private static final String OTHER_PRIVATE_KEY = "0000000000000000000000000000000000000000000000000000000000000001";
@@ -249,6 +254,110 @@ class SignatureVerificationIntegrationTest {
                 assertThat(exception.getStatus().getDescription())
                         .contains("unknown public key");
             }
+        }
+    }
+
+    // ==================== X-Public-Key Header Tests ====================
+
+    /**
+     * The SDK's signing interceptor signs the request; an interceptor below it then replaces the
+     * X-Public-Key header, as a caller sending the key in another encoding would.
+     */
+    @Nested
+    @DisplayName("X-Public-Key Header Tests")
+    class PublicKeyHeaderTests {
+
+        @ParameterizedTest(name = "accepts the compressed network key {0}")
+        @ValueSource(strings = {"0x" + NETWORK_COMPRESSED_PUBLIC_KEY_HEX, "0X" + NETWORK_COMPRESSED_PUBLIC_KEY_HEX})
+        void compressedNetworkKey_shouldSucceed(String publicKeyHeader) throws Exception {
+            startServer(NETWORK_PUBLIC_KEY_HEX);
+
+            assertThat(updateLimitWithPublicKeyHeader(publicKeyHeader)).isNotNull();
+        }
+
+        @Test
+        @DisplayName("X-Public-Key that is not hex should return INVALID_ARGUMENT")
+        void nonHexPublicKey_shouldReturnInvalidArgument() throws Exception {
+            startServer(NETWORK_PUBLIC_KEY_HEX);
+
+            assertRefused("0x" + NETWORK_PUBLIC_KEY_HEX + "zz",
+                    io.grpc.Status.Code.INVALID_ARGUMENT, "invalid header encoding");
+        }
+
+        @Test
+        @DisplayName("X-Public-Key that is not a key (hybrid encoding) should return UNAUTHENTICATED")
+        void hybridPublicKey_shouldReturnUnauthenticated() throws Exception {
+            startServer(NETWORK_PUBLIC_KEY_HEX);
+
+            assertRefused("0x06" + NETWORK_PUBLIC_KEY_HEX.substring(2),
+                    io.grpc.Status.Code.UNAUTHENTICATED, "invalid public key");
+        }
+
+        @Test
+        @DisplayName("Another compressed key should return UNAUTHENTICATED")
+        void otherCompressedPublicKey_shouldReturnUnauthenticated() throws Exception {
+            startServer(NETWORK_PUBLIC_KEY_HEX);
+
+            // The generator point: the public key of OTHER_PRIVATE_KEY, compressed.
+            assertRefused("0x0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798",
+                    io.grpc.Status.Code.UNAUTHENTICATED, "request signed with unknown public key");
+        }
+
+        @Test
+        @DisplayName("A server configured with the compressed network key accepts signed requests")
+        void compressedConfiguredKey_shouldSucceed() throws Exception {
+            startServer("0x" + NETWORK_COMPRESSED_PUBLIC_KEY_HEX);
+
+            try (var client = createClient(Signer.fromHex(NETWORK_PRIVATE_KEY))) {
+                assertThat(client.stub().updateLimit(UpdateLimitRequest.getDefaultInstance())).isNotNull();
+            }
+        }
+
+        private void assertRefused(String publicKeyHeader, io.grpc.Status.Code code, String description) {
+            StatusRuntimeException exception = assertThrows(
+                    StatusRuntimeException.class,
+                    () -> updateLimitWithPublicKeyHeader(publicKeyHeader));
+
+            assertThat(exception.getStatus().getCode()).isEqualTo(code);
+            assertThat(exception.getStatus().getDescription()).contains(description);
+        }
+
+        /** Calls UpdateLimit with a non-empty body signed by the network key, sending {@code publicKeyHeader}. */
+        private UpdateLimitResponse updateLimitWithPublicKeyHeader(String publicKeyHeader) throws Exception {
+            ManagedChannel channel = OkHttpChannelBuilder
+                    .forAddress("localhost", server.getPort())
+                    .usePlaintext()
+                    .build();
+            try {
+                // The last interceptor runs first: the signing one, then the header replacement.
+                Channel intercepted = ClientInterceptors.intercept(
+                        channel,
+                        replacePublicKeyHeader(publicKeyHeader),
+                        SigningInterceptors.withClock(Signer.fromHex(NETWORK_PRIVATE_KEY), Clock.systemUTC()));
+                return ProviderServiceGrpc.newBlockingStub(intercepted).updateLimit(UpdateLimitRequest.newBuilder()
+                        .addLimits(UpdateLimitRequest.Limit.newBuilder().setVersion(1).setCounterpartId(100).build())
+                        .build());
+            } finally {
+                channel.shutdownNow().awaitTermination(5, TimeUnit.SECONDS);
+            }
+        }
+
+        private ClientInterceptor replacePublicKeyHeader(String publicKeyHeader) {
+            Metadata.Key<String> key = Metadata.Key.of(Headers.PUBLIC_KEY, Metadata.ASCII_STRING_MARSHALLER);
+            return new ClientInterceptor() {
+                @Override
+                public <ReqT, RespT> ClientCall<ReqT, RespT> interceptCall(
+                        MethodDescriptor<ReqT, RespT> method, CallOptions callOptions, Channel next) {
+                    return new ForwardingClientCall.SimpleForwardingClientCall<>(next.newCall(method, callOptions)) {
+                        @Override
+                        public void start(Listener<RespT> responseListener, Metadata headers) {
+                            headers.removeAll(key);
+                            headers.put(key, publicKeyHeader);
+                            super.start(responseListener, headers);
+                        }
+                    };
+                }
+            };
         }
     }
 

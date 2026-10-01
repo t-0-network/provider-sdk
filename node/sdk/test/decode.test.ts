@@ -95,6 +95,23 @@ describe('createRequestDecoder (generic)', () => {
     assert.ok(wire.body instanceof Uint8Array);
   });
 
+  it('accepts a request whose X-Public-Key is the compressed network key', () => {
+    const { priv, publicKeyHex } = newKeypair();
+    const decode = createGenericDecoder({ networkPublicKey: publicKeyHex });
+
+    const protoBody = toBinary(HealthCheckRequestSchema, create(HealthCheckRequestSchema, { service: 'compressed' }));
+    const headers = {
+      ...sign(protoBody, priv),
+      'x-public-key': '0x' + Buffer.from(secp256k1.getPublicKey(priv, true)).toString('hex'),
+      'content-type': 'application/proto',
+    };
+
+    const result = decode(HealthCheckRequestSchema, { body: protoBody, headers });
+    assert.equal(result.ok, true);
+    if (!result.ok) return;
+    assert.equal(result.request.service, 'compressed');
+  });
+
   it('encodeResponse accepts a different schema than the request', () => {
     const { priv, publicKeyHex } = newKeypair();
     const decode = createGenericDecoder({ networkPublicKey: publicKeyHex });

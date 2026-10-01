@@ -1,6 +1,6 @@
 import { verifySignature } from './verify.js';
 import { computeDigest } from './hash.js';
-import { parseNetworkPublicKey, parsePublicKey, publicKeysEqual } from './keys.js';
+import { parseNetworkPublicKey, parsePublicKeyPoint, PublicKeyHexError, publicKeysEqual } from './keys.js';
 
 export const DEFAULT_TOLERANCE_MS = 60_000;
 
@@ -44,11 +44,14 @@ export function createRequestVerifier(opts: CreateVerifierOptions): RequestVerif
       return { valid: false, reason: 'timestamp_out_of_range' };
     }
 
+    // Not hex is invalid_public_key; hex that is not a key is not the network key either, so it is
+    // unknown_public_key (unauthenticated, as in every SDK). The compressed form of the network key
+    // is the network key.
     let publicKey: Buffer;
     try {
-      publicKey = parsePublicKey(req.publicKeyHeader);
-    } catch {
-      return { valid: false, reason: 'invalid_public_key' };
+      publicKey = parsePublicKeyPoint(req.publicKeyHeader);
+    } catch (e) {
+      return { valid: false, reason: e instanceof PublicKeyHexError ? 'invalid_public_key' : 'unknown_public_key' };
     }
 
     if (!publicKeysEqual(publicKey, networkKey)) {

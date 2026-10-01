@@ -2,18 +2,24 @@ package provider
 
 import (
 	"bytes"
+	"context"
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strconv"
+	"strings"
 	"testing"
 	"time"
 
 	"connectrpc.com/connect"
+	"connectrpc.com/grpchealth"
+	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/stretchr/testify/require"
 	"github.com/t-0-network/provider-sdk/go/common"
+	"github.com/t-0-network/provider-sdk/go/crypto"
+	"github.com/t-0-network/provider-sdk/go/network"
 )
 
 func TestNewSignatureVerifierMiddleware(t *testing.T) {
@@ -444,6 +450,77 @@ func TestDualFramingFallback(t *testing.T) {
 				require.Equal(t, tt.expectedError.ConnectCode, capturedError.ConnectCode)
 				require.Contains(t, capturedError.Message, tt.expectedError.Message)
 			}
+		})
+	}
+}
+
+type roundTripperFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripperFunc) RoundTrip(r *http.Request) (*http.Response, error) { return f(r) }
+
+// End to end through NewHttpHandler: a signed request is sent with the
+// X-Public-Key value of each case instead of the one its signer set.
+func TestSignatureVerification_PublicKeyHeader(t *testing.T) {
+	networkKey, err := secp256k1.GeneratePrivateKey()
+	require.NoError(t, err)
+	otherKey, err := secp256k1.GeneratePrivateKey()
+	require.NoError(t, err)
+
+	mux, err := NewHttpHandler(NetworkPublicKeyHexed(crypto.HexPublicKey(networkKey.PubKey())))
+	require.NoError(t, err)
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	uncompressedBytes := networkKey.PubKey().SerializeUncompressed()
+	uncompressed := hex.EncodeToString(uncompressedBytes)
+	// Same point; the prefix carries the parity of y, so only the explicit prefix check rejects it.
+	hybrid := hex.EncodeToString([]byte{0x06 | uncompressedBytes[64]&1}) + uncompressed[2:]
+
+	tests := []struct {
+		name      string
+		signer    *secp256k1.PrivateKey // nil: the network key
+		publicKey string                // empty: header removed
+		code      connect.Code          // 0: accepted
+	}{
+		{name: "uncompressed", publicKey: "0x" + uncompressed},
+		{name: "0X prefix", publicKey: "0X" + uncompressed},
+		{name: "no prefix", publicKey: uncompressed},
+		{name: "compressed", publicKey: "0x" + hex.EncodeToString(networkKey.PubKey().SerializeCompressed())},
+		{name: "missing", publicKey: "", code: connect.CodeInvalidArgument},
+		{name: "not hex", publicKey: "0xzz", code: connect.CodeInvalidArgument},
+		{name: "prefix only", publicKey: "0x", code: connect.CodeInvalidArgument},
+		{name: "odd length", publicKey: "0x" + uncompressed[1:], code: connect.CodeInvalidArgument},
+		{name: "whitespace inside", publicKey: "0x" + uncompressed[:66] + " " + uncompressed[66:], code: connect.CodeInvalidArgument},
+		{name: "wrong length", publicKey: "0x" + uncompressed[:128], code: connect.CodeUnauthenticated},
+		{name: "hybrid", publicKey: "0x" + hybrid, code: connect.CodeUnauthenticated},
+		{name: "02 prefix on 65 bytes", publicKey: "0x02" + uncompressed[2:], code: connect.CodeUnauthenticated},
+		{name: "off-curve", publicKey: "0x04" + strings.Repeat("0", 128), code: connect.CodeUnauthenticated},
+		{name: "other key", signer: otherKey, publicKey: crypto.HexPublicKey(otherKey.PubKey()), code: connect.CodeUnauthenticated},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			signer := tt.signer
+			if signer == nil {
+				signer = networkKey
+			}
+			setPublicKey := roundTripperFunc(func(r *http.Request) (*http.Response, error) {
+				r.Header.Del(common.PublicKeyHeader)
+				if tt.publicKey != "" {
+					r.Header.Set(common.PublicKeyHeader, tt.publicKey)
+				}
+				return http.DefaultTransport.RoundTrip(r)
+			})
+			httpClient := &http.Client{
+				Transport: network.NewSigningTransport(crypto.NewSigner(signer), time.Now, network.WithTransport(setPublicKey)),
+			}
+
+			resp, err := grpchealth.NewClient(httpClient, srv.URL).Check(context.Background(), &grpchealth.CheckRequest{})
+			if tt.code == 0 {
+				require.NoError(t, err)
+				require.Equal(t, grpchealth.StatusServing, resp.Status)
+				return
+			}
+			require.Equal(t, tt.code, connect.CodeOf(err), "error: %v", err)
 		})
 	}
 }

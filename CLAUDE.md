@@ -97,7 +97,7 @@ headers = { X-Public-Key: "0x...", X-Signature: "0x...", X-Signature-Timestamp: 
 ```
 
 - Timestamp tolerance: ±60 seconds
-- Public keys: uncompressed secp256k1 (65 bytes, 0x04 prefix)
+- Public keys: secp256k1. Clients send the uncompressed form (65 bytes, 0x04 prefix). A provider server parses the configured network key and the `X-Public-Key` header with one rule: optional `0x`/`0X`, strict hex, uncompressed (65 bytes, 0x04) or compressed (33 bytes, 0x02/0x03), a point on the curve, compared as points; anything else, including the hybrid 0x06/0x07 form, is rejected. A bad configured key stops the server at startup ("network public key is not set" / "invalid network public key: …"); no SDK can serve without signature verification. Vectors: `public_key_parsing` in `cross_test/test_vectors.json`.
 - Signatures: 64 or 65 bytes (r + s + optional recovery id)
 - Hash: Keccak-256 (NOT NIST SHA-3)
 

@@ -9,7 +9,7 @@ import pyqwest
 import pytest
 from t0_provider_sdk.common.headers import SIGNATURE_HEADER, SIGNATURE_TIMESTAMP_HEADER
 from t0_provider_sdk.crypto.hash import legacy_keccak256
-from t0_provider_sdk.crypto.keys import public_key_from_bytes
+from t0_provider_sdk.crypto.keys import _parse_public_key, public_key_from_bytes
 from t0_provider_sdk.crypto.signer import new_signer_from_hex
 from t0_provider_sdk.crypto.verifier import verify_signature
 from t0_provider_sdk.network import signing
@@ -96,6 +96,18 @@ class TestCrossVectorsRequestSigningCases:
 
             sig, _ = sign_fn(digest)
             assert sig[:64].hex() == vec["expected_signature"], f"signature for {vec['name']}"
+
+
+class TestCrossVectorsPublicKeyParsing:
+    """The parser the server uses for the configured network key and the X-Public-Key header."""
+
+    @pytest.mark.parametrize("vec", VECTORS["public_key_parsing"], ids=lambda vec: vec["name"])
+    def test_case(self, vec):
+        if vec["valid"]:
+            assert _parse_public_key(vec["input"]).format(compressed=False).hex() == vec["uncompressed"]
+        else:
+            with pytest.raises(ValueError):
+                _parse_public_key(vec["input"])
 
 
 class TestCrossVectorsSignatureVerification:

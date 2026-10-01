@@ -203,5 +203,134 @@
       "expected_signature": "5c515d14860086b51fb127e0e821e3db6019a107f2d4778e17081d6cff2718266ca29ec28569a32bfe5c6e94c70d199f7324cf7813ad3f040e58cbad052a7315",
       "note": "A client stream closed before its first message. Every SDK signs these empty bytes and sends the request; the network rejects the call."
     }
+  ],
+  "public_key_parsing_note": "Every SDK parses the configured network public key and the X-Public-Key header with this rule. Valid keys are compared by point, so the compressed and uncompressed forms of a key are equal.",
+  "public_key_parsing": [
+    {
+      "name": "uncompressed-0x",
+      "input": "0x044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0",
+      "valid": true,
+      "uncompressed": "044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0",
+      "note": "65-byte uncompressed key, the form the network sends."
+    },
+    {
+      "name": "uncompressed-0X",
+      "input": "0X044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0",
+      "valid": true,
+      "uncompressed": "044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0",
+      "note": "Upper-case prefix, as for private keys."
+    },
+    {
+      "name": "uncompressed-no-prefix",
+      "input": "044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0",
+      "valid": true,
+      "uncompressed": "044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0",
+      "note": ""
+    },
+    {
+      "name": "uncompressed-upper-hex",
+      "input": "0x044FA1465C087AAF42E5FF707050B8F77D2CE92129C5F300686BDD3ADFFFE44567713BB7931632837C5268A832512E75599B6964F4484C9531C02E96D90384D9F0",
+      "valid": true,
+      "uncompressed": "044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0",
+      "note": ""
+    },
+    {
+      "name": "compressed-0x",
+      "input": "0x024fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567",
+      "valid": true,
+      "uncompressed": "044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0",
+      "note": "33-byte compressed form (02) of the same key."
+    },
+    {
+      "name": "compressed-no-prefix",
+      "input": "024fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567",
+      "valid": true,
+      "uncompressed": "044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0",
+      "note": ""
+    },
+    {
+      "name": "compressed-other-parity",
+      "input": "0x03fff97bd5755eeea420453a14355235d382f6472f8568a18b2f057a1460297556",
+      "valid": true,
+      "uncompressed": "04fff97bd5755eeea420453a14355235d382f6472f8568a18b2f057a1460297556ae12777aacfbb620f3be96017f45c560de80f0f6518fe4a03c870c36b075f297",
+      "note": "Compressed key with prefix 03."
+    },
+    {
+      "name": "hybrid",
+      "input": "0x064fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0",
+      "valid": false,
+      "uncompressed": "",
+      "note": "65-byte hybrid encoding (06/07): rejected, although it names a point on the curve."
+    },
+    {
+      "name": "compressed-prefix-on-65-bytes",
+      "input": "0x024fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0",
+      "valid": false,
+      "uncompressed": "",
+      "note": ""
+    },
+    {
+      "name": "uncompressed-prefix-on-33-bytes",
+      "input": "0x044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567",
+      "valid": false,
+      "uncompressed": "",
+      "note": ""
+    },
+    {
+      "name": "off-curve",
+      "input": "0x0400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "valid": false,
+      "uncompressed": "",
+      "note": "Right length and prefix, not a point on secp256k1."
+    },
+    {
+      "name": "truncated",
+      "input": "0x044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9",
+      "valid": false,
+      "uncompressed": "",
+      "note": ""
+    },
+    {
+      "name": "odd-length",
+      "input": "0x044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f",
+      "valid": false,
+      "uncompressed": "",
+      "note": ""
+    },
+    {
+      "name": "whitespace-inside",
+      "input": "0x044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567 713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0",
+      "valid": false,
+      "uncompressed": "",
+      "note": "Hex parsers that skip whitespace must not be used."
+    },
+    {
+      "name": "trailing-junk",
+      "input": "0x044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0zz",
+      "valid": false,
+      "uncompressed": "",
+      "note": "Hex parsers that stop at the first bad character must not be used."
+    },
+    {
+      "name": "non-hex",
+      "input": "0xnot-a-key",
+      "valid": false,
+      "uncompressed": "",
+      "note": ""
+    },
+    {
+      "name": "prefix-only",
+      "input": "0x",
+      "valid": false,
+      "uncompressed": "",
+      "note": ""
+    },
+    {
+      "name": "empty",
+      "input": "",
+      "valid": false,
+      "uncompressed": "",
+      "note": ""
+    }
   ]
 }

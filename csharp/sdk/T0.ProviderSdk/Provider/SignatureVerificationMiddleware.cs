@@ -45,18 +45,39 @@ public sealed class SignatureVerificationMiddleware
             throw new ArgumentException("network public key is not set");
         try
         {
-            var publicKey = SignatureVerifier.ParsePublicKeyHex(key);
-            // Checked here: DecodePoint also accepts the 65-byte hybrid encodings 0x06 and 0x07.
-            if (publicKey[0] != 0x04)
-                throw new ArgumentException("public key must be uncompressed (0x04 prefix)");
-            // Throws for a point off the curve.
-            Secp256k1.DecodePoint(publicKey);
-            return publicKey;
+            return ParsePublicKey(key);
         }
         catch (Exception e) when (e is ArgumentException or FormatException or ArithmeticException)
         {
             throw new ArgumentException($"invalid network public key: {e.Message}", e);
         }
+    }
+
+    /// <summary>
+    /// Parses a public key, the configured network key and the X-Public-Key header alike: hex with
+    /// an optional 0x prefix of a 33-byte compressed (0x02/0x03) or 65-byte uncompressed (0x04)
+    /// secp256k1 point. Returns the 65-byte uncompressed encoding, so both forms of a key compare equal.
+    /// </summary>
+    /// <exception cref="FormatException">The value is not hex.</exception>
+    /// <exception cref="ArgumentException">The bytes are not a public key.</exception>
+    internal static byte[] ParsePublicKey(string value) =>
+        ParseHex(value) is { } encoded
+            ? DecodePublicKey(encoded)
+            : throw new FormatException("public key must be hex with an optional 0x prefix");
+
+    /// <summary>
+    /// Decodes the bytes of a public key (see <see cref="ParsePublicKey"/>) to its 65-byte
+    /// uncompressed encoding.
+    /// </summary>
+    /// <exception cref="ArgumentException">The bytes are not a public key.</exception>
+    private static byte[] DecodePublicKey(byte[] encoded)
+    {
+        // Checked here: DecodePoint also accepts the 65-byte hybrid encodings 0x06 and 0x07.
+        if (!(encoded.Length == 33 && encoded[0] is 0x02 or 0x03) && !(encoded.Length == 65 && encoded[0] == 0x04))
+            throw new ArgumentException(
+                "public key must be 33 bytes compressed (0x02 or 0x03 prefix) or 65 bytes uncompressed (0x04 prefix)");
+        // Throws for a point off the curve.
+        return Secp256k1.DecodePoint(encoded).GetEncoded(false);
     }
 
     public async Task InvokeAsync(HttpContext context)
@@ -97,8 +118,17 @@ public sealed class SignatureVerificationMiddleware
             return;
         }
 
-        // 4. Verify the public key matches the expected network key
-        if (!publicKey.AsSpan().SequenceEqual(_networkPublicKey))
+        // 4. Verify the public key is the expected network key, compressed or uncompressed
+        byte[]? signerPublicKey;
+        try
+        {
+            signerPublicKey = DecodePublicKey(publicKey);
+        }
+        catch (Exception e) when (e is ArgumentException or ArithmeticException)
+        {
+            signerPublicKey = null;
+        }
+        if (signerPublicKey is null || !signerPublicKey.AsSpan().SequenceEqual(_networkPublicKey))
         {
             await WriteGrpcError(context, StatusCode.Unauthenticated, "unknown public key");
             return;
@@ -121,7 +151,7 @@ public sealed class SignatureVerificationMiddleware
         var digest = Keccak256.Hash(body, timestampBytes);
 
         // 7. Verify signature
-        if (!SignatureVerifier.Verify(publicKey, digest, signature))
+        if (!SignatureVerifier.Verify(signerPublicKey, digest, signature))
         {
             await WriteGrpcError(context, StatusCode.Unauthenticated,
                 "signature verification failed");
@@ -135,16 +165,21 @@ public sealed class SignatureVerificationMiddleware
     /// <summary>
     /// Parses a hex-encoded header value (0x prefix optional). Returns null on failure.
     /// </summary>
-    private static byte[]? ParseHexHeader(HttpContext context, string headerName)
+    private static byte[]? ParseHexHeader(HttpContext context, string headerName) =>
+        ParseHex(context.Request.Headers[headerName].FirstOrDefault());
+
+    /// <summary>
+    /// Decodes at least one byte of even-length hex (0x prefix optional). Returns null on failure.
+    /// </summary>
+    private static byte[]? ParseHex(string? value)
     {
-        var headerValue = context.Request.Headers[headerName].FirstOrDefault();
-        if (string.IsNullOrEmpty(headerValue))
+        if (string.IsNullOrEmpty(value))
             return null;
 
         const string prefix = "0x";
-        var hex = headerValue.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
-            ? headerValue[prefix.Length..]
-            : headerValue;
+        var hex = value.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
+            ? value[prefix.Length..]
+            : value;
 
         if (hex.Length == 0 || !HexUtils.TryParseHex(hex, out var bytes))
             return null;

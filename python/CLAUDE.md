@@ -115,6 +115,7 @@ Runtime version: `_version.py` (`__version__`). Full details: [`docs/VERSIONING.
 
 - **Raw bytes:** Signature verification and signing always use original wire bytes, never re-serialized protobuf (see critical requirement above)
 - **Two-phase verification:** ASGI/WSGI middleware (raw bytes) → `contextvars.ContextVar` → ConnectRPC interceptor (error codes). Do not collapse into a single layer.
+- **Fail closed:** `signature_error_var` defaults to `NOT_VERIFIED` and the middleware resets it when the app returns, so a call it did not verify gets `INTERNAL` ("no signature result in context"). `handler()`/`handler_sync()` put the signature interceptor first after the options run, so no `HandlerOption` can remove it.
 - **Wrapper pattern:** `SigningClient` wraps `pyqwest.Client` via delegation, not a subclass: ConnectRPC calls only `get()`, `post()` and `stream()` on it, and each of them is signed or refused in the wrapper.
 - **What is signed is chosen by entry point, not by content type:** `stream()` (Connect streams and every gRPC call) over its first envelope as sent; `post()` (Connect unary) over the whole body.
 - **Streaming signs the first message and sends at once, never buffered.** The first chunk is checked to be exactly one envelope: one that ends early fails with `INVALID_ARGUMENT` ("streaming request ends inside its first message"), one that holds more fails with `INTERNAL`, and neither is signed. Details: [`docs/STREAMING.md`](../docs/STREAMING.md).
@@ -184,6 +185,7 @@ DEFAULT_BASE_URL, DEFAULT_TIMEOUT, DEFAULT_STREAM_TIMEOUT, WireFormat, Protocol
     InvalidHeaderEncodingError,
 )
 TimestampOutOfRangeError, UnknownPublicKeyError, SignatureFailedError
+NetworkPublicKeyRequiredError  # a ValueError raised by new_asgi_app / new_wsgi_app at startup
 ```
 
 ## Starter Template

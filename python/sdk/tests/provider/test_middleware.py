@@ -10,8 +10,10 @@ import pytest
 from t0_provider_sdk.crypto.hash import legacy_keccak256
 from t0_provider_sdk.crypto.keys import private_key_from_hex
 from t0_provider_sdk.crypto.signer import new_signer
+from t0_provider_sdk.provider.errors import InvalidHeaderEncodingError, TimestampOutOfRangeError
 from t0_provider_sdk.provider.middleware import (
     DEFAULT_MAX_BODY_SIZE,
+    NOT_VERIFIED,
     new_verify_signature,
     signature_error_var,
     signature_verification_middleware,
@@ -21,6 +23,10 @@ PRIVATE_KEY = "0x6b30303de7b26bfb1222b317a52113357f8bb06de00160b4261a2fef9c8b9bd
 PUBLIC_KEY = "0x044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0"
 
 OTHER_PUBLIC_KEY = "0x049bb924680bfba3f64d924bf9040c45dcc215b124b5b9ee73ca8e32c050d042c0bbd8dbb98e3929ed5bc2967f28c3a3b72dd5e24312404598bbf6c6cc47708dc7"
+
+# Not ASCII digits below 2^63: negative, 2^63, 2^64, surrounding space, a sign, an underscore,
+# non-ASCII digits, and more digits than int() parses.
+MALFORMED_TIMESTAMPS = ["-1", str(2**63), str(2**64), " 1", "1 ", "+1", "1_0", "\u0661\u0662", "1" * 5000]
 
 
 def _make_signed_request(
@@ -153,6 +159,18 @@ class TestSignatureVerificationMiddleware:
         assert error is not None
         assert "time window" in str(error)
 
+    @pytest.mark.parametrize("timestamp", MALFORMED_TIMESTAMPS)
+    async def test_malformed_timestamp(self, timestamp):
+        """Anything but ASCII digits below 2^63 -> invalid encoding, never an exception."""
+        scope, body = _make_signed_request(override_headers={"x-signature-timestamp": timestamp})
+        error = await _run_middleware(scope, body)
+        assert isinstance(error, InvalidHeaderEncodingError)
+
+    async def test_largest_timestamp_is_out_of_range(self):
+        scope, body = _make_signed_request(override_headers={"x-signature-timestamp": str(2**63 - 1)})
+        error = await _run_middleware(scope, body)
+        assert isinstance(error, TimestampOutOfRangeError)
+
     async def test_timestamp_too_new(self):
         """Timestamp >60s in the future → error."""
         future_ts = int(time.time() * 1000) + 120_000  # 2 minutes ahead
@@ -195,3 +213,10 @@ class TestSignatureVerificationMiddleware:
         # _run_middleware already asserts body is replayed correctly
         error = await _run_middleware(scope, body)
         assert error is None
+
+    async def test_result_does_not_outlive_the_request(self):
+        """Once the request is done its context holds no result, so another request served in it
+        is not taken as verified."""
+        scope, body = _make_signed_request()
+        assert await _run_middleware(scope, body) is None
+        assert signature_error_var.get() is NOT_VERIFIED

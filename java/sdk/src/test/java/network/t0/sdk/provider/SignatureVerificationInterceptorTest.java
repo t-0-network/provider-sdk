@@ -44,7 +44,10 @@ class SignatureVerificationInterceptorTest {
 
     private static final String PRIVATE_KEY_HEX = "6b30303de7b26bfb1222b317a52113357f8bb06de00160b4261a2fef9c8b9bd8";
     private static final String PUBLIC_KEY_HEX = "044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0";
+    private static final String COMPRESSED_PUBLIC_KEY_HEX = "024fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567";
     private static final String OTHER_PRIVATE_KEY_HEX = "0000000000000000000000000000000000000000000000000000000000000001";
+    // The generator point: the public key of OTHER_PRIVATE_KEY_HEX, compressed.
+    private static final String OTHER_COMPRESSED_PUBLIC_KEY_HEX = "0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798";
     private static final long FIXED_TIMESTAMP_MS = 1706000000000L;
     private static final byte[] BODY = "test request body".getBytes();
 
@@ -245,23 +248,95 @@ class SignatureVerificationInterceptorTest {
     }
 
     private static void assertRejectedForTimeWindow(CallOutcome outcome) {
+        assertRejected(outcome, Status.Code.INVALID_ARGUMENT, "time window");
+    }
+
+    private static void assertRejected(CallOutcome outcome, Status.Code code, String description) {
         assertThat(outcome.call.closeStatus).isNotNull();
-        assertThat(outcome.call.closeStatus.getCode()).isEqualTo(Status.Code.INVALID_ARGUMENT);
-        assertThat(outcome.call.closeStatus.getDescription()).contains("time window");
+        assertThat(outcome.call.closeStatus.getCode()).isEqualTo(code);
+        assertThat(outcome.call.closeStatus.getDescription()).contains(description);
         assertThat(outcome.handler.started).isFalse();
         assertThat(outcome.handler.messages).isEmpty();
     }
 
+    // ==================== X-Public-Key Header Tests ====================
+    // Valid signatures and timestamps on a fake call: only the X-Public-Key header decides.
+
+    static List<Arguments> acceptedPublicKeyHeaders() {
+        return List.of(
+                Arguments.of("uncompressed", "0x" + PUBLIC_KEY_HEX),
+                Arguments.of("uncompressed, 0X prefix", "0X" + PUBLIC_KEY_HEX),
+                Arguments.of("compressed", "0x" + COMPRESSED_PUBLIC_KEY_HEX),
+                Arguments.of("compressed, 0X prefix", "0X" + COMPRESSED_PUBLIC_KEY_HEX),
+                Arguments.of("compressed, no prefix", COMPRESSED_PUBLIC_KEY_HEX));
+    }
+
+    @ParameterizedTest(name = "accepts the network key {0}")
+    @MethodSource("acceptedPublicKeyHeaders")
+    void shouldAcceptNetworkKeyInEitherForm(String name, String header) {
+        CallOutcome outcome = intercept(signer, header, FIXED_TIMESTAMP_MS);
+
+        assertThat(outcome.call.closeStatus).isNull();
+        assertThat(outcome.handler.messages).containsExactly(BODY);
+    }
+
+    static List<Arguments> rejectedPublicKeyHeaders() {
+        Status.Code invalidArgument = Status.Code.INVALID_ARGUMENT;
+        Status.Code unauthenticated = Status.Code.UNAUTHENTICATED;
+        return List.of(
+                Arguments.of("missing", null, invalidArgument, "missing required header"),
+                // Not hex
+                Arguments.of("prefix only", "0x", invalidArgument, "invalid header encoding"),
+                Arguments.of("odd length", "0x" + PUBLIC_KEY_HEX.substring(1), invalidArgument, "invalid header encoding"),
+                Arguments.of("whitespace inside", "0x" + PUBLIC_KEY_HEX.substring(0, 66) + " " + PUBLIC_KEY_HEX.substring(66),
+                        invalidArgument, "invalid header encoding"),
+                Arguments.of("trailing junk", "0x" + PUBLIC_KEY_HEX + "zz", invalidArgument, "invalid header encoding"),
+                Arguments.of("non-hex", "0xnot-a-key", invalidArgument, "invalid header encoding"),
+                // Hex, but not a key
+                Arguments.of("truncated", "0x" + PUBLIC_KEY_HEX.substring(0, 128), unauthenticated, "invalid public key"),
+                Arguments.of("compressed prefix on 65 bytes", "0x02" + PUBLIC_KEY_HEX.substring(2),
+                        unauthenticated, "invalid public key"),
+                Arguments.of("uncompressed prefix on 33 bytes", "0x04" + COMPRESSED_PUBLIC_KEY_HEX.substring(2),
+                        unauthenticated, "invalid public key"),
+                Arguments.of("hybrid", "0x06" + PUBLIC_KEY_HEX.substring(2), unauthenticated, "invalid public key"),
+                Arguments.of("off-curve", "0x04" + "00".repeat(64), unauthenticated, "invalid public key"));
+    }
+
+    @ParameterizedTest(name = "rejects {0}")
+    @MethodSource("rejectedPublicKeyHeaders")
+    void shouldRejectPublicKeyHeader(String name, String header, Status.Code code, String description) {
+        assertRejected(intercept(signer, header, FIXED_TIMESTAMP_MS), code, description);
+    }
+
+    @Test
+    @DisplayName("Should reject another key, compressed or uncompressed, as unknown")
+    void shouldRejectRequestSignedByAnotherKey() {
+        String otherPublicKeyHex = "0x" + HexUtils.bytesToHex(otherSigner.getPublicKey());
+
+        assertRejected(intercept(otherSigner, otherPublicKeyHex, FIXED_TIMESTAMP_MS),
+                Status.Code.UNAUTHENTICATED, "request signed with unknown public key");
+        assertRejected(intercept(otherSigner, "0x" + OTHER_COMPRESSED_PUBLIC_KEY_HEX, FIXED_TIMESTAMP_MS),
+                Status.Code.UNAUTHENTICATED, "request signed with unknown public key");
+    }
+
     private record CallOutcome(RecordingServerCall call, RecordingHandler handler) {}
 
-    /**
-     * Runs a call signed at {@code timestampMs} over {@link #BODY} through an interceptor whose
-     * clock reads {@link #FIXED_TIMESTAMP_MS}, then delivers the body if the call was let through.
-     */
     private CallOutcome interceptAt(long timestampMs) {
+        return intercept(signer, "0x" + PUBLIC_KEY_HEX, timestampMs);
+    }
+
+    /**
+     * Runs a call signed by {@code signer} at {@code timestampMs} over {@link #BODY}, with
+     * {@code publicKeyHeader} as X-Public-Key (none if null), through an interceptor expecting
+     * {@link #PUBLIC_KEY_HEX} whose clock reads {@link #FIXED_TIMESTAMP_MS}, then delivers the
+     * body if the call was let through.
+     */
+    private CallOutcome intercept(Signer signer, String publicKeyHeader, long timestampMs) {
         SignResult signResult = signer.sign(Keccak256.hash(BODY, Headers.encodeTimestamp(timestampMs)));
         Metadata headers = new Metadata();
-        headers.put(Metadata.Key.of(Headers.PUBLIC_KEY, Metadata.ASCII_STRING_MARSHALLER), signResult.getPublicKeyHex());
+        if (publicKeyHeader != null) {
+            headers.put(Metadata.Key.of(Headers.PUBLIC_KEY, Metadata.ASCII_STRING_MARSHALLER), publicKeyHeader);
+        }
         headers.put(Metadata.Key.of(Headers.SIGNATURE, Metadata.ASCII_STRING_MARSHALLER), signResult.getSignatureHex());
         headers.put(Metadata.Key.of(Headers.SIGNATURE_TIMESTAMP, Metadata.ASCII_STRING_MARSHALLER),
                 String.valueOf(timestampMs));
@@ -433,7 +508,8 @@ class SignatureVerificationInterceptorTest {
                 Arguments.of("non-hex", "0xnot-a-key"),
                 Arguments.of("prefix only", "0x"),
                 Arguments.of("truncated", PUBLIC_KEY_HEX.substring(0, 128)),
-                Arguments.of("compressed prefix", "02" + PUBLIC_KEY_HEX.substring(2)),
+                Arguments.of("compressed prefix on 65 bytes", "02" + PUBLIC_KEY_HEX.substring(2)),
+                Arguments.of("uncompressed prefix on 33 bytes", "04" + COMPRESSED_PUBLIC_KEY_HEX.substring(2)),
                 Arguments.of("hybrid prefix", "06" + PUBLIC_KEY_HEX.substring(2)),
                 Arguments.of("off-curve", "04" + "00".repeat(64)));
     }
@@ -465,6 +541,22 @@ class SignatureVerificationInterceptorTest {
     void constructorShouldAcceptPublicKeyWith0xPrefix() {
         SignatureVerificationInterceptor interceptor = new SignatureVerificationInterceptor("0x" + PUBLIC_KEY_HEX);
         assertThat(interceptor).isNotNull();
+    }
+
+    static List<Arguments> compressedPublicKeys() {
+        return List.of(
+                Arguments.of("0x" + COMPRESSED_PUBLIC_KEY_HEX, PUBLIC_KEY_HEX),
+                Arguments.of("0x03fff97bd5755eeea420453a14355235d382f6472f8568a18b2f057a1460297556",
+                        "04fff97bd5755eeea420453a14355235d382f6472f8568a18b2f057a1460297556"
+                                + "ae12777aacfbb620f3be96017f45c560de80f0f6518fe4a03c870c36b075f297"));
+    }
+
+    @ParameterizedTest(name = "accepts compressed {0}")
+    @MethodSource("compressedPublicKeys")
+    void constructorShouldAcceptCompressedPublicKey(String key, String uncompressed) {
+        assertThat(new SignatureVerificationInterceptor(key)).isNotNull();
+        assertThat(HexUtils.bytesToHex(SignatureVerificationInterceptor.parseNetworkPublicKey(key)))
+                .isEqualTo(uncompressed);
     }
 
     // ==================== CRITICAL: Raw Bytes Verification Tests ====================

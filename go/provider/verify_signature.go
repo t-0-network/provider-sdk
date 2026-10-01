@@ -48,7 +48,7 @@ func newSignatureVerifierMiddleware(
 				handler.ServeHTTP(writer, req.WithContext(ctx))
 			}
 
-			publicKey, err := parseRequiredHexedHeader(common.PublicKeyHeader, req.Header)
+			publicKey, err := parsePublicKeyHeader(req.Header)
 			if err != nil {
 				setErrorAndContinue(req, connect.CodeInvalidArgument, err.Error())
 				return
@@ -107,6 +107,22 @@ func parseRequiredHexedHeader(headerName string, headers http.Header) ([]byte, e
 	return decodedHeader, nil
 }
 
+// parsePublicKeyHeader decodes the X-Public-Key header. Whether the bytes are a
+// public key is checked by the verifier, which rejects them as Unauthenticated.
+func parsePublicKeyHeader(headers http.Header) ([]byte, error) {
+	encodedHeader := headers.Get(common.PublicKeyHeader)
+	if encodedHeader == "" {
+		return nil, fmt.Errorf("%w: %s", ErrMissingRequiredHeader, common.PublicKeyHeader)
+	}
+
+	decodedHeader, err := decodePublicKeyHex(encodedHeader)
+	if err != nil {
+		return nil, fmt.Errorf("%w: %s", ErrInvalidHeaderEncoding, common.PublicKeyHeader)
+	}
+
+	return decodedHeader, nil
+}
+
 // parseTimestamp extracts the timestamp from the request headers, and returns
 // the parsed time and its byte representation in little-endian format.
 func parseTimestamp(headers http.Header) (time.Time, [8]byte, error) {
@@ -149,7 +165,7 @@ func readBodyWithCap(r *http.Request, cap int64) ([]byte, error) {
 type VerifySignature func(publicKey, message, signature []byte) error
 
 func newVerifySignature(networkPublicKeyHexed string) (VerifySignature, error) {
-	networkPublicKey, err := crypto.GetPublicKeyFromHex(networkPublicKeyHexed)
+	networkPublicKey, err := parsePublicKeyHex(networkPublicKeyHexed)
 	if err != nil {
 		return nil, fmt.Errorf("invalid network public key: %w", err)
 	}
@@ -159,7 +175,7 @@ func newVerifySignature(networkPublicKeyHexed string) (VerifySignature, error) {
 			return ErrInvalidSignature
 		}
 
-		signerPublicKey, err := crypto.GetPublicKeyFromBytes(publicKey)
+		signerPublicKey, err := parsePublicKeyBytes(publicKey)
 		if err != nil {
 			return fmt.Errorf("invalid public key: %w", err)
 		}

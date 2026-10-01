@@ -39,6 +39,7 @@ assertion rather than a sign-then-verify round trip.
 | `request_signing_cases` | signing cases with a `body_hex`, so a body can be binary, framed or empty |
 | `signature_verification` | a presented request → does it verify |
 | `stream_signing_cases` | a streaming request body → the bytes its signature covers, and the signature |
+| `public_key_parsing` | a public key string → accepted or not, and its 65-byte uncompressed form |
 
 `body_hex` is the exact preimage: whatever the transport put in the body, before the
 timestamp is appended and before anything decodes it. `grpc-framed-body` carries the gRPC
@@ -55,6 +56,13 @@ accepts both over gRPC. `content_type` is what the request carries: it is how a 
 to sign the first envelope rather than the whole body. `empty-client-stream` is a client stream
 closed before its first message: every SDK signs those empty bytes and sends the request, and the
 network rejects it.
+
+`public_key_parsing` is the one rule every provider server applies to its configured network
+key and to the `X-Public-Key` header: an optional `0x`/`0X`, strict hex, 65 bytes starting
+`04` or 33 bytes starting `02`/`03`, a point on the curve. A valid row gives the uncompressed
+form, so the compressed and uncompressed forms of a key compare equal. The hybrid `06`/`07`
+form, whitespace inside the hex and trailing junk are rejected, even where a library would
+accept them.
 
 `signature_verification` answers one question: does this signature verify against this
 public key for this body and timestamp. It stops there on purpose. Whether a request is

@@ -30,7 +30,7 @@ from t0_provider_sdk.common.headers import (
     SIGNATURE_TIMESTAMP_HEADER,
 )
 from t0_provider_sdk.crypto.hash import legacy_keccak256
-from t0_provider_sdk.crypto.keys import public_key_from_bytes, public_key_from_hex
+from t0_provider_sdk.crypto.keys import _decode_hex_strict, _parse_public_key, _public_key_from_bytes_strict
 from t0_provider_sdk.crypto.verifier import verify_signature
 from t0_provider_sdk.provider.errors import (
     BodyTooLargeError,
@@ -42,9 +42,17 @@ from t0_provider_sdk.provider.errors import (
     UnknownPublicKeyError,
 )
 
-# Context variable for passing signature errors from middleware to interceptor.
-signature_error_var: contextvars.ContextVar[SignatureVerificationError | None] = contextvars.ContextVar(
-    "signature_error", default=None
+
+class _NotVerified:
+    """The value of signature_error_var where the middleware has not set it: the request was not verified."""
+
+
+NOT_VERIFIED = _NotVerified()
+
+# Context variable for passing signature errors from middleware to interceptor: None when the
+# signature is valid, NOT_VERIFIED where the middleware did not run, so the interceptor refuses the call.
+signature_error_var: contextvars.ContextVar[SignatureVerificationError | _NotVerified | None] = contextvars.ContextVar(
+    "signature_error", default=NOT_VERIFIED
 )
 
 # Default max body size (10 MiB), matching Go SDK and T-0 Network
@@ -65,7 +73,12 @@ class VerifySignatureFn:
         if len(signature) < 64 or len(signature) > 65:
             raise SignatureFailedError()
 
-        signer_public_key = public_key_from_bytes(public_key_bytes)
+        try:
+            signer_public_key = _public_key_from_bytes_strict(public_key_bytes)
+        except ValueError:
+            # Hex, but not a key: it cannot be the network's either.
+            raise UnknownPublicKeyError()
+        # Compared as points: the compressed and the uncompressed form of the network key both match.
         if signer_public_key.format(compressed=False) != self.network_public_key.format(compressed=False):
             raise UnknownPublicKeyError()
 
@@ -76,7 +89,7 @@ class VerifySignatureFn:
 
 def new_verify_signature(network_public_key_hex: str) -> VerifySignatureFn:
     """Create a signature verification function bound to a network public key."""
-    network_public_key = public_key_from_hex(network_public_key_hex)
+    network_public_key = _parse_public_key(network_public_key_hex)
     return VerifySignatureFn(network_public_key=network_public_key)
 
 
@@ -109,20 +122,21 @@ def signature_verification_middleware(
 
         headers = _parse_scope_headers(scope)
 
-        # Read the full body
+        # Read the full body, then parse and verify
+        error: SignatureVerificationError | None
         try:
             body = await _read_body(receive, max_body_size)
+            error = _verify_request(verify_fn, headers, body)
         except BodyTooLargeError as e:
-            signature_error_var.set(e)
-            await app(scope, _replay_receive(b""), send)
-            return
+            body, error = b"", e
 
-        # Parse and verify
-        error = _verify_request(verify_fn, headers, body)
-        signature_error_var.set(error)
-
-        # Replay body to downstream
-        await app(scope, _replay_receive(body), send)
+        # Replay body to downstream. The result is reset when the request ends, so a server that
+        # serves another request in this context never finds it there.
+        token = signature_error_var.set(error)
+        try:
+            await app(scope, _replay_receive(body), send)
+        finally:
+            signature_error_var.reset(token)
 
     return middleware
 
@@ -165,16 +179,13 @@ def _parse_scope_headers(scope: Scope) -> dict[str, str]:
 
 
 def _parse_hex_header(headers: dict[str, str], header_name: str) -> bytes:
-    """Parse a hex-encoded header value, stripping the 0x prefix."""
+    """Parse a hex-encoded header value with an optional 0x or 0X prefix; strict hex, not trimmed."""
     header_key = header_name.lower()
     value = headers.get(header_key, "")
     if not value:
         raise MissingRequiredHeaderError(header_name)
-    hex_str = value.removeprefix("0x")
-    if not hex_str:
-        raise InvalidHeaderEncodingError(header_name)
     try:
-        return bytes.fromhex(hex_str)
+        return _decode_hex_strict(value)
     except ValueError:
         raise InvalidHeaderEncodingError(header_name)
 
@@ -185,9 +196,15 @@ def _parse_timestamp(headers: dict[str, str]) -> tuple[int, bytes]:
     value = headers.get(header_key, "")
     if not value:
         raise MissingRequiredHeaderError(SIGNATURE_TIMESTAMP_HEADER)
+    # ASCII digits only: int() also takes a sign, spaces, underscores and other scripts' digits. The
+    # value must fit the signed 64-bit timestamp the network sends; int() refuses an overlong string.
+    if not (value.isascii() and value.isdigit()):
+        raise InvalidHeaderEncodingError(SIGNATURE_TIMESTAMP_HEADER)
     try:
         timestamp_ms = int(value)
     except ValueError:
+        raise InvalidHeaderEncodingError(SIGNATURE_TIMESTAMP_HEADER)
+    if timestamp_ms >= 2**63:
         raise InvalidHeaderEncodingError(SIGNATURE_TIMESTAMP_HEADER)
     timestamp_bytes = struct.pack("<Q", timestamp_ms)
     return timestamp_ms, timestamp_bytes

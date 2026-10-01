@@ -51,7 +51,7 @@ public final class ProviderServer implements Closeable {
      * Creates a new builder for ProviderServer with required parameters.
      *
      * @param port             the port to listen on (use 0 for any available port)
-     * @param networkPublicKey the T-0 Network public key in hex format (with or without 0x prefix)
+     * @param networkPublicKey the T-0 Network public key in hex (compressed or uncompressed, optional 0x prefix)
      * @return a new Builder instance
      * @throws IllegalArgumentException if port is out of range, or networkPublicKey is missing or malformed
      *                                  (surrounding whitespace is stripped)
@@ -64,7 +64,7 @@ public final class ProviderServer implements Closeable {
      * Convenience method to create and start a server with a single service.
      *
      * @param port             the port to listen on (use 0 for any available port)
-     * @param networkPublicKey the T-0 Network public key in hex format (with or without 0x prefix)
+     * @param networkPublicKey the T-0 Network public key in hex (compressed or uncompressed, optional 0x prefix)
      * @param service          the ProviderService implementation
      * @return the started ProviderServer
      * @throws IOException              if the server fails to start

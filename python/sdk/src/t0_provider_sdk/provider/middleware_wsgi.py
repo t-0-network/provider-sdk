@@ -21,7 +21,7 @@ import io
 from collections.abc import Callable, Iterable
 from typing import Any
 
-from t0_provider_sdk.provider.errors import BodyTooLargeError
+from t0_provider_sdk.provider.errors import BodyTooLargeError, InvalidHeaderEncodingError, SignatureVerificationError
 from t0_provider_sdk.provider.middleware import (
     DEFAULT_MAX_BODY_SIZE,
     VerifySignatureFn,
@@ -53,23 +53,24 @@ def signature_verification_middleware_wsgi(
     def middleware(environ: WSGIEnviron, start_response: StartResponse) -> Iterable[bytes]:
         headers = _parse_wsgi_headers(environ)
 
-        # Read the full body
+        # Read the full body, then parse and verify
+        error: SignatureVerificationError | None
         try:
             body = _read_wsgi_body(environ, max_body_size)
-        except BodyTooLargeError as e:
-            signature_error_var.set(e)
-            environ["wsgi.input"] = io.BytesIO(b"")
-            environ["CONTENT_LENGTH"] = "0"
-            return app(environ, start_response)
+            error = _verify_request(verify_fn, headers, body)
+        except (BodyTooLargeError, InvalidHeaderEncodingError) as e:
+            body, error = b"", e
 
-        # Parse and verify
-        error = _verify_request(verify_fn, headers, body)
-        signature_error_var.set(error)
-
-        # Replay body to downstream
+        # Replay body to downstream. A unary call has passed the interceptor by the time the app
+        # returns, so the result is reset then: the thread serves other requests in this context,
+        # and the response iterable, which may run later, never needs it.
         environ["wsgi.input"] = io.BytesIO(body)
         environ["CONTENT_LENGTH"] = str(len(body))
-        return app(environ, start_response)
+        token = signature_error_var.set(error)
+        try:
+            return app(environ, start_response)
+        finally:
+            signature_error_var.reset(token)
 
     return middleware
 
@@ -98,6 +99,10 @@ def _read_wsgi_body(environ: WSGIEnviron, max_size: int) -> bytes:
     """Read the full request body from WSGI environ, enforcing size limit."""
     content_length = environ.get("CONTENT_LENGTH", "")
     if content_length:
+        # ASCII digits only: some servers (wsgiref) pass the header through unchecked, and int()
+        # would fail on junk or take a negative length, which read() treats as "read everything".
+        if not (content_length.isascii() and content_length.isdigit()):
+            raise InvalidHeaderEncodingError("Content-Length")
         length = int(content_length)
         if length > max_size:
             raise BodyTooLargeError(max_size)

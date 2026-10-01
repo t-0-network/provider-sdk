@@ -45,22 +45,46 @@ export function parsePublicKey(key: string | Buffer): Buffer {
   return Buffer.from(key);
 }
 
+// Thrown by parsePublicKeyPoint for a value that is not hex, as opposed to hex that is not a key.
+export class PublicKeyHexError extends Error {}
+
+// The one parser of the configured network key and the X-Public-Key header (parsePublicKey keeps its
+// own rules): hex with an optional 0x or 0X prefix and nothing else, of a compressed (33 bytes, 02 or
+// 03) or uncompressed (65 bytes, 04) point on secp256k1. Returns the 65-byte uncompressed encoding,
+// so the two forms of a key compare equal. Not exported from the package.
+export function parsePublicKeyPoint(key: string | Uint8Array): Buffer {
+  if (typeof key === 'string') {
+    const hex = key.startsWith('0x') || key.startsWith('0X') ? key.slice(2) : key;
+    // Checked before decoding: Buffer.from(hex, 'hex') stops at the first bad character.
+    if (!/^(?:[0-9a-fA-F]{2})+$/.test(hex)) {
+      throw new PublicKeyHexError('must be hex, with an optional 0x or 0X prefix');
+    }
+    key = Buffer.from(hex, 'hex');
+  }
+  // The hybrid encodings (06, 07) name a point too; noble rejects them, and so does this check.
+  const compressed = key.length === 33 && (key[0] === 0x02 || key[0] === 0x03);
+  const uncompressed = key.length === 65 && key[0] === 0x04;
+  if (!compressed && !uncompressed) {
+    throw new Error('must be 33 bytes with prefix 02 or 03, or 65 bytes with prefix 04');
+  }
+  try {
+    return Buffer.from(secp256k1.Point.fromBytes(key).toBytes(false));
+  } catch {
+    throw new Error('not a point on secp256k1');
+  }
+}
+
 // The configured network key is checked once, at startup, so a missing or
 // mistyped key fails there rather than on every request with "unknown public key".
 export function parseNetworkPublicKey(key: string | Buffer): Buffer {
+  if (typeof key === 'string') {
+    key = key.trim();
+  }
+  if (key === undefined || key === null || key.length === 0) {
+    throw new Error('network public key is not set');
+  }
   try {
-    if (typeof key === 'string') {
-      key = key.trim();
-    }
-    if (key === undefined || key === null || key.length === 0) {
-      throw new Error('key is not set');
-    }
-    const parsed = parsePublicKey(key);
-    // parsePublicKey checks only length and prefix; Go also rejects a point off the curve.
-    if (!secp256k1.utils.isValidPublicKey(parsed, false)) {
-      throw new Error('not a point on secp256k1');
-    }
-    return parsed;
+    return parsePublicKeyPoint(key);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     throw new Error(`invalid network public key: ${msg}`);

@@ -78,10 +78,21 @@ def handler(
         for opt in options:
             opt(opts)
 
-        app = asgi_app_factory(service_impl, interceptors=opts.interceptors)
+        app = asgi_app_factory(
+            service_impl, interceptors=_signature_check_first(opts.interceptors, SignatureErrorInterceptor)
+        )
         return app.path, app
 
     return build
+
+
+def _signature_check_first(interceptors: list[Any], signature_interceptor: type[Any]) -> list[Any]:
+    """The interceptors an app is built with: the signature check first, whatever the options did.
+
+    An option can change or empty the list it is given; the check is added here instead, ahead of
+    every other interceptor, so none of them runs on an unverified request.
+    """
+    return [signature_interceptor(), *(i for i in interceptors if not isinstance(i, signature_interceptor))]
 
 
 def _network_verify_fn(network_public_key: str) -> VerifySignatureFn:
@@ -177,7 +188,9 @@ def handler_sync(
         for opt in options:
             opt(opts)
 
-        app = wsgi_app_factory(service_impl, interceptors=opts.interceptors)
+        app = wsgi_app_factory(
+            service_impl, interceptors=_signature_check_first(opts.interceptors, SignatureErrorInterceptorSync)
+        )
         return app.path, app
 
     return build

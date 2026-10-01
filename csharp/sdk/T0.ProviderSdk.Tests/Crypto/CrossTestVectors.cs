@@ -4,6 +4,7 @@ using System.Text.Json;
 using T0.ProviderSdk.Common;
 using T0.ProviderSdk.Crypto;
 using T0.ProviderSdk.Network;
+using T0.ProviderSdk.Provider;
 using T0.ProviderSdk.Tests.Network;
 
 namespace T0.ProviderSdk.Tests.Crypto;
@@ -168,6 +169,37 @@ public class CrossTestVectors
             Assert.Equal(
                 vec.GetProperty("valid").GetBoolean(),
                 SignatureVerifier.Verify(publicKey, RequestDigest(vec), signature));
+        }
+    }
+
+    /// <summary>
+    /// The rule the middleware parses the configured network key and X-Public-Key with: valid keys
+    /// in their 65-byte uncompressed encoding, everything else rejected.
+    /// </summary>
+    [Fact]
+    public void PublicKeyParsing_ShouldMatchVectorOutcomes()
+    {
+        var cases = Vectors.RootElement.GetProperty("public_key_parsing");
+        Assert.NotEmpty(cases.EnumerateArray());
+
+        foreach (var vec in cases.EnumerateArray())
+        {
+            var name = vec.GetProperty("name").GetString();
+            var expected = vec.GetProperty("valid").GetBoolean()
+                ? vec.GetProperty("uncompressed").GetString()!
+                : "rejected";
+
+            string parsed;
+            try
+            {
+                parsed = HexUtils.BytesToHex(SignatureVerificationMiddleware.ParsePublicKey(
+                    vec.GetProperty("input").GetString()!));
+            }
+            catch (Exception e) when (e is FormatException or ArgumentException or ArithmeticException)
+            {
+                parsed = "rejected";
+            }
+            Assert.Equal($"{name}: {expected}", $"{name}: {parsed}");
         }
     }
 

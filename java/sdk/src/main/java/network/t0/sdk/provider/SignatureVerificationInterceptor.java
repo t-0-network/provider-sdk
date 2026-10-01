@@ -39,9 +39,10 @@ import java.time.Clock;
  *
  * <p>Error handling:
  * <ul>
- *   <li>Missing/invalid headers → INVALID_ARGUMENT</li>
+ *   <li>Missing/invalid headers (including X-Public-Key that is not hex) → INVALID_ARGUMENT</li>
  *   <li>Timestamp outside window → INVALID_ARGUMENT</li>
- *   <li>Wrong public key → UNAUTHENTICATED</li>
+ *   <li>X-Public-Key that is not a secp256k1 key, or another key → UNAUTHENTICATED; the
+ *       compressed and the uncompressed form of the network key are both accepted</li>
  *   <li>Invalid signature → UNAUTHENTICATED</li>
  * </ul>
  *
@@ -66,6 +67,8 @@ public final class SignatureVerificationInterceptor implements ServerInterceptor
             Metadata.Key.of(Headers.SIGNATURE_TIMESTAMP, Metadata.ASCII_STRING_MARSHALLER);
 
     private static final ECCurve SECP256K1 = CustomNamedCurves.getByName("secp256k1").getCurve();
+    private static final int COMPRESSED_PUBLIC_KEY_LENGTH = 33;
+    private static final int UNCOMPRESSED_PUBLIC_KEY_LENGTH = 65;
 
     private final byte[] expectedNetworkPublicKey;
     private final Clock clock;
@@ -98,6 +101,7 @@ public final class SignatureVerificationInterceptor implements ServerInterceptor
      * Parses the configured network public key, so a missing or mistyped key fails at startup
      * rather than on every request. Surrounding whitespace is stripped.
      *
+     * @return the key's 65-byte uncompressed encoding
      * @throws IllegalArgumentException "network public key is not set" for a null, empty or blank key;
      *                                  "invalid network public key: ..." for a malformed one
      */
@@ -107,17 +111,44 @@ public final class SignatureVerificationInterceptor implements ServerInterceptor
             throw new IllegalArgumentException("network public key is not set");
         }
         try {
-            byte[] publicKey = SignatureVerifier.parsePublicKeyHex(key);
-            // Checked here: decodePoint also accepts the 65-byte hybrid encodings 0x06 and 0x07.
-            if (publicKey[0] != 0x04) {
-                throw new IllegalArgumentException("public key must be uncompressed (0x04 prefix)");
-            }
-            // Throws for a point off the curve.
-            SECP256K1.decodePoint(publicKey);
-            return publicKey;
+            return parsePublicKey(key);
         } catch (IllegalArgumentException | ArithmeticException e) {
             throw new IllegalArgumentException("invalid network public key: " + e.getMessage(), e);
         }
+    }
+
+    /**
+     * Parses a secp256k1 public key given in hex: an optional 0x or 0X prefix, then a 33-byte
+     * compressed (0x02/0x03) or 65-byte uncompressed (0x04) key. Used for the configured key
+     * and, in its two steps, for the X-Public-Key header.
+     *
+     * @return the key's 65-byte uncompressed encoding, the same for both forms of one key
+     * @throws IllegalArgumentException if the hex is malformed or the bytes are not a key on the curve
+     */
+    static byte[] parsePublicKey(String publicKeyHex) {
+        return decodePublicKey(decodePublicKeyHex(publicKeyHex));
+    }
+
+    /** Strict hex (no whitespace, even length) after an optional 0x or 0X prefix; at least one byte. */
+    private static byte[] decodePublicKeyHex(String publicKeyHex) {
+        byte[] bytes = HexUtils.hexToBytes(HexUtils.stripHexPrefix(publicKeyHex));
+        if (bytes.length == 0) {
+            throw new IllegalArgumentException("public key must not be empty");
+        }
+        return bytes;
+    }
+
+    private static byte[] decodePublicKey(byte[] publicKey) {
+        // Checked here: decodePoint also accepts the 65-byte hybrid encodings 0x06 and 0x07.
+        boolean compressed = publicKey.length == COMPRESSED_PUBLIC_KEY_LENGTH
+                && (publicKey[0] == 0x02 || publicKey[0] == 0x03);
+        boolean uncompressed = publicKey.length == UNCOMPRESSED_PUBLIC_KEY_LENGTH && publicKey[0] == 0x04;
+        if (!compressed && !uncompressed) {
+            throw new IllegalArgumentException(
+                    "public key must be 33 bytes compressed (0x02/0x03 prefix) or 65 bytes uncompressed (0x04 prefix)");
+        }
+        // Throws for a point off the curve.
+        return SECP256K1.decodePoint(publicKey).getEncoded(false);
     }
 
     @Override
@@ -136,7 +167,7 @@ public final class SignatureVerificationInterceptor implements ServerInterceptor
         if (publicKeyResult instanceof ValidationResult.Invalid invalid) {
             return rejectCall(call, invalid.status(), invalid.message());
         }
-        byte[] publicKey = ((ValidationResult.ValidBytes) publicKeyResult).bytes();
+        byte[] publicKeyBytes = ((ValidationResult.ValidBytes) publicKeyResult).bytes();
 
         // Validate signature header
         ValidationResult signatureResult = validateSignatureHeader(signatureHex);
@@ -152,7 +183,15 @@ public final class SignatureVerificationInterceptor implements ServerInterceptor
         }
         long timestampMs = ((ValidationResult.ValidTimestamp) timestampResult).timestamp();
 
-        // Verify public key matches expected network public key
+        // Verify public key matches expected network public key, compressed or uncompressed.
+        // Both are compared, and the signature verified, as 65-byte uncompressed encodings.
+        byte[] publicKey;
+        try {
+            publicKey = decodePublicKey(publicKeyBytes);
+        } catch (IllegalArgumentException | ArithmeticException e) {
+            log.warn("Request signed with invalid public key: {}", e.getMessage());
+            return rejectCall(call, Status.UNAUTHENTICATED, "invalid public key: " + e.getMessage());
+        }
         if (!SignatureVerifier.publicKeysEqual(publicKey, expectedNetworkPublicKey)) {
             log.warn("Request signed with unknown public key");
             return rejectCall(call, Status.UNAUTHENTICATED, "request signed with unknown public key");
@@ -292,15 +331,9 @@ public final class SignatureVerificationInterceptor implements ServerInterceptor
                     "missing required header: " + Headers.PUBLIC_KEY);
         }
 
-        if (publicKeyHex.length() < 2) {
-            return new ValidationResult.Invalid(Status.INVALID_ARGUMENT,
-                    "invalid header encoding: " + Headers.PUBLIC_KEY);
-        }
-
+        // Only the hex here: bytes that are not a key are refused as UNAUTHENTICATED in interceptCall.
         try {
-            String hex = HexUtils.stripHexPrefix(publicKeyHex);
-            byte[] publicKey = HexUtils.hexToBytes(hex);
-            return new ValidationResult.ValidBytes(publicKey);
+            return new ValidationResult.ValidBytes(decodePublicKeyHex(publicKeyHex));
         } catch (IllegalArgumentException e) {
             return new ValidationResult.Invalid(Status.INVALID_ARGUMENT,
                     "invalid header encoding: " + Headers.PUBLIC_KEY);
