@@ -126,7 +126,7 @@ When the user asks to release, trigger it via `gh workflow run release.yaml -f b
 
 ## Dependency updates
 
-When triaging a Dependabot PR or bumping a library, follow [`.claude/skills/dependency-update/SKILL.md`](.claude/skills/dependency-update/SKILL.md). Non-crypto deps land in a single weekly `ci-batch` PR across all ecosystems (CI is the gate; review the batch changelog once). Crypto / signing-path deps get solo PRs and follow the Tier 3 seven-step audit with pre-bump coverage + cross-language byte-identical verification (PR #99 pattern). New deps appear as solo PRs until added to the allowlist in `.github/dependabot.yml`. The skill auto-triggers on dep-update conversation; there is no slash command.
+When triaging a Dependabot PR or bumping a library, follow [`docs/DEPENDENCY_UPDATES.md`](docs/DEPENDENCY_UPDATES.md). Non-crypto deps land in a single weekly `ci-batch` PR across all ecosystems (CI is the gate; read the changelogs in the batch). Crypto / signing-path deps get solo PRs and the seven-step audit there: direct tests before the bump, then byte-identical cross-language vectors after it (PR #99 pattern). New deps appear as solo PRs until added to the allowlist in `.github/dependabot.yml`.
 
 ## Git Workflow
 

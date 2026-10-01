@@ -77,7 +77,7 @@ Before you open a pull request, check that:
 - **Java's two verification paths are both required.** The Java provider accepts a signature over the unframed message or over the gRPC-framed body, because the network signs either one depending on its transport. See [docs/java/SIGNATURE_VERIFICATION.md](docs/java/SIGNATURE_VERIFICATION.md).
 - **In a stream, only the first message is signed, and it is sent at once.** Never buffer a stream to sign it. Every SDK follows [docs/STREAMING.md](docs/STREAMING.md).
 - **Every place that holds the version is listed in the release workflows.** If you add one, add it to `release.yaml` and `publish.yaml` too. See [docs/VERSIONING.md](docs/VERSIONING.md).
-- **Dependencies follow [.claude/skills/dependency-update/SKILL.md](.claude/skills/dependency-update/SKILL.md).** Dependabot batches ordinary updates. Dependencies on the signing path get their own pull request and an audit.
+- **Dependencies follow [docs/DEPENDENCY_UPDATES.md](docs/DEPENDENCY_UPDATES.md).** Dependabot batches ordinary updates. Dependencies on the signing path get their own pull request and an audit.
 - **`cli/` is copied into other product repositories.** Keep product-specific values in `config.go`. See [docs/CLI.md](docs/CLI.md).
 
 ## Protobuf code generation
@@ -109,6 +109,7 @@ Maintainers release only from GitHub Actions. They run the Release workflow (`re
 - [docs/HEALTH_SERVICE.md](docs/HEALTH_SERVICE.md): the health service
 - [docs/CLI.md](docs/CLI.md): the CLI, its templates and the product-repository sync
 - [docs/VERSIONING.md](docs/VERSIONING.md) and [docs/RELEASE_AND_PUBLISH.md](docs/RELEASE_AND_PUBLISH.md): versions, releases and publishing
+- [docs/DEPENDENCY_UPDATES.md](docs/DEPENDENCY_UPDATES.md): handling Dependabot pull requests, and the audit for signing-path libraries
 - Go: [go/README.md](go/README.md)
 - TypeScript: [node/sdk/README.md](node/sdk/README.md)
 - Python: [python/README.md](python/README.md), [docs/python/ARCHITECTURE.md](docs/python/ARCHITECTURE.md), [docs/python/PITFALLS.md](docs/python/PITFALLS.md)
