@@ -36,7 +36,7 @@ class BaseUrlPathIntegrationTest {
     @ValueSource(strings = {"/prefix", "/prefix/", "/sda/payments/t0"})
     @DisplayName("A path in the base URL prefixes every call, with or without a trailing /")
     void pathPrefixesEveryCall(String path) throws Exception {
-        String prefix = path.substring(1).replaceAll("/$", "");
+        String prefix = path.substring(1, path.endsWith("/") ? path.length() - 1 : path.length());
         ServerServiceDefinition health = ServerInterceptors.intercept(
                 ServerInterceptors.useInputStreamMessages(new ServingHealth().bindService()),
                 new SignatureVerificationInterceptor(PUBLIC_KEY_HEX));
@@ -56,7 +56,9 @@ class BaseUrlPathIntegrationTest {
         try (var client = BlockingNetworkClient.create(
                 "http://localhost:" + server.getPort() + path, Signer.fromHex(PRIVATE_KEY), HealthGrpc::newBlockingStub)) {
             // SERVING only after the interceptor has verified the signature.
-            assertThat(client.stub().check(HealthCheckRequest.getDefaultInstance()).getStatus())
+            // A non-empty request, so that the signature covers real bytes.
+            HealthCheckRequest request = HealthCheckRequest.newBuilder().setService(HealthGrpc.SERVICE_NAME).build();
+            assertThat(client.stub().check(request).getStatus())
                     .isEqualTo(HealthCheckResponse.ServingStatus.SERVING);
         } finally {
             server.shutdownNow().awaitTermination(5, TimeUnit.SECONDS);

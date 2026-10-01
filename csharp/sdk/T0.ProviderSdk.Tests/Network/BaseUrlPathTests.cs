@@ -32,7 +32,7 @@ public class BaseUrlPathTests
         builder.WebHost.ConfigureKestrel(options =>
             options.ListenLocalhost(port, listenOptions => listenOptions.Protocols = HttpProtocols.Http2));
         builder.Services.AddGrpc();
-        builder.Services.AddSingleton(new HealthServiceImpl([]));
+        builder.Services.AddSingleton(new HealthServiceImpl([Health.Descriptor.FullName]));
         await using var app = builder.Build();
         app.Use(async (context, next) =>
         {
@@ -51,7 +51,8 @@ public class BaseUrlPathTests
             new NetworkClientOptions { BaseUrl = $"http://127.0.0.1:{port}{path}" },
             Signer.FromHex(PrivateKey),
             invoker => new Health.HealthClient(invoker));
-        var response = await client.CheckAsync(new HealthCheckRequest());
+        // A non-empty request, so that the signature covers real bytes.
+        var response = await client.CheckAsync(new HealthCheckRequest { Service = Health.Descriptor.FullName });
 
         // SERVING only after the middleware has verified the signature.
         Assert.Equal(HealthCheckResponse.Types.ServingStatus.Serving, response.Status);
