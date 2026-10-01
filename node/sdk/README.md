@@ -185,7 +185,7 @@ If omitted, the SDK logs to **stderr** as a single JSON line per event (same def
 <details>
 <summary>Lower-level primitives</summary>
 
-The individual building blocks are also exported: `createRequestVerifier`, `rejectRequest`, `verifySignature`, `computeDigest`, `keccak256`, `parsePublicKey`, `publicKeyFromPrivateKey`, `publicKeysEqual`, and the `NetworkHeaders` header-name enum. You can import just the crypto module via the `./crypto` subpath: `import { createRequestVerifier } from "@t-0/provider-sdk/crypto"`.
+The individual building blocks are also exported: `createRequestVerifier`, `rejectRequest`, `verifySignature`, `computeDigest`, `keccak256`, `parsePublicKey` (deprecated: not used by the SDK, and will be removed in a future major version), `publicKeyFromPrivateKey`, `publicKeysEqual`, and the `NetworkHeaders` header-name enum. You can import just the crypto module via the `./crypto` subpath: `import { createRequestVerifier } from "@t-0/provider-sdk/crypto"`.
 </details>
 
 ### Provider Public Key
@@ -203,7 +203,7 @@ The input is 64 hex characters, with an optional `0x` or `0X` prefix; output is 
 
 ### Network Client
 
-Use `createClient` to call T-0 Network APIs. The client handles request signing automatically. It speaks the Connect protocol. `endpoint` is the network's base URL; `undefined` means `https://api.t-0.network`.
+Use `createClient` to call T-0 Network APIs. The client handles request signing automatically. It speaks the Connect protocol. `endpoint` is the network's base URL; `undefined` means `https://api.t-0.network`. A value without `://` is read as `https://`, and a path in it prefixes every call. The rule every SDK shares: [`docs/CROSS_SDK_RULES.md`](../../docs/CROSS_SDK_RULES.md).
 
 ```ts
 import { createClient, NetworkService, PaymentMethodType, QuoteType } from "@t-0/provider-sdk";
@@ -239,7 +239,7 @@ const quote = await networkClient.getQuote({
 
 ### Streaming and timeouts
 
-Client- and server-streaming calls are signed over their first request message only, and the request goes out as soon as that message is available. Unary calls get a default deadline of 15 seconds and streaming calls one of 5 minutes, which includes the wait for the first message. A call's own `timeoutMs` replaces the default, shorter or longer. Every timeout is greater than 0 and at most 2147483647 ms. Bidirectional streams are refused with `unimplemented` before anything is sent.
+Client- and server-streaming calls are signed over their first request message only, and the request goes out as soon as that message is available. Unary calls get a default deadline of 15 seconds and streaming calls one of 5 minutes, which includes the wait for the first message. A call's own `timeoutMs` replaces the default, shorter or longer. A configured `timeoutMs` or `streamTimeoutMs` is greater than 0 and at most 2147483647 ms, the limit of Node's timers. Bidirectional streams are refused with `unimplemented` before anything is sent.
 
 ```ts
 import { createClient, NetworkService, WireFormat } from "@t-0/provider-sdk";

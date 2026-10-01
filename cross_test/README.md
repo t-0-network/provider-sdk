@@ -39,6 +39,9 @@ assertion rather than a sign-then-verify round trip.
 | `request_signing_cases` | signing cases with a `body_hex`, so a body can be binary, framed or empty |
 | `signature_verification` | a presented request → does it verify |
 | `stream_signing_cases` | a streaming request body → the bytes its signature covers, and the signature |
+| `public_key_parsing` | a public key string → accepted or not, and its 65-byte uncompressed form |
+| `timestamp_parsing` | an `X-Signature-Timestamp` value → accepted or not, and its value |
+| `base_url_parsing` | a client's base URL → accepted or not, and the error message |
 
 `body_hex` is the exact preimage: whatever the transport put in the body, before the
 timestamp is appended and before anything decodes it. `grpc-framed-body` carries the gRPC
@@ -55,6 +58,11 @@ accepts both over gRPC. `content_type` is what the request carries: it is how a 
 to sign the first envelope rather than the whole body. `empty-client-stream` is a client stream
 closed before its first message: every SDK signs those empty bytes and sends the request, and the
 network rejects it.
+
+`public_key_parsing`, `timestamp_parsing` and `base_url_parsing` check rules V2, V3 and C2 of
+[`docs/CROSS_SDK_RULES.md`](../docs/CROSS_SDK_RULES.md). A valid public key row gives the key's
+65-byte uncompressed form, so the compressed and uncompressed forms of a key compare equal; a
+valid timestamp row gives its value.
 
 `signature_verification` answers one question: does this signature verify against this
 public key for this body and timestamp. It stops there on purpose. Whether a request is
@@ -95,37 +103,43 @@ CI builds the helper automatically (each language's CI workflow sets up Go and b
 | `call-health <url> <hex_private_key> [--grpc]` | Signed health check |
 
 `serve` also serves `test.v1.StreamTest` ([`stream_test.proto`](stream_test.proto), reference
-only) behind a verifier that checks the signature over the first request message, as the T-0
-Network does for streaming RPCs. Each SDK's streaming cross test calls it with hand-built methods
-on `google.protobuf.StringValue`; the helper builds its side the same way (`stream.go`).
+only). Like the provider service, it is built with `provider.Handler`, so the Go SDK's signature
+verification checks every request, as the T-0 Network does for streaming RPCs. Each SDK's streaming
+cross test calls it with hand-built methods on `google.protobuf.StringValue`; the helper builds its
+side the same way (`stream.go`).
 
-The verifier (`verifyFirstEnvelope`), in order:
+For a streaming request the verifier, in order:
 
-1. checks the public key, the signature header and the timestamp window (±60 s) as the headers
-   arrive, before it reads any of the body;
-2. accepts only `application/connect+*`, `application/grpc` and `application/grpc+*`;
-3. reads exactly the first envelope and verifies the signature over it, prefix included — or, for
+1. checks the headers before it reads any of the body: present and well-formed, the timestamp
+   within ±60 s, `X-Public-Key` the network key, a signature of 64 or 65 bytes;
+2. reads exactly the first envelope and verifies the signature over it, prefix included, or, for
    gRPC only, over its payload without the prefix, which is what a signer above the gRPC framer
    (Java) covers. The codec does not matter: Connect JSON streams are signed the same way;
-4. hands the handler the whole body, first envelope included.
+3. hands the handler the whole body, first envelope included, as it arrives.
 
-A refused request fails with an `unauthenticated` RPC error whose message is the reason:
-`unknown public key`, `timestamp is outside the allowed time window`, `signature does not verify
-over the first message`, `no first message`, `truncated first message`, `... is not a streaming
-content type`, or a malformed signature or timestamp header. Every reply to a verified request
-starts with the framing it was verified over, `envelope:` or `payload:` (gRPC without the prefix,
-as Java signs): `ClientStream` answers `<framing>:<values joined by ",">`, and `ServerStream` sends
-`<framing>:<value>` three times. The streaming cross tests check the framing and the refusal reason
-from the call itself.
+A refused request fails with an RPC error whose message is the reason, and the handler never runs:
 
-The verifier also logs its verdict to stderr before the handler reads past the first message:
-`<path> verified over the first envelope|payload` or `<path> rejected: <reason>`. The cross tests
-still use that log in two places, so its wording is a contract: a request went out with its first
-message (message 2 is produced only once message 1 is logged as verified), and a call cancelled
-before its first message sent nothing (no line at all). `go test ./...` here pins
-the verifier and runs the Go client against it over Connect, Connect JSON and gRPC (Go signs below
-the gRPC framer, so it is always verified over the envelope). The client rules:
-[`docs/STREAMING.md`](../docs/STREAMING.md).
+| Reason | Code |
+|---|---|
+| a missing header; `X-Signature` not hex; a malformed `X-Signature-Timestamp`; `timestamp is outside the allowed time window` | `invalid_argument` |
+| `X-Public-Key` not the network key (`invalid public key`, `request signed with unknown public key`); a signature not 64 or 65 bytes (`invalid signature`); `signature verification failed`; `no first message`; `truncated first message` | `unauthenticated` |
+| a first message over the size limit (10 MiB) | `resource_exhausted` |
+
+A streaming procedure called with a unary content type (`application/proto`) gets HTTP 415 from
+connect-go. Every reply to a verified request starts with the framing it was verified over,
+`envelope:` or `payload:` (gRPC without the prefix, as Java signs): `ClientStream` answers
+`<framing>:<values joined by ",">`, and `ServerStream` sends `<framing>:<value>` three times. The
+streaming cross tests check the framing and the refusal from the call itself.
+
+The helper also logs the verdict to stderr before the handler reads past the first message:
+`<path> verified over the first envelope|payload` or `<path> rejected: <reason>`, for every path
+under `/test.v1.StreamTest/`. The cross tests still use that log in two places, so its wording is a
+contract: a request went out with its first message (message 2 is produced only once message 1 is
+logged as verified), and a call cancelled before its first message sent nothing (no line at all).
+`go test ./...` here checks the helper's wiring (the replies, a refusal and the log lines) with the
+Go client over Connect, Connect JSON and gRPC (Go signs below the gRPC framer, so it is always
+verified over the envelope). The verifier itself is tested in the Go SDK (`go/provider`). The client
+rules: [`docs/STREAMING.md`](../docs/STREAMING.md).
 
 Default protocol is Connect (HTTP/1.1). Pass `--grpc` for gRPC protocol over h2c.
 

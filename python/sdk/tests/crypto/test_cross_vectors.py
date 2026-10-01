@@ -9,11 +9,19 @@ import pyqwest
 import pytest
 from t0_provider_sdk.common.headers import SIGNATURE_HEADER, SIGNATURE_TIMESTAMP_HEADER
 from t0_provider_sdk.crypto.hash import legacy_keccak256
-from t0_provider_sdk.crypto.keys import public_key_from_bytes
+from t0_provider_sdk.crypto.keys import (
+    _decode_hex_strict,
+    _parse_public_key,
+    _public_key_from_bytes_strict,
+    public_key_from_bytes,
+    public_key_from_hex,
+)
 from t0_provider_sdk.crypto.signer import new_signer_from_hex
 from t0_provider_sdk.crypto.verifier import verify_signature
 from t0_provider_sdk.network import signing
 from t0_provider_sdk.network.signing import SigningClient, SigningSyncClient
+from t0_provider_sdk.provider.errors import InvalidHeaderEncodingError, MissingRequiredHeaderError
+from t0_provider_sdk.provider.middleware import _parse_timestamp
 
 VECTORS_PATH = Path(__file__).resolve().parents[4] / "cross_test" / "test_vectors.json"
 
@@ -55,7 +63,7 @@ class TestCrossVectorsSignVerifyRoundTrip:
         sign_fn = new_signer_from_hex(VECTORS["keys"]["private_key"])
         digest = legacy_keccak256(b"round trip test")
         sig, pub_key_bytes = sign_fn(digest)
-        pub_key = public_key_from_bytes(pub_key_bytes)
+        pub_key = _public_key_from_bytes_strict(pub_key_bytes)
         assert verify_signature(pub_key, digest, sig)
 
 
@@ -98,6 +106,65 @@ class TestCrossVectorsRequestSigningCases:
             assert sig[:64].hex() == vec["expected_signature"], f"signature for {vec['name']}"
 
 
+def _hex_decodable(vec) -> bool:
+    try:
+        _decode_hex_strict(vec["input"])
+    except ValueError:
+        return False
+    return True
+
+
+class TestCrossVectorsPublicKeyParsing:
+    """The parser the server uses for the configured network key and the X-Public-Key header, and the
+    deprecated public helpers, which follow the same rule."""
+
+    @pytest.mark.parametrize("vec", VECTORS["public_key_parsing"], ids=lambda vec: vec["name"])
+    def test_case(self, vec):
+        if vec["valid"]:
+            assert _parse_public_key(vec["input"]).format(compressed=False).hex() == vec["uncompressed"]
+        else:
+            with pytest.raises(ValueError):
+                _parse_public_key(vec["input"])
+
+    @pytest.mark.parametrize("vec", VECTORS["public_key_parsing"], ids=lambda vec: vec["name"])
+    def test_public_key_from_hex(self, vec):
+        with pytest.deprecated_call():
+            if vec["valid"]:
+                assert public_key_from_hex(vec["input"]).format(compressed=False).hex() == vec["uncompressed"]
+            else:
+                with pytest.raises(ValueError):
+                    public_key_from_hex(vec["input"])
+
+    @pytest.mark.parametrize(
+        "vec", [vec for vec in VECTORS["public_key_parsing"] if _hex_decodable(vec)], ids=lambda vec: vec["name"]
+    )
+    def test_public_key_from_bytes(self, vec):
+        """The rows that are hex at all, decoded."""
+        data = _decode_hex_strict(vec["input"])
+        with pytest.deprecated_call():
+            if vec["valid"]:
+                assert public_key_from_bytes(data).format(compressed=False).hex() == vec["uncompressed"]
+            else:
+                with pytest.raises(ValueError):
+                    public_key_from_bytes(data)
+
+
+class TestCrossVectorsTimestampParsing:
+    """The parser of the X-Signature-Timestamp header."""
+
+    @pytest.mark.parametrize("vec", VECTORS["timestamp_parsing"], ids=lambda vec: vec["name"])
+    def test_case(self, vec):
+        headers = {SIGNATURE_TIMESTAMP_HEADER.lower(): vec["input"]}
+        if vec["valid"]:
+            assert _parse_timestamp(headers) == (int(vec["value"]), struct.pack("<Q", int(vec["value"])))
+        elif vec["input"]:
+            with pytest.raises(InvalidHeaderEncodingError):
+                _parse_timestamp(headers)
+        else:
+            with pytest.raises(MissingRequiredHeaderError):
+                _parse_timestamp(headers)
+
+
 class TestCrossVectorsSignatureVerification:
     """The presented-request cases, including the ones a provider has to refuse."""
 
@@ -106,7 +173,7 @@ class TestCrossVectorsSignatureVerification:
         assert cases
 
         for vec in cases:
-            public_key = public_key_from_bytes(bytes.fromhex(vec["public_key"]))
+            public_key = _public_key_from_bytes_strict(bytes.fromhex(vec["public_key"]))
             signature = bytes.fromhex(vec["signature"])
             result = verify_signature(public_key, _request_digest(vec), signature)
             assert result == vec["valid"], f"{vec['name']}: {vec['note']}"

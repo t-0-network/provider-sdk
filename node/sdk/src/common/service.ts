@@ -9,8 +9,10 @@ import {
 } from "@connectrpc/connect";
 import type { Interceptor } from "@connectrpc/connect";
 import NetworkHeaders from "./headers.js";
-import {Hash} from "@noble/hashes/utils.js";
+import {keccak_256} from "@noble/hashes/sha3.js";
 import { verifySignature } from './crypto/verify.js';
+import { parseNetworkPublicKey, parsePublicKeyPoint } from './crypto/keys.js';
+import { parseTimestamp } from './crypto/request.js';
 import type {DescService, Registry} from "@bufbuild/protobuf";
 import type {ServiceImpl} from "@connectrpc/connect";
 import {createValidationInterceptor, type Logger} from "./validation.js";
@@ -50,29 +52,57 @@ export interface CreateServiceOptions {
 export const REQUEST_VALIDITY_MILLIS = 60_000;
 export const DEFAULT_MAX_BODY_SIZE = 10 * 1024 * 1024; // 10 MiB
 
+// The request body as signatureValidation hashes it on arrival: the hash of the whole body, and for
+// the gRPC framing fallback the hash of the body after its first 5 bytes, those 5 bytes and the length.
+export class BodyHashes {
+  readonly body = keccak_256.create();
+  readonly payload = keccak_256.create();
+  readonly prefix = Buffer.alloc(5);
+  length = 0;
+
+  update(chunk: Buffer) {
+    this.body.update(chunk);
+    const inPrefix = Math.min(Math.max(this.prefix.length - this.length, 0), chunk.length);
+    if (inPrefix > 0) {
+      chunk.copy(this.prefix, this.length, 0, inPrefix);
+    }
+    this.payload.update(chunk.subarray(inPrefix));
+    this.length += chunk.length;
+  }
+
+  // One uncompressed gRPC frame: flag 0 and a length that is the rest of the body.
+  isOneUncompressedFrame(): boolean {
+    return this.length >= 5 && this.prefix[0] === 0 && this.prefix.readUInt32BE(1) === this.length - 5;
+  }
+}
+
 const createSignatureVerification: (networkPublicKey: Buffer) => Interceptor = (networkPublicKey: Buffer) => (next) => async (req) => {
-  const ts = decodeNum(getHeader(req, NetworkHeaders.SignatureTimestamp));
-  if (!Number.isFinite(ts) || Math.abs(Date.now() - ts) > REQUEST_VALIDITY_MILLIS) {
+  const ts = decodeTimestamp(getHeader(req, NetworkHeaders.SignatureTimestamp));
+  // Number(ts) is exact for any timestamp inside the window.
+  if (Math.abs(Date.now() - Number(ts)) > REQUEST_VALIDITY_MILLIS) {
     throw new ConnectError(`${NetworkHeaders.SignatureTimestamp} must be within ${REQUEST_VALIDITY_MILLIS} milliseconds from now` , Code.InvalidArgument);
   }
 
-  const publicKey = decodeHex(getHeader(req, NetworkHeaders.PublicKey))
+  // Both are 65-byte uncompressed encodings, so the compressed form of the network key matches.
+  const publicKey = parsePublicKeyHeader(getHeader(req, NetworkHeaders.PublicKey))
   if (networkPublicKey.compare(publicKey) !== 0 ) {
     throw new ConnectError(`${NetworkHeaders.PublicKey} value is not network public key`, Code.Unauthenticated);
   }
 
   const signature = decodeHex(getHeader(req, NetworkHeaders.Signature))
 
-  const hasher = req.contextValues.get(kHash)!;
+  const body = req.contextValues.get(kBodyHashes)!;
 
   const tsBuf = Buffer.alloc(8);
-  tsBuf.writeBigUInt64LE(BigInt(ts)); // 64‑bit little‑endian timestamp
+  tsBuf.writeBigUInt64LE(ts); // 64‑bit little‑endian timestamp
 
-  const digest = hasher
-    .update(tsBuf)
-    .digest();
-
-  if (!verifySignature(publicKey, digest, signature)) {
+  // The whole body; failing that, for gRPC, a body of one uncompressed frame without its 5-byte
+  // prefix, as the Java SDK signs it (above the gRPC framer). Go's signatureVerifier.verify.
+  const verified = verifySignature(publicKey, body.body.update(tsBuf).digest(), signature)
+    || ((req.header.get("Content-Type") ?? "").startsWith("application/grpc")
+      && body.isOneUncompressedFrame()
+      && verifySignature(publicKey, body.payload.update(tsBuf).digest(), signature));
+  if (!verified) {
     throw new ConnectError(`${NetworkHeaders.Signature} has invalid signature` , Code.Unauthenticated);
   }
   return await next(req);
@@ -89,9 +119,7 @@ export const createService = (
   networkPublicKey: string | Buffer,
   registerRoutes: (router: Router) => void,
   options?: CreateServiceOptions) => {
-  if (typeof networkPublicKey == "string") {
-    networkPublicKey = decodeHex(networkPublicKey)
-  }
+  networkPublicKey = parseNetworkPublicKey(networkPublicKey)
 
   return {
     routes: (router: ConnectRouter)=> {
@@ -111,12 +139,12 @@ export const createService = (
     readMaxBytes: options?.maxBodySize ?? DEFAULT_MAX_BODY_SIZE,
     grpcWeb: false,
     contextValues: (req: any) => {
-      return createContextValues().set(kHash, (req as any).hasher as Hash<Hash<any>>)
+      return createContextValues().set(kBodyHashes, (req as any).bodyHashes as BodyHashes)
     }
   }
 }
 
-const kHash = createContextKey<Hash<Hash<any>>| undefined>(undefined);
+const kBodyHashes = createContextKey<BodyHashes | undefined>(undefined);
 
 function getHeader(req: UnaryRequest | StreamRequest, header: NetworkHeaders) {
   const raw = req.header.get(header);
@@ -124,6 +152,16 @@ function getHeader(req: UnaryRequest | StreamRequest, header: NetworkHeaders) {
     throw new ConnectError(`missing required header '${header}'`, Code.InvalidArgument);
   }
   return raw;
+}
+
+// A value that is not a key is not the network key either: Unauthenticated.
+function parsePublicKeyHeader(value: string) {
+  try {
+    return parsePublicKeyPoint(value);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    throw new ConnectError(`${NetworkHeaders.PublicKey} value is not a public key: ${msg}`, Code.Unauthenticated);
+  }
 }
 
 function decodeHex(value: string) {
@@ -135,10 +173,10 @@ function decodeHex(value: string) {
   }
 }
 
-function decodeNum(value: string) {
-  try {
-    return parseInt(value);
-  } catch (e) {
+function decodeTimestamp(value: string) {
+  const ts = parseTimestamp(value);
+  if (ts === undefined) {
     throw new ConnectError(`invalid header format. '${value}' must be a number`, Code.InvalidArgument);
   }
+  return ts;
 }

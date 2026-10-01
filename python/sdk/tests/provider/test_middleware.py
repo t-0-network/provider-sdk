@@ -10,8 +10,14 @@ import pytest
 from t0_provider_sdk.crypto.hash import legacy_keccak256
 from t0_provider_sdk.crypto.keys import private_key_from_hex
 from t0_provider_sdk.crypto.signer import new_signer
+from t0_provider_sdk.provider.errors import (
+    InvalidHeaderEncodingError,
+    SignatureFailedError,
+    TimestampOutOfRangeError,
+)
 from t0_provider_sdk.provider.middleware import (
     DEFAULT_MAX_BODY_SIZE,
+    NOT_VERIFIED,
     new_verify_signature,
     signature_error_var,
     signature_verification_middleware,
@@ -22,12 +28,21 @@ PUBLIC_KEY = "0x044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe445
 
 OTHER_PUBLIC_KEY = "0x049bb924680bfba3f64d924bf9040c45dcc215b124b5b9ee73ca8e32c050d042c0bbd8dbb98e3929ed5bc2967f28c3a3b72dd5e24312404598bbf6c6cc47708dc7"
 
+# Not ASCII digits below 2^63: negative, 2^63, 2^64, surrounding space, a sign, an underscore,
+# non-ASCII digits, and more digits than int() parses.
+MALFORMED_TIMESTAMPS = ["-1", str(2**63), str(2**64), " 1", "1 ", "+1", "1_0", "\u0661\u0662", "1" * 5000]
+
+# A gRPC body: one uncompressed frame (flag 0, uint32be length, message).
+GRPC_MESSAGE = b"grpc message"
+GRPC_FRAME = b"\x00" + len(GRPC_MESSAGE).to_bytes(4, "big") + GRPC_MESSAGE
+
 
 def _make_signed_request(
     body: bytes = b"test body",
     private_key: str = PRIVATE_KEY,
     timestamp_ms: int | None = None,
     override_headers: dict[str, str] | None = None,
+    signed_body: bytes | None = None,
 ) -> tuple[dict, bytes]:
     """Create a valid signed ASGI request scope and body."""
     key = private_key_from_hex(private_key)
@@ -37,7 +52,8 @@ def _make_signed_request(
         timestamp_ms = int(time.time() * 1000)
 
     timestamp_bytes = struct.pack("<Q", timestamp_ms)
-    digest = legacy_keccak256(body + timestamp_bytes)
+    # The signature covers signed_body when given, the body otherwise.
+    digest = legacy_keccak256((body if signed_body is None else signed_body) + timestamp_bytes)
     signature, pub_key = sign_fn(digest)
 
     headers = {
@@ -153,6 +169,18 @@ class TestSignatureVerificationMiddleware:
         assert error is not None
         assert "time window" in str(error)
 
+    @pytest.mark.parametrize("timestamp", MALFORMED_TIMESTAMPS)
+    async def test_malformed_timestamp(self, timestamp):
+        """Anything but ASCII digits below 2^63 -> invalid encoding, never an exception."""
+        scope, body = _make_signed_request(override_headers={"x-signature-timestamp": timestamp})
+        error = await _run_middleware(scope, body)
+        assert isinstance(error, InvalidHeaderEncodingError)
+
+    async def test_largest_timestamp_is_out_of_range(self):
+        scope, body = _make_signed_request(override_headers={"x-signature-timestamp": str(2**63 - 1)})
+        error = await _run_middleware(scope, body)
+        assert isinstance(error, TimestampOutOfRangeError)
+
     async def test_timestamp_too_new(self):
         """Timestamp >60s in the future → error."""
         future_ts = int(time.time() * 1000) + 120_000  # 2 minutes ahead
@@ -188,6 +216,31 @@ class TestSignatureVerificationMiddleware:
         assert error is not None
         assert "max payload size" in str(error)
 
+    @pytest.mark.parametrize("content_type", ["application/grpc", "application/grpc+proto"])
+    @pytest.mark.parametrize("signed_body", [GRPC_FRAME, GRPC_MESSAGE], ids=["framed body", "message"])
+    async def test_grpc_request_signed_over_framed_body_or_message(self, content_type, signed_body):
+        """A gRPC body signed below the framer (the network) or above it (the Java SDK) passes."""
+        scope, body = _make_signed_request(
+            body=GRPC_FRAME, signed_body=signed_body, override_headers={"content-type": content_type}
+        )
+        assert await _run_middleware(scope, body) is None
+
+    @pytest.mark.parametrize(
+        ("content_type", "body"),
+        [
+            ("application/proto", GRPC_FRAME),
+            ("application/grpc", b"\x01" + GRPC_FRAME[1:]),
+            ("application/grpc", GRPC_FRAME + GRPC_FRAME),
+        ],
+        ids=["not grpc", "compressed flag", "two frames"],
+    )
+    async def test_signature_without_prefix_needs_one_uncompressed_grpc_frame(self, content_type, body):
+        """Signed over everything after the first 5 bytes: refused unless the body is one gRPC frame."""
+        scope, body = _make_signed_request(
+            body=body, signed_body=body[5:], override_headers={"content-type": content_type}
+        )
+        assert isinstance(await _run_middleware(scope, body), SignatureFailedError)
+
     async def test_body_replayed_to_downstream(self):
         """Body is correctly replayed to the downstream app."""
         test_body = b"important data"
@@ -195,3 +248,10 @@ class TestSignatureVerificationMiddleware:
         # _run_middleware already asserts body is replayed correctly
         error = await _run_middleware(scope, body)
         assert error is None
+
+    async def test_result_does_not_outlive_the_request(self):
+        """Once the request is done its context holds no result, so another request served in it
+        is not taken as verified."""
+        scope, body = _make_signed_request()
+        assert await _run_middleware(scope, body) is None
+        assert signature_error_var.get() is NOT_VERIFIED

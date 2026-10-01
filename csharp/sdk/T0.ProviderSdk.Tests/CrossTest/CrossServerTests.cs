@@ -417,7 +417,7 @@ public class CrossServerTests
 
         var ex = await FirstMessageOnlyClientStreamAsync(channel.CreateCallInvoker());
 
-        Assert.Equal(StatusCode.Unauthenticated, ex.StatusCode);
+        Assert.Equal(StatusCode.InvalidArgument, ex.StatusCode);
         Assert.Contains("timestamp is outside the allowed time window", ex.Status.Detail);
     }
 

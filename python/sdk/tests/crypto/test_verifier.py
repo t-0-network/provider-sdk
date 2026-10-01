@@ -1,7 +1,7 @@
 """Tests for signature verification."""
 
 from t0_provider_sdk.crypto.hash import legacy_keccak256
-from t0_provider_sdk.crypto.keys import private_key_from_hex, public_key_from_hex
+from t0_provider_sdk.crypto.keys import _parse_public_key, private_key_from_hex
 from t0_provider_sdk.crypto.signer import new_signer
 from t0_provider_sdk.crypto.verifier import verify_signature
 
@@ -30,7 +30,7 @@ class TestVerifySignature:
 
     def test_wrong_public_key_fails(self):
         key1 = private_key_from_hex(PRIVATE_KEY_HEX_1)
-        key2_pub = public_key_from_hex(PUBLIC_KEY_HEX_2)
+        key2_pub = _parse_public_key(PUBLIC_KEY_HEX_2)
         sign_fn = new_signer(key1)
         digest = legacy_keccak256(b"wrong key")
         signature, _ = sign_fn(digest)

@@ -1,12 +1,14 @@
 // Reference only: nothing is generated from this file.
 //
 // test.v1.StreamTest is the streaming service the cross-language tests use. The Go helper serves
-// it (`go_helper serve`) behind a verifier that checks the signature over the first request
-// message only, the way the T-0 Network verifies streaming RPCs. Each SDK's tests build the two
-// methods by hand on google.protobuf.StringValue, so no SDK needs generated code for it.
+// it (`go_helper serve`) behind the Go SDK's signature verification, which checks the signature
+// over the first request message only, the way the T-0 Network verifies streaming RPCs. Each SDK's
+// tests build the two methods by hand on google.protobuf.StringValue, so no SDK needs generated
+// code for it.
 //
 // Every reply starts with what the signature was verified over, "envelope" or "payload", and ":".
-// A request the verifier refuses fails with UNAUTHENTICATED and the reason as its message.
+// A request the verifier refuses fails with the code from docs/CROSS_SDK_RULES.md and the reason
+// as its message.
 syntax = "proto3";
 
 package test.v1;

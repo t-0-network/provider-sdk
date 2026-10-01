@@ -5,8 +5,10 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"os"
+	"strings"
 	"testing"
 
+	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/stretchr/testify/require"
 	"github.com/t-0-network/provider-sdk/go/crypto"
 )
@@ -41,6 +43,12 @@ type testVectors struct {
 		Signature   string `json:"signature"`
 		Valid       bool   `json:"valid"`
 	} `json:"signature_verification"`
+	PublicKeyParsing []struct {
+		Name         string `json:"name"`
+		Input        string `json:"input"`
+		Valid        bool   `json:"valid"`
+		Uncompressed string `json:"uncompressed"`
+	} `json:"public_key_parsing"`
 }
 
 // requestDigest is what a provider hashes: the raw body with the little-endian
@@ -170,6 +178,41 @@ func TestCrossVectors_SignatureVerification(t *testing.T) {
 
 			digest := requestDigest(t, tc.BodyHex, tc.TimestampMs)
 			require.Equal(t, tc.Valid, crypto.VerifySignature(pubKey, digest, signature))
+		})
+	}
+}
+
+// The deprecated helpers follow the public key rule of the SDK: GetPublicKeyFromHex
+// takes each input as it is, GetPublicKeyFromBytes the bytes of each input that is
+// hex with an optional 0x or 0X prefix.
+func TestCrossVectors_PublicKeyParsing(t *testing.T) {
+	v := loadVectors(t)
+	require.Len(t, v.PublicKeyParsing, 17)
+
+	for _, tc := range v.PublicKeyParsing {
+		t.Run(tc.Name, func(t *testing.T) {
+			check := func(publicKey *secp256k1.PublicKey, err error) {
+				t.Helper()
+				if !tc.Valid {
+					require.Error(t, err)
+					return
+				}
+				require.NoError(t, err)
+				require.Equal(t, tc.Uncompressed, hex.EncodeToString(crypto.GetPublicKeyBytes(publicKey)))
+			}
+
+			check(crypto.GetPublicKeyFromHex(tc.Input))
+
+			cleanHex := tc.Input
+			if strings.HasPrefix(cleanHex, "0x") || strings.HasPrefix(cleanHex, "0X") {
+				cleanHex = cleanHex[2:]
+			}
+			publicKeyBytes, err := hex.DecodeString(cleanHex)
+			if err != nil {
+				require.False(t, tc.Valid, "a valid input is hex")
+				return
+			}
+			check(crypto.GetPublicKeyFromBytes(publicKeyBytes))
 		})
 	}
 }

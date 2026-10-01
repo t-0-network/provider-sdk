@@ -31,7 +31,6 @@ public final class SignatureVerifier {
     );
 
     private static final int PUBLIC_KEY_LENGTH = 65;
-    private static final int PUBLIC_KEY_HEX_LENGTH = 130;
     private static final int DIGEST_LENGTH = 32;
     private static final int SIGNATURE_LENGTH_64 = 64;
     private static final int SIGNATURE_LENGTH_65 = 65;
@@ -86,24 +85,28 @@ public final class SignatureVerifier {
     }
 
     /**
-     * Parses a hex-encoded public key.
+     * Parses a secp256k1 public key given in hex: an optional 0x or 0X prefix, then strict hex (no
+     * whitespace, even length) of a point on the curve, such as a 33-byte compressed (0x02/0x03) or
+     * 65-byte uncompressed (0x04) key.
      *
      * @param hexPublicKey the public key in hex format (with or without 0x prefix)
-     * @return the 65-byte uncompressed public key
-     * @throws IllegalArgumentException if the key is invalid
+     * @return the key's 65-byte uncompressed encoding, the same for every form of one key
+     * @throws IllegalArgumentException if the hex is malformed or the bytes are not a key on the curve
+     * @deprecated Not for application use; will be removed in a future major version.
      */
+    @Deprecated
     public static byte[] parsePublicKeyHex(String hexPublicKey) {
-        if (hexPublicKey == null || hexPublicKey.isEmpty()) {
-            throw new IllegalArgumentException("public key must not be null or empty");
+        // The SDK's one public key parser. SignatureVerificationInterceptor, in another package,
+        // delegates here (Java has no internal visibility across packages), so removing this
+        // method means moving its body there.
+        byte[] publicKey = HexUtils.hexToBytes(HexUtils.stripHexPrefix(hexPublicKey));
+        if (publicKey.length == 0) {
+            // decodePoint would throw ArrayIndexOutOfBoundsException.
+            throw new IllegalArgumentException("public key must not be empty");
         }
-
-        String cleanHex = HexUtils.stripHexPrefix(hexPublicKey);
-
-        if (cleanHex.length() != PUBLIC_KEY_HEX_LENGTH) {
-            throw new IllegalArgumentException("public key must be 65 bytes (130 hex characters)");
-        }
-
-        return HexUtils.hexToBytes(cleanHex);
+        // Throws IllegalArgumentException for an encoding of the wrong length or type and for a point
+        // off the curve.
+        return DOMAIN_PARAMS.getCurve().decodePoint(publicKey).getEncoded(false);
     }
 
     /**

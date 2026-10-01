@@ -3,10 +3,10 @@ package crypto
 import (
 	"encoding/hex"
 	"errors"
-	"fmt"
 	"strings"
 
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
+	"github.com/t-0-network/provider-sdk/go/internal/pubkey"
 )
 
 func GetPrivateKeyBytes(privateKey *secp256k1.PrivateKey) []byte {
@@ -44,22 +44,19 @@ func GetPublicKeyBytes(publicKey *secp256k1.PublicKey) []byte {
 	return publicKey.SerializeUncompressed()
 }
 
+// GetPublicKeyFromBytes parses a public key with secp256k1.ParsePubKey.
+//
+// Deprecated: not used by the SDK; will be removed in a future major version.
 func GetPublicKeyFromBytes(pubKeyBytes []byte) (*secp256k1.PublicKey, error) {
-	publicKey, err := secp256k1.ParsePubKey(pubKeyBytes)
-	if err != nil {
-		return nil, fmt.Errorf("parsing public key bytes: %w", err)
-	}
-
-	return publicKey, nil
+	return pubkey.ParseBytes(pubKeyBytes)
 }
 
+// GetPublicKeyFromHex parses a public key written in hex, with or without a 0x or 0X prefix, under
+// the rule of GetPublicKeyFromBytes.
+//
+// Deprecated: not used by the SDK; will be removed in a future major version.
 func GetPublicKeyFromHex(publicKeyHexed string) (*secp256k1.PublicKey, error) {
-	pubKeyBytes, err := hex.DecodeString(strings.TrimPrefix(strings.ToLower(publicKeyHexed), "0x"))
-	if err != nil {
-		return nil, fmt.Errorf("decoding public key hex: %w", err)
-	}
-
-	return GetPublicKeyFromBytes(pubKeyBytes)
+	return pubkey.ParseHex(publicKeyHexed)
 }
 
 func HexPublicKey(publicKey *secp256k1.PublicKey) string {

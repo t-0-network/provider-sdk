@@ -84,7 +84,7 @@ public final class AsyncNetworkClient<S extends AbstractAsyncStub<S>> extends Ne
      * @param <S>            the async stub type
      * @return a new AsyncNetworkClient instance
      * @throws IllegalArgumentException if the endpoint, signer or stub factory is invalid, or the timeout is not
-     *                                  a positive duration of at most 2147483647 ms
+     *                                  a positive duration
      * @deprecated Use {@link #create(String, DigestSigner, Function, Duration, Duration)}, which also sets the
      *             stream timeout.
      */
@@ -106,12 +106,12 @@ public final class AsyncNetworkClient<S extends AbstractAsyncStub<S>> extends Ne
      * @param signer        the signer to use for signing requests
      * @param stubFactory   the stub factory (e.g., {@code NetworkServiceGrpc::newStub})
      * @param timeout       the default deadline for unary calls
-     * @param streamTimeout the default deadline for client- and server-streaming calls, including
-     *                      the wait for the first message
+     * @param streamTimeout the default deadline for client- and server-streaming calls, counted from
+     *                      when the call is created
      * @param <S>           the async stub type
      * @return a new AsyncNetworkClient instance
      * @throws IllegalArgumentException if the endpoint, signer or stub factory is invalid, or a timeout is
-     *                                  not a positive duration of at most 2147483647 ms
+     *                                  not a positive duration
      */
     public static <S extends AbstractAsyncStub<S>> AsyncNetworkClient<S> create(
             String endpoint,
@@ -146,11 +146,8 @@ public final class AsyncNetworkClient<S extends AbstractAsyncStub<S>> extends Ne
      * @param timeout the timeout value
      * @param unit    the time unit for the timeout
      * @return a new stub instance with the specified deadline
-     * @throws IllegalArgumentException if unit is null, or the timeout is not a positive duration of at
-     *                                  most 2147483647 ms
      */
     public S stub(long timeout, TimeUnit unit) {
-        checkTimeout("timeout", timeout, unit);
         return stub.withDeadlineAfter(timeout, unit);
     }
 }

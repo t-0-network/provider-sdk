@@ -203,5 +203,345 @@
       "expected_signature": "5c515d14860086b51fb127e0e821e3db6019a107f2d4778e17081d6cff2718266ca29ec28569a32bfe5c6e94c70d199f7324cf7813ad3f040e58cbad052a7315",
       "note": "A client stream closed before its first message. Every SDK signs these empty bytes and sends the request; the network rejects the call."
     }
+  ],
+  "public_key_parsing_note": "Every SDK parses the configured network public key and the X-Public-Key header with this rule. Valid keys are compared by point, so the compressed and uncompressed forms of a key are equal.",
+  "public_key_parsing": [
+    {
+      "name": "uncompressed-0x",
+      "input": "0x044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0",
+      "valid": true,
+      "uncompressed": "044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0",
+      "note": "65-byte uncompressed key, the form the network sends."
+    },
+    {
+      "name": "uncompressed-0X",
+      "input": "0X044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0",
+      "valid": true,
+      "uncompressed": "044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0",
+      "note": "Upper-case prefix, as for private keys."
+    },
+    {
+      "name": "uncompressed-no-prefix",
+      "input": "044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0",
+      "valid": true,
+      "uncompressed": "044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0",
+      "note": ""
+    },
+    {
+      "name": "uncompressed-upper-hex",
+      "input": "0x044FA1465C087AAF42E5FF707050B8F77D2CE92129C5F300686BDD3ADFFFE44567713BB7931632837C5268A832512E75599B6964F4484C9531C02E96D90384D9F0",
+      "valid": true,
+      "uncompressed": "044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0",
+      "note": ""
+    },
+    {
+      "name": "compressed-0x",
+      "input": "0x024fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567",
+      "valid": true,
+      "uncompressed": "044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0",
+      "note": "33-byte compressed form (02) of the same key."
+    },
+    {
+      "name": "compressed-no-prefix",
+      "input": "024fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567",
+      "valid": true,
+      "uncompressed": "044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0",
+      "note": ""
+    },
+    {
+      "name": "compressed-other-parity",
+      "input": "0x03fff97bd5755eeea420453a14355235d382f6472f8568a18b2f057a1460297556",
+      "valid": true,
+      "uncompressed": "04fff97bd5755eeea420453a14355235d382f6472f8568a18b2f057a1460297556ae12777aacfbb620f3be96017f45c560de80f0f6518fe4a03c870c36b075f297",
+      "note": "Compressed key with prefix 03."
+    },
+    {
+      "name": "compressed-prefix-on-65-bytes",
+      "input": "0x024fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0",
+      "valid": false,
+      "uncompressed": "",
+      "note": ""
+    },
+    {
+      "name": "uncompressed-prefix-on-33-bytes",
+      "input": "0x044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567",
+      "valid": false,
+      "uncompressed": "",
+      "note": ""
+    },
+    {
+      "name": "off-curve",
+      "input": "0x0400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "valid": false,
+      "uncompressed": "",
+      "note": "Right length and prefix, not a point on secp256k1."
+    },
+    {
+      "name": "truncated",
+      "input": "0x044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9",
+      "valid": false,
+      "uncompressed": "",
+      "note": ""
+    },
+    {
+      "name": "odd-length",
+      "input": "0x044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f",
+      "valid": false,
+      "uncompressed": "",
+      "note": ""
+    },
+    {
+      "name": "whitespace-inside",
+      "input": "0x044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567 713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0",
+      "valid": false,
+      "uncompressed": "",
+      "note": "Hex parsers that skip whitespace must not be used."
+    },
+    {
+      "name": "trailing-junk",
+      "input": "0x044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0zz",
+      "valid": false,
+      "uncompressed": "",
+      "note": "Hex parsers that stop at the first bad character must not be used."
+    },
+    {
+      "name": "non-hex",
+      "input": "0xnot-a-key",
+      "valid": false,
+      "uncompressed": "",
+      "note": ""
+    },
+    {
+      "name": "prefix-only",
+      "input": "0x",
+      "valid": false,
+      "uncompressed": "",
+      "note": ""
+    },
+    {
+      "name": "empty",
+      "input": "",
+      "valid": false,
+      "uncompressed": "",
+      "note": ""
+    }
+  ],
+  "timestamp_parsing_note": "Every SDK parses X-Signature-Timestamp with this rule: ASCII digits 0-9 only (no sign, no spaces, nothing else), a value that fits a signed 64-bit integer. Anything else is InvalidArgument. The +-60 s window is checked after parsing.",
+  "timestamp_parsing": [
+    {
+      "name": "plain",
+      "input": "1706000000000",
+      "valid": true,
+      "value": "1706000000000",
+      "note": ""
+    },
+    {
+      "name": "zero",
+      "input": "0",
+      "valid": true,
+      "value": "0",
+      "note": ""
+    },
+    {
+      "name": "leading-zeros",
+      "input": "0001706000000000",
+      "valid": true,
+      "value": "1706000000000",
+      "note": "Leading zeros are allowed: the signature covers the parsed value."
+    },
+    {
+      "name": "int64-max",
+      "input": "9223372036854775807",
+      "valid": true,
+      "value": "9223372036854775807",
+      "note": "The largest value; the time window rejects it later."
+    },
+    {
+      "name": "int64-max-plus-one",
+      "input": "9223372036854775808",
+      "valid": false,
+      "value": "",
+      "note": "Does not fit a signed 64-bit integer."
+    },
+    {
+      "name": "plus-sign",
+      "input": "+1706000000000",
+      "valid": false,
+      "value": "",
+      "note": "No sign."
+    },
+    {
+      "name": "minus-sign",
+      "input": "-1",
+      "valid": false,
+      "value": "",
+      "note": ""
+    },
+    {
+      "name": "leading-space",
+      "input": " 1706000000000",
+      "valid": false,
+      "value": "",
+      "note": "Not trimmed by the SDK (an HTTP server may strip spaces around a header value before the SDK sees it)."
+    },
+    {
+      "name": "trailing-space",
+      "input": "1706000000000 ",
+      "valid": false,
+      "value": "",
+      "note": ""
+    },
+    {
+      "name": "trailing-junk",
+      "input": "1706000000000abc",
+      "valid": false,
+      "value": "",
+      "note": ""
+    },
+    {
+      "name": "hex",
+      "input": "0x1F",
+      "valid": false,
+      "value": "",
+      "note": ""
+    },
+    {
+      "name": "float",
+      "input": "1.706e12",
+      "valid": false,
+      "value": "",
+      "note": ""
+    },
+    {
+      "name": "underscore",
+      "input": "1_706_000_000_000",
+      "valid": false,
+      "value": "",
+      "note": ""
+    },
+    {
+      "name": "empty",
+      "input": "",
+      "valid": false,
+      "value": "",
+      "note": "A missing or empty header is rejected as missing."
+    }
+  ],
+  "base_url_parsing_note": "Every SDK client checks its base URL with this rule: empty is 'base URL is not set'; a value without '://' is read as 'https://' + value; then the language's standard URL parser, plus: scheme http or https, a host, no user info, no query, no fragment, a port (if any) in 1..65535. Anything else is 'base URL is not valid'. A path prefixes every call. Inputs outside these rows may differ between SDKs, by their URL parsers.",
+  "base_url_parsing": [
+    {
+      "name": "plain",
+      "input": "https://api.t-0.network",
+      "valid": true,
+      "error": ""
+    },
+    {
+      "name": "trailing-slash",
+      "input": "https://api.t-0.network/",
+      "valid": true,
+      "error": ""
+    },
+    {
+      "name": "http-port",
+      "input": "http://localhost:8080",
+      "valid": true,
+      "error": ""
+    },
+    {
+      "name": "ipv4",
+      "input": "http://127.0.0.1:1234",
+      "valid": true,
+      "error": ""
+    },
+    {
+      "name": "ipv6",
+      "input": "http://[::1]:8080",
+      "valid": true,
+      "error": ""
+    },
+    {
+      "name": "no-scheme",
+      "input": "api.t-0.network",
+      "valid": true,
+      "error": ""
+    },
+    {
+      "name": "no-scheme-port",
+      "input": "api.t-0.network:443",
+      "valid": true,
+      "error": ""
+    },
+    {
+      "name": "path",
+      "input": "https://api.t-0.network/v1",
+      "valid": true,
+      "error": ""
+    },
+    {
+      "name": "path-trailing-slash",
+      "input": "https://api.t-0.network/v1/",
+      "valid": true,
+      "error": ""
+    },
+    {
+      "name": "deep-path",
+      "input": "https://api.t-0.network/sda/payments/t0",
+      "valid": true,
+      "error": ""
+    },
+    {
+      "name": "empty",
+      "input": "",
+      "valid": false,
+      "error": "base URL is not set"
+    },
+    {
+      "name": "other-scheme",
+      "input": "ftp://h",
+      "valid": false,
+      "error": "base URL is not valid"
+    },
+    {
+      "name": "no-host",
+      "input": "http://",
+      "valid": false,
+      "error": "base URL is not valid"
+    },
+    {
+      "name": "user-info",
+      "input": "http://user@h",
+      "valid": false,
+      "error": "base URL is not valid"
+    },
+    {
+      "name": "query",
+      "input": "https://api.t-0.network?x",
+      "valid": false,
+      "error": "base URL is not valid"
+    },
+    {
+      "name": "path-query",
+      "input": "https://api.t-0.network/v1?x",
+      "valid": false,
+      "error": "base URL is not valid"
+    },
+    {
+      "name": "fragment",
+      "input": "https://api.t-0.network#f",
+      "valid": false,
+      "error": "base URL is not valid"
+    },
+    {
+      "name": "port-zero",
+      "input": "http://h:0",
+      "valid": false,
+      "error": "base URL is not valid"
+    },
+    {
+      "name": "port-too-large",
+      "input": "http://h:99999",
+      "valid": false,
+      "error": "base URL is not valid"
+    }
   ]
 }

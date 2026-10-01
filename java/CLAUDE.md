@@ -23,13 +23,13 @@ verifySignature(rawBytes, signature);
 - **Unframed path** — Java SDK's own `NetworkClient` (signs above the gRPC framer), unary Connect-protocol calls from Go / Node / Python (a unary Connect body has no frame), and the T-0 Network when configured to call this provider via Connect protocol.
 - **gRPC-framed path** — T-0 Network when configured to call this provider via gRPC protocol. The signer sits below the gRPC framer, so the signed payload covers the 5-byte frame prefix (1 byte compressed flag + 4 bytes big-endian length) followed by the protobuf message bytes.
 
-Removing either path silently breaks one class of caller with `UNAUTHENTICATED` errors.
+Removing either path silently breaks one class of caller with `UNAUTHENTICATED` errors. Every SDK's server accepts both framings (rule V6 in [`docs/CROSS_SDK_RULES.md`](../docs/CROSS_SDK_RULES.md)); Java rebuilds the frame from the message, the others strip it from the body.
 
 GitHub issue #89 raised concern that the framed path looked like dead code — investigation confirmed it is alive and required because the network's gRPC-protocol path signs framed bodies. See [`docs/java/SIGNATURE_VERIFICATION.md`](../docs/java/SIGNATURE_VERIFICATION.md) for the precise signing-payload definitions per transport and conditions under which simplification would be safe.
 
 ## Streaming Calls & Deadlines (client side)
 
-`SigningClientInterceptor` signs only the first message of a client/server stream (unframed) and defers the call's start until then (or until it is cancelled or its deadline or context ends, then unsigned and without sending anything), giving the listener one `onReady` before it; bidi and calls with a non-identity compressor are refused with `UNIMPLEMENTED`. `DefaultDeadlineInterceptor`: unary 15 s, streams 5 min, unless the caller set a deadline on the call or its `Context`. Read [`docs/STREAMING.md`](../docs/STREAMING.md) before touching either.
+`SigningClientInterceptor` signs only the first message of a client/server stream (unframed) and starts the underlying call with it (or with a half-close, signed over empty bytes), holding one lock until that message is sent. Before then it counts `request(n)`, reports `isReady()`, and gives the listener one `onReady`; a `cancel()` sends nothing and closes the listener with `CANCELLED`. A deadline or `Context` that ends before the first message fails the call only when that message comes. Bidi and calls with a non-identity compressor are refused with `UNIMPLEMENTED`. `DefaultDeadlineInterceptor`: unary 15 s, streams 5 min, unless the caller set a deadline on the call or its `Context`. Read [`docs/STREAMING.md`](../docs/STREAMING.md) before touching either.
 
 ---
 

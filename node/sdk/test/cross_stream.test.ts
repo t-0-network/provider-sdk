@@ -148,7 +148,7 @@ describe('Cross-language streaming: Node client → Go server', { skip: !goAvail
     const client = createClient(CLIENT_PRIVATE_KEY, url, StreamTest);
     await assert.rejects(
       client.clientStream(stringValues('m1', 'm2')),
-      isCode(Code.Unauthenticated, 'timestamp is outside the allowed time window'),
+      isCode(Code.InvalidArgument, 'timestamp is outside the allowed time window'),
     );
   });
 

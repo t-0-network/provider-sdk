@@ -1,9 +1,11 @@
 using System.Buffers.Binary;
+using System.Globalization;
 using System.Text;
 using System.Text.Json;
 using T0.ProviderSdk.Common;
 using T0.ProviderSdk.Crypto;
 using T0.ProviderSdk.Network;
+using T0.ProviderSdk.Provider;
 using T0.ProviderSdk.Tests.Network;
 
 namespace T0.ProviderSdk.Tests.Crypto;
@@ -168,6 +170,100 @@ public class CrossTestVectors
             Assert.Equal(
                 vec.GetProperty("valid").GetBoolean(),
                 SignatureVerifier.Verify(publicKey, RequestDigest(vec), signature));
+        }
+    }
+
+    /// <summary>
+    /// The rule the middleware parses the configured network key and X-Public-Key with, and the
+    /// deprecated <see cref="SignatureVerifier.ParsePublicKeyHex"/> with it: valid keys in their
+    /// 65-byte uncompressed encoding, everything else rejected.
+    /// </summary>
+    [Fact]
+    public void PublicKeyParsing_ShouldMatchVectorOutcomes()
+    {
+        var cases = Vectors.RootElement.GetProperty("public_key_parsing");
+        Assert.NotEmpty(cases.EnumerateArray());
+
+#pragma warning disable CS0618 // ParsePublicKeyHex is obsolete; it must still follow the rule
+        Func<string, byte[]>[] parsers = [SignatureVerificationMiddleware.ParsePublicKey, SignatureVerifier.ParsePublicKeyHex];
+#pragma warning restore CS0618
+        foreach (var parse in parsers)
+        {
+            foreach (var vec in cases.EnumerateArray())
+            {
+                var name = $"{parse.Method.Name} {vec.GetProperty("name").GetString()}";
+                var expected = vec.GetProperty("valid").GetBoolean()
+                    ? vec.GetProperty("uncompressed").GetString()!
+                    : "rejected";
+
+                string parsed;
+                try
+                {
+                    parsed = HexUtils.BytesToHex(parse(vec.GetProperty("input").GetString()!));
+                }
+                catch (Exception e) when (e is FormatException or ArgumentException or ArithmeticException)
+                {
+                    parsed = "rejected";
+                }
+                Assert.Equal($"{name}: {expected}", $"{name}: {parsed}");
+            }
+        }
+    }
+
+    /// <summary>
+    /// The rule the middleware parses X-Signature-Timestamp with: decimal digits only, at most
+    /// <see cref="long.MaxValue"/>.
+    /// </summary>
+    [Fact]
+    public void TimestampParsing_ShouldMatchVectorOutcomes()
+    {
+        var cases = Vectors.RootElement.GetProperty("timestamp_parsing");
+        Assert.NotEmpty(cases.EnumerateArray());
+
+        foreach (var vec in cases.EnumerateArray())
+        {
+            var name = vec.GetProperty("name").GetString();
+            var expected = vec.GetProperty("valid").GetBoolean()
+                ? vec.GetProperty("value").GetString()!
+                : "rejected";
+
+            var parsed = SignatureVerificationMiddleware.TryParseTimestamp(
+                vec.GetProperty("input").GetString(), out var timestampMs)
+                ? timestampMs.ToString(CultureInfo.InvariantCulture)
+                : "rejected";
+            Assert.Equal($"{name}: {expected}", $"{name}: {parsed}");
+        }
+    }
+
+    /// <summary>
+    /// The rule <see cref="NetworkClientOptions.BaseUrl"/> checks a base URL with, through the client
+    /// factory that takes one.
+    /// </summary>
+    [Fact]
+    public void BaseUrlParsing_ShouldMatchVectorOutcomes()
+    {
+        var cases = Vectors.RootElement.GetProperty("base_url_parsing");
+        Assert.NotEmpty(cases.EnumerateArray());
+        var signer = Signer.FromHex(Vectors.RootElement.GetProperty("keys").GetProperty("private_key").GetString()!);
+
+        foreach (var vec in cases.EnumerateArray())
+        {
+            var name = vec.GetProperty("name").GetString();
+            var expected = vec.GetProperty("valid").GetBoolean()
+                ? "valid"
+                : $"{vec.GetProperty("error").GetString()} (Parameter 'BaseUrl')";
+
+            string outcome;
+            try
+            {
+                NetworkClient.CreateNetworkServiceClient(vec.GetProperty("input").GetString()!, signer);
+                outcome = "valid";
+            }
+            catch (ArgumentException e)
+            {
+                outcome = e.Message;
+            }
+            Assert.Equal($"{name}: {expected}", $"{name}: {outcome}");
         }
     }
 

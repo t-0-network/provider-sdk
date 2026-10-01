@@ -14,10 +14,11 @@ from connectrpc.errors import ConnectError
 from connectrpc.request import RequestContext
 
 from t0_provider_sdk.provider.errors import (
+    BodyTooLargeError,
     SignatureFailedError,
     UnknownPublicKeyError,
 )
-from t0_provider_sdk.provider.middleware import signature_error_var
+from t0_provider_sdk.provider.middleware import NOT_VERIFIED, signature_error_var
 
 
 def _raise_if_signature_error() -> None:
@@ -26,10 +27,17 @@ def _raise_if_signature_error() -> None:
     if err is None:
         return
 
+    if err is NOT_VERIFIED:
+        # The signature middleware did not run for this request: refuse it rather than serve it unverified.
+        raise ConnectError(Code.INTERNAL, "no signature result in context")
+
     if isinstance(err, (UnknownPublicKeyError, SignatureFailedError)):
         raise ConnectError(Code.UNAUTHENTICATED, str(err))
 
-    # All other signature errors (missing header, invalid encoding, timestamp, body too large)
+    if isinstance(err, BodyTooLargeError):
+        raise ConnectError(Code.RESOURCE_EXHAUSTED, str(err))
+
+    # All other signature errors (missing header, invalid encoding, timestamp)
     raise ConnectError(Code.INVALID_ARGUMENT, str(err))
 
 

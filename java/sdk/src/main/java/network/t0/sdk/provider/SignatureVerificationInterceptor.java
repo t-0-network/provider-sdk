@@ -37,9 +37,12 @@ import java.time.Clock;
  *
  * <p>Error handling:
  * <ul>
- *   <li>Missing/invalid headers → INVALID_ARGUMENT</li>
+ *   <li>Missing headers, X-Signature that is not hex, X-Signature-Timestamp that is not ASCII
+ *       digits → INVALID_ARGUMENT</li>
  *   <li>Timestamp outside window → INVALID_ARGUMENT</li>
- *   <li>Wrong public key → UNAUTHENTICATED</li>
+ *   <li>X-Public-Key that is anything but the network key (not hex, not a secp256k1 key, or
+ *       another key) → UNAUTHENTICATED; the compressed and the uncompressed form of the network
+ *       key are both accepted</li>
  *   <li>Invalid signature → UNAUTHENTICATED</li>
  * </ul>
  *
@@ -82,14 +85,64 @@ public final class SignatureVerificationInterceptor implements ServerInterceptor
      * @param clock               the clock to use for timestamp validation
      */
     public SignatureVerificationInterceptor(String networkPublicKeyHex, Clock clock) {
-        if (networkPublicKeyHex == null || networkPublicKeyHex.isEmpty()) {
-            throw new IllegalArgumentException("networkPublicKeyHex must not be null or empty");
-        }
+        byte[] networkPublicKey = parseNetworkPublicKey(networkPublicKeyHex);
         if (clock == null) {
             throw new IllegalArgumentException("clock must not be null");
         }
-        this.expectedNetworkPublicKey = SignatureVerifier.parsePublicKeyHex(networkPublicKeyHex);
+        this.expectedNetworkPublicKey = networkPublicKey;
         this.clock = clock;
+    }
+
+    /**
+     * Parses the configured network public key, so a missing or mistyped key fails at startup
+     * rather than on every request. Surrounding whitespace is stripped.
+     *
+     * @return the key's 65-byte uncompressed encoding
+     * @throws IllegalArgumentException "network public key is not set" for a null, empty or blank key;
+     *                                  "invalid network public key: ..." for a malformed one
+     */
+    static byte[] parseNetworkPublicKey(String networkPublicKeyHex) {
+        String key = networkPublicKeyHex == null ? "" : networkPublicKeyHex.strip();
+        if (key.isEmpty()) {
+            throw new IllegalArgumentException("network public key is not set");
+        }
+        try {
+            return parsePublicKey(key);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException("invalid network public key: " + e.getMessage(), e);
+        }
+    }
+
+    /**
+     * Parses a secp256k1 public key given in hex: an optional 0x or 0X prefix, then a point on the
+     * curve, such as a 33-byte compressed (0x02/0x03) or 65-byte uncompressed (0x04) key. Used for
+     * the configured key and for the X-Public-Key header.
+     *
+     * @return the key's 65-byte uncompressed encoding, the same for every form of one key
+     * @throws IllegalArgumentException if the hex is malformed or the bytes are not a key on the curve
+     */
+    @SuppressWarnings("deprecation") // The SDK's one key parser; deprecated only for applications.
+    static byte[] parsePublicKey(String publicKeyHex) {
+        return SignatureVerifier.parsePublicKeyHex(publicKeyHex);
+    }
+
+    /**
+     * Parses X-Signature-Timestamp: ASCII digits 0-9 only (no sign, spaces or anything else), at
+     * least one, of a value up to {@link Long#MAX_VALUE}. Leading zeros are allowed.
+     *
+     * @return the timestamp in milliseconds
+     * @throws NumberFormatException if the value is not such a number
+     */
+    static long parseTimestamp(String timestamp) {
+        // Long.parseLong alone also takes a leading + or - and non-ASCII digits.
+        for (int i = 0; i < timestamp.length(); i++) {
+            char c = timestamp.charAt(i);
+            if (c < '0' || c > '9') {
+                throw new NumberFormatException("not ASCII digits 0-9");
+            }
+        }
+        // Throws for an empty value and for one above Long.MAX_VALUE.
+        return Long.parseLong(timestamp);
     }
 
     @Override
@@ -108,7 +161,6 @@ public final class SignatureVerificationInterceptor implements ServerInterceptor
         if (publicKeyResult instanceof ValidationResult.Invalid invalid) {
             return rejectCall(call, invalid.status(), invalid.message());
         }
-        byte[] publicKey = ((ValidationResult.ValidBytes) publicKeyResult).bytes();
 
         // Validate signature header
         ValidationResult signatureResult = validateSignatureHeader(signatureHex);
@@ -124,8 +176,8 @@ public final class SignatureVerificationInterceptor implements ServerInterceptor
         }
         long timestampMs = ((ValidationResult.ValidTimestamp) timestampResult).timestamp();
 
-        // Verify public key matches expected network public key
-        if (!SignatureVerifier.publicKeysEqual(publicKey, expectedNetworkPublicKey)) {
+        // Verify public key matches expected network public key, compressed or uncompressed.
+        if (!isNetworkPublicKey(publicKeyHex)) {
             log.warn("Request signed with unknown public key");
             return rejectCall(call, Status.UNAUTHENTICATED, "request signed with unknown public key");
         }
@@ -144,7 +196,7 @@ public final class SignatureVerificationInterceptor implements ServerInterceptor
                         byte[] bodyBytes = inputStream.readAllBytes();
 
                         // Verify signature
-                        if (!verifySignature(publicKey, bodyBytes, timestampMs, signature)) {
+                        if (!verifySignature(expectedNetworkPublicKey, bodyBytes, timestampMs, signature)) {
                             log.warn("Signature verification failed");
                             call.close(Status.UNAUTHENTICATED.withDescription("signature verification failed"), new Metadata());
                             return;
@@ -263,19 +315,20 @@ public final class SignatureVerificationInterceptor implements ServerInterceptor
             return new ValidationResult.Invalid(Status.INVALID_ARGUMENT,
                     "missing required header: " + Headers.PUBLIC_KEY);
         }
+        // What it holds is checked in interceptCall, by isNetworkPublicKey.
+        return new ValidationResult.Valid();
+    }
 
-        if (publicKeyHex.length() < 2) {
-            return new ValidationResult.Invalid(Status.INVALID_ARGUMENT,
-                    "invalid header encoding: " + Headers.PUBLIC_KEY);
-        }
-
+    /**
+     * Whether the X-Public-Key header is the network key, compressed or uncompressed (compared as
+     * 65-byte uncompressed encodings). Anything else, including a value that is not hex or not a key,
+     * is an unknown key.
+     */
+    private boolean isNetworkPublicKey(String publicKeyHex) {
         try {
-            String hex = HexUtils.stripHexPrefix(publicKeyHex);
-            byte[] publicKey = HexUtils.hexToBytes(hex);
-            return new ValidationResult.ValidBytes(publicKey);
+            return SignatureVerifier.publicKeysEqual(parsePublicKey(publicKeyHex), expectedNetworkPublicKey);
         } catch (IllegalArgumentException e) {
-            return new ValidationResult.Invalid(Status.INVALID_ARGUMENT,
-                    "invalid header encoding: " + Headers.PUBLIC_KEY);
+            return false;
         }
     }
 
@@ -308,7 +361,7 @@ public final class SignatureVerificationInterceptor implements ServerInterceptor
 
         long timestampMs;
         try {
-            timestampMs = Long.parseLong(timestampStr);
+            timestampMs = parseTimestamp(timestampStr);
         } catch (NumberFormatException e) {
             return new ValidationResult.Invalid(Status.INVALID_ARGUMENT,
                     "invalid timestamp header: " + e.getMessage());
@@ -338,6 +391,7 @@ public final class SignatureVerificationInterceptor implements ServerInterceptor
      */
     private sealed interface ValidationResult {
         record Invalid(Status status, String message) implements ValidationResult {}
+        record Valid() implements ValidationResult {}
         record ValidBytes(byte[] bytes) implements ValidationResult {}
         record ValidTimestamp(long timestamp) implements ValidationResult {}
     }

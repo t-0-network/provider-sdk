@@ -141,7 +141,7 @@ graph TB
 
 ## 2. Protocol Specification
 
-This chapter defines the T-0 Network signature protocol as a language-independent specification. No implementation details, libraries, or code are referenced here.
+The rules every SDK shares (key, timestamp, window, framing, body limit, error codes) are in [`docs/CROSS_SDK_RULES.md`](../CROSS_SDK_RULES.md); if this chapter and that page differ, that page is right. This chapter walks through the signature protocol without referring to Python code.
 
 ### 2.1 Signature Protocol
 
@@ -213,13 +213,13 @@ The receiving party verifies an incoming request through the following steps:
 flowchart TD
     A[Receive HTTP Request] --> B{All 3 headers<br/>present?}
     B -->|No| E1["INVALID_ARGUMENT<br/>Missing required header"]
-    B -->|Yes| C{Headers decode<br/>correctly?}
+    B -->|Yes| C{Signature and timestamp<br/>headers decode?}
     C -->|No| E2["INVALID_ARGUMENT<br/>Invalid header encoding"]
     C -->|Yes| D{Timestamp within<br/>±60 seconds?}
     D -->|No| E3["INVALID_ARGUMENT<br/>Timestamp out of range"]
     D -->|Yes| F{Body size<br/>≤ 10 MiB?}
-    F -->|No| E4["INVALID_ARGUMENT<br/>Body too large"]
-    F -->|Yes| G{Public key matches<br/>expected sender?}
+    F -->|No| E4["RESOURCE_EXHAUSTED<br/>Body too large"]
+    F -->|Yes| G{X-Public-Key is the network key,<br/>compressed or uncompressed?}
     G -->|No| E5["UNAUTHENTICATED<br/>Unknown public key"]
     G -->|Yes| H["Compute digest:<br/>Keccak256(body ∥ LE_u64(timestamp))"]
     H --> I{Signature valid<br/>for digest + key?}
@@ -231,18 +231,18 @@ Verification uses public key **recovery**: the public key is recovered from the 
 
 ### 2.2 Error Classification
 
-Signature verification errors fall into two categories based on the nature of the failure:
+Signature verification errors fall into three categories based on the nature of the failure. The codes are the same in every SDK: [`docs/CROSS_SDK_RULES.md`](../CROSS_SDK_RULES.md).
 
 | Error Condition | ConnectRPC Code | Category |
 |----------------|-----------------|----------|
 | Missing required header | `INVALID_ARGUMENT` | Malformed request |
 | Invalid header encoding | `INVALID_ARGUMENT` | Malformed request |
 | Timestamp out of range | `INVALID_ARGUMENT` | Clock drift / replay |
-| Body too large | `INVALID_ARGUMENT` | Size constraint |
-| Unknown public key | `UNAUTHENTICATED` | Authentication failure |
+| Body too large | `RESOURCE_EXHAUSTED` | Size constraint |
+| `X-Public-Key` present but not the network key (bad hex, not a key, or another key) | `UNAUTHENTICATED` | Authentication failure |
 | Signature verification failed | `UNAUTHENTICATED` | Authentication failure |
 
-The distinction determines the appropriate response: `INVALID_ARGUMENT` indicates the request was structurally invalid, while `UNAUTHENTICATED` indicates the request could not be authenticated.
+The distinction determines the appropriate response: `INVALID_ARGUMENT` indicates the request was structurally invalid, `RESOURCE_EXHAUSTED` that its body was over the limit, and `UNAUTHENTICATED` that the request could not be authenticated.
 
 ### 2.3 RPC Service Definitions
 
@@ -479,7 +479,7 @@ classDiagram
     }
     class BodyTooLargeError {
         max_size: int
-        → INVALID_ARGUMENT
+        → RESOURCE_EXHAUSTED
     }
     class UnknownPublicKeyError {
         → UNAUTHENTICATED
@@ -498,6 +498,7 @@ classDiagram
 
 The interceptor uses `isinstance()` checks to determine the ConnectRPC error code:
 - `UnknownPublicKeyError`, `SignatureFailedError` → `Code.UNAUTHENTICATED`
+- `BodyTooLargeError` → `Code.RESOURCE_EXHAUSTED`
 - All others → `Code.INVALID_ARGUMENT`
 
 ### 3.7 Go SDK Correspondence
@@ -591,9 +592,9 @@ All functions use `coincurve.PrivateKey` and `coincurve.PublicKey`. Hex strings 
 | Function | Signature | Notes |
 |----------|-----------|-------|
 | `private_key_from_hex` | `(hex_key: str) -> PrivateKey` | 64 hex digits after an optional `0x`/`0X`, value in [1, n-1]; `ValueError` otherwise |
-| `public_key_from_hex` | `(hex_key: str) -> PublicKey` | Accepts compressed (33B) or uncompressed (65B) |
+| `public_key_from_hex` | `(hex_key: str) -> PublicKey` | Deprecated (not used by the SDK). Optional `0x`/`0X`, strict hex, compressed (33B) or uncompressed (65B) |
 | `public_key_to_bytes` | `(key: PublicKey) -> bytes` | Returns 65-byte uncompressed: `04 ∥ x(32) ∥ y(32)` |
-| `public_key_from_bytes` | `(data: bytes) -> PublicKey` | Accepts compressed or uncompressed format |
+| `public_key_from_bytes` | `(data: bytes) -> PublicKey` | Deprecated (not used by the SDK). Compressed or uncompressed |
 
 #### 4.1.3 `signer.py` -- ECDSA Signing
 
@@ -700,9 +701,9 @@ def new_service_client_sync(
 ) -> T: ...
 ```
 
-The functions check the base URL and the key, create a `SignFn` from the private key (unless `sign_fn` is given), wrap it in `SigningClient`/`SigningSyncClient`, and pass it as the `http_client` parameter to the generated ConnectRPC client constructor, together with the protocol, the codec for `WireFormat.JSON` and `send_compression=None` (requests go out uncompressed). `Protocol.GRPC` on an `http://` base URL gets an HTTP/2 transport without TLS.
+The functions check the base URL (rule C2 in [`docs/CROSS_SDK_RULES.md`](../CROSS_SDK_RULES.md)) and the key, create a `SignFn` from the private key (unless `sign_fn` is given), wrap it in `SigningClient`/`SigningSyncClient`, and pass it as the `http_client` parameter to the generated ConnectRPC client constructor, together with the protocol, the codec for `WireFormat.JSON` and `send_compression=None` (requests go out uncompressed). `Protocol.GRPC` on an `http://` base URL gets an HTTP/2 transport without TLS.
 
-`timeout` (15 s) is the default of unary calls and `stream_timeout` (300 s) that of client- and server-streaming calls; a per-call `timeout_ms` replaces it, shorter or longer. Values that are not positive or exceed 2147483647 ms raise `ValueError`. Bidirectional calls raise `ConnectError(Code.UNIMPLEMENTED)` before anything is sent. See [docs/STREAMING.md](../STREAMING.md#stream-timeout).
+`timeout` (15 s) is the default of unary calls and `stream_timeout` (300 s) that of client- and server-streaming calls; a per-call `timeout_ms` replaces it, shorter or longer. A `timeout` or `stream_timeout` that is not greater than zero raises `ValueError`; a per-call `timeout_ms` goes to connectrpc as is. Bidirectional calls raise `ConnectError(Code.UNIMPLEMENTED)` before anything is sent. See [docs/STREAMING.md](../STREAMING.md#stream-timeout).
 
 #### 4.3.3 `options.py`
 
@@ -737,7 +738,7 @@ The most complex modules in the SDK. Implement Phase 1 of the [two-phase verific
 
 | Name | Type | Purpose |
 |------|------|---------|
-| `signature_error_var` | `ContextVar[SignatureVerificationError \| None]` | Communication channel to interceptor |
+| `signature_error_var` | `ContextVar[SignatureVerificationError \| NOT_VERIFIED \| None]` | Communication channel to interceptor. Defaults to `NOT_VERIFIED`, so a call the middleware did not verify is refused |
 | `VerifySignatureFn` | `dataclass` | Callable that verifies signature against network public key |
 | `signature_verification_middleware` | `function` | ASGI middleware factory |
 | `signature_verification_middleware_wsgi` | `function` | WSGI middleware factory (in `middleware_wsgi.py`) |
@@ -751,31 +752,31 @@ The most complex modules in the SDK. Implement Phase 1 of the [two-phase verific
 
 **`VerifySignatureFn`** is a frozen dataclass holding the network's public key. When called, it:
 1. Validates signature length (64-65 bytes)
-2. Compares the signer's public key to the network public key (raises `UnknownPublicKeyError` on mismatch)
+2. Parses the signer's public key (33-byte compressed or 65-byte uncompressed) and compares it to the network public key as a point (raises `UnknownPublicKeyError` for bytes that are not a key, or for another key)
 3. Computes `Keccak256(message)` and verifies the signature (raises `SignatureFailedError` on failure)
 
 **`signature_verification_middleware(app, verify_fn, max_body_size)`** returns an ASGI middleware that:
 1. Reads the full request body via `_read_body()` (enforcing size limit)
 2. Calls `_verify_request()` which parses headers and runs verification
-3. Stores any error in `signature_error_var`
+3. Stores the result (an error, or `None`) in `signature_error_var`
 4. Creates a synthetic `receive` via `_replay_receive()` to replay the buffered body
-5. Forwards to the downstream ASGI app
+5. Forwards to the downstream ASGI app, and resets `signature_error_var` when it returns
 
 **`signature_verification_middleware_wsgi(app, verify_fn, max_body_size)`** (in `middleware_wsgi.py`) returns a WSGI middleware that:
 1. Reads the full request body from `environ["wsgi.input"]` via `_read_wsgi_body()`
 2. Calls the same `_verify_request()` for header parsing and verification
-3. Stores any error in `signature_error_var`
+3. Stores the result (an error, or `None`) in `signature_error_var`
 4. Replaces `environ["wsgi.input"]` with a `BytesIO` to replay the body
-5. Forwards to the downstream WSGI app
+5. Forwards to the downstream WSGI app, and resets `signature_error_var` when it returns
 
 **Internal helpers:**
 
 | Function | Purpose |
 |----------|---------|
-| `_verify_request(verify_fn, headers, body)` | Orchestrates header parsing and signature verification |
+| `_verify_request(verify_fn, headers, body)` | Orchestrates header parsing and signature verification. If the signature does not verify over the whole body and the request is `application/grpc*` with a body of exactly one uncompressed frame, it verifies again over the message without its 5-byte prefix |
 | `_parse_scope_headers(scope)` | Extracts headers from ASGI scope as a dict |
-| `_parse_hex_header(headers, name)` | Strips `0x` prefix and hex-decodes a header value |
-| `_parse_timestamp(headers)` | Parses timestamp header, returns `(ms_int, LE_8bytes)` |
+| `_parse_hex_header(headers, name)` | Strips an optional `0x`/`0X` prefix and decodes strict hex (no whitespace) |
+| `_parse_timestamp(headers)` | Parses the timestamp header (ASCII digits, below 2^63), returns `(ms_int, LE_8bytes)` |
 | `_read_body(receive, max_size)` | Reads full ASGI body with size enforcement |
 | `_replay_receive(body)` | Returns a synthetic ASGI `receive` callable |
 
@@ -793,7 +794,7 @@ class SignatureErrorInterceptorSync:
     def intercept_unary_sync(self, call_next, request, ctx) -> Any: ...
 ```
 
-Both interceptors call `_raise_if_signature_error()` which reads from `signature_error_var` and raises `ConnectError` with the appropriate code.
+Both interceptors call `_raise_if_signature_error()` which reads from `signature_error_var` and raises `ConnectError` with the appropriate code, or `INTERNAL` ("no signature result in context") when the value is still `NOT_VERIFIED`.
 
 > **ConnectRPC Python specifics:** `Interceptor` is a **Union type**, not a base class. Async interceptors implement the `UnaryInterceptor` Protocol with `intercept_unary(self, call_next, request, ctx)`. Sync interceptors implement `UnaryInterceptorSync` with `intercept_unary_sync(self, call_next, request, ctx)`.
 
@@ -823,7 +824,7 @@ Creates the composite ASGI application:
 1. Creates `_HandlerOptions` with the `SignatureErrorInterceptor`
 2. Builds all registered handlers, collecting `(path, app)` pairs
 3. Creates an ASGI path-prefix router via `_create_router()`
-4. Wraps the router with `signature_verification_middleware` (if `network_public_key` is non-empty)
+4. Wraps the router with `signature_verification_middleware`
 
 **`new_wsgi_app(network_public_key, *build_handlers) -> WSGIApp`**
 
@@ -831,11 +832,13 @@ Creates the composite WSGI application (parallel to `new_asgi_app()`):
 1. Creates `_HandlerOptions` with the `SignatureErrorInterceptorSync`
 2. Builds all registered handlers, collecting `(path, app)` pairs
 3. Creates a WSGI path-prefix router via `_create_wsgi_router()`
-4. Wraps the router with `signature_verification_middleware_wsgi` (if `network_public_key` is non-empty)
+4. Wraps the router with `signature_verification_middleware_wsgi`
 
 Both routers use simple path-prefix matching. ConnectRPC request paths follow the pattern `/<package>.<Service>/<Method>`, so prefix matching on the service path correctly routes all methods of a service.
 
-Pass an empty string for `network_public_key` to disable signature verification (useful for testing).
+`network_public_key` is required, and surrounding whitespace is stripped. It may be compressed (33 bytes) or uncompressed (65 bytes), with an optional `0x`/`0X` prefix (the rule shared by every SDK: root `CLAUDE.md`). Both functions check it before building anything: an empty or whitespace-only key raises `NetworkPublicKeyRequiredError` (a `ValueError`), and a malformed key raises `ValueError("invalid network public key: ...")`.
+
+`handler()` and `handler_sync()` build each service app with the signature interceptor first, after the `HandlerOption`s have run, so no option can remove it.
 
 ### 4.5 Generated Code (`api/`)
 

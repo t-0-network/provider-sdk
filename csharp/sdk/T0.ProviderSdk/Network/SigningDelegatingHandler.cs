@@ -36,7 +36,7 @@ public sealed class SigningDelegatingHandler : DelegatingHandler
         HttpRequestMessage request, CancellationToken cancellationToken)
     {
         if (PathPrefix.Length > 0 && request.RequestUri is { } uri)
-            request.RequestUri = new Uri(uri, PathPrefix + uri.PathAndQuery);
+            request.RequestUri = new Uri(uri.GetLeftPart(UriPartial.Authority) + PathPrefix + uri.PathAndQuery);
 
         if (request.Content is { } content && IsEnveloped(content))
             return await SendSignedOverFirstFrameAsync(request, content, cancellationToken).ConfigureAwait(false);

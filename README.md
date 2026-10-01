@@ -76,7 +76,7 @@ For direct SDK usage without the starter:
 - **Share only your public key** with the T-0 team. Never share your private key.
 - **Use separate keys** for development, staging, and production environments.
 - **Signature verification** -- all inbound requests from the T-0 Network are cryptographically verified using `NETWORK_PUBLIC_KEY`. Verification uses raw request body bytes.
-- **Timestamp validation** -- request timestamps must be within +/- 60 seconds of server time. Keep system clocks synchronized (NTP).
+- **Timestamp validation** -- request timestamps must be within the allowed window of server time ([rules](docs/CROSS_SDK_RULES.md)). Keep system clocks synchronized (NTP).
 
 ## Further Reading
 

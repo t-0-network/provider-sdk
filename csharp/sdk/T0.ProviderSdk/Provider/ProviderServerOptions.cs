@@ -6,8 +6,9 @@ namespace T0.ProviderSdk.Provider;
 public sealed class ProviderServerOptions
 {
     /// <summary>
-    /// The T-0 Network public key in hex format (with or without 0x prefix).
-    /// If empty, signature verification is disabled.
+    /// The T-0 Network public key in hex format (with or without 0x prefix). Required:
+    /// <see cref="SignatureVerificationMiddleware"/> throws <see cref="ArgumentException"/>
+    /// at startup for a missing or malformed key. Surrounding whitespace is trimmed.
     /// </summary>
     public string NetworkPublicKeyHex { get; set; } = "";
 

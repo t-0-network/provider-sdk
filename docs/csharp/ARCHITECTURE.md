@@ -67,7 +67,7 @@ HTTP Request
   → ProviderService handler (business logic)
 ```
 
-The middleware runs before gRPC deserialization. If signature verification fails, a gRPC error frame is written directly (status 3=InvalidArgument or 16=Unauthenticated).
+The middleware runs before gRPC deserialization. If signature verification fails, a gRPC error frame is written directly, with the status code that every SDK uses for that failure ([`CROSS_SDK_RULES.md`](../CROSS_SDK_RULES.md#error-codes)).
 
 ### T0ProviderServer Builder
 
@@ -104,7 +104,7 @@ headers = {
 - **Curve**: secp256k1 (same as Ethereum)
 - **Nonce**: RFC 6979 deterministic (HMAC-SHA256)
 - **Canonical**: `s` forced to lower half of curve order
-- **Timestamp tolerance**: ±60 seconds
+- **Server rules** (timestamp window, key, framing, body limit, error codes): [`CROSS_SDK_RULES.md`](../CROSS_SDK_RULES.md)
 
 ## Go SDK Mapping
 

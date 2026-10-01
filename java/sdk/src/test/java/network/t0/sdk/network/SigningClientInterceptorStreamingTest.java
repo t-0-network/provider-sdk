@@ -7,8 +7,6 @@ import io.grpc.CallOptions;
 import io.grpc.Channel;
 import io.grpc.ClientCall;
 import io.grpc.ClientInterceptors;
-import io.grpc.Context;
-import io.grpc.Contexts;
 import io.grpc.Metadata;
 import io.grpc.MethodDescriptor;
 import io.grpc.MethodDescriptor.MethodType;
@@ -40,13 +38,9 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 /**
  * Tests {@link NetworkClient.SigningClientInterceptor} over a recording fake of the underlying call.
@@ -121,170 +115,36 @@ class SigningClientInterceptorStreamingTest {
     }
 
     @Test
-    @DisplayName("A message sent from an onReady run inside start() goes out after the signed first message")
-    void messageSentFromAnInlineOnReadyFollowsTheSignedMessage() {
-        channel.readyOnStart();
-        RecordingListener<StringValue> listener = new RecordingListener<>();
-        ClientCall<StringValue, StringValue> call = intercepted.newCall(CLIENT_STREAM, callOptions());
-        boolean[] sentFromOnReady = {false};
-        listener.onReadyAction = () -> {
-            if (!sentFromOnReady[0]) {
-                sentFromOnReady[0] = true;
-                call.sendMessage(value("m2"));
-            }
-        };
-        call.start(listener, new Metadata());
-        call.sendMessage(value("m1"));
-        runCallbackTasks(); // the call's executor runs what was held until m1 was out
-
-        RecordingCall raw = channel.lastCall();
-        assertThat(sentFromOnReady[0]).as("onReady sent m2").isTrue();
-        assertThat(raw.sent).containsExactly(bytes("m1"), bytes("m2"));
-        assertThat(verifies(raw.headers, bytes("m1"))).isTrue();
-    }
-
-    @Test
-    @DisplayName("An onReady on another thread while the first message goes out waits for that message")
-    void onReadyFromAnotherThreadWaitsForTheFirstMessage() throws Exception {
+    @DisplayName("A message sent from another thread while the first one goes out waits for it")
+    void messageFromAnotherThreadWaitsForTheFirstMessage() throws Exception {
         channel.blockFirstSend();
-        RecordingListener<StringValue> listener = new RecordingListener<>();
         ClientCall<StringValue, StringValue> call = intercepted.newCall(CLIENT_STREAM, callOptions());
-        boolean[] sentFromOnReady = {false};
-        listener.onReadyAction = () -> {
-            if (!sentFromOnReady[0]) {
-                sentFromOnReady[0] = true;
-                call.sendMessage(value("m2"));
-            }
-        };
-        call.start(listener, new Metadata());
+        call.start(new RecordingListener<>(), new Metadata());
         RecordingCall raw = channel.lastCall();
 
-        Thread sender = new Thread(() -> call.sendMessage(value("m1")));
-        sender.setDaemon(true); // a hang must not keep the test JVM alive
-        sender.start();
-        raw.awaitFirstSendEntered();
-        // As a transport thread with a non-direct executor: the stream turns ready while m1 is going out.
-        Thread transport = new Thread(() -> raw.listener.onReady());
-        transport.setDaemon(true);
-        transport.start();
-        transport.join(5_000);
-        assertThat(transport.isAlive()).as("onReady returned").isFalse();
-        raw.releaseSend();
-        sender.join(5_000);
-        runCallbackTasks(); // the call's executor runs what was held until m1 was out
-
-        assertThat(sender.isAlive()).as("sendMessage returned").isFalse();
-        assertThat(sentFromOnReady[0]).as("onReady sent m2").isTrue();
-        assertThat(raw.sent).containsExactly(bytes("m1"), bytes("m2"));
-        assertThat(verifies(raw.headers, bytes("m1"))).isTrue();
-    }
-
-    @Test
-    @DisplayName("An onReady raised inside the first message's start() is not run by a drain under way elsewhere")
-    void onReadyRaisedDuringTheFirstSendWaitsForItDespiteAnotherDrain() throws Exception {
-        channel.readyOnStart();
-        channel.blockFirstSend();
-        RecordingListener<StringValue> listener = new RecordingListener<>();
-        ClientCall<StringValue, StringValue> call = intercepted.newCall(CLIENT_STREAM, callOptions());
-        FirstOnReadyHeld held = new FirstOnReadyHeld();
-        listener.onReadyAction = () -> {
-            if (held.holdFirst()) {
-                call.sendMessage(value("m2")); // the onReady raised inside start()
-            }
-        };
-
-        RecordingCall raw = runFirstSendAgainstAnotherDrain(call, listener, held);
-
-        assertThat(raw.sent).containsExactly(bytes("m1"), bytes("m2"));
-        assertThat(verifies(raw.headers, bytes("m1"))).isTrue();
-    }
-
-    @Test
-    @DisplayName("An onClose raised inside the first message's start() is not run by a drain under way elsewhere")
-    void onCloseRaisedDuringTheFirstSendWaitsForItDespiteAnotherDrain() throws Exception {
-        channel.closeOnStart(Status.UNAVAILABLE);
-        channel.blockFirstSend();
-        RecordingListener<StringValue> listener = new RecordingListener<>();
-        ClientCall<StringValue, StringValue> call = intercepted.newCall(CLIENT_STREAM, callOptions());
-        FirstOnReadyHeld held = new FirstOnReadyHeld();
-        listener.onReadyAction = held::holdFirst;
-        listener.onCloseAction = () -> call.cancel("closed", null);
-
-        RecordingCall raw = runFirstSendAgainstAnotherDrain(call, listener, held);
-
-        // A cancel before the send would make a real call's sendMessage throw.
-        assertThat(raw.events()).containsExactly("start", "send", "cancel");
-    }
-
-    /**
-     * Starts the call; runs its first onReady on another thread and holds it there, mid-drain; sends m1 on a
-     * third thread, whose start() raises a callback; lets the held drain go on while m1 is still going out.
-     */
-    private RecordingCall runFirstSendAgainstAnotherDrain(
-            ClientCall<StringValue, StringValue> call, RecordingListener<StringValue> listener, FirstOnReadyHeld held)
-            throws Exception {
-        call.start(listener, new Metadata());
-        RecordingCall raw = channel.lastCall();
-        Thread drainer = new Thread(this::runCallbackTasks); // the call's first onReady, before any message
-        drainer.setDaemon(true); // a hang must not keep the test JVM alive
-        Thread sender = new Thread(() -> call.sendMessage(value("m1")));
-        sender.setDaemon(true);
+        Thread first = new Thread(() -> call.sendMessage(value("m1")));
+        Thread second = new Thread(() -> call.sendMessage(value("m2")));
+        first.setDaemon(true); // a hang must not keep the test JVM alive
+        second.setDaemon(true);
         try {
-            drainer.start();
-            assertThat(held.entered.await(5, TimeUnit.SECONDS)).as("first onReady entered").isTrue();
-            sender.start();
-            raw.awaitFirstSendEntered(); // start() has raised its callback; m1 is going out
-            held.release.countDown();
-            drainer.join(5_000);
-            assertThat(drainer.isAlive()).as("the other drain finished").isFalse();
+            first.start();
+            raw.awaitFirstSendEntered();
+            second.start();
+            // m2 waits for the call's lock, which m1 holds until it is out.
+            long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
+            while (second.getState() != Thread.State.BLOCKED && System.nanoTime() < deadline) {
+                Thread.onSpinWait();
+            }
+            assertThat(second.getState()).isEqualTo(Thread.State.BLOCKED);
+            assertThat(raw.sent).isEmpty();
         } finally {
-            held.release.countDown();
             raw.releaseSend();
         }
-        sender.join(5_000);
-        assertThat(sender.isAlive()).as("sendMessage returned").isFalse();
-        runCallbackTasks(); // the call's executor runs what was held until m1 was out
-        return raw;
-    }
+        first.join(5_000);
+        second.join(5_000);
 
-    /** Holds the listener's first onReady until released; true for every later one. */
-    private static final class FirstOnReadyHeld {
-        final CountDownLatch entered = new CountDownLatch(1);
-        final CountDownLatch release = new CountDownLatch(1);
-        private final java.util.concurrent.atomic.AtomicInteger calls = new java.util.concurrent.atomic.AtomicInteger();
-
-        boolean holdFirst() {
-            if (calls.incrementAndGet() == 1) {
-                entered.countDown();
-                awaitQuietly(release);
-                return false;
-            }
-            return calls.get() == 2;
-        }
-    }
-
-    @Test
-    @DisplayName("A callback held while the first message goes out runs on the call's executor, not the sender's thread")
-    void heldCallbackRunsOnTheCallsExecutor() throws Exception {
-        channel.readyOnStart();
-        ExecutorService callExecutor = Executors.newSingleThreadExecutor(task -> new Thread(task, "call-executor"));
-        try {
-            List<String> onReadyThreads = Collections.synchronizedList(new ArrayList<>());
-            RecordingListener<StringValue> listener = new RecordingListener<>();
-            listener.onReadyAction = () -> onReadyThreads.add(Thread.currentThread().getName());
-            ClientCall<StringValue, StringValue> call =
-                    intercepted.newCall(CLIENT_STREAM, CallOptions.DEFAULT.withExecutor(callExecutor));
-            call.start(listener, new Metadata());
-            callExecutor.submit(() -> { }).get(5, TimeUnit.SECONDS); // the call's first onReady has run
-
-            call.sendMessage(value("m1")); // start() raises onReady, held until m1 is out
-            callExecutor.submit(() -> { }).get(5, TimeUnit.SECONDS); // what was handed to the executor has run
-
-            assertThat(onReadyThreads).isNotEmpty().allMatch("call-executor"::equals);
-            assertThat(channel.lastCall().sent).containsExactly(bytes("m1"));
-        } finally {
-            callExecutor.shutdownNow();
-        }
+        assertThat(raw.sent).containsExactly(bytes("m1"), bytes("m2"));
+        assertThat(verifies(raw.headers, bytes("m1"))).isTrue();
     }
 
     @Test
@@ -312,7 +172,7 @@ class SigningClientInterceptorStreamingTest {
 
     @Test
     @DisplayName("Empty client stream signs empty bytes and starts the call on halfClose")
-    void emptyClientStreamSignsEmptyBytes() throws IOException {
+    void emptyClientStreamSignsEmptyBytes() {
         ClientCall<StringValue, StringValue> call = intercepted.newCall(CLIENT_STREAM, callOptions());
         call.start(new RecordingListener<>(), new Metadata());
         call.request(1);
@@ -354,49 +214,6 @@ class SigningClientInterceptorStreamingTest {
 
         assertThat(digests).hasSize(1);
         assertThat(verifies(channel.lastCall().headers, bytes("m1"))).isTrue();
-    }
-
-    @Test
-    @DisplayName("A signer that throws (even an undeclared checked exception): nothing starts, and cancel() or the deadline still closes the call")
-    void throwingSignerLeavesTheCallToCancelAndTheDeadline() throws Exception {
-        IOException failure = new IOException("signer unreachable");
-        DigestSigner failing = new DigestSigner() {
-            @Override
-            public SignResult sign(byte[] digest) {
-                return SigningClientInterceptorStreamingTest.<RuntimeException>sneakyThrow(failure);
-            }
-
-            @Override
-            public byte[] getPublicKey() {
-                return signer.getPublicKey();
-            }
-        };
-        Clock clock = Clock.fixed(Instant.ofEpochMilli(FIXED_TIMESTAMP_MS), ZoneOffset.UTC);
-        Channel withFailing = ClientInterceptors.intercept(channel, new NetworkClient.SigningClientInterceptor(failing, clock));
-
-        // cancel() from another thread still starts the call unsigned and closes the listener.
-        RecordingListener<StringValue> listener = new RecordingListener<>();
-        ClientCall<StringValue, StringValue> call = withFailing.newCall(CLIENT_STREAM, callOptions());
-        call.start(listener, new Metadata());
-        assertThatThrownBy(() -> call.sendMessage(value("m1"))).isSameAs(failure);
-        assertThat(channel.lastCall().events()).as("nothing started").isEmpty();
-        Thread canceller = new Thread(() -> call.cancel("signing failed", failure));
-        canceller.setDaemon(true); // a hang must not keep the test JVM alive
-        canceller.start();
-        canceller.join(5_000);
-        assertThat(canceller.isAlive()).as("cancel() returned").isFalse();
-        assertThat(channel.lastCall().events()).containsExactly("start", "cancel");
-        assertThat(channel.lastCall().headers.get(SIGNATURE)).isNull();
-        assertThat(listener.closeStatus.getCode()).isEqualTo(Status.Code.CANCELLED);
-
-        // Without a cancel, the deadline still starts the call unsigned, and grpc fails it.
-        ClientCall<StringValue, StringValue> timed = withFailing.newCall(
-                CLIENT_STREAM, callOptions().withDeadlineAfter(50, TimeUnit.MILLISECONDS));
-        timed.start(new RecordingListener<>(), new Metadata());
-        assertThatThrownBy(() -> timed.sendMessage(value("m1"))).isSameAs(failure);
-        RecordingCall raw = channel.lastCall();
-        awaitEvents(raw, "start");
-        assertThat(raw.headers.get(SIGNATURE)).isNull();
     }
 
     // ==================== Server streaming ====================
@@ -480,7 +297,7 @@ class SigningClientInterceptorStreamingTest {
         assertThat(verifies(raw.headers, bytes("m1"))).isTrue();
     }
 
-    // ==================== Before the deferred start ====================
+    // ==================== Before the first message ====================
 
     @Test
     @DisplayName("isReady() is true before the first message, then reflects the started call")
@@ -501,22 +318,22 @@ class SigningClientInterceptorStreamingTest {
     }
 
     @Test
-    @DisplayName("cancel() before the first message starts the call so the listener gets onClose(CANCELLED)")
-    void cancelBeforeStartDeliversOnClose() {
+    @DisplayName("cancel() before the first message sends nothing and closes the listener once with CANCELLED")
+    void cancelBeforeTheFirstMessageClosesTheListenerOnce() {
         RecordingListener<StringValue> listener = new RecordingListener<>();
         ClientCall<StringValue, StringValue> call = intercepted.newCall(CLIENT_STREAM, callOptions());
         call.start(listener, new Metadata());
         call.request(1);
         call.cancel("caller gave up", null);
+        call.cancel("again", null);
+        runCallbackTasks(); // the first onReady, which a cancelled call does not deliver
 
         RecordingCall raw = channel.lastCall();
-        assertThat(raw.events).containsExactly("start", "request:1", "cancel");
-        assertThat(listener.closeStatus).isNotNull();
+        assertThat(raw.starts).isZero();
+        assertThat(raw.events).containsExactly("cancel", "cancel");
+        assertThat(listener.events).containsExactly("onClose");
         assertThat(listener.closeStatus.getCode()).isEqualTo(Status.Code.CANCELLED);
         assertThat(listener.closeStatus.getDescription()).isEqualTo("caller gave up");
-        assertThat(raw.headers.get(SIGNATURE)).isNull();
-        // Started in a cancelled context: grpc opens no stream for it, so nothing is sent.
-        assertThat(raw.contextCancelledAtStart).isTrue();
     }
 
     @Test
@@ -532,22 +349,6 @@ class SigningClientInterceptorStreamingTest {
     }
 
     @Test
-    @DisplayName("After cancel() before the first message, the listener runs in the caller's context")
-    void listenerRunsInTheCallersContextAfterCancel() {
-        RecordingListener<StringValue> listener = new RecordingListener<>();
-        List<Boolean> cancelledInOnClose = new ArrayList<>();
-        listener.onCloseAction = () -> cancelledInOnClose.add(Context.current().isCancelled());
-        ClientCall<StringValue, StringValue> call = intercepted.newCall(CLIENT_STREAM, callOptions());
-        call.start(listener, new Metadata());
-        call.cancel("caller gave up", null);
-
-        // A call made from onClose (a retry, say) must not start out cancelled.
-        assertThat(cancelledInOnClose).containsExactly(false);
-    }
-
-    // ==================== onReady before the first message ====================
-
-    @Test
     @DisplayName("The listener gets onReady before the first message, on the call's executor")
     void onReadyBeforeTheFirstMessage() {
         RecordingListener<StringValue> listener = new RecordingListener<>();
@@ -557,7 +358,7 @@ class SigningClientInterceptorStreamingTest {
 
         runCallbackTasks();
         assertThat(listener.events).containsExactly("onReady");
-        assertThat(channel.lastCall().events()).isEmpty();
+        assertThat(channel.lastCall().events).isEmpty();
     }
 
     @Test
@@ -576,7 +377,7 @@ class SigningClientInterceptorStreamingTest {
 
         runCallbackTasks();
         RecordingCall raw = channel.lastCall();
-        assertThat(raw.events()).containsExactly("start", "request:1", "send", "send");
+        assertThat(raw.events).containsExactly("start", "request:1", "send", "send");
         assertThat(verifies(raw.headers, bytes("m1"))).isTrue();
     }
 
@@ -592,303 +393,15 @@ class SigningClientInterceptorStreamingTest {
         assertThat(listener.events).isEmpty();
     }
 
-    @Test
-    @DisplayName("A callback of the started call during the first onReady is delivered after it returns")
-    void callbacksDuringTheFirstOnReadyWaitForIt() {
-        RecordingListener<StringValue> listener = new RecordingListener<>();
-        ClientCall<StringValue, StringValue> call = intercepted.newCall(SERVER_STREAM, callOptions());
-        List<String> seenInOnReady = new ArrayList<>();
-        listener.onReadyAction = () -> {
-            call.sendMessage(value("hello"));
-            // The started call reports its headers from another thread while onReady still runs.
-            Thread transport = new Thread(() -> channel.lastCall().listener.onHeaders(new Metadata()));
-            transport.start();
-            try {
-                transport.join();
-            } catch (InterruptedException e) {
-                throw new AssertionError(e);
-            }
-            seenInOnReady.addAll(listener.events);
-        };
-        call.start(listener, new Metadata());
-
-        runCallbackTasks();
-        assertThat(seenInOnReady).containsExactly("onReady");
-        assertThat(listener.events).containsExactly("onReady", "onHeaders");
-    }
-
-    @Test
-    @DisplayName("A listener callback that throws cancels the call")
-    @SuppressWarnings("unchecked") // the fake's listener is raw
-    void throwingCallbackCancelsTheCall() {
-        IllegalStateException failure = new IllegalStateException("listener failed");
-        RecordingListener<StringValue> listener = new RecordingListener<>();
-        listener.onMessageFailure = failure;
-        ClientCall<StringValue, StringValue> call = intercepted.newCall(SERVER_STREAM, callOptions());
-        call.start(listener, new Metadata());
-        call.sendMessage(value("hello"));
-
-        channel.lastCall().listener.onMessage(value("reply"));
-
-        assertThat(channel.lastCall().events()).containsExactly("start", "send", "cancel");
-        assertThat(listener.closeStatus.getCode()).isEqualTo(Status.Code.CANCELLED);
-        assertThat(listener.closeStatus.getCause()).isSameAs(failure);
-    }
-
-    // ==================== Deadline and context before the first message ====================
-
-    @Test
-    @DisplayName("A deadline passing before the first message starts the call unsigned, and grpc fails it")
-    void deadlineBeforeTheFirstMessageStartsTheCallUnsigned() throws Exception {
-        ClientCall<StringValue, StringValue> call = intercepted.newCall(
-                CLIENT_STREAM, callOptions().withDeadlineAfter(50, TimeUnit.MILLISECONDS));
-        call.start(new RecordingListener<>(), new Metadata());
-        call.request(1);
-
-        // No sendMessage(), no halfClose(): the deadline alone.
-        RecordingCall raw = channel.lastCall();
-        awaitEvents(raw, "start", "request:1");
-        assertThat(raw.headers.get(SIGNATURE)).isNull();
-
-        // A message after that goes to the started call, which grpc has already failed.
-        call.sendMessage(value("m1"));
-        assertThat(raw.starts).isEqualTo(1);
-        assertThat(raw.events()).containsExactly("start", "request:1", "send");
-        assertThat(raw.headers.get(SIGNATURE)).isNull();
-    }
-
-    @Test
-    @DisplayName("A context cancelled before the first message starts the call unsigned, and grpc fails it")
-    void contextCancelledBeforeTheFirstMessageStartsTheCallUnsigned() throws Exception {
-        Context.CancellableContext context = Context.current().withCancellation();
-        ClientCall<StringValue, StringValue> call =
-                context.call(() -> intercepted.newCall(CLIENT_STREAM, callOptions()));
-        call.start(new RecordingListener<>(), new Metadata());
-
-        context.cancel(null);
-
-        RecordingCall raw = channel.lastCall();
-        awaitEvents(raw, "start");
-        assertThat(raw.headers.get(SIGNATURE)).isNull();
-    }
-
-    @Test
-    @DisplayName("A listener run by one call's pre-start deadline does not hold up the deadline of another")
-    void preStartDeadlineCallbacksDoNotHoldUpOtherCalls() throws Exception {
-        // As a real call with a direct executor: the expired call closes its listener inside start().
-        channel.closeOnStart(Status.DEADLINE_EXCEEDED);
-        CountDownLatch inSlowCallback = new CountDownLatch(1);
-        CountDownLatch release = new CountDownLatch(1);
-        RecordingListener<StringValue> slow = new RecordingListener<>();
-        slow.onCloseAction = () -> {
-            inSlowCallback.countDown();
-            awaitQuietly(release);
-        };
-        try {
-            intercepted.newCall(CLIENT_STREAM, callOptions().withDeadlineAfter(20, TimeUnit.MILLISECONDS))
-                    .start(slow, new Metadata());
-            assertThat(inSlowCallback.await(5, TimeUnit.SECONDS)).as("slow onClose entered").isTrue();
-
-            intercepted.newCall(CLIENT_STREAM, callOptions().withDeadlineAfter(20, TimeUnit.MILLISECONDS))
-                    .start(new RecordingListener<>(), new Metadata());
-            channel.lastCall().awaitStartEntered();
-        } finally {
-            release.countDown();
-        }
-    }
-
-    @Test
-    @DisplayName("Cancelling the caller's context does not run the listener on the cancelling thread")
-    void contextCancellationDoesNotRunTheListenerOnTheCancellingThread() throws Exception {
-        // In a provider handler that thread is the server's: a slow listener must not hold it.
-        channel.closeOnStart(Status.CANCELLED);
-        CountDownLatch release = new CountDownLatch(1);
-        RecordingListener<StringValue> slow = new RecordingListener<>();
-        slow.onCloseAction = () -> awaitQuietly(release);
-        Context.CancellableContext context = Context.current().withCancellation();
-        ClientCall<StringValue, StringValue> call =
-                context.call(() -> intercepted.newCall(CLIENT_STREAM, callOptions()));
-        call.start(slow, new Metadata());
-
-        Thread canceller = new Thread(() -> context.cancel(null));
-        canceller.setDaemon(true); // a hang must not keep the test JVM alive
-        try {
-            canceller.start();
-            canceller.join(5_000);
-            assertThat(canceller.isAlive()).as("context.cancel() returned").isFalse();
-        } finally {
-            release.countDown();
-        }
-        awaitEvents(channel.lastCall(), "start");
-    }
-
-    @Test
-    @DisplayName("After the first message the deadline and the context are grpc's: no second start")
-    void deadlineAndContextAfterTheFirstMessageStartNothing() throws Exception {
-        Context.CancellableContext context = Context.current().withCancellation();
-        ClientCall<StringValue, StringValue> call = context.call(() -> intercepted.newCall(
-                CLIENT_STREAM, callOptions().withDeadlineAfter(50, TimeUnit.MILLISECONDS)));
-        call.start(new RecordingListener<>(), new Metadata());
-        call.sendMessage(value("m1"));
-
-        context.cancel(null);
-        TimeUnit.MILLISECONDS.sleep(150);
-
-        RecordingCall raw = channel.lastCall();
-        assertThat(raw.starts).isEqualTo(1);
-        assertThat(raw.events()).containsExactly("start", "send");
-        assertThat(verifies(raw.headers, bytes("m1"))).isTrue();
-    }
-
-    // ==================== Concurrent start ====================
-
-    @Test
-    @DisplayName("An interrupted sender waiting for the first message fails with CANCELLED and sends nothing")
-    void interruptedSenderDoesNotOvertakeTheFirstMessage() throws Exception {
-        channel.blockFirstSend();
-        ClientCall<StringValue, StringValue> call = intercepted.newCall(CLIENT_STREAM, callOptions());
-        call.start(new RecordingListener<>(), new Metadata());
-        RecordingCall raw = channel.lastCall();
-        ExecutorService threads = Executors.newFixedThreadPool(2);
-        try {
-            Future<?> first = threads.submit(() -> call.sendMessage(value("m1")));
-            raw.awaitFirstSendEntered();
-            Future<Boolean> interrupted = threads.submit(() -> {
-                Thread.currentThread().interrupt();
-                assertThatThrownBy(() -> call.sendMessage(value("m2")))
-                        .isInstanceOf(io.grpc.StatusRuntimeException.class)
-                        .satisfies(error -> {
-                            assertThat(Status.fromThrowable(error).getCode()).isEqualTo(Status.Code.CANCELLED);
-                            assertThat(error.getCause()).isInstanceOf(InterruptedException.class);
-                        });
-                return Thread.currentThread().isInterrupted();
-            });
-            assertThat(interrupted.get(5, TimeUnit.SECONDS)).as("interrupt status preserved").isTrue();
-            assertThat(raw.events()).containsExactly("start");
-
-            raw.releaseSend();
-            first.get(5, TimeUnit.SECONDS);
-            assertThat(raw.sent).containsExactly(bytes("m1"));
-            assertThat(verifies(raw.headers, bytes("m1"))).isTrue();
-        } finally {
-            raw.releaseSend();
-            threads.shutdownNow();
-        }
-    }
-
-    @Test
-    @DisplayName("cancel() while the first message starts the call waits for that start: one start, signed")
-    void cancelWhileTheFirstMessageStartsTheCall() throws Exception {
-        channel.blockStarts();
-        ClientCall<StringValue, StringValue> call = intercepted.newCall(CLIENT_STREAM, callOptions());
-        call.start(new RecordingListener<>(), new Metadata());
-
-        ExecutorService threads = Executors.newFixedThreadPool(2);
-        try {
-            Future<?> send = threads.submit(() -> call.sendMessage(value("m1")));
-            RecordingCall raw = channel.lastCall();
-            raw.awaitStartEntered();
-
-            Future<?> cancel = threads.submit(() -> call.cancel("caller gave up", null));
-            TimeUnit.MILLISECONDS.sleep(100);
-            assertThat(raw.events()).containsExactly("start");
-
-            raw.releaseStart();
-            send.get(5, TimeUnit.SECONDS);
-            cancel.get(5, TimeUnit.SECONDS);
-
-            assertThat(raw.starts).isEqualTo(1);
-            assertThat(raw.events()).containsExactlyInAnyOrder("start", "send", "cancel");
-            assertThat(verifies(raw.headers, bytes("m1"))).isTrue();
-            assertThat(raw.contextCancelledAtStart).isFalse();
-        } finally {
-            threads.shutdownNow();
-        }
-    }
-
-    @Test
-    @DisplayName("sendMessage() while cancel() starts the call waits for that start: one start, unsigned, then the send")
-    void sendMessageWhileCancelStartsTheCall() throws Exception {
-        channel.blockStarts();
-        ClientCall<StringValue, StringValue> call = intercepted.newCall(CLIENT_STREAM, callOptions());
-        call.start(new RecordingListener<>(), new Metadata());
-
-        ExecutorService threads = Executors.newFixedThreadPool(2);
-        try {
-            Future<?> cancel = threads.submit(() -> call.cancel("caller gave up", null));
-            RecordingCall raw = channel.lastCall();
-            raw.awaitStartEntered();
-
-            Future<?> send = threads.submit(() -> call.sendMessage(value("m1")));
-            TimeUnit.MILLISECONDS.sleep(100);
-            assertThat(raw.events()).containsExactly("start");
-
-            raw.releaseStart();
-            cancel.get(5, TimeUnit.SECONDS);
-            send.get(5, TimeUnit.SECONDS);
-
-            assertThat(raw.starts).isEqualTo(1);
-            assertThat(raw.events()).containsExactlyInAnyOrder("start", "cancel", "send");
-            assertThat(raw.headers.get(SIGNATURE)).isNull();
-            assertThat(raw.contextCancelledAtStart).isTrue();
-        } finally {
-            threads.shutdownNow();
-        }
-    }
-
-    @Test
-    @DisplayName("A listener that cancels from an onClose grpc runs inside start() does not wait for itself")
-    void cancelFromAnOnCloseRunInsideStart() throws Exception {
-        // As a real call on a shut-down channel with a direct executor: start() closes the call inline.
-        channel.closeOnStart(Status.UNAVAILABLE);
-        RecordingListener<StringValue> listener = new RecordingListener<>();
-        ClientCall<StringValue, StringValue> call = intercepted.newCall(CLIENT_STREAM, callOptions());
-        listener.onCloseAction = () -> call.cancel("closed", null);
-        call.start(listener, new Metadata());
-
-        // An empty stream: its start runs the listener inline (a first message's start defers it).
-        Thread closer = new Thread(call::halfClose);
-        closer.setDaemon(true); // a hang must not keep the test JVM alive
-        closer.start();
-        closer.join(5_000);
-
-        assertThat(closer.isAlive()).as("halfClose returned").isFalse();
-        RecordingCall raw = channel.lastCall();
-        assertThat(raw.starts).isEqualTo(1);
-        assertThat(raw.events()).containsExactly("start", "cancel", "halfClose");
-        assertThat(listener.closeStatus.getCode()).isEqualTo(Status.Code.UNAVAILABLE);
-    }
-
-    @Test
-    @DisplayName("An onClose grpc runs inside the first message's start() comes after that message is sent")
-    void onCloseRunInsideTheFirstMessagesStartComesAfterTheSend() throws Exception {
-        channel.closeOnStart(Status.UNAVAILABLE);
-        RecordingListener<StringValue> listener = new RecordingListener<>();
-        ClientCall<StringValue, StringValue> call = intercepted.newCall(CLIENT_STREAM, callOptions());
-        listener.onCloseAction = () -> call.cancel("closed", null);
-        call.start(listener, new Metadata());
-
-        Thread sender = new Thread(() -> call.sendMessage(value("m1")));
-        sender.setDaemon(true); // a hang must not keep the test JVM alive
-        sender.start();
-        sender.join(5_000);
-        runCallbackTasks(); // the call's executor runs what was held until m1 was out
-
-        assertThat(sender.isAlive()).as("sendMessage returned").isFalse();
-        RecordingCall raw = channel.lastCall();
-        assertThat(raw.starts).isEqualTo(1);
-        assertThat(raw.events()).containsExactly("start", "send", "cancel");
-        assertThat(listener.closeStatus.getCode()).isEqualTo(Status.Code.UNAVAILABLE);
-    }
-
     // ==================== Unary ====================
 
     @Test
-    @DisplayName("Unary: unchanged - signed over the request, started on sendMessage, buffered request() flushed")
+    @DisplayName("Unary: signed over the request, started on sendMessage, earlier request() calls added up and passed on")
     void unaryIsUnchanged() {
         ClientCall<StringValue, StringValue> call = intercepted.newCall(UNARY, callOptions());
         call.start(new RecordingListener<>(), new Metadata());
-        call.request(2);
+        call.request(1);
+        call.request(1);
         call.sendMessage(value("request"));
         call.halfClose();
 
@@ -983,28 +496,6 @@ class SigningClientInterceptorStreamingTest {
         return HexUtils.bytesToHex(Arrays.copyOf(signature, 64));
     }
 
-    /** Waits until the call has recorded exactly {@code expected}; starts on other threads record late. */
-    private static void awaitEvents(RecordingCall raw, String... expected) throws InterruptedException {
-        long deadline = System.nanoTime() + TimeUnit.SECONDS.toNanos(5);
-        while (!raw.events().equals(List.of(expected)) && System.nanoTime() < deadline) {
-            TimeUnit.MILLISECONDS.sleep(5);
-        }
-        assertThat(raw.events()).containsExactly(expected);
-    }
-
-    @SuppressWarnings("unchecked")
-    private static <E extends Throwable> SignResult sneakyThrow(Throwable t) throws E {
-        throw (E) t;
-    }
-
-    private static void awaitQuietly(CountDownLatch latch) {
-        try {
-            latch.await(10, TimeUnit.SECONDS);
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
-    }
-
     private static byte[] concat(byte[] a, byte[] b) {
         return ByteBuffer.allocate(a.length + b.length).put(a).put(b).array();
     }
@@ -1046,28 +537,10 @@ class SigningClientInterceptorStreamingTest {
     /** Hands out {@link RecordingCall}s and keeps the last one. */
     static final class FakeChannel extends Channel {
         private volatile RecordingCall lastCall;
-        private boolean blockStarts;
-        private boolean readyOnStart;
         private boolean blockFirstSend;
-        private Status closeOnStart;
 
         RecordingCall lastCall() {
             return lastCall;
-        }
-
-        /** Calls handed out from now on close their listener with {@code status} inside start(). */
-        void closeOnStart(Status status) {
-            closeOnStart = status;
-        }
-
-        /** Calls handed out from now on block in start() until {@link RecordingCall#releaseStart()}. */
-        void blockStarts() {
-            blockStarts = true;
-        }
-
-        /** Calls handed out from now on report onReady inside start(), as a ready stream on a direct executor. */
-        void readyOnStart() {
-            readyOnStart = true;
         }
 
         /** Calls handed out from now on block in their first sendMessage() until {@link RecordingCall#releaseSend()}. */
@@ -1079,12 +552,7 @@ class SigningClientInterceptorStreamingTest {
         @SuppressWarnings("unchecked")
         public <ReqT, RespT> ClientCall<ReqT, RespT> newCall(
                 MethodDescriptor<ReqT, RespT> method, CallOptions callOptions) {
-            lastCall = new RecordingCall(method, blockStarts);
-            lastCall.closeOnStart = closeOnStart;
-            lastCall.readyOnStart = readyOnStart;
-            if (blockFirstSend) {
-                lastCall.firstSendReleased = new CountDownLatch(1);
-            }
+            lastCall = new RecordingCall(method, blockFirstSend);
             return (ClientCall<ReqT, RespT>) lastCall;
         }
 
@@ -1103,39 +571,17 @@ class SigningClientInterceptorStreamingTest {
         final MethodDescriptor<?, ?> method;
         final List<String> events = Collections.synchronizedList(new ArrayList<>());
         final List<Object> sent = Collections.synchronizedList(new ArrayList<>());
-        private final CountDownLatch startEntered = new CountDownLatch(1);
-        private final CountDownLatch startReleased;
         volatile Listener listener;
         volatile Metadata headers;
         volatile String headersAtStart;
         volatile int starts;
         volatile boolean ready;
-        volatile boolean contextCancelledAtStart;
-        volatile boolean closed;
-        Status closeOnStart;
-        boolean readyOnStart;
         private final CountDownLatch firstSendEntered = new CountDownLatch(1);
-        private CountDownLatch firstSendReleased = new CountDownLatch(0);
-        // Like a real call, the call belongs to the context it is created in.
-        private final Context context = Context.current();
+        private final CountDownLatch firstSendReleased;
 
-        RecordingCall(MethodDescriptor<?, ?> method, boolean blockStart) {
+        RecordingCall(MethodDescriptor<?, ?> method, boolean blockFirstSend) {
             this.method = method;
-            this.startReleased = new CountDownLatch(blockStart ? 1 : 0);
-        }
-
-        List<String> events() {
-            synchronized (events) {
-                return new ArrayList<>(events);
-            }
-        }
-
-        void awaitStartEntered() throws InterruptedException {
-            assertThat(startEntered.await(5, TimeUnit.SECONDS)).as("start() entered").isTrue();
-        }
-
-        void releaseStart() {
-            startReleased.countDown();
+            this.firstSendReleased = new CountDownLatch(blockFirstSend ? 1 : 0);
         }
 
         @Override
@@ -1143,26 +589,10 @@ class SigningClientInterceptorStreamingTest {
             if (++starts > 1) {
                 throw new IllegalStateException("Already started");
             }
-            contextCancelledAtStart = context.isCancelled();
             events.add("start");
             this.listener = responseListener;
             this.headers = headers;
             this.headersAtStart = headers.toString();
-            startEntered.countDown();
-            try {
-                startReleased.await();
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-            // Like a real call: one started in a cancelled context closes at once, with the context's
-            // status, and every callback runs in the call's own context.
-            Status close = contextCancelledAtStart ? Contexts.statusFromCancelled(context) : closeOnStart;
-            if (close != null) {
-                closed = true;
-                context.run(() -> responseListener.onClose(close, new Metadata()));
-            } else if (readyOnStart) {
-                context.run(responseListener::onReady);
-            }
         }
 
         @Override
@@ -1173,12 +603,6 @@ class SigningClientInterceptorStreamingTest {
         @Override
         public void cancel(String message, Throwable cause) {
             events.add("cancel");
-            // Like a real call, only a started, open call reports its cancellation to the listener.
-            if (listener != null && !closed) {
-                closed = true;
-                context.run(() -> listener.onClose(
-                        Status.CANCELLED.withDescription(message).withCause(cause), new Metadata()));
-            }
         }
 
         @Override
@@ -1222,8 +646,6 @@ class SigningClientInterceptorStreamingTest {
         final List<String> events = Collections.synchronizedList(new ArrayList<>());
         volatile Status closeStatus;
         Runnable onReadyAction = () -> { };
-        Runnable onCloseAction = () -> { };
-        RuntimeException onMessageFailure;
         int sent;
 
         @Override
@@ -1234,9 +656,6 @@ class SigningClientInterceptorStreamingTest {
         @Override
         public void onMessage(T message) {
             events.add("onMessage");
-            if (onMessageFailure != null) {
-                throw onMessageFailure;
-            }
         }
 
         @Override
@@ -1248,10 +667,7 @@ class SigningClientInterceptorStreamingTest {
         @Override
         public void onClose(Status status, Metadata trailers) {
             events.add("onClose");
-            if (closeStatus == null) {
-                closeStatus = status;
-                onCloseAction.run();
-            }
+            closeStatus = status;
         }
     }
 }

@@ -117,6 +117,6 @@ docker run --env-file .env -p 8080:8080 my-provider
 
 **`ModuleNotFoundError: No module named 'provider'`** -- Run `uv sync` in the generated project directory. The project uses a `src/` layout that requires installation.
 
-**Signature verification failures** -- Ensure the server clock is synchronized (NTP). Timestamps outside +/- 60 seconds are rejected. Verify that `NETWORK_PUBLIC_KEY` matches the key provided by the T-0 team.
+**Signature verification failures** -- Ensure the server clock is synchronized (NTP). Timestamps outside the allowed window are rejected ([rules](../docs/CROSS_SDK_RULES.md)). Verify that `NETWORK_PUBLIC_KEY` matches the key provided by the T-0 team.
 
 **ConnectRPC PyPI package** -- The package is `connectrpc` (renamed from `connect-python` at v0.10.0). The SDK's `pyproject.toml` pins `connectrpc>=0.11.1`, which resolves to the official runtime. Earlier docs warned about a squatted v0.0.1 on the same PyPI name; that release pre-dates 0.9.0 and the pin skips it.

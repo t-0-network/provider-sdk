@@ -70,7 +70,7 @@ Versions: `sdk/pyproject.toml`.
 - Client constructors accept `http_client: pyqwest.Client | None` — we wrap pyqwest with `SigningClient` (not subclass).
 - ConnectRPC calls exactly 3 methods on the client: `get()`, `post()`, `stream()`.
 - `stream()` carries every client-/server-streaming call and every gRPC call (unary included), and its `content` is an (async) iterator yielding one envelope per message, not bytes. `post()` carries Connect unary calls; `get()` (Connect GET) is refused.
-- A `ConnectClient` has one `timeout_ms` for all calls, so `new_service_client()` wraps the instance's `execute_*` methods to apply `timeout` (unary) or `stream_timeout` (streams, 5 minutes by default) and to check a per-call `timeout_ms`, and makes `execute_bidi_stream` raise `UNIMPLEMENTED`. The factories pass `protocol`, `send_compression=None` and, for `WireFormat.JSON`, the JSON codec to the generated class.
+- A `ConnectClient` has one `timeout_ms` for all calls, so `new_service_client()` wraps the instance's `execute_*` methods to apply `timeout` (unary) or `stream_timeout` (streams, 5 minutes by default) where a call sets no `timeout_ms`, and makes `execute_bidi_stream` raise `UNIMPLEMENTED`. The factories pass `protocol`, `send_compression=None` and, for `WireFormat.JSON`, the JSON codec to the generated class.
 
 ## Proto Code Generation
 
@@ -115,6 +115,7 @@ Runtime version: `_version.py` (`__version__`). Full details: [`docs/VERSIONING.
 
 - **Raw bytes:** Signature verification and signing always use original wire bytes, never re-serialized protobuf (see critical requirement above)
 - **Two-phase verification:** ASGI/WSGI middleware (raw bytes) → `contextvars.ContextVar` → ConnectRPC interceptor (error codes). Do not collapse into a single layer.
+- **Fail closed:** `signature_error_var` defaults to `NOT_VERIFIED` and the middleware resets it when the app returns, so a call it did not verify gets `INTERNAL` ("no signature result in context"). `handler()`/`handler_sync()` put the signature interceptor first after the options run, so no `HandlerOption` can remove it.
 - **Wrapper pattern:** `SigningClient` wraps `pyqwest.Client` via delegation, not a subclass: ConnectRPC calls only `get()`, `post()` and `stream()` on it, and each of them is signed or refused in the wrapper.
 - **What is signed is chosen by entry point, not by content type:** `stream()` (Connect streams and every gRPC call) over its first envelope as sent; `post()` (Connect unary) over the whole body.
 - **Streaming signs the first message and sends at once, never buffered.** The first chunk is checked to be exactly one envelope: one that ends early fails with `INVALID_ARGUMENT` ("streaming request ends inside its first message"), one that holds more fails with `INTERNAL`, and neither is signed. Details: [`docs/STREAMING.md`](../docs/STREAMING.md).
@@ -130,13 +131,14 @@ headers = { X-Public-Key: "0x"+pk.hex(), X-Signature: "0x"+sig.hex(), X-Signatur
 
 `body_bytes` is the whole body of a Connect unary call, and the first envelope as sent of a Connect stream or any gRPC call (for gRPC unary, that is the whole body).
 
-Timestamp tolerance: ±60 seconds. Max body: 10 MiB default.
+How the server checks the key, the timestamp, the ±60 s window, the gRPC framing and the body (10 MiB by default), and its error codes, is the same in every SDK: [`docs/CROSS_SDK_RULES.md`](../docs/CROSS_SDK_RULES.md).
 
 ## Error Hierarchy
 
 `SignatureVerificationError` (base) with 6 subclasses:
-- → `INVALID_ARGUMENT`: `MissingRequiredHeaderError`, `InvalidHeaderEncodingError`, `TimestampOutOfRangeError`, `BodyTooLargeError`
-- → `UNAUTHENTICATED`: `UnknownPublicKeyError`, `SignatureFailedError`
+- → `INVALID_ARGUMENT`: `MissingRequiredHeaderError`, `InvalidHeaderEncodingError`, `TimestampOutOfRangeError`
+- → `RESOURCE_EXHAUSTED`: `BodyTooLargeError`
+- → `UNAUTHENTICATED`: `UnknownPublicKeyError` (an `X-Public-Key` that is present but not the network key, hex or not), `SignatureFailedError`
 
 ## Public API Surface
 
@@ -150,8 +152,8 @@ Timestamp tolerance: ±60 seconds. Max body: 10 MiB default.
 )
 (
     private_key_from_hex,
-    public_key_from_hex,
-    public_key_from_bytes,
+    public_key_from_hex,  # deprecated: not used by the SDK
+    public_key_from_bytes,  # deprecated: not used by the SDK
     public_key_to_bytes,
 )
 verify_signature
@@ -184,6 +186,7 @@ DEFAULT_BASE_URL, DEFAULT_TIMEOUT, DEFAULT_STREAM_TIMEOUT, WireFormat, Protocol
     InvalidHeaderEncodingError,
 )
 TimestampOutOfRangeError, UnknownPublicKeyError, SignatureFailedError
+NetworkPublicKeyRequiredError  # a ValueError raised by new_asgi_app / new_wsgi_app at startup
 ```
 
 ## Starter Template

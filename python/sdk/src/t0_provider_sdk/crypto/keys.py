@@ -1,6 +1,7 @@
 """Key conversion utilities for secp256k1 ECDSA keys."""
 
 import binascii
+import warnings
 
 from coincurve import PrivateKey, PublicKey
 from coincurve.utils import GROUP_ORDER_INT
@@ -29,14 +30,48 @@ def private_key_from_hex(hex_key: str) -> PrivateKey:
     return PrivateKey(secret)
 
 
+@warnings.deprecated(
+    "public_key_from_hex is deprecated: not used by the SDK; will be removed in a future major version"
+)
 def public_key_from_hex(hex_key: str) -> PublicKey:
     """Create a PublicKey from a hex-encoded string.
 
-    Supports optional '0x' prefix. Accepts both compressed (33 bytes)
-    and uncompressed (65 bytes) formats.
+    Deprecated: not used by the SDK; will be removed in a future major version.
+
+    Follows the server's rule for public keys: an optional '0x' or '0X' prefix, strict hex, and a
+    SEC1-encoded secp256k1 key (coincurve's parser). Raises ValueError.
     """
-    cleaned = hex_key.removeprefix("0x")
-    return PublicKey(bytes.fromhex(cleaned))
+    return _parse_public_key(hex_key)
+
+
+def _decode_hex_strict(value: str) -> bytes:
+    """Decode hex with an optional '0x' or '0X' prefix: at least one byte, nothing but hex digits.
+
+    unhexlify, not bytes.fromhex, which skips whitespace. Raises ValueError.
+    """
+    cleaned = value[2:] if value[:2] in ("0x", "0X") else value
+    if not cleaned:
+        raise ValueError("not hex: no digits")
+    try:
+        return binascii.unhexlify(cleaned)
+    except ValueError as e:
+        raise ValueError(f"not hex: {e}") from e
+
+
+def _public_key_from_bytes_strict(data: bytes) -> PublicKey:
+    """Parse a SEC1-encoded secp256k1 key (coincurve's parser). Raises ValueError."""
+    try:
+        return PublicKey(data)
+    except ValueError as e:
+        raise ValueError("not a secp256k1 public key") from e
+
+
+def _parse_public_key(value: str) -> PublicKey:
+    """The server's parser for the configured network key and the X-Public-Key header.
+
+    Accepts only strict hex. Raises ValueError.
+    """
+    return _public_key_from_bytes_strict(_decode_hex_strict(value))
 
 
 def public_key_to_bytes(key: PublicKey) -> bytes:
@@ -44,9 +79,14 @@ def public_key_to_bytes(key: PublicKey) -> bytes:
     return key.format(compressed=False)
 
 
+@warnings.deprecated(
+    "public_key_from_bytes is deprecated: not used by the SDK; will be removed in a future major version"
+)
 def public_key_from_bytes(data: bytes) -> PublicKey:
     """Deserialize a PublicKey from bytes.
 
-    Accepts both compressed (33 bytes) and uncompressed (65 bytes) formats.
+    Deprecated: not used by the SDK; will be removed in a future major version.
+
+    Accepts a SEC1-encoded secp256k1 key (coincurve's parser), as the server does. Raises ValueError.
     """
-    return PublicKey(data)
+    return _public_key_from_bytes_strict(data)

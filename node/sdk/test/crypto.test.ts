@@ -1,4 +1,4 @@
-import { describe, it } from 'node:test';
+import { afterEach, beforeEach, describe, it, mock } from 'node:test';
 import * as nodeAssert from 'node:assert/strict';
 import { keccak_256 } from '@noble/hashes/sha3.js';
 import { secp256k1 } from '@noble/curves/secp256k1.js';
@@ -10,6 +10,8 @@ import type { TestContext } from 'node:test';
 import { Code, ConnectError } from '@connectrpc/connect';
 import type { UniversalClientFn } from '@connectrpc/connect/protocol';
 import { createSigningHttpClient } from '../src/common/client/signing-http-client.js';
+import { parsePublicKeyPoint } from '../src/common/crypto/keys.js';
+import { parseTimestamp } from '../src/common/crypto/request.js';
 import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -260,6 +262,37 @@ describe('Signature verification cases', () => {
       }
 
       nodeAssert.equal(valid, vec.valid);
+    });
+  }
+});
+
+describe('Public key parsing cases', () => {
+  // The parser of the configured network key and the X-Public-Key header, and the deprecated
+  // parsePublicKey that delegates to it.
+  for (const [name, parse] of [['parsePublicKeyPoint', parsePublicKeyPoint], ['parsePublicKey', parsePublicKey]] as const) {
+    for (const vec of vectors.public_key_parsing) {
+      it(`${name}: ${vec.name} is ${vec.valid ? 'parsed' : 'rejected'}`, () => {
+        if (vec.valid) {
+          nodeAssert.equal(parse(vec.input).toString('hex'), vec.uncompressed);
+        } else {
+          nodeAssert.throws(() => parse(vec.input));
+        }
+      });
+    }
+  }
+});
+
+describe('Timestamp parsing cases', () => {
+  // The parser of the X-Signature-Timestamp header on both server paths.
+  for (const vec of vectors.timestamp_parsing) {
+    it(`${vec.name} is ${vec.valid ? 'parsed' : 'rejected'}`, () => {
+      const ts = parseTimestamp(vec.input);
+      if (vec.valid) {
+        nodeAssert.equal(typeof ts, 'bigint');
+        nodeAssert.equal(String(ts), vec.value);
+      } else {
+        nodeAssert.equal(ts, undefined);
+      }
     });
   }
 });
@@ -563,8 +596,9 @@ describe('crypto/parsePublicKey', () => {
     nodeAssert.equal(key.toString('hex'), hexKey);
   });
 
-  it('rejects an uppercase 0X public-key prefix', () => {
-    nodeAssert.throws(() => parsePublicKey('0X' + hexKey));
+  it('parses 0X-prefixed hex string', () => {
+    const key = parsePublicKey('0X' + hexKey);
+    nodeAssert.equal(key.toString('hex'), hexKey);
   });
 
   it('parses Buffer', () => {
@@ -580,49 +614,50 @@ describe('crypto/parsePublicKey', () => {
     nodeAssert.notEqual(key[1], buf[1]);
   });
 
-  it('throws on compressed key (33 bytes, 0x02 prefix)', () => {
-    nodeAssert.throws(() => parsePublicKey(Buffer.alloc(33, 0x02)), {
-      message: /65 bytes/,
-    });
+  it('parses a compressed key (string and Buffer) into the 65-byte form', () => {
+    const compressed = Buffer.from(secp256k1.Point.fromBytes(Buffer.from(hexKey, 'hex')).toBytes(true));
+    nodeAssert.equal(parsePublicKey('0x' + compressed.toString('hex')).toString('hex'), hexKey);
+    nodeAssert.equal(parsePublicKey(compressed).toString('hex'), hexKey);
   });
 
-  it('throws on compressed key (33 bytes, 0x03 prefix)', () => {
-    const buf = Buffer.alloc(33, 0x03);
-    nodeAssert.throws(() => parsePublicKey(buf), {
-      message: /65 bytes/,
+  it('throws on 33 bytes that are not a point', () => {
+    const offCurve = Buffer.alloc(33, 0x03); // x = 0x0303...03 has no y
+    offCurve[0] = 0x02;
+    nodeAssert.throws(() => parsePublicKey(offCurve), {
+      message: /not a point on secp256k1/,
     });
   });
 
   it('throws on wrong prefix (0x00)', () => {
     const bad = Buffer.alloc(65, 0x00);
     nodeAssert.throws(() => parsePublicKey(bad), {
-      message: /0x04 prefix/,
+      message: /not a point on secp256k1/,
     });
   });
 
   it('throws on wrong prefix (0x02)', () => {
     const bad = Buffer.alloc(65, 0x02);
     nodeAssert.throws(() => parsePublicKey(bad), {
-      message: /0x04 prefix/,
+      message: /not a point on secp256k1/,
     });
   });
 
   it('throws on empty buffer', () => {
     nodeAssert.throws(() => parsePublicKey(Buffer.alloc(0)), {
-      message: /65 bytes/,
+      message: /not a point on secp256k1/,
     });
   });
 
   it('throws on empty string', () => {
     nodeAssert.throws(() => parsePublicKey(''), {
-      message: /65 bytes/,
+      message: /must be hex/,
     });
   });
 
   it('throws on 64-byte buffer (just shy of valid)', () => {
     const buf = Buffer.alloc(64, 0x04);
     nodeAssert.throws(() => parsePublicKey(buf), {
-      message: /65 bytes/,
+      message: /not a point on secp256k1/,
     });
   });
 
@@ -709,9 +744,16 @@ describe('crypto module cross-consistency', () => {
 });
 
 describe('crypto/createRequestVerifier', () => {
+  // The clock stands at the vectors' signature timestamp.
+  beforeEach(() => {
+    mock.method(Date, 'now', () => vectors.signature_verification[0].timestamp_ms);
+  });
+  afterEach(() => {
+    mock.restoreAll();
+  });
+
   const verify = createRequestVerifier({
     networkPublicKey: vectors.keys.public_key,
-    toleranceMs: Infinity, // disable time check for deterministic tests
   });
 
   function makeReq(overrides?: Partial<VerifyRequest>): VerifyRequest {
@@ -725,7 +767,7 @@ describe('crypto/createRequestVerifier', () => {
     };
   }
 
-  it('accepts a valid request (time check disabled)', () => {
+  it('accepts a valid request', () => {
     const result = verify(makeReq());
     nodeAssert.deepStrictEqual(result, { valid: true });
   });
@@ -771,6 +813,40 @@ describe('crypto/createRequestVerifier', () => {
     nodeAssert.deepStrictEqual(result, { valid: false, reason: 'invalid_timestamp' });
   });
 
+  it('rejects a signed timestamp followed by other characters', () => {
+    const ts = String(vectors.signature_verification[0].timestamp_ms);
+    for (const header of [`${ts}abc`, `${ts}.0`, `${ts} `, `+${ts}`]) {
+      nodeAssert.deepStrictEqual(verify(makeReq({ timestampHeader: header })), { valid: false, reason: 'invalid_timestamp' }, header);
+    }
+  });
+
+  it('reads the timestamp_parsing rows as the parser does', () => {
+    for (const vec of vectors.timestamp_parsing) {
+      const result = verify(makeReq({ timestampHeader: vec.input }));
+      if (vec.valid) {
+        nodeAssert.notDeepStrictEqual(result, { valid: false, reason: 'invalid_timestamp' }, vec.name);
+      } else {
+        nodeAssert.deepStrictEqual(result, { valid: false, reason: 'invalid_timestamp' }, vec.name);
+      }
+    }
+  });
+
+  it('accepts toleranceMs in (0, 60000]', () => {
+    for (const toleranceMs of [1, 0.5, 60_000, undefined]) {
+      nodeAssert.doesNotThrow(() => createRequestVerifier({ networkPublicKey: vectors.keys.public_key, toleranceMs }), String(toleranceMs));
+    }
+  });
+
+  it('throws at creation on any other toleranceMs', () => {
+    for (const toleranceMs of [Infinity, -Infinity, NaN, 0, -1, 60_001, '1000' as unknown as number]) {
+      nodeAssert.throws(
+        () => createRequestVerifier({ networkPublicKey: vectors.keys.public_key, toleranceMs }),
+        { message: 'toleranceMs must be a finite number greater than 0 and at most 60000' },
+        String(toleranceMs),
+      );
+    }
+  });
+
   it('rejects expired timestamp with default tolerance', () => {
     const strictVerify = createRequestVerifier({
       networkPublicKey: vectors.keys.public_key,
@@ -807,20 +883,51 @@ describe('crypto/createRequestVerifier', () => {
     nodeAssert.deepStrictEqual(result, { valid: true });
   });
 
-  it('rejects malformed public key hex', () => {
+  it('rejects malformed public key hex as unknown_public_key', () => {
     const result = verify(makeReq({ publicKeyHeader: '0xZZZZ' }));
+    nodeAssert.deepStrictEqual(result, { valid: false, reason: 'unknown_public_key' });
+  });
+
+  it('rejects a missing public key as invalid_public_key', () => {
+    const result = verify(makeReq({ publicKeyHeader: '' }));
     nodeAssert.deepStrictEqual(result, { valid: false, reason: 'invalid_public_key' });
   });
 
   it('rejects short public key', () => {
     const result = verify(makeReq({ publicKeyHeader: '0x0401020304' }));
-    nodeAssert.deepStrictEqual(result, { valid: false, reason: 'invalid_public_key' });
+    nodeAssert.deepStrictEqual(result, { valid: false, reason: 'unknown_public_key' });
   });
 
   it('rejects unknown public key (impostor)', () => {
     const result = verify(makeReq({
       publicKeyHeader: '0x' + vectors.impostor_keys.public_key,
     }));
+    nodeAssert.deepStrictEqual(result, { valid: false, reason: 'unknown_public_key' });
+  });
+
+  const keyRow = (name: string) => vectors.public_key_parsing.find((v: any) => v.name === name).input;
+
+  it('accepts the compressed form of the network key and a 0X prefix', () => {
+    for (const name of ['compressed-0x', 'compressed-no-prefix', 'uncompressed-0X']) {
+      nodeAssert.deepStrictEqual(verify(makeReq({ publicKeyHeader: keyRow(name) })), { valid: true }, name);
+    }
+  });
+
+  it('a compressed network key accepts the uncompressed header', () => {
+    const v = createRequestVerifier({ networkPublicKey: keyRow('compressed-0x') });
+    nodeAssert.deepStrictEqual(v(makeReq()), { valid: true });
+  });
+
+  it('rejects a header that is not a key, hex or not, as unknown_public_key', () => {
+    for (const vec of vectors.public_key_parsing) {
+      if (vec.valid || vec.input === '') continue;
+      nodeAssert.deepStrictEqual(verify(makeReq({ publicKeyHeader: vec.input })), { valid: false, reason: 'unknown_public_key' }, vec.name);
+    }
+  });
+
+  it('rejects the compressed form of another key as unknown_public_key', () => {
+    const impostor = secp256k1.Point.fromBytes(Buffer.from(vectors.impostor_keys.public_key, 'hex')).toBytes(true);
+    const result = verify(makeReq({ publicKeyHeader: '0x' + Buffer.from(impostor).toString('hex') }));
     nodeAssert.deepStrictEqual(result, { valid: false, reason: 'unknown_public_key' });
   });
 
@@ -880,7 +987,6 @@ describe('crypto/createRequestVerifier', () => {
   it('factory accepts 0x-prefixed string', () => {
     const v = createRequestVerifier({
       networkPublicKey: '0x' + vectors.keys.public_key,
-      toleranceMs: Infinity,
     });
     const result = v(makeReq());
     nodeAssert.deepStrictEqual(result, { valid: true });
@@ -889,7 +995,6 @@ describe('crypto/createRequestVerifier', () => {
   it('factory accepts Buffer', () => {
     const v = createRequestVerifier({
       networkPublicKey: Buffer.from(vectors.keys.public_key, 'hex'),
-      toleranceMs: Infinity,
     });
     const result = v(makeReq());
     nodeAssert.deepStrictEqual(result, { valid: true });
@@ -929,20 +1034,20 @@ describe('crypto/NetworkHeaders', () => {
 describe('crypto/parsePublicKey hex validation', () => {
   it('rejects string with invalid hex characters', () => {
     nodeAssert.throws(() => parsePublicKey('0x' + 'ZZ'.repeat(65)), {
-      message: /invalid hex/,
+      message: /must be hex/,
     });
   });
 
   it('rejects mixed valid/invalid hex', () => {
     const valid32 = vectors.keys.public_key.slice(0, 64);
     nodeAssert.throws(() => parsePublicKey(valid32 + 'ZZZZ'), {
-      message: /invalid hex/,
+      message: /must be hex/,
     });
   });
 
   it('rejects odd-length hex string', () => {
     nodeAssert.throws(() => parsePublicKey('0x' + 'a'.repeat(131)), {
-      message: /invalid hex/,
+      message: /must be hex/,
     });
   });
 });

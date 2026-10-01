@@ -45,7 +45,7 @@ public sealed class T0Config
             throw new InvalidOperationException(
                 "PROVIDER_PRIVATE_KEY is not set. Check your .env file.");
 
-        var networkPublicKey = Environment.GetEnvironmentVariable("NETWORK_PUBLIC_KEY");
+        var networkPublicKey = Environment.GetEnvironmentVariable("NETWORK_PUBLIC_KEY")?.Trim();
         if (string.IsNullOrEmpty(networkPublicKey))
             throw new InvalidOperationException(
                 "NETWORK_PUBLIC_KEY is not set. Check your .env file.");

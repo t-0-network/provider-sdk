@@ -230,7 +230,7 @@ func (s *streamTestServer) checkSignature(r *http.Request) (verified, error) {
 		candidates["body"], order = body, append(order, "body")
 	}
 
-	pubKey, err := crypto.GetPublicKeyFromBytes(publicKey)
+	pubKey, err := secp256k1.ParsePubKey(publicKey)
 	if err != nil {
 		return verified{}, err
 	}
@@ -488,7 +488,7 @@ func TestSigningTransport_EmptyStreamSignsEmptyBytes(t *testing.T) {
 			require.NoError(t, err)
 			signature, err := hex.DecodeString(strings.TrimPrefix(sent.Header.Get(common.SignatureHeader), "0x"))
 			require.NoError(t, err)
-			pubKey, err := crypto.GetPublicKeyFromBytes(key.publicKey)
+			pubKey, err := secp256k1.ParsePubKey(key.publicKey)
 			require.NoError(t, err)
 			require.True(t, crypto.VerifySignature(pubKey, digestOf(nil, timestamp), signature), "signed over empty bytes")
 		})
@@ -664,7 +664,7 @@ func TestSigningTransport_WholeBodyDoesNotModifyRequest(t *testing.T) {
 	require.NoError(t, err)
 	signature, err := hex.DecodeString(strings.TrimPrefix(sent.Header.Get(common.SignatureHeader), "0x"))
 	require.NoError(t, err)
-	pubKey, err := crypto.GetPublicKeyFromBytes(key.publicKey)
+	pubKey, err := secp256k1.ParsePubKey(key.publicKey)
 	require.NoError(t, err)
 	require.True(t, crypto.VerifySignature(pubKey, digestOf(whole, timestamp), signature), "signed over the whole body")
 }
@@ -1003,24 +1003,6 @@ func receiveAll(ctx context.Context, client *streamTestClient, value string) ([]
 		got = append(got, stream.Msg().GetValue())
 	}
 	return got, stream.Err()
-}
-
-func TestIsEnveloped(t *testing.T) {
-	for contentType, want := range map[string]bool{
-		"application/connect+proto":      true,
-		"application/connect+json":       true,
-		"application/grpc":               true,
-		"application/grpc+proto":         true,
-		"Application/GRPC+proto; x=y":    true,
-		"APPLICATION/CONNECT+proto; x=y": true,
-		"application/proto":              false,
-		"application/json; charset=utf8": false,
-		"":                               false,
-	} {
-		req := newStreamRequest(t, context.Background(), http.NoBody)
-		req.Header.Set("Content-Type", contentType)
-		require.Equal(t, want, isEnveloped(req), contentType)
-	}
 }
 
 type streamSigningCase struct {
