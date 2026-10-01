@@ -119,22 +119,6 @@ public class DefaultDeadlineInterceptorTests
         Assert.Equal(shorter, DeadlineOf(type, options, new CallOptions(deadline: shorter)));
     }
 
-    // DateTime.MaxValue is no deadline to gRPC.
-    [Theory]
-    [InlineData(MethodType.Unary)]
-    [InlineData(MethodType.ServerStreaming)]
-    [InlineData(MethodType.ClientStreaming)]
-    public void MaxValueDeadlineOnTheCall_GetsTheDefault(MethodType type)
-    {
-        var options = new NetworkClientOptions();
-        var before = DateTime.UtcNow;
-
-        AssertDeadlineIn(
-            DeadlineOf(type, options, new CallOptions(deadline: DateTime.MaxValue)),
-            before,
-            type == MethodType.Unary ? options.Timeout : options.StreamTimeout);
-    }
-
     [Fact]
     public void DuplexStream_IsRejected_WithoutReachingTheInvoker()
     {
@@ -152,30 +136,18 @@ public class DefaultDeadlineInterceptorTests
     [Theory]
     [InlineData(0L)]
     [InlineData(-10_000L)] // Timeout.InfiniteTimeSpan
-    [InlineData(21_474_836_480_000L)] // 2147483648 ms
-    public void TimeoutsOutOfRange_AreRefusedWhenSet(long ticks)
+    public void TimeoutsThatAreNotPositive_AreRefusedWhenSet(long ticks)
     {
         var timeout = TimeSpan.FromTicks(ticks);
         var options = new NetworkClientOptions();
 
         var ex = Assert.Throws<ArgumentOutOfRangeException>(() => options.Timeout = timeout);
-        Assert.StartsWith("Timeout must be a positive duration of at most 2147483647 ms", ex.Message);
+        Assert.StartsWith("Timeout must be a positive duration", ex.Message);
         ex = Assert.Throws<ArgumentOutOfRangeException>(() => options.StreamTimeout = timeout);
-        Assert.StartsWith("StreamTimeout must be a positive duration of at most 2147483647 ms", ex.Message);
+        Assert.StartsWith("StreamTimeout must be a positive duration", ex.Message);
 
         Assert.Equal(TimeSpan.FromSeconds(15), options.Timeout);
         Assert.Equal(TimeSpan.FromMinutes(5), options.StreamTimeout);
-    }
-
-    [Fact]
-    public void LongestTimeout_IsAccepted()
-    {
-        var timeout = TimeSpan.FromMilliseconds(2147483647);
-
-        var options = new NetworkClientOptions { Timeout = timeout, StreamTimeout = timeout };
-
-        Assert.Equal(timeout, options.Timeout);
-        Assert.Equal(timeout, options.StreamTimeout);
     }
 
     [Fact]

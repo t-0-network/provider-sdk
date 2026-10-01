@@ -6,11 +6,8 @@ Proto-agnostic: works with ANY generated ConnectRPC client class.
 from __future__ import annotations
 
 import functools
-import ipaddress
-import math
-import re
 from typing import TYPE_CHECKING, Any, NoReturn, TypeVar
-from urllib.parse import quote, urlsplit
+from urllib.parse import urlsplit
 
 from connectrpc.code import Code
 from connectrpc.compat import google_protobuf_json_codec
@@ -32,15 +29,6 @@ if TYPE_CHECKING:
 
 T = TypeVar("T")
 
-
-# A host name: dot-separated labels of ASCII letters, digits and inner '-', none empty, the last one
-# starting with a letter (so "1.2.3" is not taken for a name). Other names ("my_host", "a..b",
-# "-foo") are refused: not every client this network talks to can connect to them.
-_HOST_LABEL = r"[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?"
-_HOST_NAME = re.compile(rf"(?:{_HOST_LABEL}\.)*[A-Za-z](?:[A-Za-z0-9-]*[A-Za-z0-9])?")
-
-# The largest timeout every SDK accepts: 2^31 - 1 ms, about 24.8 days.
-MAX_TIMEOUT_MS = 2**31 - 1
 
 # (execute method, streams?). gRPC unary goes out through stream() but enters through execute_unary.
 _EXECUTE_METHODS = (
@@ -81,8 +69,8 @@ def new_service_client(
             HTTP/2 without TLS.
         sign_fn: Signs each request in place of private_key, e.g. with a key held elsewhere.
 
-    Each timeout must be positive and at most 2147483647 ms; there is no way to turn one off. A
-    call's own ``timeout_ms`` (same bounds) replaces the default, whether shorter or longer.
+    Each timeout must be greater than zero. A call's own ``timeout_ms`` replaces the default,
+    whether shorter or longer.
 
     Returns:
         An instance of client_class configured with signing transport.
@@ -143,52 +131,24 @@ def _checked_base_url(base_url: str | None) -> str:
         raise ValueError("base URL is not set")
     if "://" not in base_url:  # a value without a scheme is read as https
         base_url = "https://" + base_url
-    if not _is_valid_base_url(base_url):
-        raise ValueError("base URL is not valid")
-    # connectrpc appends "/<service>/<method>", so a trailing "/" would double the slash.
-    return base_url.removesuffix("/")
-
-
-def _is_valid_base_url(base_url: str) -> bool:
-    """http:// or https:// (any case), a host name or IP literal, a port of 1..65535 if given, and
-    a path (see _is_valid_path): no user info, query or fragment."""
-    # urlsplit drops tabs and newlines, and strips leading spaces and controls, instead of refusing them.
-    if not (base_url.isascii() and base_url.isprintable()) or " " in base_url:
-        return False
     try:
         parts = urlsplit(base_url)
-        port = parts.port  # ValueError unless ASCII digits in 0..65535
+        port = parts.port  # ValueError outside 0..65535
     except ValueError:
-        return False
-    host = parts.hostname
-    if parts.scheme not in ("http", "https") or not host or port == 0:
-        return False
-    # No query or fragment. urlsplit drops an empty "?" or "#", so look for the characters.
-    if "?" in base_url or "#" in base_url or not _is_valid_path(parts.path):
-        return False
-    try:
-        ip = ipaddress.ip_address(host)
-    except ValueError:
-        ip = None
-        if _HOST_NAME.fullmatch(host) is None:
-            return False
-    ipv6 = isinstance(ip, ipaddress.IPv6Address)
-    if ipv6 and ip.scope_id is not None:  # a zone ("[fe80::1%en0]") names an interface of this machine only
-        return False
-    # The authority as urlsplit read it, written back: this refuses user info, a ':' without a port, a
-    # port written with a leading zero, and brackets around anything but an IPv6 address ("[v1.fe]").
-    authority = (f"[{host}]" if ipv6 else host) + (f":{port}" if port is not None else "")
-    return parts.netloc.lower() == authority
-
-
-def _is_valid_path(path: str) -> bool:
-    """An empty path, "/", or segments of ASCII letters, digits and "-._~" (not "." or ".."), each
-    after one "/", with an optional trailing "/". Calls go to <path>/<service>/<method>. Other paths
-    ("//", "/..", "/%41") would reach different URLs in different SDKs, whose HTTP clients normalize
-    them differently."""
-    segments = path.removesuffix("/").split("/")[1:]
-    # quote leaves exactly letters, digits and "-._~" as they are.
-    return quote(path, safe="/") == path and all(s not in ("", ".", "..") for s in segments)
+        raise ValueError("base URL is not valid") from None
+    # urlsplit drops an empty "?" or "#", so look for the characters.
+    if (
+        parts.scheme not in ("http", "https")
+        or not parts.hostname
+        or parts.username is not None
+        or port == 0
+        or "?" in base_url
+        or "#" in base_url
+    ):
+        raise ValueError("base URL is not valid")
+    # A path prefixes every call. connectrpc appends "/<service>/<method>", so a trailing "/" would
+    # double the slash.
+    return base_url.removesuffix("/")
 
 
 def _client_kwargs(wire_format: WireFormat, protocol: Protocol) -> dict[str, Any]:
@@ -213,17 +173,14 @@ def _transport(base_url: str, protocol: Protocol, *, sync: bool) -> Any | None:
 
 
 def _default_timeouts_ms(timeout: float, stream_timeout: float) -> tuple[int, int]:
-    return _timeout_ms("timeout", timeout, 1000), _timeout_ms("stream_timeout", stream_timeout, 1000)
+    return _timeout_ms("timeout", timeout), _timeout_ms("stream_timeout", stream_timeout)
 
 
-def _timeout_ms(name: str, value: object, ms_per_unit: int) -> int:
-    if isinstance(value, (int, float)) and not isinstance(value, bool):
-        ms = value * ms_per_unit
-        if 0 < ms <= MAX_TIMEOUT_MS:  # False for NaN too
-            # Rounded up: a fraction never shortens the timeout, and never becomes 0, which
-            # connectrpc reads as "no timeout".
-            return math.ceil(ms)
-    raise ValueError(f"{name} must be a positive duration of at most {MAX_TIMEOUT_MS} ms")
+def _timeout_ms(name: str, seconds: float) -> int:
+    if not seconds > 0:
+        raise ValueError(f"{name} must be a positive duration")
+    # Whole milliseconds: connectrpc writes the value into the timeout header as it is.
+    return round(seconds * 1000)
 
 
 def _set_default_timeouts(client: object, unary_ms: int, stream_ms: int) -> None:
@@ -248,8 +205,6 @@ def _bidi_stream_unsupported(*args: Any, **kwargs: Any) -> NoReturn:
 def _with_default_timeout(execute: Callable[..., Any], default_ms: int) -> Callable[..., Any]:
     @functools.wraps(execute)
     def execute_with_default_timeout(*args: Any, timeout_ms: int | None = None, **kwargs: Any) -> Any:
-        # Checked here: connectrpc would read 0 as "use the client's timeout" and pass on a negative one.
-        timeout_ms = default_ms if timeout_ms is None else _timeout_ms("timeout_ms", timeout_ms, 1)
-        return execute(*args, timeout_ms=timeout_ms, **kwargs)
+        return execute(*args, timeout_ms=default_ms if timeout_ms is None else timeout_ms, **kwargs)
 
     return execute_with_default_timeout

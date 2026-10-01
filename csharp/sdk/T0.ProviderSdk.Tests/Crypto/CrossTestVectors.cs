@@ -236,6 +236,38 @@ public class CrossTestVectors
     }
 
     /// <summary>
+    /// The rule <see cref="NetworkClientOptions.BaseUrl"/> checks a base URL with, through the client
+    /// factory that takes one.
+    /// </summary>
+    [Fact]
+    public void BaseUrlParsing_ShouldMatchVectorOutcomes()
+    {
+        var cases = Vectors.RootElement.GetProperty("base_url_parsing");
+        Assert.NotEmpty(cases.EnumerateArray());
+        var signer = Signer.FromHex(Vectors.RootElement.GetProperty("keys").GetProperty("private_key").GetString()!);
+
+        foreach (var vec in cases.EnumerateArray())
+        {
+            var name = vec.GetProperty("name").GetString();
+            var expected = vec.GetProperty("valid").GetBoolean()
+                ? "valid"
+                : $"{vec.GetProperty("error").GetString()} (Parameter 'BaseUrl')";
+
+            string outcome;
+            try
+            {
+                NetworkClient.CreateNetworkServiceClient(vec.GetProperty("input").GetString()!, signer);
+                outcome = "valid";
+            }
+            catch (ArgumentException e)
+            {
+                outcome = e.Message;
+            }
+            Assert.Equal($"{name}: {expected}", $"{name}: {outcome}");
+        }
+    }
+
+    /// <summary>
     /// The <c>first_envelope</c> cases sent through <see cref="SigningDelegatingHandler"/>: the
     /// signature covers the first envelope, prefix included, and the body goes out unchanged.
     /// </summary>

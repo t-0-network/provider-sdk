@@ -70,7 +70,7 @@ Versions: `sdk/pyproject.toml`.
 - Client constructors accept `http_client: pyqwest.Client | None` — we wrap pyqwest with `SigningClient` (not subclass).
 - ConnectRPC calls exactly 3 methods on the client: `get()`, `post()`, `stream()`.
 - `stream()` carries every client-/server-streaming call and every gRPC call (unary included), and its `content` is an (async) iterator yielding one envelope per message, not bytes. `post()` carries Connect unary calls; `get()` (Connect GET) is refused.
-- A `ConnectClient` has one `timeout_ms` for all calls, so `new_service_client()` wraps the instance's `execute_*` methods to apply `timeout` (unary) or `stream_timeout` (streams, 5 minutes by default) and to check a per-call `timeout_ms`, and makes `execute_bidi_stream` raise `UNIMPLEMENTED`. The factories pass `protocol`, `send_compression=None` and, for `WireFormat.JSON`, the JSON codec to the generated class.
+- A `ConnectClient` has one `timeout_ms` for all calls, so `new_service_client()` wraps the instance's `execute_*` methods to apply `timeout` (unary) or `stream_timeout` (streams, 5 minutes by default) where a call sets no `timeout_ms`, and makes `execute_bidi_stream` raise `UNIMPLEMENTED`. The factories pass `protocol`, `send_compression=None` and, for `WireFormat.JSON`, the JSON codec to the generated class.
 
 ## Proto Code Generation
 

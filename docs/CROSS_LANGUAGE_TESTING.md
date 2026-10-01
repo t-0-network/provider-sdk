@@ -18,7 +18,7 @@ All SDKs share cross-language test infrastructure in `cross_test/` to verify cry
 
 `stream_signing_cases` covers streaming RPCs, whose signature covers only the first request message. See [`cross_test/README.md`](../cross_test/README.md).
 
-`public_key_parsing` is the rule every provider server applies to its configured network key and to the `X-Public-Key` header, and `timestamp_parsing` the rule for `X-Signature-Timestamp`. Go and Java run it from the provider package, where the parser lives: `go/provider/cross_test.go` and `java/sdk/src/test/java/network/t0/sdk/provider/PublicKeyParsingVectorTest.java`. Node, Python and C# run it from the files above.
+`public_key_parsing` is the rule every provider server applies to its configured network key and to the `X-Public-Key` header, `timestamp_parsing` the rule for `X-Signature-Timestamp`, and `base_url_parsing` the base URL rule of every client. Go and Java run it from the provider package, where the parser lives: `go/provider/cross_test.go` and `java/sdk/src/test/java/network/t0/sdk/provider/PublicKeyParsingVectorTest.java`. Node, Python and C# run it from the files above.
 
 ## Go helper
 

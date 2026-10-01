@@ -3,10 +3,11 @@ package network
 import (
 	"encoding/binary"
 	"encoding/hex"
-	"fmt"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strconv"
 	"strings"
 	"testing"
@@ -188,86 +189,59 @@ func TestSigningTransport_NilAndNoBodyProduceSameSignature(t *testing.T) {
 	require.Equal(t, signatures[0], signatures[1], "nil body and http.NoBody must produce identical signatures")
 }
 
+// Every SDK checks its base URL against the rows in cross_test/test_vectors.json.
+func TestNewServiceClient_BaseURLVectors(t *testing.T) {
+	data, err := os.ReadFile("../../cross_test/test_vectors.json")
+	require.NoError(t, err)
+	var vectors struct {
+		BaseURLParsing []struct {
+			Name, Input, Error string
+			Valid              bool
+		} `json:"base_url_parsing"`
+	}
+	require.NoError(t, json.Unmarshal(data, &vectors))
+	require.NotEmpty(t, vectors.BaseURLParsing)
+
+	for _, row := range vectors.BaseURLParsing {
+		t.Run(row.Name, func(t *testing.T) {
+			var used string
+			capture := func(_ connect.HTTPClient, baseURL string, _ ...connect.ClientOption) stubClient {
+				used = baseURL
+				return stubClient{}
+			}
+			_, err := NewServiceClient("", capture, WithSignatureFunction(testSignFn(t)), WithBaseURL(row.Input))
+			if !row.Valid {
+				require.EqualError(t, err, row.Error)
+				return
+			}
+			require.NoError(t, err)
+			want := row.Input
+			if !strings.Contains(want, "://") {
+				want = "https://" + want // a base URL without a scheme is read as https
+			}
+			require.Equal(t, want, used)
+		})
+	}
+}
+
 func TestNewServiceClient_ValidationErrors(t *testing.T) {
 	factory := func(_ connect.HTTPClient, _ string, _ ...connect.ClientOption) stubClient {
 		return stubClient{}
 	}
-
-	t.Run("empty base URL", func(t *testing.T) {
-		_, err := NewServiceClient("", factory,
-			WithSignatureFunction(testSignFn(t)),
-			WithBaseURL(""),
-		)
-		require.ErrorIs(t, err, ErrEmptyBaseURL)
-		require.EqualError(t, err, "base URL is not set")
-	})
-
-	// The base URL rows every SDK shares.
-	for _, bad := range []string{
-		"ftp://h", "http://", "http://user@h", "http://my_host:8080", "https://api.t-0.network?x", "http://h:0",
-		"http://h:99999", "http://1.2.3", "http://h:080", "http://h\t", "https://api.t-0.network//",
-		"https://api.t-0.network/v1//", "https://api.t-0.network/a//b", "https://api.t-0.network/v1/..",
-		"https://api.t-0.network/v%31", "https://api.t-0.network/v1?x", "http://[::1%1]", "http://[v1.fe]",
-		"http://h.", "http://01.2.3.4", "http://1abc",
-	} {
-		t.Run(fmt.Sprintf("base URL %q is refused", bad), func(t *testing.T) {
-			_, err := NewServiceClient("", factory, WithSignatureFunction(testSignFn(t)), WithBaseURL(bad))
-			require.ErrorIs(t, err, ErrInvalidBaseURL)
-			require.EqualError(t, err, "base URL is not valid")
-		})
-	}
-
-	t.Run("base URLs that are accepted", func(t *testing.T) {
-		var used string
-		capture := func(_ connect.HTTPClient, baseURL string, _ ...connect.ClientOption) stubClient {
-			used = baseURL
-			return stubClient{}
-		}
-		for good, want := range map[string]string{
-			"https://api.t-0.network":  "https://api.t-0.network",
-			"https://api.t-0.network/": "https://api.t-0.network/",
-			"http://localhost:8080":    "http://localhost:8080",
-			"http://127.0.0.1:1234":    "http://127.0.0.1:1234",
-			"http://[::1]:8080":        "http://[::1]:8080",
-			"api.t-0.network":          "https://api.t-0.network",
-			"api.t-0.network:443":      "https://api.t-0.network:443",
-			// A path prefixes every call.
-			"https://api.t-0.network/v1":              "https://api.t-0.network/v1",
-			"https://api.t-0.network/v1/":             "https://api.t-0.network/v1/",
-			"https://api.t-0.network/sda/payments/t0": "https://api.t-0.network/sda/payments/t0",
-			"HTTPS://api.t-0.network":                 "HTTPS://api.t-0.network",
-			"http://[::1]":                            "http://[::1]",
-			"http://[::ffff:1.2.3.4]:8080":            "http://[::ffff:1.2.3.4]:8080",
-			"https://xn--bcher-kva.example":           "https://xn--bcher-kva.example",
-		} {
-			_, err := NewServiceClient("", capture, WithSignatureFunction(testSignFn(t)), WithBaseURL(good))
-			require.NoError(t, err, good)
-			require.Equal(t, want, used, "the base URL the client uses for %q", good)
-		}
-	})
 
 	t.Run("a key that is not 64 hex characters is refused", func(t *testing.T) {
 		_, err := NewServiceClient("0x1234", factory)
 		require.EqualError(t, err, "private key must be 32 bytes (64 hex characters)")
 	})
 
-	const maxTimeout = 2147483647 * time.Millisecond
-	for _, bad := range []time.Duration{0, maxTimeout + time.Millisecond} {
-		t.Run(fmt.Sprintf("timeout %v is refused", bad), func(t *testing.T) {
-			_, err := NewServiceClient("", factory, WithSignatureFunction(testSignFn(t)), WithTimeout(bad))
-			require.ErrorIs(t, err, ErrInvalidTimeOut)
-			require.EqualError(t, err, "WithTimeout must be a positive duration of at most 2147483647 ms")
+	t.Run("a timeout of zero is refused", func(t *testing.T) {
+		_, err := NewServiceClient("", factory, WithSignatureFunction(testSignFn(t)), WithTimeout(0))
+		require.ErrorIs(t, err, ErrInvalidTimeOut)
+		require.EqualError(t, err, "WithTimeout must be a positive duration")
 
-			_, err = NewServiceClient("", factory, WithSignatureFunction(testSignFn(t)), WithStreamTimeout(bad))
-			require.ErrorIs(t, err, ErrInvalidStreamTimeout)
-			require.EqualError(t, err, "WithStreamTimeout must be a positive duration of at most 2147483647 ms")
-		})
-	}
-
-	t.Run("the largest timeouts are accepted", func(t *testing.T) {
-		_, err := NewServiceClient("", factory, WithSignatureFunction(testSignFn(t)),
-			WithTimeout(maxTimeout), WithStreamTimeout(maxTimeout))
-		require.NoError(t, err)
+		_, err = NewServiceClient("", factory, WithSignatureFunction(testSignFn(t)), WithStreamTimeout(0))
+		require.ErrorIs(t, err, ErrInvalidStreamTimeout)
+		require.EqualError(t, err, "WithStreamTimeout must be a positive duration")
 	})
 
 	t.Run("empty key and no signFn", func(t *testing.T) {

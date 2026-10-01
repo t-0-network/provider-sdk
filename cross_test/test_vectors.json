@@ -426,5 +426,122 @@
       "value": "",
       "note": "A missing or empty header is rejected as missing."
     }
+  ],
+  "base_url_parsing_note": "Every SDK client checks its base URL with this rule: empty is 'base URL is not set'; a value without '://' is read as 'https://' + value; then the language's standard URL parser, plus: scheme http or https, a host, no user info, no query, no fragment, a port (if any) in 1..65535. Anything else is 'base URL is not valid'. A path prefixes every call. Inputs outside these rows may differ between SDKs, by their URL parsers.",
+  "base_url_parsing": [
+    {
+      "name": "plain",
+      "input": "https://api.t-0.network",
+      "valid": true,
+      "error": ""
+    },
+    {
+      "name": "trailing-slash",
+      "input": "https://api.t-0.network/",
+      "valid": true,
+      "error": ""
+    },
+    {
+      "name": "http-port",
+      "input": "http://localhost:8080",
+      "valid": true,
+      "error": ""
+    },
+    {
+      "name": "ipv4",
+      "input": "http://127.0.0.1:1234",
+      "valid": true,
+      "error": ""
+    },
+    {
+      "name": "ipv6",
+      "input": "http://[::1]:8080",
+      "valid": true,
+      "error": ""
+    },
+    {
+      "name": "no-scheme",
+      "input": "api.t-0.network",
+      "valid": true,
+      "error": ""
+    },
+    {
+      "name": "no-scheme-port",
+      "input": "api.t-0.network:443",
+      "valid": true,
+      "error": ""
+    },
+    {
+      "name": "path",
+      "input": "https://api.t-0.network/v1",
+      "valid": true,
+      "error": ""
+    },
+    {
+      "name": "path-trailing-slash",
+      "input": "https://api.t-0.network/v1/",
+      "valid": true,
+      "error": ""
+    },
+    {
+      "name": "deep-path",
+      "input": "https://api.t-0.network/sda/payments/t0",
+      "valid": true,
+      "error": ""
+    },
+    {
+      "name": "empty",
+      "input": "",
+      "valid": false,
+      "error": "base URL is not set"
+    },
+    {
+      "name": "other-scheme",
+      "input": "ftp://h",
+      "valid": false,
+      "error": "base URL is not valid"
+    },
+    {
+      "name": "no-host",
+      "input": "http://",
+      "valid": false,
+      "error": "base URL is not valid"
+    },
+    {
+      "name": "user-info",
+      "input": "http://user@h",
+      "valid": false,
+      "error": "base URL is not valid"
+    },
+    {
+      "name": "query",
+      "input": "https://api.t-0.network?x",
+      "valid": false,
+      "error": "base URL is not valid"
+    },
+    {
+      "name": "path-query",
+      "input": "https://api.t-0.network/v1?x",
+      "valid": false,
+      "error": "base URL is not valid"
+    },
+    {
+      "name": "fragment",
+      "input": "https://api.t-0.network#f",
+      "valid": false,
+      "error": "base URL is not valid"
+    },
+    {
+      "name": "port-zero",
+      "input": "http://h:0",
+      "valid": false,
+      "error": "base URL is not valid"
+    },
+    {
+      "name": "port-too-large",
+      "input": "http://h:99999",
+      "valid": false,
+      "error": "base URL is not valid"
+    }
   ]
 }

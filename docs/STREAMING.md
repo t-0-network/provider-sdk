@@ -24,7 +24,9 @@ sent as the caller produces it and is never buffered.
   waiting for anything from the server.
 - A client stream closed before its first message is signed over empty bytes and sent. The network
   rejects it.
-- A call that is cancelled or times out before its first message sends nothing.
+- A call that is cancelled or times out before its first message sends nothing. Java starts the
+  call with its first message, so it reports a deadline that passed before then only when the first
+  message or the end of the stream comes.
 - If the caller's message source fails, or the caller cancels, after the first message was sent,
   the call fails for the caller and the request is aborted. The server never sees a normal end of
   the stream, so it never handles a partial upload as complete.
@@ -45,7 +47,8 @@ unary timeout.
 
 - It is the deadline of the whole call, including the wait for the first message, and it is sent to
   the server. A stream that runs longer ends with `deadline exceeded` unless the caller passes a
-  longer stream timeout.
+  longer stream timeout. In Java the call starts with its first message, so a client stream that
+  never sends one is not ended by the deadline.
 - A deadline that the caller sets on a call replaces it, whether it is shorter or longer.
 - A synchronous client (Python's sync client) cannot interrupt a request source that blocks before
   its first message: the call waits for it and, if the deadline has passed by then, sends nothing and

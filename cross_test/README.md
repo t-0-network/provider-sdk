@@ -41,6 +41,7 @@ assertion rather than a sign-then-verify round trip.
 | `stream_signing_cases` | a streaming request body → the bytes its signature covers, and the signature |
 | `public_key_parsing` | a public key string → accepted or not, and its 65-byte uncompressed form |
 | `timestamp_parsing` | an `X-Signature-Timestamp` value → accepted or not, and its value |
+| `base_url_parsing` | a client's base URL → accepted or not, and the error message |
 
 `body_hex` is the exact preimage: whatever the transport put in the body, before the
 timestamp is appended and before anything decodes it. `grpc-framed-body` carries the gRPC
@@ -58,7 +59,7 @@ to sign the first envelope rather than the whole body. `empty-client-stream` is 
 closed before its first message: every SDK signs those empty bytes and sends the request, and the
 network rejects it.
 
-`public_key_parsing` and `timestamp_parsing` check rules V2 and V3 of
+`public_key_parsing`, `timestamp_parsing` and `base_url_parsing` check rules V2, V3 and C2 of
 [`docs/CROSS_SDK_RULES.md`](../docs/CROSS_SDK_RULES.md). A valid public key row gives the key's
 65-byte uncompressed form, so the compressed and uncompressed forms of a key compare equal; a
 valid timestamp row gives its value.

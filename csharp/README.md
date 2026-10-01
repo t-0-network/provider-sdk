@@ -42,7 +42,7 @@ var client = NetworkClient.CreateNetworkServiceClient(options, signer);
 await client.UpdateQuoteAsync(request, deadline: DateTime.UtcNow.AddMinutes(1));
 ```
 
-A client or server stream is signed over its first message and sent as soon as that message is written; bidirectional streams are refused. A timeout must be positive and at most 2147483647 ms. The streaming rules shared by all SDKs: [`docs/STREAMING.md`](../docs/STREAMING.md).
+A client or server stream is signed over its first message and sent as soon as that message is written; bidirectional streams are refused. A timeout must be greater than zero. The streaming rules shared by all SDKs: [`docs/STREAMING.md`](../docs/STREAMING.md).
 
 ## Available Commands
 

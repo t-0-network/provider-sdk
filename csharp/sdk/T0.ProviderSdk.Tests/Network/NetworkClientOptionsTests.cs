@@ -21,34 +21,11 @@ public class NetworkClientOptionsTests
         Assert.Equal("https://api.t-0.network", new NetworkClientOptions { BaseUrl = null }.BaseUrl);
     }
 
-    // The shared base URL table: 14 accepted, 21 refused as not valid, "" refused as not set.
-    [Theory]
-    [InlineData("https://api.t-0.network")]
-    [InlineData("https://api.t-0.network/")]
-    [InlineData("http://localhost:8080")]
-    [InlineData("http://127.0.0.1:1234")]
-    [InlineData("http://[::1]:8080")]
-    [InlineData("https://api.t-0.network/v1")]
-    [InlineData("https://api.t-0.network/v1/")]
-    [InlineData("https://api.t-0.network/sda/payments/t0")]
-    [InlineData("HTTPS://api.t-0.network")]
-    [InlineData("http://[::1]")]
-    [InlineData("http://[::ffff:1.2.3.4]:8080")]
-    [InlineData("https://xn--bcher-kva.example")]
-    public void BaseUrl_AcceptsHttpAndHttpsUrls(string url)
+    // The base_url_parsing vectors say which values are valid, not which scheme one without a scheme gets.
+    [Fact]
+    public void BaseUrlWithoutScheme_IsReadAsHttps()
     {
-        Assert.Equal(url, new NetworkClientOptions { BaseUrl = url }.BaseUrl);
-    }
-
-    [Theory]
-    [InlineData("api.t-0.network", 443)]
-    [InlineData("api.t-0.network:443", 443)]
-    public void BaseUrlWithoutScheme_IsReadAsHttps(string url, int port)
-    {
-        var options = new NetworkClientOptions { BaseUrl = url };
-
-        Assert.Equal("https://" + url, options.BaseUrl);
-        Assert.Equal(port, new Uri(options.BaseUrl).Port);
+        Assert.Equal("https://api.t-0.network:443", new NetworkClientOptions { BaseUrl = "api.t-0.network:443" }.BaseUrl);
     }
 
     // The base URL overloads of the helpers apply the same reading.
@@ -60,56 +37,6 @@ public class NetworkClientOptionsTests
         Assert.NotNull(NetworkClient.CreateNetworkServiceClient("api.t-0.network", signer));
         Assert.NotNull(NetworkClient.CreatePaymentIntentNetworkServiceClient("localhost:8080", signer));
         var ex = Assert.Throws<ArgumentException>(() => NetworkClient.CreateNetworkServiceClient("user@h", signer));
-        Assert.StartsWith("base URL is not valid", ex.Message);
-    }
-
-    // What Uri reads as something else: it drops a tab inside an IPv6 zone, reports no user info for
-    // an empty one, and decodes a zone written with "%25".
-    [Theory]
-    [InlineData("http://[::1%\t1]:65535/")]
-    [InlineData("http://h\u007f:8080")]
-    [InlineData("http://@[::1]")]
-    [InlineData("http://[::1%251]:8080")]
-    [InlineData("http://[fe80::1%eth0]")]
-    [InlineData("https://http:/h")]
-    public void BaseUrlThatUriReadsDifferently_IsRefused(string url)
-    {
-        var ex = Assert.Throws<ArgumentException>(() => new NetworkClientOptions { BaseUrl = url });
-        Assert.StartsWith("base URL is not valid", ex.Message);
-    }
-
-    [Fact]
-    public void EmptyBaseUrl_IsRefused()
-    {
-        var ex = Assert.Throws<ArgumentException>(() => new NetworkClientOptions { BaseUrl = "" });
-        Assert.StartsWith("base URL is not set", ex.Message);
-    }
-
-    [Theory]
-    [InlineData("ftp://h")]
-    [InlineData("http://")]
-    [InlineData("http://user@h")]
-    [InlineData("http://my_host:8080")]
-    [InlineData("https://api.t-0.network?x")]
-    [InlineData("http://h:0")]
-    [InlineData("http://h:99999")]
-    [InlineData("http://1.2.3")]
-    [InlineData("http://h:080")]
-    [InlineData("http://h\t")]
-    [InlineData("https://api.t-0.network//")]
-    [InlineData("https://api.t-0.network/v1//")]
-    [InlineData("https://api.t-0.network/a//b")]
-    [InlineData("https://api.t-0.network/v1/..")]
-    [InlineData("https://api.t-0.network/v%31")]
-    [InlineData("https://api.t-0.network/v1?x")]
-    [InlineData("http://[::1%1]")]
-    [InlineData("http://[v1.fe]")]
-    [InlineData("http://h.")]
-    [InlineData("http://01.2.3.4")]
-    [InlineData("http://1abc")]
-    public void BaseUrlThatIsNotValid_IsRefused(string url)
-    {
-        var ex = Assert.Throws<ArgumentException>(() => new NetworkClientOptions { BaseUrl = url });
         Assert.StartsWith("base URL is not valid", ex.Message);
     }
 

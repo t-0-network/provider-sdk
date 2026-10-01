@@ -20,8 +20,8 @@ Shared vectors live in [`cross_test/test_vectors.json`](../cross_test/test_vecto
 
 | # | Rule | Checked by |
 |---|---|---|
-| C1 | Unary calls have a 15 s deadline and streams 5 min, sent to the server. A deadline set by the caller replaces the default. A timeout cannot be turned off. | *per-SDK tests* |
-| C2 | One base URL rule ("base URL is not valid", "base URL is not set"); a path in the base URL prefixes every call. | *per-SDK tests* (the same rows in every SDK) |
+| C1 | Unary calls have a 15 s deadline and streams 5 min, sent to the server. A deadline set by the caller replaces the default. A configured timeout must be greater than zero (Node: also at most 2147483647 ms, the limit of its timers); nothing else is checked. | *per-SDK tests* |
+| C2 | Base URL: empty is "base URL is not set"; a value without `://` is read as `https://` + value; then the language's standard URL parser, plus: scheme http or https, a host, no user info, no query, no fragment, a port (if any) in 1..65535. Anything else is "base URL is not valid". A path in the base URL prefixes every call. | `base_url_parsing` |
 | C3 | Redirects are not followed. | *per-SDK tests* |
 
 ## Receiving calls from the network (provider servers)

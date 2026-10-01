@@ -3,11 +3,15 @@ import assert from 'node:assert/strict';
 import http from 'node:http';
 import net from 'node:net';
 import type { AddressInfo } from 'node:net';
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { Code, createConnectRouter, type ServiceImpl } from '@connectrpc/connect';
 import { universalRequestFromNodeRequest, universalResponseToNodeResponse } from '@connectrpc/connect-node';
 import { createClient, WireFormat, type Signature } from '../src/client/client.js';
 import { computeDigest, NetworkHeaders, parsePublicKey, publicKeysEqual, verifySignature } from '../src/crypto/index.js';
 import { StreamTest, isCode, newKeypair, stringValues } from './stream_helpers.js';
+
+const vectors = JSON.parse(readFileSync(resolve(import.meta.dirname, '../../../cross_test/test_vectors.json'), 'utf-8'));
 
 interface Check {
   procedure: string;
@@ -354,23 +358,9 @@ describe('createClient routes unary and streaming calls to their own transport',
     });
   });
 
-  it('a fractional timeout is rounded up to whole milliseconds', async () => {
-    await withServer(async (srv, key) => {
-      const client = createClient(key.privateKeyHex, srv.url, StreamTest, { timeoutMs: 4_320.2, streamTimeoutMs: 8_764.5 });
-      await client.unary({ value: 'u' });
-      await client.clientStream(stringValues('c'));
-      await client.unary({ value: 'u' }, { timeoutMs: 999.1 });
-
-      assert.deepEqual(srv.checks.map((c) => c.timeoutMs), ['4321', '8765', '1000']);
-    });
-  });
-
-  // 0 and null would mean no deadline; values from 2^31 ms (Infinity included) make Node fire the
-  // timer at once, so every call would fail at once.
-  const notTimeouts = [0, null, Infinity, 2 ** 31] as number[];
-
-  it('a timeout that is 0, null, or too large for a Node timer is refused', () => {
-    for (const ms of notTimeouts) {
+  // From 2^31 ms Node fires a timer at once, so every call would fail at once.
+  it('a configured timeout that is 0 or too large for a Node timer is refused', () => {
+    for (const ms of [0, 2 ** 31]) {
       for (const [name, opts] of [['timeoutMs', { timeoutMs: ms }], ['streamTimeoutMs', { streamTimeoutMs: ms }]] as const) {
         assert.throws(() => createClient(newKeypair().privateKeyHex, 'http://127.0.0.1:9', StreamTest, opts), {
           name: 'RangeError',
@@ -381,45 +371,21 @@ describe('createClient routes unary and streaming calls to their own transport',
     assert.doesNotThrow(() => createClient(newKeypair().privateKeyHex, 'http://127.0.0.1:9', StreamTest, { timeoutMs: 2 ** 31 - 1, streamTimeoutMs: 2 ** 31 - 1 }));
   });
 
-  it('a call timeoutMs that is 0, null, or too large for a Node timer is refused, and nothing is sent', async () => {
-    await withServer(async (srv, key) => {
-      const client = createClient(key.privateKeyHex, srv.url, StreamTest);
-      const drain = async (stream: AsyncIterable<unknown>) => {
-        for await (const _ of stream) { /* drain */ }
-      };
-      const refused = { name: 'RangeError', message: 'timeoutMs must be a positive duration of at most 2147483647 ms' };
-      for (const timeoutMs of notTimeouts) {
-        await assert.rejects(client.unary({ value: 'u' }, { timeoutMs }), refused);
-        await assert.rejects(client.clientStream(stringValues('c'), { timeoutMs }), refused);
-        await assert.rejects(drain(client.serverStream({ value: 's' }, { timeoutMs })), refused);
+  for (const row of vectors.base_url_parsing as { name: string; input: string; valid: boolean; error: string }[]) {
+    it(`base URL vector ${row.name}: ${JSON.stringify(row.input)} is ${row.valid ? 'valid' : row.error}`, () => {
+      const create = () => createClient(newKeypair().privateKeyHex, row.input, StreamTest);
+      if (row.valid) {
+        assert.doesNotThrow(create);
+      } else {
+        assert.throws(create, { message: row.error });
       }
-      assert.equal(srv.checks.length, 0, 'nothing is sent');
     });
-  });
+  }
 
-  it('the base URL must be http or https with a host; without one the default applies', () => {
+  it('a base URL that is not given is the default one; null is not set', () => {
     const key = newKeypair().privateKeyHex;
-    for (const url of ['', null] as unknown as string[]) {
-      assert.throws(() => createClient(key, url, StreamTest), { message: 'base URL is not set' });
-    }
-    for (const url of [
-      'ftp://h', 'http://', 'http://user@h', 'http://my_host:8080', 'https://api.t-0.network?x', 'http://h:0',
-      'http://h:99999', 'http://1.2.3', 'http://h:080', 'http://h\t', 'https://api.t-0.network//',
-      'https://api.t-0.network/v1//', 'https://api.t-0.network/a//b', 'https://api.t-0.network/v1/..',
-      'https://api.t-0.network/v%31', 'https://api.t-0.network/v1?x', 'http://[::1%1]', 'http://[v1.fe]',
-      'http://h.', 'http://01.2.3.4', 'http://1abc',
-    ]) {
-      assert.throws(() => createClient(key, url, StreamTest), { message: 'base URL is not valid' }, url);
-    }
-    for (const url of [
-      undefined,
-      'https://api.t-0.network', 'https://api.t-0.network/', 'http://localhost:8080', 'http://127.0.0.1:1234',
-      'http://[::1]:8080', 'api.t-0.network', 'api.t-0.network:443',
-      'https://api.t-0.network/v1', 'https://api.t-0.network/v1/', 'https://api.t-0.network/sda/payments/t0',
-      'HTTPS://api.t-0.network', 'http://[::1]', 'http://[::ffff:1.2.3.4]:8080', 'https://xn--bcher-kva.example',
-    ]) {
-      assert.doesNotThrow(() => createClient(key, url, StreamTest), String(url));
-    }
+    assert.doesNotThrow(() => createClient(key, undefined, StreamTest));
+    assert.throws(() => createClient(key, null as unknown as string, StreamTest), { message: 'base URL is not set' });
   });
 
   it('a path in the base URL prefixes every call, with or without a trailing "/"; the signature is unchanged', async () => {
@@ -478,7 +444,7 @@ describe('createClient routes unary and streaming calls to their own transport',
     });
   });
 
-  it('a refused server stream rejects only when iterated, never unhandled', async () => {
+  it('a refused bidirectional stream rejects only when iterated, never unhandled', async () => {
     const unhandled: unknown[] = [];
     const onUnhandled = (reason: unknown) => { unhandled.push(reason); };
     process.on('unhandledRejection', onUnhandled);
@@ -487,11 +453,9 @@ describe('createClient routes unary and streaming calls to their own transport',
       const drain = async (stream: AsyncIterable<unknown>) => {
         for await (const _ of stream) { /* drain */ }
       };
-      const refusedTimeout = client.serverStream({ value: 's' }, { timeoutMs: 0 });
       const refusedBidi = client.bidi(stringValues('m1'));
       await new Promise((resolve) => setTimeout(resolve, 50)); // time for an unhandled rejection to be reported
       assert.deepEqual(unhandled, []);
-      await assert.rejects(drain(refusedTimeout), { name: 'RangeError', message: 'timeoutMs must be a positive duration of at most 2147483647 ms' });
       await assert.rejects(drain(refusedBidi), isCode(Code.Unimplemented));
     } finally {
       process.off('unhandledRejection', onUnhandled);
