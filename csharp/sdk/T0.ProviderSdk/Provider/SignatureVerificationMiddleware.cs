@@ -119,17 +119,10 @@ public sealed class SignatureVerificationMiddleware
             ? headerValue[prefix.Length..]
             : headerValue;
 
-        if (hex.Length == 0)
+        if (hex.Length == 0 || !HexUtils.TryParseHex(hex, out var bytes))
             return null;
 
-        try
-        {
-            return Convert.FromHexString(hex);
-        }
-        catch (FormatException)
-        {
-            return null;
-        }
+        return bytes;
     }
 
     /// <summary>

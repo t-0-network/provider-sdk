@@ -1,5 +1,7 @@
 package network.t0.sdk.common;
 
+import java.util.HexFormat;
+
 /**
  * Utility class for hexadecimal encoding and decoding.
  *
@@ -8,7 +10,7 @@ package network.t0.sdk.common;
  */
 public final class HexUtils {
 
-    private static final char[] HEX_CHARS = "0123456789abcdef".toCharArray();
+    private static final HexFormat HEX = HexFormat.of();
 
     private HexUtils() {
         // Utility class
@@ -25,21 +27,8 @@ public final class HexUtils {
         if (hex == null) {
             throw new IllegalArgumentException("hex string must not be null");
         }
-        if (hex.length() % 2 != 0) {
-            throw new IllegalArgumentException("hex string must have even length");
-        }
-
-        int len = hex.length();
-        byte[] data = new byte[len / 2];
-        for (int i = 0; i < len; i += 2) {
-            int high = Character.digit(hex.charAt(i), 16);
-            int low = Character.digit(hex.charAt(i + 1), 16);
-            if (high == -1 || low == -1) {
-                throw new IllegalArgumentException("invalid hex character at position " + i);
-            }
-            data[i / 2] = (byte) ((high << 4) + low);
-        }
-        return data;
+        // ASCII 0-9, a-f and A-F only. Non-ASCII digits are rejected.
+        return HEX.parseHex(hex);
     }
 
     /**
@@ -52,14 +41,7 @@ public final class HexUtils {
         if (bytes == null) {
             throw new IllegalArgumentException("bytes must not be null");
         }
-
-        char[] result = new char[bytes.length * 2];
-        for (int i = 0; i < bytes.length; i++) {
-            int v = bytes[i] & 0xFF;
-            result[i * 2] = HEX_CHARS[v >>> 4];
-            result[i * 2 + 1] = HEX_CHARS[v & 0x0F];
-        }
-        return new String(result);
+        return HEX.formatHex(bytes);
     }
 
     /**

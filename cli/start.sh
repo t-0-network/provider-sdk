@@ -36,10 +36,13 @@ main() {
         mv "${tmpdir}/${BINARY_NAME}" "${install_dir}/${BINARY_NAME}"
         printf "Installed %s to %s/%s\n" "${BINARY_NAME}" "${install_dir}" "${BINARY_NAME}"
 
-        if ! echo "${PATH}" | tr ':' '\n' | grep -qx "${install_dir}"; then
-            printf "\n%s is not in your PATH. Add it permanently:\n" "${install_dir}"
-            printf "  echo 'export PATH=\"%s:\$PATH\"' >> ~/.bashrc  # or ~/.zshrc\n" "${install_dir}"
-        fi
+        case ":${PATH}:" in
+            *":${install_dir}:"*) ;;
+            *)
+                printf "\n%s is not in your PATH. Add it permanently:\n" "${install_dir}"
+                printf "  echo 'export PATH=\"%s:\$PATH\"' >> ~/.bashrc  # or ~/.zshrc\n" "${install_dir}"
+                ;;
+        esac
 
         printf "\nVerify:\n  %s --version\n" "${BINARY_NAME}"
     fi

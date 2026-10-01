@@ -116,7 +116,7 @@ Creates a project. The full invocation in placeholder form is in [`cli/README.md
 t0-init init --lang=go --module=github.com/test/my-go-provider --no-color --dir=test-go my-go-provider
 ```
 
-The project name is the single positional argument. Flags are Go `flag` flags: `--lang=go` and `--lang go` are equivalent, a single dash works, and after the first parse the remaining arguments are parsed again so flags may come before or after the name. `init --help` prints the flag set with defaults; `init --version` prints `<ProductName> init <version>` (`dev` for a local build) and exits before any validation.
+The project name is the single positional argument. Flags are Go `flag` flags: `--lang=go` and `--lang go` are equivalent, a single dash works, and parsing repeats until every argument is consumed, so a flag is applied wherever it sits relative to the name. A second positional argument is `[ERROR] expected exactly one project name` (exit 2). `init --help` prints the flag set with defaults; `init --version` prints `<ProductName> init <version>` (`dev` for a local build) and exits before any validation.
 
 | Flag | Default | Validation |
 |---|---|---|
@@ -130,9 +130,9 @@ The project name is the single positional argument. Flags are Go `flag` flags: `
 Checks run in this order, each on its own exit code:
 
 1. `--version` — print and return.
-2. Project name present, else `[ERROR] project name is required`, a blank line and `Usage: t0 init <project-name> --lang=<language>` on stderr (exit 2).
+2. Exactly one positional project name. None: `[ERROR] project name is required`, a blank line and `Usage: t0 init <project-name> --lang=<language>` on stderr (exit 2). More than one: `[ERROR] expected exactly one project name` (exit 2).
 3. Sanitization: trim, lowercase, spaces to `-`, every character outside `[a-z0-9_-]` dropped. `"My Cool Provider!"` becomes `my-cool-provider`. An empty result is `[ERROR] invalid project name — use only lowercase letters, numbers, hyphens, underscores` (exit 1).
-4. The PascalCase form (split on `-` and `_`, first letter of each part uppercased) must start with a letter, else `[ERROR] project name must start with a letter (got "123abc")` (exit 1).
+4. The sanitized name must start with `a-z` and end with `a-z` or `0-9`, else `[ERROR] project name must start with a letter and end with a letter or digit (got "_abc")` (exit 1). `_abc`, `-abc` and `abc-` fail this check.
 5. `--lang` present, else `[ERROR] --lang is required (options: go, node, python, java, csharp)` (exit 2); known, else `[ERROR] unknown language "rust" (options: go, node, python, java, csharp)` (exit 1).
 6. For `--lang=java`, `--repository` in the list, else `[ERROR] unknown repository "nexus" (options: jitpack, maven-central)` (exit 1).
 7. Target directory empty or absent, else `[ERROR] directory "<dir>" already exists and is non-empty` (exit 1).
@@ -169,9 +169,9 @@ Print the usage block above, exit 0.
 
 Steps, in the order they run and print:
 
-1. **Template extraction** — `[INFO] Extracting template files...` / `[OK] Template files extracted`. Every file under the embedded `internal/embed/<lang>/` is written into the target directory. File names and text contents have `my-provider` replaced by the project name and `MyProvider` by its PascalCase form; a `.tmpl` suffix is stripped; `dot-gitignore` becomes `.gitignore`; for Go, the template's module path (read from `go.mod.tmpl`) becomes the `--module` value; for Java, the repository line and SDK pins described under `--repository`. Files with a binary extension (`.jar`, `.class`, `.exe`, `.png`, `.jpg`, `.gif`, `.ico`, `.zip`, `.gz`, `.tar`, `.woff`, `.woff2`, `.ttf`) are copied byte for byte. `gradlew` and `*.sh` are written with mode `0755`, everything else `0666` (before umask).
+1. **Template extraction** — `[INFO] Extracting template files...` / `[OK] Template files extracted`. Every file under the embedded `internal/embed/<lang>/` is written into the target directory. File names and text contents have `my-provider` replaced by the project name and `MyProvider` by its PascalCase form; a `.tmpl` suffix is stripped; `dot-gitignore` becomes `.gitignore`; for Go, the template's module path (read from `go.mod.tmpl`) becomes the `--module` value; for Java, the repository line and SDK pins described under `--repository`. Files with a binary extension (`.jar`, `.class`, `.exe`, `.png`, `.jpg`, `.gif`, `.ico`, `.zip`, `.gz`, `.tar`, `.woff`, `.woff2`, `.ttf`), and files whose contents are not valid UTF-8, are copied byte for byte. `gradlew` and `*.sh` are written with mode `0755`, everything else `0666` (before umask).
 2. **Keypair** — `[INFO] Generating secp256k1 keypair...` / `[OK] Keypair generated`.
-3. **`.env`** — `[INFO] Creating .env file...` / `[OK] Environment configured`. `.env.example` is read from the project; the first active `PROVIDER_PRIVATE_KEY=` line (or `PRIVATE_KEY=`) is replaced whole with the private key, and the marker line `# your_public_key_here` is replaced with `# <public key>`. A template with no marker gets `# Public key for the line above (share it with t-0): <public key>` inserted under the key line. The result is written to `.env` and `chmod 0600`; `.env` is written only when the template ships `.env.example`.
+3. **`.env`** — `[INFO] Creating .env file...` / `[OK] Environment configured`. `.env.example` is read from the project; the first active `PROVIDER_PRIVATE_KEY=` line (or `PRIVATE_KEY=`) is replaced whole with the private key, and the marker line `# your_public_key_here` is replaced with `# <public key>`. A template with no marker gets `# Public key for the line above (share it with t-0): <public key>` inserted under the key line. The result is written to `.env` and `chmod 0600`. `.env` is written only when the template ships `.env.example`. An `.env.example` with no active key line fails `init` with `[ERROR] writing .env: .env.example has no active PROVIDER_PRIVATE_KEY or PRIVATE_KEY line` (exit 1) and writes no `.env`.
 4. **Completion output**.
 
 The generated `.env` for every language (Node's template sets `PORT=3000`, the others `PORT=8080`):
@@ -387,7 +387,7 @@ The version compiled in is what pins the Java template's SDK coordinates in a sc
 
 Edit the template under its directory from the [Templates](#templates) table, keeping `my-provider`/`MyProvider` as the project name and `dot-gitignore` as the ignore file. `ci-cli.yaml` triggers on the template path, regenerates the embed, scaffolds the language and verifies the result against the tree's SDK (a compile; for Python, an install and import). Locally, `go generate ./... && go test ./...` in `cli/` covers the scaffolding step; the per-language verification runs only in CI. `internal/embed/` is regenerated, never edited.
 
-Files whose contents must survive untouched need a binary extension from the list in `scaffold.go` (`binaryExts`); any other file goes through the `my-provider`/`MyProvider` replacement.
+Files whose contents must survive untouched need a binary extension from the list in `scaffold.go` (`binaryExts`), or contents that are not valid UTF-8. Any other file goes through the `my-provider`/`MyProvider` replacement.
 
 ### Adding a language
 

@@ -10,6 +10,7 @@ import org.bouncycastle.crypto.signers.ECDSASigner;
 import org.bouncycastle.crypto.signers.HMacDSAKCalculator;
 import org.bouncycastle.math.ec.ECPoint;
 import org.bouncycastle.math.ec.FixedPointCombMultiplier;
+import org.bouncycastle.util.BigIntegers;
 
 import java.math.BigInteger;
 import java.util.Arrays;
@@ -244,17 +245,6 @@ public final class Signer implements DigestSigner {
     }
 
     private static byte[] bigIntegerToBytes(BigInteger value, int length) {
-        byte[] bytes = value.toByteArray();
-        if (bytes.length == length) {
-            return bytes;
-        } else if (bytes.length > length) {
-            // Remove leading zeros
-            return Arrays.copyOfRange(bytes, bytes.length - length, bytes.length);
-        } else {
-            // Pad with leading zeros
-            byte[] result = new byte[length];
-            System.arraycopy(bytes, 0, result, length - bytes.length, bytes.length);
-            return result;
-        }
+        return BigIntegers.asUnsignedByteArray(length, value);
     }
 }

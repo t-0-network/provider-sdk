@@ -97,7 +97,7 @@ public final class SignatureVerifier {
             throw new IllegalArgumentException("public key must not be null or empty");
         }
 
-        String cleanHex = HexUtils.stripHexPrefix(hexPublicKey.toLowerCase());
+        String cleanHex = HexUtils.stripHexPrefix(hexPublicKey);
 
         if (cleanHex.length() != PUBLIC_KEY_HEX_LENGTH) {
             throw new IllegalArgumentException("public key must be 65 bytes (130 hex characters)");

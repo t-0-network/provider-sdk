@@ -6,6 +6,7 @@ using Org.BouncyCastle.Crypto.Signers;
 using Org.BouncyCastle.Math;
 using Org.BouncyCastle.Math.EC;
 using Org.BouncyCastle.Math.EC.Multiplier;
+using Org.BouncyCastle.Utilities;
 using T0.ProviderSdk.Common;
 
 namespace T0.ProviderSdk.Crypto;
@@ -50,10 +51,8 @@ public sealed class Signer : ISigner
             throw new ArgumentException("private key must not be null or empty");
 
         var cleanHex = HexUtils.StripHexPrefix(hexPrivateKey);
-        if (cleanHex.Length != PrivateKeyHexLength || !cleanHex.All(char.IsAsciiHexDigit))
+        if (cleanHex.Length != PrivateKeyHexLength || !HexUtils.TryParseHex(cleanHex, out var privateKeyBytes))
             throw new ArgumentException("private key must be 32 bytes (64 hex characters)");
-
-        var privateKeyBytes = HexUtils.HexToBytes(cleanHex);
         var privateKeyInt = new BigInteger(1, privateKeyBytes);
         ValidatePrivateKeyRange(privateKeyInt);
         var publicKey = DerivePublicKey(privateKeyInt);
@@ -189,15 +188,6 @@ public sealed class Signer : ISigner
 
     private static byte[] BigIntegerToBytes(BigInteger value, int length)
     {
-        var bytes = value.ToByteArrayUnsigned();
-        if (bytes.Length == length)
-            return bytes;
-        if (bytes.Length > length)
-            return bytes[^length..];
-
-        // Pad with leading zeros
-        var result = new byte[length];
-        Array.Copy(bytes, 0, result, length - bytes.Length, bytes.Length);
-        return result;
+        return BigIntegers.AsUnsignedByteArray(length, value);
     }
 }

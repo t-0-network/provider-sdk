@@ -91,7 +91,7 @@ func loadConfig() Config {
 		NetworkPublicKey:        provider.NetworkPublicKeyHexed(os.Getenv("NETWORK_PUBLIC_KEY")),
 		ProviderPrivateKey:      network.PrivateKeyHexed(os.Getenv("PROVIDER_PRIVATE_KEY")),
 		TZeroEndpoint:           cmp.Or(os.Getenv("TZERO_ENDPOINT"), "https://api-sandbox.t-0.network"),
-		ServerAddr:              ":" + os.Getenv("PORT"),
+		ServerAddr:              ":" + cmp.Or(os.Getenv("PORT"), "8080"),
 		QuotePublishingInterval: time.Duration(intervalMs) * time.Millisecond,
 	}
 }
