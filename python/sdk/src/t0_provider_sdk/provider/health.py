@@ -137,7 +137,8 @@ class HealthClient(ConnectClient):
     """Async health check client."""
 
     def __init__(self, address: str, **kwargs: object) -> None:
-        super().__init__(address, codec=google_protobuf_binary_codec(), **kwargs)
+        kwargs.setdefault("codec", google_protobuf_binary_codec())
+        super().__init__(address, **kwargs)
 
     async def check(
         self,
@@ -160,7 +161,8 @@ class HealthClientSync(ConnectClientSync):
     """Sync health check client."""
 
     def __init__(self, address: str, **kwargs: object) -> None:
-        super().__init__(address, codec=google_protobuf_binary_codec(), **kwargs)
+        kwargs.setdefault("codec", google_protobuf_binary_codec())
+        super().__init__(address, **kwargs)
 
     def check(
         self,

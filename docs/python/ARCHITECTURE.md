@@ -76,7 +76,7 @@ The SDK is a faithful port of the Go SDK (the golden standard), ensuring binary-
 | **ProviderService** | The server-side RPC service that the T-0 Network calls on the provider (inbound) |
 | **NetworkService** | The client-side RPC service that the provider calls on the T-0 Network (outbound) |
 | **Signature Protocol** | The Keccak-256 + secp256k1 ECDSA message authentication scheme |
-| **ConnectRPC** | The RPC framework used for communication (HTTP/1.1 and HTTP/2 compatible, not gRPC) |
+| **ConnectRPC** | The RPC framework used for communication; its clients speak the Connect protocol (HTTP/1.1 or HTTP/2) and gRPC |
 | **Raw Payload Bytes** | The original HTTP request body bytes as they appear on the wire |
 | **Network Public Key** | The T-0 Network's secp256k1 public key, used to verify inbound requests |
 | **Provider Private Key** | The provider's secp256k1 private key, used to sign outbound requests |
@@ -154,18 +154,20 @@ message = body || timestamp
 ```
 
 Where:
-- **`body`** is the raw HTTP request body (0 to 4,194,304 bytes by default). These MUST be the exact bytes on the wire. Protobuf serialization is not canonical -- deserializing and re-serializing a Protobuf message can produce different bytes. The signing and verification layers must operate on the original wire bytes, never on re-serialized output.
+- **`body`** is the raw HTTP request body (0 to 10,485,760 bytes by default). These MUST be the exact bytes on the wire. Protobuf serialization is not canonical -- deserializing and re-serializing a Protobuf message can produce different bytes. The signing and verification layers must operate on the original wire bytes, never on re-serialized output.
 - **`timestamp`** is the current time in milliseconds since the Unix epoch, encoded as a **little-endian unsigned 64-bit integer** (8 bytes).
 
 ```
 Message byte layout:
 ┌──────────────────────┬─────────────────────────┐
 │ body bytes           │ timestamp (8 bytes)      │
-│ (0 .. 4,194,304)     │ little-endian uint64     │
+│ (0 .. 10,485,760)    │ little-endian uint64     │
 └──────────────────────┴─────────────────────────┘
 ```
 
 > **CRITICAL INVARIANT:** The body bytes used for signing and verification MUST be the exact bytes from the HTTP request. Re-encoding a deserialized Protobuf message produces different bytes and will cause signature verification to fail.
+
+**Streaming RPCs and gRPC:** a request that goes through `stream()` (Connect streams and every gRPC call) is signed over its **first envelope** only, exactly as sent (flags ‖ uint32be length ‖ payload); a Connect unary request (`post()`) is signed over its whole body. See [docs/STREAMING.md](../STREAMING.md#what-is-signed).
 
 #### 2.1.2 Digest Computation
 
@@ -215,7 +217,7 @@ flowchart TD
     C -->|No| E2["INVALID_ARGUMENT<br/>Invalid header encoding"]
     C -->|Yes| D{Timestamp within<br/>±60 seconds?}
     D -->|No| E3["INVALID_ARGUMENT<br/>Timestamp out of range"]
-    D -->|Yes| F{Body size<br/>≤ 4 MB?}
+    D -->|Yes| F{Body size<br/>≤ 10 MiB?}
     F -->|No| E4["INVALID_ARGUMENT<br/>Body too large"]
     F -->|Yes| G{Public key matches<br/>expected sender?}
     G -->|No| E5["UNAUTHENTICATED<br/>Unknown public key"]
@@ -289,10 +291,12 @@ ConnectRPC was chosen over gRPC for its HTTP/1.1 compatibility, simpler deployme
 | Concern | Library | PyPI Name | Import | Rationale |
 |---------|---------|-----------|--------|-----------|
 | RPC Framework | connectrpc | `connectrpc>=0.11.1` | `connectrpc` | Official ConnectRPC Python runtime (renamed from `connect-python` at v0.10.0). Floor is 0.11.1: the generated stubs use `connectrpc.compat` so the runtime's protobuf-py default codec is bypassed in favour of the shipped `google.protobuf` messages |
-| HTTP Client | pyqwest | *(transitive)* | `pyqwest` | Rust-backed HTTP client; transitive dependency of connectrpc |
-| Protobuf | protobuf | `protobuf>=5.28` | `google.protobuf` | Standard Protocol Buffers runtime |
+| HTTP Client | pyqwest | `pyqwest>=0.11.0` | `pyqwest` | Rust-backed HTTP client of connectrpc; the signing wrappers turn off redirects, and 0.11 aborts an upload whose source fails instead of ending it normally |
+| Protobuf | protobuf | `protobuf>=7.34.1` | `google.protobuf` | Standard Protocol Buffers runtime |
 | ECDSA Crypto | coincurve | `coincurve>=21.0` | `coincurve` | Python bindings for libsecp256k1 |
-| Keccak Hash | pycryptodome | `pycryptodome>=3.23` | `Crypto.Hash.keccak` | Legacy Keccak-256 implementation |
+| Keccak Hash | pycryptodome | `pycryptodome>=3.23` | `Crypto.Hash.keccak` | Legacy Keccak-256 implementation. Not `pysha3` (incompatible with Python 3.13) and not `hashlib.sha3_256` (NIST SHA-3, different padding) |
+| Validation | protovalidate | `protovalidate>=0.3` | `protovalidate` | Checks provider responses against the `buf.validate` rules in the protos |
+| Health | grpcio-health-checking | `grpcio-health-checking>=1.60` | `grpc_health.v1` | The `grpc.health.v1` messages of the health service |
 | Env Loading | python-dotenv | `python-dotenv>=1.0` | `dotenv` | Template .env file handling (template dependency) |
 
 #### Rejected Alternatives
@@ -303,7 +307,6 @@ ConnectRPC was chosen over gRPC for its HTTP/1.1 compatibility, simpler deployme
 | `hashlib.sha3_256()` | Implements NIST SHA-3, not legacy Keccak-256 (different padding) |
 | Pre-0.10 `connectrpc` on PyPI (v0.0.1 by Gaudiy) | Squatted package, not the official runtime; pin `>=0.10.0` to skip it |
 | `connectrpc` 0.10.x with current stubs | Stubs generated with `protobuf=google` import `connectrpc.compat`, absent before 0.11; conversely, pre-0.11 stubs on a 0.11 runtime fail every request with `ConnectError('to_binary')` |
-| Subclassing `pyqwest.Client` | Rust-backed FFI object -- subclassing is fragile and undefined |
 
 ### 3.2 Package Architecture
 
@@ -395,7 +398,7 @@ The two phases communicate through `contextvars.ContextVar`, which is request-sc
 
 ### 3.4 Client-Side: Signing Transport
 
-On the client side, the SDK wraps the HTTP client to inject signature headers before each outgoing request. ConnectRPC Python calls exactly three methods on its HTTP client: `get()`, `post()`, and `stream()`. The signing wrapper intercepts these three methods, computes the signature, adds headers, and delegates to the real HTTP client.
+On the client side, the SDK wraps the HTTP client to inject signature headers before each outgoing request. ConnectRPC Python calls exactly three methods on its HTTP client: `get()`, `post()`, and `stream()`. The signing wrapper signs `post()` and `stream()`, adds the headers, and delegates to the real HTTP client; `get()` is refused, since a GET has no body to sign.
 
 ```mermaid
 sequenceDiagram
@@ -420,9 +423,11 @@ sequenceDiagram
     CC-->>App: Deserialized response
 ```
 
-**Wrapper pattern (not subclass):** `pyqwest.Client` is backed by a Rust FFI implementation. Subclassing Rust-backed Python objects is fragile and may produce undefined behavior. The wrapper pattern -- creating a class that holds a reference to the real client and delegates method calls -- is the safe and proven approach. This mirrors Go SDK's `SigningTransport` wrapping `http.RoundTripper`.
+**Streaming requests:** ConnectRPC hands `stream()` an iterator of envelopes, one per message. The wrapper signs the first envelope as soon as it is available, sends at once and forwards the rest unbuffered; see [docs/STREAMING.md](../STREAMING.md#when-the-request-is-sent).
 
-Both async (`SigningClient` wrapping `pyqwest.Client`) and sync (`SigningSyncClient` wrapping `pyqwest.SyncClient`) variants are provided.
+**Wrapper pattern (not subclass):** the wrapper holds the real client and delegates to it. ConnectRPC calls only `get()`, `post()` and `stream()`, so the wrapper covers everything it uses and nothing else of `pyqwest.Client` leaks through.
+
+Both async (`SigningClient` wrapping `pyqwest.Client`) and sync (`SigningSyncClient` wrapping `pyqwest.SyncClient`) variants are provided. Their transports do not follow redirects: a redirect would re-send the signed request, headers included, to another URL, so a 3xx response fails the call.
 
 ### 3.5 Proto-Agnostic Design
 
@@ -516,7 +521,7 @@ When porting changes from Go to Python (or vice versa), use this table to locate
 
 ### 3.8 Protobuf Code Generation Pipeline
 
-Proto definitions are the source of truth and live in `sdk/src/t0_provider_sdk/proto/`. The `buf` tool generates Python code into `sdk/src/t0_provider_sdk/api/`. Generated code is committed to the repository to avoid requiring the `buf` toolchain at runtime or install time.
+Proto definitions are the source of truth and live in the repository's root `proto/`. The `buf` tool generates Python code from the root `buf.gen.yaml` into `sdk/src/t0_provider_sdk/api/`. Generated code is committed to the repository to avoid requiring the `buf` toolchain at runtime or install time.
 
 ```mermaid
 flowchart LR
@@ -530,12 +535,11 @@ flowchart LR
 
 Generated code uses absolute imports like `from tzero.v1.payment import provider_pb2`. To make these imports resolve, the SDK's `__init__.py` adds the `api/` directory to `sys.path` at import time.
 
-**Regeneration:** When proto definitions change, regenerate with:
+**Regeneration:** When proto definitions change, regenerate from the repository root:
 
 ```bash
-cd sdk
-buf dep update    # Fetch/update proto dependencies
-buf generate      # Regenerate Python code into api/
+uv sync --project python --all-packages   # the Python connect plugin is a dev dependency
+buf generate
 ```
 
 ### 3.9 Starter Template
@@ -586,7 +590,7 @@ All functions use `coincurve.PrivateKey` and `coincurve.PublicKey`. Hex strings 
 
 | Function | Signature | Notes |
 |----------|-----------|-------|
-| `private_key_from_hex` | `(hex_key: str) -> PrivateKey` | Strips `0x` prefix if present |
+| `private_key_from_hex` | `(hex_key: str) -> PrivateKey` | 64 hex digits after an optional `0x`/`0X`, value in [1, n-1]; `ValueError` otherwise |
 | `public_key_from_hex` | `(hex_key: str) -> PublicKey` | Accepts compressed (33B) or uncompressed (65B) |
 | `public_key_to_bytes` | `(key: PublicKey) -> bytes` | Returns 65-byte uncompressed: `04 ∥ x(32) ∥ y(32)` |
 | `public_key_from_bytes` | `(data: bytes) -> PublicKey` | Accepts compressed or uncompressed format |
@@ -649,20 +653,22 @@ Three constants define the HTTP header names used in the signature protocol:
 ```python
 class SigningClient:
     def __init__(self, sign_fn: SignFn, *, transport: Any | None = None) -> None: ...
-    async def get(self, url, headers=None) -> Any: ...
+    async def get(self, url, headers=None) -> Any: ...  # refused: GET requests are not supported
     async def post(self, url, headers=None, content=None) -> Any: ...
-    def stream(self, method, url, headers=None, content=None) -> Any: ...
+    def stream(self, method, url, headers=None, content=None) -> AbstractAsyncContextManager[Response]: ...
 ```
 
-**`SigningSyncClient`** is the synchronous equivalent wrapping `pyqwest.SyncClient`.
+**`SigningSyncClient`** is the synchronous equivalent wrapping `pyqwest.SyncClient`. `stream()` takes the envelopes connectrpc passes (one per chunk), a pre-framed body as bytes, or no content (an empty stream), and in each case signs the first envelope as sent.
 
-Both classes share the signing logic via the `_sign_request()` helper:
+Both classes share the signing logic via the `_sign_request()` helper, which takes the bytes the signature covers:
 
 1. `timestamp_ms = int(time.time() * 1000)`
 2. `timestamp_bytes = struct.pack("<Q", timestamp_ms)` (little-endian uint64)
 3. `digest = legacy_keccak256(body + timestamp_bytes)`
 4. `signature, pub_key = sign_fn(digest)`
 5. Set headers: `X-Public-Key = "0x" + pub_key.hex()`, `X-Signature = "0x" + signature.hex()`, `X-Signature-Timestamp = str(timestamp_ms)`
+
+What `body` is: the whole body of `post()`, or the first envelope of `stream()` exactly as sent; see [docs/STREAMING.md](../STREAMING.md#what-is-signed).
 
 #### 4.3.2 `client.py` -- Generic Client Factory
 
@@ -673,27 +679,40 @@ def new_service_client(
     private_key: str,           # Hex-encoded secp256k1 private key
     client_class: type[T],      # Generated ConnectRPC client class
     *,
-    base_url: str = DEFAULT_BASE_URL,
-    timeout: float = DEFAULT_TIMEOUT,
+    base_url: str | None = DEFAULT_BASE_URL,        # None means the default
+    timeout: float = DEFAULT_TIMEOUT,               # Unary calls, seconds
+    stream_timeout: float = DEFAULT_STREAM_TIMEOUT,  # Client-/server-streaming calls, seconds
+    wire_format: WireFormat = WireFormat.BINARY,    # or WireFormat.JSON
+    protocol: Protocol = Protocol.CONNECT,          # or Protocol.GRPC
+    sign_fn: SignFn | None = None,                  # signs in place of private_key
 ) -> T: ...
 
 def new_service_client_sync(
     private_key: str,
     client_class: type[T],
     *,
-    base_url: str = DEFAULT_BASE_URL,
+    base_url: str | None = DEFAULT_BASE_URL,
     timeout: float = DEFAULT_TIMEOUT,
+    stream_timeout: float = DEFAULT_STREAM_TIMEOUT,
+    wire_format: WireFormat = WireFormat.BINARY,
+    protocol: Protocol = Protocol.CONNECT,
+    sign_fn: SignFn | None = None,
 ) -> T: ...
 ```
 
-The functions create a `SignFn` from the private key, wrap it in `SigningClient`/`SigningSyncClient`, and pass it as the `http_client` parameter to the generated ConnectRPC client constructor.
+The functions check the base URL and the key, create a `SignFn` from the private key (unless `sign_fn` is given), wrap it in `SigningClient`/`SigningSyncClient`, and pass it as the `http_client` parameter to the generated ConnectRPC client constructor, together with the protocol, the codec for `WireFormat.JSON` and `send_compression=None` (requests go out uncompressed). `Protocol.GRPC` on an `http://` base URL gets an HTTP/2 transport without TLS.
+
+`timeout` (15 s) is the default of unary calls and `stream_timeout` (300 s) that of client- and server-streaming calls; a per-call `timeout_ms` replaces it, shorter or longer. Values that are not positive or exceed 2147483647 ms raise `ValueError`. Bidirectional calls raise `ConnectError(Code.UNIMPLEMENTED)` before anything is sent. See [docs/STREAMING.md](../STREAMING.md#stream-timeout).
 
 #### 4.3.3 `options.py`
 
 | Constant | Value | Purpose |
 |----------|-------|---------|
 | `DEFAULT_BASE_URL` | `"https://api.t-0.network"` | T-0 Network API endpoint |
-| `DEFAULT_TIMEOUT` | `15.0` | Request timeout in seconds |
+| `DEFAULT_TIMEOUT` | `15.0` | Unary call timeout in seconds |
+| `DEFAULT_STREAM_TIMEOUT` | `300.0` | Client- and server-streaming call timeout in seconds |
+| `WireFormat` | `BINARY`, `JSON` | Enum for the factories' `wire_format` option |
+| `Protocol` | `CONNECT`, `GRPC` | Enum for the factories' `protocol` option |
 
 ### 4.4 Server-Side Framework (`provider/`)
 
@@ -727,7 +746,7 @@ The most complex modules in the SDK. Implement Phase 1 of the [two-phase verific
 
 | Constant | Value |
 |----------|-------|
-| `DEFAULT_MAX_BODY_SIZE` | `4 * 1024 * 1024` (4 MB) |
+| `DEFAULT_MAX_BODY_SIZE` | `10 * 1024 * 1024` (10 MiB) |
 | `TIMESTAMP_TOLERANCE_MS` | `60_000` (60 seconds) |
 
 **`VerifySignatureFn`** is a frozen dataclass holding the network's public key. When called, it:
@@ -826,7 +845,7 @@ The `api/` directory contains buf/protobuf-generated Python code. It is committe
 
 ```
 api/
-├── buf/validate/           # Protobuf validation (from protovalidate dep)
+├── buf/validate/           # buf.validate stubs (generated, used by protovalidate)
 ├── ivms101/v1/ivms/        # Travel rule data structures
 └── tzero/v1/
     ├── common/             # Shared types (Decimal, enums)
@@ -868,51 +887,9 @@ The starter template in `starter/template/` is a complete, runnable application.
 
 ### 4.7 Testing Architecture
 
-#### 4.7.1 Unit Tests
-
-Tests are organized to mirror the SDK module structure under `sdk/tests/`:
-
-| Module | Test File | Key Scenarios |
-|--------|-----------|---------------|
-| `crypto/hash` | `test_hash.py` | Known vectors, Keccak vs SHA-3 distinction, determinism, output length |
-| `crypto/keys` | `test_keys.py` | Go test vectors, `0x` prefix handling, round-trip conversions, compressed format |
-| `crypto/signer` | `test_signer.py` | 65-byte format, recovery byte range (0-1), sign-verify round-trip, cross-key |
-| `crypto/verifier` | `test_verifier.py` | 64/65-byte signatures, wrong key/digest, tampered signatures |
-| `network/signing` | `test_signing.py` | Header presence/format, signature verifiability, existing header preservation |
-| `provider/middleware` | `test_middleware.py` | All ASGI verification paths: valid, missing headers, invalid encoding, timestamp range, wrong key, bad signature, body size |
-| `provider/middleware_wsgi` | `test_middleware_wsgi.py` | All WSGI verification paths (mirrors ASGI tests) |
-| `integration` | `test_signature_verification.py` | End-to-end ASGI: sign via transport → verify via middleware, wrong key rejection, large body |
-| `integration` | `test_signature_verification_wsgi.py` | End-to-end WSGI: sign via transport → verify via WSGI middleware |
-
-Tests use shared test vectors from the Go SDK to ensure cross-language compatibility:
-- **Key pair 1:** Private `0x6b30303de7b26b...`, Public `0x044fa1465c087a...`
-- **Key pair 2:** Private `0x691db48202ca70...`, Public `0x049bb924680bfb...`
-
-#### 4.7.2 Cross-Language Tests
-
-Located in `tests/cross_test/`, these tests validate interoperability between the Python and Go SDKs using a small Go helper binary.
-
-**Go helper binary** (`cross_test/go_helper/`):
-- `hash <hex_data>` -- Compute Keccak-256
-- `sign <hex_private_key> <hex_digest>` -- Sign a digest
-- `verify <hex_public_key> <hex_digest> <hex_signature>` -- Verify a signature
-- `pubkey <hex_private_key>` -- Derive public key
-- `serve <port> <hex_network_public_key>` -- Start a Go ProviderService server
-- `call-pay-out <base_url> <hex_private_key>` -- Call PayOut on a server
-
-**Signature cross-tests** (`test_cross_signature.py`):
-- Keccak-256 hash consistency between Python and Go
-- Public key derivation consistency
-- Python signs → Go verifies (via subprocess)
-- Go signs → Python verifies (65-byte and 64-byte signatures)
-
-**Server cross-tests** (`test_cross_server.py`, `test_cross_server_sync.py`):
-- Python async client → Go ProviderService server (ASGI)
-- Go client → Python ASGI ProviderService server
-- Python sync client → Go ProviderService server (WSGI)
-- Go client → Python WSGI ProviderService server
-
-#### 4.7.3 Running Tests
+- **Unit tests** (`sdk/tests/`) follow the SDK's module layout and need no Go helper. The shared vectors in `cross_test/test_vectors.json` drive the crypto code and both signing wrappers.
+- **Integration tests** (`sdk/tests/integration/`) sign through the client transport and verify through the ASGI and WSGI middleware in one process.
+- **Cross-language tests** (`tests/cross_test/`) run against the shared Go helper (`cross_test/go_helper/`): signing and verifying in both directions, server-to-server calls in both directions, and streaming calls to the helper's `test.v1.StreamTest`, whose replies name the framing it verified and whose errors give the reason for a refusal. In CI they fail, not skip, when the helper binary is missing.
 
 ```bash
 # Install all dependencies
@@ -938,17 +915,18 @@ uv run ruff check .
 
 When `.proto` files change:
 
+From the repository root:
+
 ```bash
-cd sdk
-buf dep update    # Update proto dependencies
-buf generate      # Regenerate Python code into api/
+uv sync --project python --all-packages   # the Python connect plugin is a dev dependency
+buf generate
 ```
 
-Commit the regenerated `api/` directory.
+Commit the regenerated `api/` directory (the `generate-clients.yaml` workflow does the same).
 
 #### 4.8.2 Adding a New Service
 
-1. Add the `.proto` file to `sdk/src/t0_provider_sdk/proto/`
+1. Add the `.proto` file to the repository's root `proto/`
 2. Run `buf generate` to create the generated code
 3. **Server side (ASGI):** Implement the generated service Protocol, then register with `handler()`:
    ```python

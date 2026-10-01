@@ -19,16 +19,21 @@ csharp/
 │   │   └── SignResult.cs             # Immutable signing result
 │   ├── Network/                      # Client-side (outbound calls)
 │   │   ├── NetworkClient.cs          # Factory for auto-signing gRPC clients
-│   │   ├── NetworkClientOptions.cs   # Client configuration
-│   │   └── SigningDelegatingHandler.cs # HTTP message signing
+│   │   ├── NetworkClientOptions.cs   # Client configuration (BaseUrl, Timeout, StreamTimeout)
+│   │   ├── DefaultDeadlineInterceptor.cs # Default deadline per call type (internal)
+│   │   ├── SigningDelegatingHandler.cs # HTTP message signing
+│   │   └── FirstFrameThenPipeContent.cs # Sends the signed first envelope, then pipes the rest
 │   ├── Provider/                     # Server-side (incoming requests)
 │   │   ├── SignatureVerificationMiddleware.cs
+│   │   ├── ValidationInterceptor.cs  # Validates responses against buf.validate annotations
+│   │   ├── HealthServiceImpl.cs      # grpc.health.v1 service
 │   │   └── ProviderServerOptions.cs
 │   ├── Hosting/
 │   │   └── QuotePublisherService.cs  # Abstract BackgroundService for quotes
 │   ├── Common/
 │   │   ├── Headers.cs                # Header constants + timestamp encoding
-│   │   └── HexUtils.cs              # Hex encoding/decoding
+│   │   ├── HexUtils.cs               # Hex encoding/decoding
+│   │   └── ValidationUtils.cs        # Formats buf.validate violations
 │   ├── Api/                          # Generated protobuf + gRPC code
 │   │   ├── Tzero/V1/Payment/         # Payment service definitions
 │   │   ├── Tzero/V1/PaymentIntent/   # PaymentIntent service definitions
@@ -47,7 +52,11 @@ csharp/
 **CRITICAL**: Protobuf encoding is not canonical. Re-encoding a deserialized message produces different bytes. All signing and verification operates on original wire bytes:
 
 - **Server-side**: `SignatureVerificationMiddleware` reads `Request.Body` as raw bytes BEFORE gRPC deserialization
-- **Client-side**: `SigningDelegatingHandler` reads `request.Content` bytes BEFORE sending
+- **Client-side**: `SigningDelegatingHandler` signs `request.Content` bytes as sent. For enveloped content (`application/grpc`, `application/grpc+*`, `application/connect+*`) it signs only the first envelope and pipes the rest through unbuffered (`FirstFrameThenPipeContent`); other content is read whole before sending. See [STREAMING.md](../STREAMING.md).
+
+### Deadlines
+
+Timeouts are gRPC call deadlines: a call without its own deadline gets `NetworkClientOptions.Timeout` (unary, 15 s) or `StreamTimeout` (client and server streams, 5 min), and the caller's own deadline replaces the default. Every `NetworkClient` factory applies both through an interceptor, which also refuses bidirectional streams; `HttpClient.Timeout` is infinite. All clients share one transport (connection pool), so a client is cheap to create and needs no disposing; the transport sends HTTP/2 keepalive pings every 5 min (10 s timeout) while a call is open and does not follow redirects, which would re-send the signed request to another server. The client does not validate requests; the network does. See [STREAMING.md](../STREAMING.md#stream-timeout).
 
 ### Two-Phase Server Architecture
 
@@ -90,6 +99,7 @@ headers = {
 }
 ```
 
+- **body_bytes**: for enveloped content, the first envelope as sent, 5-byte prefix included (for a unary gRPC call, the whole body); otherwise the whole body ([STREAMING.md](../STREAMING.md#what-is-signed))
 - **Hash**: Keccak-256 (legacy, NOT NIST SHA-3)
 - **Curve**: secp256k1 (same as Ethereum)
 - **Nonce**: RFC 6979 deterministic (HMAC-SHA256)
@@ -103,7 +113,7 @@ headers = {
 | `crypto.Sign()` | `Signer.Sign()` |
 | `crypto.VerifySignature()` | `SignatureVerifier.Verify()` |
 | `crypto.Keccak256()` | `Keccak256.Hash()` |
-| `network.NewServiceClient()` | `NetworkClient.CreateNetworkServiceClient()` |
+| `network.NewServiceClient()` | `NetworkClient.Create()` |
 | `network.SigningTransport` | `SigningDelegatingHandler` |
 | `provider.NewHttpHandler()` | `T0ProviderServer` |
 | `provider.StartServer()` | `T0ProviderServer.RunAsync()` |
@@ -111,11 +121,6 @@ headers = {
 
 ## Dependencies
 
-| Package | Version | Purpose |
-|---------|---------|---------|
-| BouncyCastle.Cryptography | 2.6.2 | secp256k1, ECDSA, Keccak-256 |
-| Google.Protobuf | 3.34.0 | Protobuf runtime |
-| Grpc.AspNetCore | 2.76.0 | gRPC server |
-| Grpc.Net.Client | 2.76.0 | gRPC client |
+BouncyCastle.Cryptography (secp256k1, ECDSA, Keccak-256), Google.Protobuf, Grpc.AspNetCore (server) and Grpc.Net.Client (client). Versions: [`T0.ProviderSdk.csproj`](../../csharp/sdk/T0.ProviderSdk/T0.ProviderSdk.csproj).
 
 Target: .NET 10.0

@@ -1,7 +1,5 @@
 """Generic handler registration for ConnectRPC ASGI/WSGI applications.
 
-Go equivalent: provider/handler.go → Handler[T] + NewHttpHandler()
-
 This module provides proto-agnostic handler registration. It works with
 any generated ConnectRPC service application class.
 """
@@ -47,10 +45,7 @@ HandlerOption = Callable[["_HandlerOptions"], None]
 
 @dataclass
 class _HandlerOptions:
-    """Internal options passed to handler builders.
-
-    Go equivalent: providerHandlerOptions
-    """
+    """Internal options passed to handler builders."""
 
     interceptors: list[Any] = field(default_factory=list)
     max_body_size: int = DEFAULT_MAX_BODY_SIZE
@@ -62,8 +57,6 @@ def handler(
     *options: HandlerOption,
 ) -> BuildHandler:
     """Register a service handler with optional configuration.
-
-    Go equivalent: Handler[T any](factory, impl, opts...)
 
     Args:
         asgi_app_factory: Generated ConnectRPC ASGI application class
@@ -96,8 +89,6 @@ def new_asgi_app(
     version: str | None = None,
 ) -> ASGIApp:
     """Create a composite ASGI app with signature verification.
-
-    Go equivalent: NewHttpHandler(networkPublicKey, buildHandlers...)
 
     Args:
         network_public_key: Hex-encoded T-0 Network public key for signature verification.

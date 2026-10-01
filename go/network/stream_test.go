@@ -1,0 +1,1081 @@
+package network
+
+import (
+	"bytes"
+	"context"
+	cryptorand "crypto/rand"
+	"encoding/base64"
+	"encoding/binary"
+	"encoding/hex"
+	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"slices"
+	"strconv"
+	"strings"
+	"sync"
+	"sync/atomic"
+	"testing"
+	"time"
+
+	"connectrpc.com/connect"
+	"github.com/decred/dcrd/dcrec/secp256k1/v4"
+	"github.com/stretchr/testify/require"
+	"github.com/t-0-network/provider-sdk/go/common"
+	"github.com/t-0-network/provider-sdk/go/crypto"
+	"google.golang.org/protobuf/types/known/wrapperspb"
+)
+
+// test.v1.StreamTest (cross_test/stream_test.proto).
+const (
+	procClientStream = "/test.v1.StreamTest/ClientStream"
+	procServerStream = "/test.v1.StreamTest/ServerStream"
+	procUnary        = "/test.v1.StreamTest/Unary"
+	procBidi         = "/test.v1.StreamTest/Bidi"
+)
+
+type streamTestClient struct {
+	clientStream *connect.Client[wrapperspb.StringValue, wrapperspb.StringValue]
+	serverStream *connect.Client[wrapperspb.StringValue, wrapperspb.StringValue]
+	unary        *connect.Client[wrapperspb.StringValue, wrapperspb.StringValue]
+	bidi         *connect.Client[wrapperspb.StringValue, wrapperspb.StringValue]
+}
+
+func newStreamTestClient(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) *streamTestClient {
+	baseURL = strings.TrimRight(baseURL, "/") // as the generated clients do
+	return &streamTestClient{
+		clientStream: connect.NewClient[wrapperspb.StringValue, wrapperspb.StringValue](httpClient, baseURL+procClientStream, opts...),
+		serverStream: connect.NewClient[wrapperspb.StringValue, wrapperspb.StringValue](httpClient, baseURL+procServerStream, opts...),
+		unary:        connect.NewClient[wrapperspb.StringValue, wrapperspb.StringValue](httpClient, baseURL+procUnary, opts...),
+		bidi:         connect.NewClient[wrapperspb.StringValue, wrapperspb.StringValue](httpClient, baseURL+procBidi, opts...),
+	}
+}
+
+type verified struct {
+	procedure string
+	framing   string // "envelope", "payload" (gRPC without the prefix) or "body" (unary)
+	signed    []byte
+}
+
+// streamTestServer verifies like the network: a streaming request over its first envelope, before
+// the handler reads the rest.
+type streamTestServer struct {
+	url       string
+	transport http.RoundTripper
+	publicKey []byte
+
+	// received gets each ClientStream message as the handler reads it.
+	received chan string
+	// serverStreamGap and unaryDelay slow the handlers down for the timeout tests.
+	serverStreamGap time.Duration
+	unaryDelay      time.Duration
+
+	mu       sync.Mutex
+	accepted []verified
+	rejected []string
+	// deadlines: "<path> <Connect-Timeout-Ms or grpc-timeout>" per request.
+	deadlines []string
+}
+
+func newStreamTestServer(t *testing.T, publicKey []byte) *streamTestServer {
+	t.Helper()
+	return newStreamTestServerOver(t, publicKey, false)
+}
+
+// newStreamTestServerOver serves HTTP/2 over TLS, or without TLS (cleartext) for a client that
+// builds its own transport.
+func newStreamTestServerOver(t *testing.T, publicKey []byte, cleartext bool) *streamTestServer {
+	t.Helper()
+	return newStreamTestServerAt(t, publicKey, cleartext, "")
+}
+
+// newStreamTestServerAt serves the procedures under pathPrefix, such as "/prefix"; the recorded
+// procedure is the path a request arrives at, prefix included.
+func newStreamTestServerAt(t *testing.T, publicKey []byte, cleartext bool, pathPrefix string) *streamTestServer {
+	t.Helper()
+	s := &streamTestServer{publicKey: publicKey, received: make(chan string, 64)}
+
+	mux := http.NewServeMux()
+	mux.Handle(procClientStream, connect.NewClientStreamHandler(procClientStream,
+		func(ctx context.Context, stream *connect.ClientStream[wrapperspb.StringValue]) (*connect.Response[wrapperspb.StringValue], error) {
+			var got []string
+			for stream.Receive() {
+				got = append(got, stream.Msg().GetValue())
+				s.received <- stream.Msg().GetValue()
+			}
+			if err := stream.Err(); err != nil {
+				return nil, err
+			}
+			return connect.NewResponse(wrapperspb.String(strings.Join(got, ","))), nil
+		}))
+	mux.Handle(procServerStream, connect.NewServerStreamHandler(procServerStream,
+		func(ctx context.Context, req *connect.Request[wrapperspb.StringValue], stream *connect.ServerStream[wrapperspb.StringValue]) error {
+			for i := 0; i < 3; i++ {
+				if i > 0 && s.serverStreamGap > 0 {
+					select {
+					case <-time.After(s.serverStreamGap):
+					case <-ctx.Done():
+						return ctx.Err()
+					}
+				}
+				if err := stream.Send(wrapperspb.String(req.Msg.GetValue())); err != nil {
+					return err
+				}
+			}
+			return nil
+		}))
+	mux.Handle(procUnary, connect.NewUnaryHandler(procUnary,
+		func(ctx context.Context, req *connect.Request[wrapperspb.StringValue]) (*connect.Response[wrapperspb.StringValue], error) {
+			if s.unaryDelay > 0 {
+				select {
+				case <-time.After(s.unaryDelay):
+				case <-ctx.Done():
+					return nil, ctx.Err()
+				}
+			}
+			return connect.NewResponse(wrapperspb.String(req.Msg.GetValue())), nil
+		}))
+
+	var handler http.Handler = mux
+	if pathPrefix != "" {
+		handler = http.StripPrefix(pathPrefix, mux)
+	}
+	srv := httptest.NewUnstartedServer(s.verify(handler))
+	if cleartext {
+		srv.Config.Protocols = new(http.Protocols)
+		srv.Config.Protocols.SetUnencryptedHTTP2(true)
+		srv.Start()
+	} else {
+		srv.EnableHTTP2 = true
+		srv.StartTLS()
+		s.transport = srv.Client().Transport
+	}
+	t.Cleanup(srv.Close)
+
+	s.url = srv.URL
+	return s
+}
+
+func (s *streamTestServer) verify(next http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		v, err := s.checkSignature(r)
+		s.mu.Lock()
+		s.deadlines = append(s.deadlines, r.URL.Path+" "+r.Header.Get("Connect-Timeout-Ms")+r.Header.Get("Grpc-Timeout"))
+		if err != nil {
+			s.rejected = append(s.rejected, err.Error())
+		} else {
+			s.accepted = append(s.accepted, v)
+		}
+		s.mu.Unlock()
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusUnauthorized)
+			return
+		}
+		next.ServeHTTP(w, r)
+	})
+}
+
+func (s *streamTestServer) checkSignature(r *http.Request) (verified, error) {
+	if r.ProtoMajor != 2 {
+		return verified{}, fmt.Errorf("want HTTP/2, got %s", r.Proto)
+	}
+	publicKey, err := hex.DecodeString(strings.TrimPrefix(r.Header.Get(common.PublicKeyHeader), "0x"))
+	if err != nil || !bytes.Equal(publicKey, s.publicKey) {
+		return verified{}, errors.New("unexpected public key")
+	}
+	signature, err := hex.DecodeString(strings.TrimPrefix(r.Header.Get(common.SignatureHeader), "0x"))
+	if err != nil {
+		return verified{}, errors.New("bad signature header")
+	}
+	timestamp, err := strconv.ParseInt(r.Header.Get(common.SignatureTimestampHeader), 10, 64)
+	if err != nil {
+		return verified{}, errors.New("bad timestamp header")
+	}
+	if d := time.Since(time.UnixMilli(timestamp)); d > time.Minute || d < -time.Minute {
+		return verified{}, errors.New("timestamp outside the window")
+	}
+
+	contentType := r.Header.Get("Content-Type")
+	isGRPC := contentType == "application/grpc" || strings.HasPrefix(contentType, "application/grpc+")
+	candidates := map[string][]byte{}
+	var order []string
+	if isGRPC || strings.HasPrefix(contentType, "application/connect+") {
+		var prefix [5]byte
+		if _, err := io.ReadFull(r.Body, prefix[:]); err != nil {
+			return verified{}, fmt.Errorf("reading first envelope prefix: %w", err)
+		}
+		payload := make([]byte, binary.BigEndian.Uint32(prefix[1:]))
+		if _, err := io.ReadFull(r.Body, payload); err != nil {
+			return verified{}, fmt.Errorf("reading first envelope payload: %w", err)
+		}
+		envelope := append(prefix[:], payload...)
+		r.Body = struct {
+			io.Reader
+			io.Closer
+		}{io.MultiReader(bytes.NewReader(envelope), r.Body), r.Body}
+		candidates["envelope"], order = envelope, append(order, "envelope")
+		if isGRPC {
+			candidates["payload"], order = payload, append(order, "payload")
+		}
+	} else {
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			return verified{}, err
+		}
+		r.Body = io.NopCloser(bytes.NewReader(body))
+		candidates["body"], order = body, append(order, "body")
+	}
+
+	pubKey, err := crypto.GetPublicKeyFromBytes(publicKey)
+	if err != nil {
+		return verified{}, err
+	}
+	for _, framing := range order {
+		signed := candidates[framing]
+		if crypto.VerifySignature(pubKey, digestOf(signed, timestamp), signature) {
+			return verified{procedure: r.URL.Path, framing: framing, signed: signed}, nil
+		}
+	}
+	return verified{}, errors.New("signature does not verify")
+}
+
+func (s *streamTestServer) results() ([]verified, []string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return append([]verified(nil), s.accepted...), append([]string(nil), s.rejected...)
+}
+
+func (s *streamTestServer) deadlineHeaders() []string {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return append([]string(nil), s.deadlines...)
+}
+
+func digestOf(signed []byte, timestampMs int64) []byte {
+	var ts [8]byte
+	binary.LittleEndian.PutUint64(ts[:], uint64(timestampMs))
+	return crypto.LegacyKeccak256(append(append([]byte{}, signed...), ts[:]...))
+}
+
+type testKey struct {
+	sign      crypto.SignFn
+	publicKey []byte
+}
+
+func newTestKey(t *testing.T) testKey {
+	t.Helper()
+	pk, err := secp256k1.GeneratePrivateKey()
+	require.NoError(t, err)
+	return testKey{sign: crypto.NewSigner(pk), publicKey: crypto.GetPublicKeyBytes(pk.PubKey())}
+}
+
+type streamProtocol struct {
+	name string
+	opts []ClientOption
+	// gzip compresses each message through the generated client's options, the only way a caller can.
+	gzip bool
+}
+
+var (
+	protocolConnect = streamProtocol{name: "connect"}
+	protocolGRPC    = streamProtocol{name: "grpc", opts: []ClientOption{WithProtocol(ProtocolGRPC)}}
+
+	streamProtocols = []streamProtocol{
+		protocolConnect,
+		{name: "connect-json", opts: []ClientOption{WithWireFormat(WireFormatJSON)}},
+		{name: "connect-gzip", gzip: true},
+		protocolGRPC,
+		{name: "grpc-gzip", opts: []ClientOption{WithProtocol(ProtocolGRPC)}, gzip: true},
+	}
+	// connectAndGRPC is for tests that neither the codec nor compression can affect.
+	connectAndGRPC = []streamProtocol{protocolConnect, protocolGRPC}
+)
+
+func (p streamProtocol) client(t *testing.T, srv *streamTestServer, key testKey, opts ...ClientOption) *streamTestClient {
+	t.Helper()
+	factory := newStreamTestClient
+	if p.gzip {
+		factory = func(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) *streamTestClient {
+			return newStreamTestClient(httpClient, baseURL, append(opts, connect.WithSendGzip())...)
+		}
+	}
+	base := []ClientOption{
+		WithSignatureFunction(key.sign),
+		WithBaseURL(srv.url),
+		withHTTPTransport(srv.transport),
+	}
+	client, err := NewServiceClient("", factory, slices.Concat(base, p.opts, opts)...)
+	require.NoError(t, err)
+	return client
+}
+
+func requireFirstEnvelopeSigned(t *testing.T, srv *streamTestServer, procedure string, compressed bool) {
+	t.Helper()
+	accepted, rejected := srv.results()
+	require.Empty(t, rejected)
+	require.Len(t, accepted, 1)
+	require.Equal(t, procedure, accepted[0].procedure)
+	require.Equal(t, "envelope", accepted[0].framing)
+	require.Equal(t, compressed, accepted[0].signed[0]&1 == 1, "compressed flag of the signed envelope")
+}
+
+func testContext(t *testing.T) context.Context {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	t.Cleanup(cancel)
+	return ctx
+}
+
+// noDeadline is a context without a deadline, so the client's timeouts apply.
+func noDeadline(t *testing.T) context.Context {
+	t.Helper()
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+	return ctx
+}
+
+func TestStream_ClientStreamSignsFirstEnvelope(t *testing.T) {
+	for _, p := range streamProtocols {
+		t.Run(p.name, func(t *testing.T) {
+			key := newTestKey(t)
+			srv := newStreamTestServer(t, key.publicKey)
+			client := p.client(t, srv, key)
+
+			stream := client.clientStream.CallClientStream(testContext(t))
+			for _, m := range []string{"m1", "m2", "m3"} {
+				require.NoError(t, stream.Send(wrapperspb.String(m)))
+			}
+			resp, err := stream.CloseAndReceive()
+			require.NoError(t, err)
+			require.Equal(t, "m1,m2,m3", resp.Msg.GetValue(), "the server receives every message unchanged")
+
+			requireFirstEnvelopeSigned(t, srv, procClientStream, p.gzip)
+		})
+	}
+}
+
+func TestStream_ServerStreamSignsFirstEnvelope(t *testing.T) {
+	for _, p := range streamProtocols {
+		t.Run(p.name, func(t *testing.T) {
+			key := newTestKey(t)
+			srv := newStreamTestServer(t, key.publicKey)
+			client := p.client(t, srv, key)
+
+			stream, err := client.serverStream.CallServerStream(testContext(t), connect.NewRequest(wrapperspb.String("hello")))
+			require.NoError(t, err)
+			var got []string
+			for stream.Receive() {
+				got = append(got, stream.Msg().GetValue())
+			}
+			require.NoError(t, stream.Err())
+			require.NoError(t, stream.Close())
+			require.Equal(t, []string{"hello", "hello", "hello"}, got)
+
+			requireFirstEnvelopeSigned(t, srv, procServerStream, p.gzip)
+		})
+	}
+}
+
+func TestStream_ClientStreamIsNotBuffered(t *testing.T) {
+	for _, p := range streamProtocols {
+		t.Run(p.name, func(t *testing.T) {
+			key := newTestKey(t)
+			srv := newStreamTestServer(t, key.publicKey)
+			client := p.client(t, srv, key)
+
+			stream := client.clientStream.CallClientStream(testContext(t))
+			require.NoError(t, stream.Send(wrapperspb.String("m1")))
+			require.NoError(t, stream.Send(wrapperspb.String("m2")))
+			for _, want := range []string{"m1", "m2"} {
+				select {
+				case got := <-srv.received:
+					require.Equal(t, want, got)
+				case <-time.After(3 * time.Second):
+					t.Fatalf("the server did not get %s before the stream ended: the request body is buffered", want)
+				}
+			}
+			require.NoError(t, stream.Send(wrapperspb.String("m3")))
+			resp, err := stream.CloseAndReceive()
+			require.NoError(t, err)
+			require.Equal(t, "m1,m2,m3", resp.Msg.GetValue())
+		})
+	}
+}
+
+// incompressible returns n random characters, so gzip leaves the message several 16 KiB frames long.
+func incompressible(t *testing.T, n int) string {
+	t.Helper()
+	raw := make([]byte, n*3/4)
+	_, err := cryptorand.Read(raw)
+	require.NoError(t, err)
+	return base64.StdEncoding.EncodeToString(raw)
+}
+
+func TestStream_LargeFirstMessage(t *testing.T) {
+	for _, p := range streamProtocols {
+		t.Run(p.name, func(t *testing.T) {
+			key := newTestKey(t)
+			srv := newStreamTestServer(t, key.publicKey)
+			client := p.client(t, srv, key)
+
+			large := incompressible(t, 64<<10)
+			stream := client.clientStream.CallClientStream(testContext(t))
+			require.NoError(t, stream.Send(wrapperspb.String(large)))
+			require.NoError(t, stream.Send(wrapperspb.String("tail")))
+			resp, err := stream.CloseAndReceive()
+			require.NoError(t, err)
+			require.Equal(t, large+",tail", resp.Msg.GetValue())
+
+			requireFirstEnvelopeSigned(t, srv, procClientStream, p.gzip)
+		})
+	}
+}
+
+func TestStream_EmptyClientStreamIsSentAndRejected(t *testing.T) {
+	for _, p := range connectAndGRPC {
+		t.Run(p.name, func(t *testing.T) {
+			key := newTestKey(t)
+			srv := newStreamTestServer(t, key.publicKey)
+			client := p.client(t, srv, key)
+
+			stream := client.clientStream.CallClientStream(testContext(t))
+			_, err := stream.CloseAndReceive()
+			require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err), "error: %v", err)
+
+			accepted, rejected := srv.results()
+			require.Empty(t, accepted)
+			require.Len(t, rejected, 1, "the request must reach the server")
+			require.Contains(t, rejected[0], "first envelope prefix")
+		})
+	}
+}
+
+func TestSigningTransport_EmptyStreamSignsEmptyBytes(t *testing.T) {
+	closedPipe, pw := io.Pipe()
+	require.NoError(t, pw.Close())
+
+	for name, body := range map[string]io.Reader{
+		"empty body":  bytes.NewReader(nil),
+		"closed pipe": closedPipe,
+		"http.NoBody": http.NoBody,
+		"nil body":    nil,
+	} {
+		t.Run(name, func(t *testing.T) {
+			key := newTestKey(t)
+			var sent *http.Request
+			var forwarded []byte
+			recorder := roundTripperFunc(func(r *http.Request) (*http.Response, error) {
+				sent = r
+				if r.Body != nil {
+					var err error
+					forwarded, err = io.ReadAll(r.Body)
+					require.NoError(t, err)
+				}
+				return &http.Response{StatusCode: http.StatusOK, Body: http.NoBody}, nil
+			})
+			st := NewSigningTransport(key.sign, time.Now, WithTransport(recorder))
+
+			resp, err := st.RoundTrip(newStreamRequest(t, context.Background(), body))
+			require.NoError(t, err)
+			resp.Body.Close()
+
+			require.Empty(t, forwarded)
+			timestamp, err := strconv.ParseInt(sent.Header.Get(common.SignatureTimestampHeader), 10, 64)
+			require.NoError(t, err)
+			signature, err := hex.DecodeString(strings.TrimPrefix(sent.Header.Get(common.SignatureHeader), "0x"))
+			require.NoError(t, err)
+			pubKey, err := crypto.GetPublicKeyFromBytes(key.publicKey)
+			require.NoError(t, err)
+			require.True(t, crypto.VerifySignature(pubKey, digestOf(nil, timestamp), signature), "signed over empty bytes")
+		})
+	}
+}
+
+// Unary calls keep whole-body signing; a gRPC unary body is a single envelope.
+func TestStream_UnaryOnSameClient(t *testing.T) {
+	for _, p := range streamProtocols {
+		t.Run(p.name, func(t *testing.T) {
+			key := newTestKey(t)
+			srv := newStreamTestServer(t, key.publicKey)
+			client := p.client(t, srv, key)
+
+			resp, err := client.unary.CallUnary(testContext(t), connect.NewRequest(wrapperspb.String("ping")))
+			require.NoError(t, err)
+			require.Equal(t, "ping", resp.Msg.GetValue())
+
+			accepted, rejected := srv.results()
+			require.Empty(t, rejected)
+			require.Len(t, accepted, 1)
+			if strings.HasPrefix(p.name, "grpc") {
+				require.Equal(t, "envelope", accepted[0].framing)
+			} else {
+				require.Equal(t, "body", accepted[0].framing)
+			}
+		})
+	}
+}
+
+// A path in the base URL prefixes every call, with or without a trailing "/". The signature does
+// not cover the URL, so it verifies as without one.
+func TestStream_BaseURLPathPrefixesCalls(t *testing.T) {
+	for _, p := range connectAndGRPC {
+		for _, path := range []string{"/prefix", "/prefix/", "/sda/payments/t0"} {
+			t.Run(p.name+" "+path, func(t *testing.T) {
+				key := newTestKey(t)
+				prefix := strings.TrimSuffix(path, "/")
+				srv := newStreamTestServerAt(t, key.publicKey, false, prefix)
+				client := p.client(t, srv, key, WithBaseURL(srv.url+path))
+
+				resp, err := client.unary.CallUnary(testContext(t), connect.NewRequest(wrapperspb.String("u")))
+				require.NoError(t, err)
+				require.Equal(t, "u", resp.Msg.GetValue())
+				stream := client.clientStream.CallClientStream(testContext(t))
+				require.NoError(t, stream.Send(wrapperspb.String("c")))
+				resp, err = stream.CloseAndReceive()
+				require.NoError(t, err)
+				require.Equal(t, "c", resp.Msg.GetValue())
+
+				accepted, rejected := srv.results()
+				require.Empty(t, rejected)
+				require.Len(t, accepted, 2)
+				require.Equal(t, prefix+procUnary, accepted[0].procedure)
+				require.Equal(t, prefix+procClientStream, accepted[1].procedure)
+			})
+		}
+	}
+}
+
+// errReadCloser fails every read with err and records Close.
+type errReadCloser struct {
+	err    error
+	closed bool
+}
+
+func (b *errReadCloser) Read([]byte) (int, error) { return 0, b.err }
+func (b *errReadCloser) Close() error             { b.closed = true; return nil }
+
+func newStreamRequest(t *testing.T, ctx context.Context, body io.Reader) *http.Request {
+	t.Helper()
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, "http://localhost"+procClientStream, body)
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/connect+proto")
+	return req
+}
+
+func unexpectedRoundTrip(t *testing.T) http.RoundTripper {
+	return roundTripperFunc(func(*http.Request) (*http.Response, error) {
+		t.Error("the request must not be sent")
+		return nil, errors.New("unexpected")
+	})
+}
+
+func TestSigningTransport_FirstEnvelopeReadErrorKeepsCode(t *testing.T) {
+	body := &errReadCloser{err: connect.NewError(connect.CodePermissionDenied, errors.New("caller refused"))}
+	st := NewSigningTransport(newTestKey(t).sign, time.Now, WithTransport(unexpectedRoundTrip(t)))
+
+	_, err := st.RoundTrip(newStreamRequest(t, context.Background(), body))
+	require.Error(t, err)
+	require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err))
+	require.True(t, body.closed, "the body must be closed when RoundTrip fails")
+}
+
+func TestSigningTransport_TruncatedFirstEnvelope(t *testing.T) {
+	for name, body := range map[string][]byte{
+		"partial prefix":  {0, 0, 0},
+		"partial payload": {0, 0, 0, 0, 9, 0x0a, 0x07},
+	} {
+		t.Run(name, func(t *testing.T) {
+			st := NewSigningTransport(newTestKey(t).sign, time.Now, WithTransport(unexpectedRoundTrip(t)))
+			req := newStreamRequest(t, context.Background(), bytes.NewReader(body))
+
+			_, err := st.RoundTrip(req)
+			require.Error(t, err)
+			require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err), "error: %v", err)
+			require.False(t, errors.Is(err, io.EOF), "connect-go rewrites errors that wrap io.EOF")
+		})
+	}
+}
+
+func TestSigningTransport_FirstEnvelopeDoesNotModifyRequest(t *testing.T) {
+	var sent *http.Request
+	recorder := roundTripperFunc(func(r *http.Request) (*http.Response, error) {
+		sent = r
+		return &http.Response{StatusCode: http.StatusOK, Body: http.NoBody}, nil
+	})
+	st := NewSigningTransport(newTestKey(t).sign, time.Now, WithTransport(recorder))
+
+	first := []byte{0, 0, 0, 0, 2, 0x0a, 0x00}
+	rest := []byte{0, 0, 0, 0, 2, 0x0a, 0x00}
+	body := io.NopCloser(bytes.NewReader(append(append([]byte{}, first...), rest...)))
+	req := newStreamRequest(t, context.Background(), body)
+	req.ContentLength = -1
+
+	resp, err := st.RoundTrip(req)
+	require.NoError(t, err)
+	resp.Body.Close()
+
+	require.Empty(t, req.Header.Get(common.SignatureHeader), "the caller's headers must not change")
+	require.True(t, req.Body == body, "the caller's body must not change")
+	require.NotSame(t, req, sent)
+	require.NotEmpty(t, sent.Header.Get(common.SignatureHeader))
+	require.Equal(t, int64(-1), sent.ContentLength)
+	forwarded, err := io.ReadAll(sent.Body)
+	require.NoError(t, err)
+	require.Equal(t, append(first, rest...), forwarded, "the body is forwarded unchanged")
+}
+
+func TestSigningTransport_WholeBodyDoesNotModifyRequest(t *testing.T) {
+	key := newTestKey(t)
+	var sent *http.Request
+	recorder := roundTripperFunc(func(r *http.Request) (*http.Response, error) {
+		sent = r
+		return &http.Response{StatusCode: http.StatusOK, Body: http.NoBody}, nil
+	})
+	st := NewSigningTransport(key.sign, time.Now, WithTransport(recorder))
+
+	// Two envelopes under a unary content type: an enveloped one would be signed over the first only.
+	whole := []byte{0, 0, 0, 0, 2, 0x0a, 0x00, 0, 0, 0, 0, 2, 0x0a, 0x00}
+	body := io.NopCloser(bytes.NewReader(whole))
+	req := newStreamRequest(t, context.Background(), body)
+	req.Header.Set("Content-Type", "application/proto")
+
+	resp, err := st.RoundTrip(req)
+	require.NoError(t, err)
+	resp.Body.Close()
+
+	require.Empty(t, req.Header.Get(common.SignatureHeader), "the caller's headers must not change")
+	require.True(t, req.Body == body, "the caller's body must not change")
+	require.NotSame(t, req, sent)
+	require.Equal(t, int64(len(whole)), sent.ContentLength)
+	forwarded, err := io.ReadAll(sent.Body)
+	require.NoError(t, err)
+	require.Equal(t, whole, forwarded)
+	replayed, err := sent.GetBody()
+	require.NoError(t, err)
+	again, err := io.ReadAll(replayed)
+	require.NoError(t, err)
+	require.Equal(t, whole, again, "GetBody replays the signed body")
+
+	timestamp, err := strconv.ParseInt(sent.Header.Get(common.SignatureTimestampHeader), 10, 64)
+	require.NoError(t, err)
+	signature, err := hex.DecodeString(strings.TrimPrefix(sent.Header.Get(common.SignatureHeader), "0x"))
+	require.NoError(t, err)
+	pubKey, err := crypto.GetPublicKeyFromBytes(key.publicKey)
+	require.NoError(t, err)
+	require.True(t, crypto.VerifySignature(pubKey, digestOf(whole, timestamp), signature), "signed over the whole body")
+}
+
+func TestSigningTransport_WholeBodyReadErrorClosesBody(t *testing.T) {
+	body := &errReadCloser{err: connect.NewError(connect.CodePermissionDenied, errors.New("caller refused"))}
+	st := NewSigningTransport(newTestKey(t).sign, time.Now, WithTransport(unexpectedRoundTrip(t)))
+
+	req := newStreamRequest(t, context.Background(), body)
+	req.Header.Set("Content-Type", "application/proto")
+	_, err := st.RoundTrip(req)
+	require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err), "error: %v", err)
+	require.True(t, body.closed, "the body must be closed")
+}
+
+// A stream the caller cancels after its first message never ends normally, even when its body is
+// then closed normally: the transport below sees an error, not io.EOF, and aborts the request.
+func TestSigningTransport_CancelledStreamDoesNotEndNormally(t *testing.T) {
+	envelope := func(payload string) []byte { return append([]byte{0, 0, 0, 0, byte(len(payload))}, payload...) }
+
+	for name, cancelFirst := range map[string]bool{"cancelled, then closed": true, "closed normally": false} {
+		t.Run(name, func(t *testing.T) {
+			ctx, cancel := context.WithCancel(context.Background())
+			defer cancel()
+			body, source := io.Pipe()
+			var forwarded []byte
+			var bodyErr error
+			recorder := roundTripperFunc(func(r *http.Request) (*http.Response, error) {
+				forwarded, bodyErr = io.ReadAll(r.Body)
+				return &http.Response{StatusCode: http.StatusOK, Body: http.NoBody}, nil
+			})
+			st := NewSigningTransport(newTestKey(t).sign, time.Now, WithTransport(recorder))
+
+			done := make(chan error, 1)
+			go func() {
+				resp, err := st.RoundTrip(newStreamRequest(t, ctx, body))
+				if err == nil {
+					resp.Body.Close()
+				}
+				done <- err
+			}()
+			_, err := source.Write(envelope("m1"))
+			require.NoError(t, err)
+			_, err = source.Write(envelope("m2"))
+			require.NoError(t, err)
+			if cancelFirst {
+				cancel()
+			}
+			require.NoError(t, source.Close())
+			require.NoError(t, <-done)
+
+			require.Equal(t, append(envelope("m1"), envelope("m2")...), forwarded, "the bytes are forwarded unchanged")
+			if cancelFirst {
+				require.ErrorIs(t, bodyErr, context.Canceled)
+			} else {
+				require.NoError(t, bodyErr)
+			}
+		})
+	}
+}
+
+func TestSigningTransport_ContextEndsWaitForFirstMessage(t *testing.T) {
+	pr, pw := io.Pipe()
+	ctx, cancel := context.WithCancel(context.Background())
+	st := NewSigningTransport(newTestKey(t).sign, time.Now, WithTransport(unexpectedRoundTrip(t)))
+
+	done := make(chan error, 1)
+	go func() {
+		_, err := st.RoundTrip(newStreamRequest(t, ctx, pr))
+		done <- err
+	}()
+	cancel()
+
+	select {
+	case err := <-done:
+		require.ErrorIs(t, err, context.Canceled)
+	case <-time.After(5 * time.Second):
+		t.Fatal("RoundTrip kept waiting after the context was cancelled")
+	}
+	_, err := pw.Write([]byte{0})
+	require.ErrorIs(t, err, io.ErrClosedPipe, "the body must be closed")
+}
+
+func TestSigningTransport_TimestampTakenAfterFirstMessage(t *testing.T) {
+	pr, pw := io.Pipe()
+	var sent, signedEarly atomic.Bool
+	// The clock runs in RoundTrip's goroutine, where require must not fail the test: it records.
+	clock := func() time.Time {
+		if !sent.Load() {
+			signedEarly.Store(true)
+		}
+		return time.Now()
+	}
+	recorder := roundTripperFunc(func(r *http.Request) (*http.Response, error) {
+		return &http.Response{StatusCode: http.StatusOK, Body: http.NoBody}, nil
+	})
+	st := NewSigningTransport(newTestKey(t).sign, clock, WithTransport(recorder))
+
+	done := make(chan error, 1)
+	go func() {
+		resp, err := st.RoundTrip(newStreamRequest(t, context.Background(), pr))
+		if err == nil {
+			resp.Body.Close()
+		}
+		done <- err
+	}()
+	time.Sleep(50 * time.Millisecond)
+	sent.Store(true)
+	_, err := pw.Write([]byte{0, 0, 0, 0, 0})
+	require.NoError(t, err)
+	require.NoError(t, <-done)
+	require.False(t, signedEarly.Load(), "signed before the first message arrived")
+}
+
+func TestStream_Timeouts(t *testing.T) {
+	for _, p := range connectAndGRPC {
+		t.Run(p.name, func(t *testing.T) {
+			key := newTestKey(t)
+			srv := newStreamTestServer(t, key.publicKey)
+			srv.unaryDelay = 500 * time.Millisecond
+			srv.serverStreamGap = 150 * time.Millisecond // three messages: 300 ms
+
+			t.Run("unary timeout applies to unary calls", func(t *testing.T) {
+				client := p.client(t, srv, key, WithTimeout(100*time.Millisecond))
+				_, err := client.unary.CallUnary(noDeadline(t), connect.NewRequest(wrapperspb.String("ping")))
+				require.Equal(t, connect.CodeDeadlineExceeded, connect.CodeOf(err), "error: %v", err)
+			})
+
+			t.Run("the unary timeout does not apply to streams", func(t *testing.T) {
+				client := p.client(t, srv, key, WithTimeout(100*time.Millisecond))
+				got, err := receiveAll(noDeadline(t), client, "hello")
+				require.NoError(t, err)
+				require.Len(t, got, 3)
+			})
+
+			t.Run("stream timeout applies to streams", func(t *testing.T) {
+				client := p.client(t, srv, key, WithStreamTimeout(100*time.Millisecond))
+				_, err := receiveAll(noDeadline(t), client, "hello")
+				require.Equal(t, connect.CodeDeadlineExceeded, connect.CodeOf(err), "error: %v", err)
+			})
+		})
+	}
+}
+
+func TestStream_StreamTimeoutBeforeFirstMessage(t *testing.T) {
+	for _, p := range connectAndGRPC {
+		t.Run(p.name, func(t *testing.T) {
+			key := newTestKey(t)
+			srv := newStreamTestServer(t, key.publicKey)
+			client := p.client(t, srv, key, WithStreamTimeout(100*time.Millisecond))
+
+			stream := client.clientStream.CallClientStream(noDeadline(t))
+			time.Sleep(300 * time.Millisecond)
+			_ = stream.Send(wrapperspb.String("too late")) // the error is reported by CloseAndReceive
+			_, err := stream.CloseAndReceive()
+			require.Equal(t, connect.CodeDeadlineExceeded, connect.CodeOf(err), "error: %v", err)
+
+			accepted, rejected := srv.results()
+			require.Empty(t, accepted)
+			require.Empty(t, rejected, "nothing reaches the server")
+		})
+	}
+}
+
+func TestStream_DeadlinesAreSent(t *testing.T) {
+	for _, p := range connectAndGRPC {
+		t.Run(p.name, func(t *testing.T) {
+			key := newTestKey(t)
+			srv := newStreamTestServer(t, key.publicKey)
+
+			// No deadline of the caller's own: only the client's timeouts set one.
+			ctx := noDeadline(t)
+
+			client := p.client(t, srv, key)
+			_, err := client.unary.CallUnary(ctx, connect.NewRequest(wrapperspb.String("ping")))
+			require.NoError(t, err)
+			_, err = receiveAll(ctx, client, "hello")
+			require.NoError(t, err)
+			stream := client.clientStream.CallClientStream(ctx)
+			require.NoError(t, stream.Send(wrapperspb.String("m1")))
+			_, err = stream.CloseAndReceive()
+			require.NoError(t, err)
+
+			headers := srv.deadlineHeaders()
+			require.Len(t, headers, 3)
+			require.Regexp(t, "^"+procUnary+" [0-9]+", headers[0], "the unary timeout is sent")
+			require.Regexp(t, "^"+procServerStream+" [0-9]+", headers[1], "the stream timeout is sent")
+			require.Regexp(t, "^"+procClientStream+" [0-9]+", headers[2], "the stream timeout is sent")
+		})
+	}
+}
+
+// The defaults apply only to a call without a deadline of its own, which replaces them both ways.
+func TestCallTimeouts_CallerDeadlineReplacesDefault(t *testing.T) {
+	timeouts := callTimeouts{unary: defaultClientOptions.timeout, stream: defaultClientOptions.streamTimeout}
+	require.Equal(t, 15*time.Second, timeouts.unary)
+	require.Equal(t, 5*time.Minute, timeouts.stream)
+
+	calls := []struct {
+		name         string
+		defaultValue time.Duration
+		deadlineOf   func(ctx context.Context) (time.Time, bool)
+	}{
+		{"unary", timeouts.unary, func(ctx context.Context) (deadline time.Time, ok bool) {
+			_, _ = timeouts.WrapUnary(func(ctx context.Context, _ connect.AnyRequest) (connect.AnyResponse, error) {
+				deadline, ok = ctx.Deadline()
+				return nil, nil
+			})(ctx, nil)
+			return deadline, ok
+		}},
+		{"stream", timeouts.stream, func(ctx context.Context) (deadline time.Time, ok bool) {
+			conn := timeouts.WrapStreamingClient(func(ctx context.Context, spec connect.Spec) connect.StreamingClientConn {
+				deadline, ok = ctx.Deadline()
+				return &unsupportedConn{spec: spec, header: http.Header{}}
+			})(ctx, connect.Spec{StreamType: connect.StreamTypeServer})
+			_ = conn.CloseResponse()
+			return deadline, ok
+		}},
+	}
+	for _, call := range calls {
+		t.Run(call.name, func(t *testing.T) {
+			before := time.Now()
+			got, ok := call.deadlineOf(context.Background())
+			require.True(t, ok, "the default applies without a deadline")
+			require.WithinRange(t, got, before.Add(call.defaultValue), time.Now().Add(call.defaultValue))
+
+			for _, own := range []time.Duration{time.Second, time.Hour} {
+				want := time.Now().Add(own)
+				ctx, cancel := context.WithDeadline(context.Background(), want)
+				got, ok := call.deadlineOf(ctx)
+				cancel()
+				require.True(t, ok)
+				require.True(t, want.Equal(got), "a deadline of %v replaces the default, got %v", own, got.Sub(want))
+			}
+		})
+	}
+}
+
+// On an http:// base URL, gRPC runs over HTTP/2 without TLS on a transport the client builds.
+func TestStream_GRPCOverCleartextHTTP2(t *testing.T) {
+	key := newTestKey(t)
+	srv := newStreamTestServerOver(t, key.publicKey, true)
+	client, err := NewServiceClient("", newStreamTestClient,
+		WithSignatureFunction(key.sign), WithBaseURL(srv.url), WithProtocol(ProtocolGRPC))
+	require.NoError(t, err)
+
+	resp, err := client.unary.CallUnary(testContext(t), connect.NewRequest(wrapperspb.String("ping")))
+	require.NoError(t, err)
+	require.Equal(t, "ping", resp.Msg.GetValue())
+
+	stream := client.clientStream.CallClientStream(testContext(t))
+	require.NoError(t, stream.Send(wrapperspb.String("m1")))
+	require.NoError(t, stream.Send(wrapperspb.String("m2")))
+	resp, err = stream.CloseAndReceive()
+	require.NoError(t, err)
+	require.Equal(t, "m1,m2", resp.Msg.GetValue())
+
+	accepted, rejected := srv.results()
+	require.Empty(t, rejected)
+	require.Len(t, accepted, 2)
+	require.Equal(t, procClientStream, accepted[1].procedure)
+	require.Equal(t, "envelope", accepted[1].framing)
+}
+
+// The generated client's own options can still turn on GET; the request is refused, not sent.
+func TestStream_GETIsRefused(t *testing.T) {
+	key := newTestKey(t)
+	srv := newStreamTestServer(t, key.publicKey)
+	withGET := func(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) *streamTestClient {
+		return newStreamTestClient(httpClient, baseURL,
+			append(opts, connect.WithHTTPGet(), connect.WithIdempotency(connect.IdempotencyNoSideEffects))...)
+	}
+	client, err := NewServiceClient("", withGET,
+		WithSignatureFunction(key.sign), WithBaseURL(srv.url), withHTTPTransport(srv.transport))
+	require.NoError(t, err)
+
+	_, err = client.unary.CallUnary(testContext(t), connect.NewRequest(wrapperspb.String("ping")))
+	require.Equal(t, connect.CodeUnimplemented, connect.CodeOf(err), "error: %v", err)
+	require.ErrorContains(t, err, "GET requests are not supported")
+	require.Empty(t, srv.deadlineHeaders(), "nothing reaches the server")
+}
+
+// A redirect reaches the caller as an error: the signed request is not sent again anywhere, and it
+// does not turn into a GET.
+func TestStream_RedirectsAreNotFollowed(t *testing.T) {
+	for _, status := range []int{http.StatusFound, http.StatusTemporaryRedirect} {
+		t.Run(strconv.Itoa(status), func(t *testing.T) {
+			var followed atomic.Int32
+			mux := http.NewServeMux()
+			mux.HandleFunc(procUnary, func(w http.ResponseWriter, r *http.Request) {
+				http.Redirect(w, r, "/elsewhere", status)
+			})
+			mux.HandleFunc("/elsewhere", func(http.ResponseWriter, *http.Request) { followed.Add(1) })
+			srv := httptest.NewServer(mux)
+			t.Cleanup(srv.Close)
+
+			client, err := NewServiceClient("", newStreamTestClient,
+				WithSignatureFunction(newTestKey(t).sign), WithBaseURL(srv.URL))
+			require.NoError(t, err)
+			_, err = client.unary.CallUnary(testContext(t), connect.NewRequest(wrapperspb.String("ping")))
+			require.Error(t, err)
+			require.NotEqual(t, connect.CodeUnimplemented, connect.CodeOf(err), "a followed redirect became a GET: %v", err)
+			require.Zero(t, followed.Load(), "the redirect was followed")
+		})
+	}
+}
+
+func TestStream_BidiIsRejected(t *testing.T) {
+	for _, p := range connectAndGRPC {
+		t.Run(p.name, func(t *testing.T) {
+			key := newTestKey(t)
+			srv := newStreamTestServer(t, key.publicKey)
+			client := p.client(t, srv, key)
+
+			stream := client.bidi.CallBidiStream(testContext(t))
+			err := stream.Send(wrapperspb.String("m1"))
+			require.Equal(t, connect.CodeUnimplemented, connect.CodeOf(err), "error: %v", err)
+			_, err = stream.Receive()
+			require.Equal(t, connect.CodeUnimplemented, connect.CodeOf(err), "error: %v", err)
+			require.NoError(t, stream.CloseRequest())
+			require.NoError(t, stream.CloseResponse())
+
+			require.Empty(t, srv.deadlineHeaders(), "nothing reaches the server")
+		})
+	}
+}
+
+func receiveAll(ctx context.Context, client *streamTestClient, value string) ([]string, error) {
+	stream, err := client.serverStream.CallServerStream(ctx, connect.NewRequest(wrapperspb.String(value)))
+	if err != nil {
+		return nil, err
+	}
+	defer stream.Close()
+	var got []string
+	for stream.Receive() {
+		got = append(got, stream.Msg().GetValue())
+	}
+	return got, stream.Err()
+}
+
+func TestIsEnveloped(t *testing.T) {
+	for contentType, want := range map[string]bool{
+		"application/connect+proto":      true,
+		"application/connect+json":       true,
+		"application/grpc":               true,
+		"application/grpc+proto":         true,
+		"Application/GRPC+proto; x=y":    true,
+		"APPLICATION/CONNECT+proto; x=y": true,
+		"application/proto":              false,
+		"application/json; charset=utf8": false,
+		"":                               false,
+	} {
+		req := newStreamRequest(t, context.Background(), http.NoBody)
+		req.Header.Set("Content-Type", contentType)
+		require.Equal(t, want, isEnveloped(req), contentType)
+	}
+}
+
+type streamSigningCase struct {
+	Name              string `json:"name"`
+	ContentType       string `json:"content_type"`
+	BodyHex           string `json:"body_hex"`
+	Covers            string `json:"covers"`
+	TimestampMs       int64  `json:"timestamp_ms"`
+	ExpectedSignature string `json:"expected_signature"`
+}
+
+func TestSigningTransport_StreamSigningVectors(t *testing.T) {
+	data, err := os.ReadFile("../../cross_test/test_vectors.json")
+	require.NoError(t, err)
+	var vectors struct {
+		Keys struct {
+			PrivateKey string `json:"private_key"`
+		} `json:"keys"`
+		StreamSigningCases []streamSigningCase `json:"stream_signing_cases"`
+	}
+	require.NoError(t, json.Unmarshal(data, &vectors))
+	require.NotEmpty(t, vectors.StreamSigningCases)
+
+	sign, err := crypto.NewSignerFromHex(vectors.Keys.PrivateKey)
+	require.NoError(t, err)
+
+	for _, tc := range vectors.StreamSigningCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			if tc.Covers != "first_envelope" {
+				t.Skip("the Go client signs below the gRPC framer: it never produces " + tc.Covers)
+			}
+			body, err := hex.DecodeString(tc.BodyHex)
+			require.NoError(t, err)
+
+			var sent *http.Request
+			var forwarded []byte
+			recorder := roundTripperFunc(func(r *http.Request) (*http.Response, error) {
+				sent = r
+				forwarded, err = io.ReadAll(r.Body)
+				require.NoError(t, err)
+				return &http.Response{StatusCode: http.StatusOK, Body: http.NoBody}, nil
+			})
+			clock := func() time.Time { return time.UnixMilli(tc.TimestampMs) }
+			st := NewSigningTransport(sign, clock, WithTransport(recorder))
+
+			req := newStreamRequest(t, context.Background(), bytes.NewReader(body))
+			req.Header.Set("Content-Type", tc.ContentType)
+			resp, err := st.RoundTrip(req)
+			require.NoError(t, err)
+			resp.Body.Close()
+
+			signature := strings.TrimPrefix(sent.Header.Get(common.SignatureHeader), "0x")
+			require.Equal(t, tc.ExpectedSignature, signature[:128])
+			require.Equal(t, strconv.FormatInt(tc.TimestampMs, 10), sent.Header.Get(common.SignatureTimestampHeader))
+			require.Equal(t, body, forwarded)
+		})
+	}
+}

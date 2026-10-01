@@ -62,7 +62,7 @@ The version comes from the ecosystem's runtime version constant (see [`VERSIONIN
 
 ### Not implemented
 
-**`Watch`** — server-streaming. The callback servers are unary-only (the Node one is HTTP/1.1), and the body-hash signature scheme has no stream story. Every ecosystem answers `UNIMPLEMENTED`, inherited from its package's base class rather than written by us.
+**`Watch`** — server-streaming. The callback servers are unary-only (the Node one is HTTP/1.1): the SDK clients can sign a stream (over its first request message, see the root `CLAUDE.md`), but no provider server verifies one. Every ecosystem answers `UNIMPLEMENTED`, inherited from its package's base class rather than written by us.
 
 ---
 

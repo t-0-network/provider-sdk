@@ -1,3 +1,4 @@
+using Grpc.Core;
 using Grpc.Core.Interceptors;
 using Grpc.Net.Client;
 using T0.ProviderSdk.Crypto;
@@ -7,34 +8,34 @@ using PaymentIntentApi = T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.Provider;
 namespace T0.ProviderSdk.Network;
 
 /// <summary>
-/// Factory for creating auto-signing gRPC clients.
+/// Factory for auto-signing gRPC clients of the T-0 Network.
 /// </summary>
+/// <remarks>
+/// Every client signs its requests and gives a call without a deadline of its own
+/// <see cref="NetworkClientOptions.Timeout"/> (unary) or <see cref="NetworkClientOptions.StreamTimeout"/>
+/// (client and server streams). Bidirectional streams are refused (see docs/STREAMING.md). All
+/// clients share one connection pool, so a client is cheap to create and needs no disposing.
+/// </remarks>
 public static class NetworkClient
 {
     /// <summary>
-    /// Creates a gRPC channel with auto-signing transport.
+    /// Creates a client from a generated gRPC client's constructor, for example
+    /// <c>NetworkClient.Create(options, signer, invoker =&gt; new NetworkService.NetworkServiceClient(invoker))</c>.
     /// </summary>
-    public static GrpcChannel Create(
+    public static TClient Create<TClient>(
         NetworkClientOptions options,
-        Signer signer,
-        TimeProvider? timeProvider = null)
+        ISigner signer,
+        Func<CallInvoker, TClient> newClient)
     {
         ArgumentNullException.ThrowIfNull(options);
         ArgumentNullException.ThrowIfNull(signer);
+        ArgumentNullException.ThrowIfNull(newClient);
 
-        var signingHandler = new SigningDelegatingHandler(signer, timeProvider)
-        {
-            InnerHandler = new HttpClientHandler()
-        };
-
-        var httpClient = new HttpClient(signingHandler)
-        {
-            Timeout = options.Timeout
-        };
-
+        var httpClient = CreateHttpClient(signer, options.PathPrefix);
+        GrpcChannel channel;
         try
         {
-            return GrpcChannel.ForAddress(options.BaseUrl, new GrpcChannelOptions
+            channel = GrpcChannel.ForAddress(options.BaseUrl, new GrpcChannelOptions
             {
                 HttpClient = httpClient,
                 DisposeHttpClient = true
@@ -45,45 +46,77 @@ public static class NetworkClient
             httpClient.Dispose();
             throw;
         }
+
+        try
+        {
+            return newClient(channel.Intercept(new DefaultDeadlineInterceptor(options)));
+        }
+        catch
+        {
+            channel.Dispose();
+            throw;
+        }
     }
 
-    /// <summary>
-    /// Creates a gRPC channel with auto-signing transport from a private key hex string.
-    /// </summary>
-    public static GrpcChannel CreateChannel(
-        string privateKeyHex,
-        NetworkClientOptions? options = null,
-        TimeProvider? timeProvider = null)
+    // One connection pool for the process: a client created per request would otherwise leave a
+    // pool of open connections behind it, since nothing disposes a client.
+    internal static readonly SocketsHttpHandler SharedTransport = CreateTransport();
+
+    internal static HttpClient CreateHttpClient(ISigner signer, string pathPrefix = "")
     {
-        if (string.IsNullOrEmpty(privateKeyHex))
-            throw new ArgumentException("provider private key is not set", nameof(privateKeyHex));
-
-        return Create(options ?? new NetworkClientOptions(), Signer.FromHex(privateKeyHex), timeProvider);
+        // disposeHandler: false, so disposing one client's channel leaves the shared transport open.
+        // Deadlines come from the call: HttpClient.Timeout only runs until the response headers,
+        // which for a client stream is the whole upload.
+        return new HttpClient(CreateSigningHandler(signer, pathPrefix), disposeHandler: false)
+        {
+            Timeout = System.Threading.Timeout.InfiniteTimeSpan
+        };
     }
 
+    internal static SigningDelegatingHandler CreateSigningHandler(ISigner signer, string pathPrefix = "") =>
+        new(signer) { InnerHandler = SharedTransport, PathPrefix = pathPrefix };
+
+    // Pings find a dead HTTP/2 connection while a call waits on it, such as a stream between messages.
+    // A redirect is not followed: it would send the signed request to another server.
+    internal static SocketsHttpHandler CreateTransport() => new()
+    {
+        AllowAutoRedirect = false,
+        KeepAlivePingDelay = TimeSpan.FromMinutes(5),
+        KeepAlivePingTimeout = TimeSpan.FromSeconds(10),
+        KeepAlivePingPolicy = HttpKeepAlivePingPolicy.WithActiveRequests,
+    };
+
     /// <summary>
-    /// Creates a Payment NetworkService client with auto-signing transport and request validation.
+    /// Creates a Payment NetworkService client; see <see cref="Create{TClient}"/>.
+    /// </summary>
+    public static PaymentApi.NetworkService.NetworkServiceClient CreateNetworkServiceClient(
+        NetworkClientOptions options,
+        ISigner signer) =>
+        Create(options, signer, invoker => new PaymentApi.NetworkService.NetworkServiceClient(invoker));
+
+    /// <summary>
+    /// Creates a Payment NetworkService client for <paramref name="baseUrl"/> with the default timeouts;
+    /// pass <see cref="NetworkClientOptions"/> to change them.
     /// </summary>
     public static PaymentApi.NetworkService.NetworkServiceClient CreateNetworkServiceClient(
         string baseUrl,
-        Signer signer,
-        TimeProvider? timeProvider = null)
-    {
-        var channel = Create(new NetworkClientOptions { BaseUrl = baseUrl }, signer, timeProvider);
-        var invoker = channel.Intercept(new RequestValidationInterceptor());
-        return new PaymentApi.NetworkService.NetworkServiceClient(invoker);
-    }
+        ISigner signer) =>
+        CreateNetworkServiceClient(new NetworkClientOptions { BaseUrl = baseUrl }, signer);
 
     /// <summary>
-    /// Creates a PaymentIntent NetworkService client with auto-signing transport and request validation.
+    /// Creates a PaymentIntent NetworkService client; see <see cref="Create{TClient}"/>.
+    /// </summary>
+    public static PaymentIntentApi.NetworkService.NetworkServiceClient CreatePaymentIntentNetworkServiceClient(
+        NetworkClientOptions options,
+        ISigner signer) =>
+        Create(options, signer, invoker => new PaymentIntentApi.NetworkService.NetworkServiceClient(invoker));
+
+    /// <summary>
+    /// Creates a PaymentIntent NetworkService client for <paramref name="baseUrl"/> with the default
+    /// timeouts; pass <see cref="NetworkClientOptions"/> to change them.
     /// </summary>
     public static PaymentIntentApi.NetworkService.NetworkServiceClient CreatePaymentIntentNetworkServiceClient(
         string baseUrl,
-        Signer signer,
-        TimeProvider? timeProvider = null)
-    {
-        var channel = Create(new NetworkClientOptions { BaseUrl = baseUrl }, signer, timeProvider);
-        var invoker = channel.Intercept(new RequestValidationInterceptor());
-        return new PaymentIntentApi.NetworkService.NetworkServiceClient(invoker);
-    }
+        ISigner signer) =>
+        CreatePaymentIntentNetworkServiceClient(new NetworkClientOptions { BaseUrl = baseUrl }, signer);
 }

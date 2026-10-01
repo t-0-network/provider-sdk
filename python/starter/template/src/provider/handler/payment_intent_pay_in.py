@@ -1,7 +1,5 @@
 """Payment Intent — Pay-In Provider role (async).
 
-Go equivalent: internal/handler/payment_intent_pay_in.go
-
 Implement this handler if you are a pay-in provider (you receive fiat from end-users).
 Please refer to docs and proto definition comments to understand the full flow.
 """

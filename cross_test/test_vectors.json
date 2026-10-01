@@ -124,5 +124,84 @@
       "valid": false,
       "note": "r = s = 0. A verifier that skips the range check on r and s takes this one."
     }
+  ],
+  "stream_signing_cases": [
+    {
+      "name": "connect-client-stream",
+      "content_type": "application/connect+proto",
+      "body_hex": "00000000090a076368756e6b2d3100000000090a076368756e6b2d3200000000090a076368756e6b2d33",
+      "covers": "first_envelope",
+      "signed_hex": "00000000090a076368756e6b2d31",
+      "timestamp_ms": 1706000000000,
+      "expected_hash": "afc5f1bc9e8b0af1beb69e34bfe1a3fa491e0c553ef42bf9b2a77a23d80db3d2",
+      "expected_signature": "aad69781ac8790e550c667aae29c3e71428fce4efea202103ff8bc0fa30c97eb4b95e50fd1b04e3355b056b97b093d64cc4f49dc1247425d257d6f8ee9939c60",
+      "note": "Three StringValue messages. Only the first envelope, its 5-byte prefix included, is signed."
+    },
+    {
+      "name": "connect-compressed-first-message",
+      "content_type": "application/connect+proto",
+      "body_hex": "01000000221f8b08000000000000ff000900f6ff0a076368756e6b2d310300fddda6f80900000001000000221f8b08000000000000ff000900f6ff0a076368756e6b2d320300478caf6109000000",
+      "covers": "first_envelope",
+      "signed_hex": "01000000221f8b08000000000000ff000900f6ff0a076368756e6b2d310300fddda6f809000000",
+      "timestamp_ms": 1706000000000,
+      "expected_hash": "cdc12bdd80fed7765fb3b0f8e6856b0e54d8b485961cf8f3fe4b39ddc6a3f87f",
+      "expected_signature": "f79aee0733203f56594bf194ce4dae6dc24222ac72101898481194a3b30084a80c8f9dd12f405c79f33329c4b0a74db6dcdf506728c0c78e33af6ca9478899de",
+      "note": "Flag 0x01: the payload is gzip-compressed. The compressed bytes are signed as sent, never the decompressed message."
+    },
+    {
+      "name": "multi-byte-length",
+      "content_type": "application/connect+proto",
+      "body_hex": "000000012f0aac0278787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787800000000090a076368756e6b2d32",
+      "covers": "first_envelope",
+      "signed_hex": "000000012f0aac02787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878787878",
+      "timestamp_ms": 1706000000000,
+      "expected_hash": "07fc70d0c7f4d391b4282da71c65a38a76bea0512832d7deb12586a078230fc7",
+      "expected_signature": "daee37eef9f11130fc74e01f819d72ca1df298257917dab13e1bc70e1d60936758fb400cbd8d28f28007d49c84d7efe1215ff54e0159b92e8adc98a5de961f2c",
+      "note": "A 303-byte first payload, so the big-endian length prefix is 0x0000012f and a reader has to honour all four bytes."
+    },
+    {
+      "name": "grpc-client-stream-framed",
+      "content_type": "application/grpc+proto",
+      "body_hex": "00000000080a06706172742d3100000000080a06706172742d3200000000080a06706172742d33",
+      "covers": "first_envelope",
+      "signed_hex": "00000000080a06706172742d31",
+      "timestamp_ms": 1706000000000,
+      "expected_hash": "b20df8beb4f2b51c9cf5c47bd3b23438c27a738ae99ef096b8a65741c04d8757",
+      "expected_signature": "beafd6e46aa6c7eab25a266ec84102b1833ae68720eb4f8a42535ff71ae2b4926f494891e60fceced10b15218159fe2cd0e2dd9de6967b8d45d150867a0a6d74",
+      "note": "gRPC: a signer below the gRPC framer (Go, Node, Python, C#) signs the first frame, prefix included."
+    },
+    {
+      "name": "grpc-client-stream-unframed",
+      "content_type": "application/grpc+proto",
+      "body_hex": "00000000080a06706172742d3100000000080a06706172742d3200000000080a06706172742d33",
+      "covers": "first_payload",
+      "signed_hex": "0a06706172742d31",
+      "timestamp_ms": 1706000000000,
+      "expected_hash": "1bb40eca1daa9e5ab27317c93f8ca6a0ca092178eca78e5d41b9f36ac6645c48",
+      "expected_signature": "03b4ca455c1914eb3ef824a0a42324187e39812332f6b186ca5f6ade0898ef7a77b7daed78461a85f6101e8aa90e3b360040a49b5931e6c6b776222843f37079",
+      "note": "The same body as grpc-client-stream-framed, signed by a signer above the gRPC framer (Java): the first message without its prefix. The network accepts both over gRPC."
+    },
+    {
+      "name": "server-stream-request",
+      "content_type": "application/connect+proto",
+      "body_hex": "00000000070a0568656c6c6f",
+      "covers": "first_envelope",
+      "signed_hex": "00000000070a0568656c6c6f",
+      "timestamp_ms": 1706000000000,
+      "expected_hash": "a02a50be19dfa8485cfa12b7d1890e0f69adac8b3a97a3630e6626df105c0472",
+      "expected_signature": "07b3a77aac1923eea7ad4465ea57052fb2cbd6ea443a3c95443500a5f059e10c5b1606e2211072208aceaaf779890e9335e2df92f3780b2a76febd06ebadfeb0",
+      "note": "Server streaming sends one request message, so the first envelope is the whole body."
+    },
+    {
+      "name": "empty-client-stream",
+      "content_type": "application/connect+proto",
+      "body_hex": "",
+      "covers": "first_envelope",
+      "signed_hex": "",
+      "timestamp_ms": 1706000000000,
+      "expected_hash": "205b5a560465f237a233995387de1c76ce3f5391fc531244d3e4c82bb3da665a",
+      "expected_signature": "5c515d14860086b51fb127e0e821e3db6019a107f2d4778e17081d6cff2718266ca29ec28569a32bfe5c6e94c70d199f7324cf7813ad3f040e58cbad052a7315",
+      "note": "A client stream closed before its first message. Every SDK signs these empty bytes and sends the request; the network rejects the call."
+    }
   ]
 }

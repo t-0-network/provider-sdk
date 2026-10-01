@@ -1,7 +1,5 @@
 """Entry point for the T-0 Network provider.
 
-Go equivalent: cmd/main.go → main()
-
 Initializes the network client, starts the provider server,
 and manages quote publishing and retrieval.
 
@@ -64,10 +62,7 @@ logger = logging.getLogger(__name__)
 
 
 def init_network_client(config: Config) -> NetworkServiceClient:
-    """Create a network service client with signing transport.
-
-    Go equivalent: initNetworkClient()
-    """
+    """Create a network service client with signing transport."""
     return new_service_client(
         config.provider_private_key,
         NetworkServiceClient,
@@ -76,10 +71,7 @@ def init_network_client(config: Config) -> NetworkServiceClient:
 
 
 def init_payment_intent_client(config: Config) -> PaymentIntentServiceClient:
-    """Create a payment intent service client with signing transport.
-
-    Go equivalent: initPaymentIntentClient()
-    """
+    """Create a payment intent service client with signing transport."""
     return new_service_client(
         config.provider_private_key,
         PaymentIntentServiceClient,
@@ -92,10 +84,7 @@ def create_provider_app(
     network_client: NetworkServiceClient,
     payment_intent_client: PaymentIntentServiceClient,
 ):
-    """Create the provider ASGI application.
-
-    Go equivalent: startProviderServer()
-    """
+    """Create the provider ASGI application."""
     provider_service = ProviderServiceImplementation(network_client)
     pay_in_service = PayInProviderServiceImplementation(payment_intent_client)
     beneficiary_service = BeneficiaryServiceImplementation()

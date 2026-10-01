@@ -3,8 +3,10 @@ package network.t0.sdk.network;
 import io.grpc.Channel;
 import io.grpc.ManagedChannel;
 import io.grpc.stub.AbstractBlockingStub;
+import network.t0.sdk.crypto.DigestSigner;
 import network.t0.sdk.crypto.Signer;
 
+import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
 
@@ -56,37 +58,72 @@ public final class BlockingNetworkClient<S extends AbstractBlockingStub<S>> exte
     /**
      * Creates a new BlockingNetworkClient for the given endpoint and stub type.
      *
-     * @param endpoint    the T-0 Network endpoint (e.g., "https://api.t-0.network" or "api.t-0.network:443")
+     * <p>Default deadlines: 15 seconds for unary calls, 5 minutes for client- and server-streaming calls.
+     *
+     * @param endpoint    the T-0 Network endpoint (e.g., "https://api.t-0.network" or "api.t-0.network:443"), or {@code null} for "https://api.t-0.network"
      * @param signer      the signer to use for signing requests
      * @param stubFactory the stub factory (e.g., {@code NetworkServiceGrpc::newBlockingStub})
      * @param <S>         the blocking stub type
      * @return a new BlockingNetworkClient instance
-     * @throws IllegalArgumentException if the endpoint or signer is invalid
+     * @throws IllegalArgumentException if the endpoint, signer or stub factory is invalid
      */
     public static <S extends AbstractBlockingStub<S>> BlockingNetworkClient<S> create(
             String endpoint,
-            Signer signer,
+            DigestSigner signer,
             Function<Channel, S> stubFactory) {
-        return create(endpoint, signer, stubFactory, DEFAULT_TIMEOUT_SECONDS);
+        return create(endpoint, signer, stubFactory, DEFAULT_TIMEOUT, DEFAULT_STREAM_TIMEOUT);
     }
 
     /**
-     * Creates a new BlockingNetworkClient for the given endpoint and stub type.
+     * Creates a new BlockingNetworkClient with a default deadline in seconds for unary calls; streaming calls
+     * get the default stream timeout of 5 minutes.
      *
-     * @param endpoint       the T-0 Network endpoint (e.g., "https://api.t-0.network" or "api.t-0.network:443")
+     * @param endpoint       the T-0 Network endpoint (e.g., "https://api.t-0.network" or "api.t-0.network:443"), or {@code null} for "https://api.t-0.network"
      * @param signer         the signer to use for signing requests
      * @param stubFactory    the stub factory (e.g., {@code NetworkServiceGrpc::newBlockingStub})
-     * @param timeoutSeconds the timeout in seconds for requests
+     * @param timeoutSeconds the default deadline for unary calls, in seconds
      * @param <S>            the blocking stub type
      * @return a new BlockingNetworkClient instance
-     * @throws IllegalArgumentException if the endpoint or signer is invalid
+     * @throws IllegalArgumentException if the endpoint, signer or stub factory is invalid, or the timeout is not
+     *                                  a positive duration of at most 2147483647 ms
+     * @deprecated Use {@link #create(String, DigestSigner, Function, Duration, Duration)}, which also sets the
+     *             stream timeout.
      */
+    @Deprecated
     public static <S extends AbstractBlockingStub<S>> BlockingNetworkClient<S> create(
             String endpoint,
             Signer signer,
             Function<Channel, S> stubFactory,
             int timeoutSeconds) {
-        ChannelPair pair = createChannel(endpoint, signer, timeoutSeconds);
+        return create(endpoint, signer, stubFactory, Duration.ofSeconds(timeoutSeconds), DEFAULT_STREAM_TIMEOUT);
+    }
+
+    /**
+     * Creates a new BlockingNetworkClient with separate default deadlines for unary and streaming calls.
+     *
+     * <p>See {@code docs/STREAMING.md}.
+     *
+     * @param endpoint      the T-0 Network endpoint (e.g., "https://api.t-0.network" or "api.t-0.network:443"), or {@code null} for "https://api.t-0.network"
+     * @param signer        the signer to use for signing requests
+     * @param stubFactory   the stub factory (e.g., {@code NetworkServiceGrpc::newBlockingStub})
+     * @param timeout       the default deadline for unary calls
+     * @param streamTimeout the default deadline for client- and server-streaming calls, including
+     *                      the wait for the first message
+     * @param <S>           the blocking stub type
+     * @return a new BlockingNetworkClient instance
+     * @throws IllegalArgumentException if the endpoint, signer or stub factory is invalid, or a timeout is
+     *                                  not a positive duration of at most 2147483647 ms
+     */
+    public static <S extends AbstractBlockingStub<S>> BlockingNetworkClient<S> create(
+            String endpoint,
+            DigestSigner signer,
+            Function<Channel, S> stubFactory,
+            Duration timeout,
+            Duration streamTimeout) {
+        if (stubFactory == null) {
+            throw new IllegalArgumentException("stubFactory must not be null");
+        }
+        ChannelPair pair = createChannel(endpoint, signer, timeout, streamTimeout);
         S stub = stubFactory.apply(pair.interceptedChannel());
         return new BlockingNetworkClient<>(pair.channel(), pair.interceptedChannel(), stub);
     }
@@ -113,18 +150,16 @@ public final class BlockingNetworkClient<S extends AbstractBlockingStub<S>> exte
      * client.stub(2, TimeUnit.MINUTES).processLargeFile(request);
      * }</pre>
      *
+     * <p>The deadline replaces the client's default deadline for the calls made on this stub.
+     *
      * @param timeout the timeout value
      * @param unit    the time unit for the timeout
      * @return a new stub instance with the specified deadline
-     * @throws IllegalArgumentException if timeout is not positive or unit is null
+     * @throws IllegalArgumentException if unit is null, or the timeout is not a positive duration of at
+     *                                  most 2147483647 ms
      */
     public S stub(long timeout, TimeUnit unit) {
-        if (timeout <= 0) {
-            throw new IllegalArgumentException("timeout must be positive");
-        }
-        if (unit == null) {
-            throw new IllegalArgumentException("unit must not be null");
-        }
+        checkTimeout("timeout", timeout, unit);
         return stub.withDeadlineAfter(timeout, unit);
     }
 }

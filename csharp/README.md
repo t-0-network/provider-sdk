@@ -24,6 +24,26 @@ To use the SDK directly, add the NuGet package:
 dotnet add package T0.ProviderSdk
 ```
 
+## Streaming and timeouts
+
+```csharp
+var signer = Signer.FromHex(privateKeyHex);
+var options = new NetworkClientOptions
+{
+    BaseUrl = "https://api.t-0.network",      // the default
+    Timeout = TimeSpan.FromSeconds(15),       // unary calls, the default
+    StreamTimeout = TimeSpan.FromMinutes(5),  // client and server streams, whole call, the default
+};
+
+var client = NetworkClient.CreateNetworkServiceClient(options, signer);
+// Any generated gRPC client: NetworkClient.Create(options, signer, invoker => new XClient(invoker))
+
+// A deadline on the call replaces the default, shorter or longer.
+await client.UpdateQuoteAsync(request, deadline: DateTime.UtcNow.AddMinutes(1));
+```
+
+A client or server stream is signed over its first message and sent as soon as that message is written; bidirectional streams are refused. A timeout must be positive and at most 2147483647 ms. The streaming rules shared by all SDKs: [`docs/STREAMING.md`](../docs/STREAMING.md).
+
 ## Available Commands
 
 ```bash

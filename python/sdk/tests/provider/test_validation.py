@@ -1,14 +1,15 @@
-"""Tests for protovalidate interceptors (server response + client request validation)."""
+"""Tests for the protovalidate response interceptors of the provider."""
 
 from __future__ import annotations
 
 import logging
 
-import protovalidate
-import pytest
-
 # Import SDK first to ensure api/ is on sys.path (needed for buf.validate stubs)
 import t0_provider_sdk  # noqa: F401
+
+# isort: split
+import protovalidate
+import pytest
 from connectrpc.code import Code
 from connectrpc.errors import ConnectError
 from t0_provider_sdk._version import __version__
@@ -17,10 +18,6 @@ from t0_provider_sdk.api.tzero.v1.payment.provider_pb2 import (
     AppendLedgerEntriesRequest,
     PayoutResponse,
     UpdatePaymentResponse,
-)
-from t0_provider_sdk.network.validate_request import (
-    RequestValidationInterceptor,
-    RequestValidationInterceptorSync,
 )
 from t0_provider_sdk.provider.validate_response import (
     ValidationInterceptor,
@@ -134,88 +131,6 @@ class TestResponseValidationSync:
         with pytest.raises(ConnectError) as exc_info:
             interceptor.intercept_unary_sync(lambda req, ctx: response, None, FakeContext())
         assert exc_info.value.code == Code.INTERNAL
-
-
-# ---------------------------------------------------------------------------
-# Client-side: request validation
-# ---------------------------------------------------------------------------
-
-
-class TestRequestValidation:
-    """Test that the client interceptor validates outgoing requests."""
-
-    @pytest.fixture
-    def interceptor(self):
-        return RequestValidationInterceptor()
-
-    @pytest.mark.asyncio
-    async def test_valid_request_passes(self, interceptor):
-        request = Decimal(unscaled=100, exponent=2)
-        called = False
-
-        async def call_next(req, ctx):
-            nonlocal called
-            called = True
-            return req
-
-        await interceptor.intercept_unary(call_next, request, FakeContext())
-        assert called
-
-    @pytest.mark.asyncio
-    async def test_invalid_request_returns_invalid_argument(self, interceptor):
-        request = Decimal(exponent=100)
-
-        async def call_next(req, ctx):
-            return req
-
-        with pytest.raises(ConnectError) as exc_info:
-            await interceptor.intercept_unary(call_next, request, FakeContext())
-        assert exc_info.value.code == Code.INVALID_ARGUMENT
-        assert "request validation failed" in str(exc_info.value)
-
-    @pytest.mark.asyncio
-    async def test_invalid_request_empty_transactions(self, interceptor):
-        request = AppendLedgerEntriesRequest()  # min_items: 1
-
-        async def call_next(req, ctx):
-            return req
-
-        with pytest.raises(ConnectError) as exc_info:
-            await interceptor.intercept_unary(call_next, request, FakeContext())
-        assert exc_info.value.code == Code.INVALID_ARGUMENT
-
-    @pytest.mark.asyncio
-    async def test_invalid_request_does_not_call_next(self, interceptor):
-        request = Decimal(exponent=100)
-        called = False
-
-        async def call_next(req, ctx):
-            nonlocal called
-            called = True
-            return req
-
-        with pytest.raises(ConnectError):
-            await interceptor.intercept_unary(call_next, request, FakeContext())
-        assert not called
-
-
-class TestRequestValidationSync:
-    """Test the sync variant of the client interceptor."""
-
-    @pytest.fixture
-    def interceptor(self):
-        return RequestValidationInterceptorSync()
-
-    def test_valid_request_passes(self, interceptor):
-        request = Decimal(unscaled=100, exponent=2)
-        result = interceptor.intercept_unary_sync(lambda req, ctx: req, request, FakeContext())
-        assert result is request
-
-    def test_invalid_request_returns_invalid_argument(self, interceptor):
-        request = Decimal(exponent=100)
-        with pytest.raises(ConnectError) as exc_info:
-            interceptor.intercept_unary_sync(lambda req, ctx: req, request, FakeContext())
-        assert exc_info.value.code == Code.INVALID_ARGUMENT
 
 
 # ---------------------------------------------------------------------------

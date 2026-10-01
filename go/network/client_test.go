@@ -3,6 +3,7 @@ package network
 import (
 	"encoding/binary"
 	"encoding/hex"
+	"fmt"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -40,7 +41,7 @@ func capturingFactory() (ClientFactory[stubClient], func() connect.HTTPClient) {
 	return factory, func() connect.HTTPClient { return captured }
 }
 
-func TestNewServiceClient_WithHTTPTransport_SignsRequests(t *testing.T) {
+func TestNewServiceClient_SignsRequests(t *testing.T) {
 	var captured *http.Request
 	recorder := roundTripperFunc(func(r *http.Request) (*http.Response, error) {
 		captured = r.Clone(r.Context())
@@ -54,7 +55,7 @@ func TestNewServiceClient_WithHTTPTransport_SignsRequests(t *testing.T) {
 	_, err := NewServiceClient("", factory,
 		WithSignatureFunction(testSignFn(t)),
 		WithBaseURL("http://localhost"),
-		WithHTTPTransport(recorder),
+		withHTTPTransport(recorder),
 	)
 	require.NoError(t, err)
 
@@ -120,7 +121,7 @@ func TestNewServiceClient_NilTransportIgnored(t *testing.T) {
 	_, err := NewServiceClient("", factory,
 		WithSignatureFunction(testSignFn(t)),
 		WithBaseURL(ts.URL),
-		WithHTTPTransport(nil),
+		withHTTPTransport(nil),
 	)
 	require.NoError(t, err)
 
@@ -130,28 +131,6 @@ func TestNewServiceClient_NilTransportIgnored(t *testing.T) {
 	require.NoError(t, err)
 	resp.Body.Close()
 	require.Equal(t, http.StatusOK, resp.StatusCode)
-}
-
-func TestSigningTransport_NilBody(t *testing.T) {
-	var captured *http.Request
-	recorder := roundTripperFunc(func(r *http.Request) (*http.Response, error) {
-		captured = r.Clone(r.Context())
-		return &http.Response{
-			StatusCode: http.StatusOK,
-			Body:       io.NopCloser(strings.NewReader("")),
-		}, nil
-	})
-
-	st := NewSigningTransport(testSignFn(t), func() time.Time { return time.Now() }, WithTransport(recorder))
-
-	req, err := http.NewRequest("GET", "http://localhost/health", nil)
-	require.NoError(t, err)
-	resp, err := st.RoundTrip(req)
-	require.NoError(t, err)
-	resp.Body.Close()
-
-	require.NotNil(t, captured)
-	require.NotEmpty(t, captured.Header.Get(common.SignatureHeader))
 }
 
 func TestSigningTransport_NoBody(t *testing.T) {
@@ -181,8 +160,9 @@ func TestSigningTransport_NilAndNoBodyProduceSameSignature(t *testing.T) {
 	fixedTime := time.Date(2025, 1, 1, 0, 0, 0, 0, time.UTC)
 	signFn := testSignFn(t)
 
-	var sigNil, sigNoBody string
+	var signatures []string
 	recorder := roundTripperFunc(func(r *http.Request) (*http.Response, error) {
+		signatures = append(signatures, r.Header.Get(common.SignatureHeader))
 		return &http.Response{
 			StatusCode: http.StatusOK,
 			Body:       io.NopCloser(strings.NewReader("")),
@@ -196,16 +176,16 @@ func TestSigningTransport_NilAndNoBodyProduceSameSignature(t *testing.T) {
 	resp, err := st.RoundTrip(reqNil)
 	require.NoError(t, err)
 	resp.Body.Close()
-	sigNil = reqNil.Header.Get(common.SignatureHeader)
 
 	reqNoBody, err := http.NewRequest("POST", "http://localhost/test", http.NoBody)
 	require.NoError(t, err)
 	resp, err = st.RoundTrip(reqNoBody)
 	require.NoError(t, err)
 	resp.Body.Close()
-	sigNoBody = reqNoBody.Header.Get(common.SignatureHeader)
 
-	require.Equal(t, sigNil, sigNoBody, "nil body and http.NoBody must produce identical signatures")
+	require.Len(t, signatures, 2)
+	require.NotEmpty(t, signatures[0])
+	require.Equal(t, signatures[0], signatures[1], "nil body and http.NoBody must produce identical signatures")
 }
 
 func TestNewServiceClient_ValidationErrors(t *testing.T) {
@@ -219,18 +199,100 @@ func TestNewServiceClient_ValidationErrors(t *testing.T) {
 			WithBaseURL(""),
 		)
 		require.ErrorIs(t, err, ErrEmptyBaseURL)
+		require.EqualError(t, err, "base URL is not set")
 	})
 
-	t.Run("zero timeout", func(t *testing.T) {
-		_, err := NewServiceClient("", factory,
-			WithSignatureFunction(testSignFn(t)),
-			WithTimeout(0),
-		)
-		require.ErrorIs(t, err, ErrInvalidTimeOut)
+	// The base URL rows every SDK shares.
+	for _, bad := range []string{
+		"ftp://h", "http://", "http://user@h", "http://my_host:8080", "https://api.t-0.network?x", "http://h:0",
+		"http://h:99999", "http://1.2.3", "http://h:080", "http://h\t", "https://api.t-0.network//",
+		"https://api.t-0.network/v1//", "https://api.t-0.network/a//b", "https://api.t-0.network/v1/..",
+		"https://api.t-0.network/v%31", "https://api.t-0.network/v1?x", "http://[::1%1]", "http://[v1.fe]",
+		"http://h.", "http://01.2.3.4", "http://1abc",
+	} {
+		t.Run(fmt.Sprintf("base URL %q is refused", bad), func(t *testing.T) {
+			_, err := NewServiceClient("", factory, WithSignatureFunction(testSignFn(t)), WithBaseURL(bad))
+			require.ErrorIs(t, err, ErrInvalidBaseURL)
+			require.EqualError(t, err, "base URL is not valid")
+		})
+	}
+
+	t.Run("base URLs that are accepted", func(t *testing.T) {
+		var used string
+		capture := func(_ connect.HTTPClient, baseURL string, _ ...connect.ClientOption) stubClient {
+			used = baseURL
+			return stubClient{}
+		}
+		for good, want := range map[string]string{
+			"https://api.t-0.network":  "https://api.t-0.network",
+			"https://api.t-0.network/": "https://api.t-0.network/",
+			"http://localhost:8080":    "http://localhost:8080",
+			"http://127.0.0.1:1234":    "http://127.0.0.1:1234",
+			"http://[::1]:8080":        "http://[::1]:8080",
+			"api.t-0.network":          "https://api.t-0.network",
+			"api.t-0.network:443":      "https://api.t-0.network:443",
+			// A path prefixes every call.
+			"https://api.t-0.network/v1":              "https://api.t-0.network/v1",
+			"https://api.t-0.network/v1/":             "https://api.t-0.network/v1/",
+			"https://api.t-0.network/sda/payments/t0": "https://api.t-0.network/sda/payments/t0",
+			"HTTPS://api.t-0.network":                 "HTTPS://api.t-0.network",
+			"http://[::1]":                            "http://[::1]",
+			"http://[::ffff:1.2.3.4]:8080":            "http://[::ffff:1.2.3.4]:8080",
+			"https://xn--bcher-kva.example":           "https://xn--bcher-kva.example",
+		} {
+			_, err := NewServiceClient("", capture, WithSignatureFunction(testSignFn(t)), WithBaseURL(good))
+			require.NoError(t, err, good)
+			require.Equal(t, want, used, "the base URL the client uses for %q", good)
+		}
+	})
+
+	t.Run("a key that is not 64 hex characters is refused", func(t *testing.T) {
+		_, err := NewServiceClient("0x1234", factory)
+		require.EqualError(t, err, "private key must be 32 bytes (64 hex characters)")
+	})
+
+	const maxTimeout = 2147483647 * time.Millisecond
+	for _, bad := range []time.Duration{0, maxTimeout + time.Millisecond} {
+		t.Run(fmt.Sprintf("timeout %v is refused", bad), func(t *testing.T) {
+			_, err := NewServiceClient("", factory, WithSignatureFunction(testSignFn(t)), WithTimeout(bad))
+			require.ErrorIs(t, err, ErrInvalidTimeOut)
+			require.EqualError(t, err, "WithTimeout must be a positive duration of at most 2147483647 ms")
+
+			_, err = NewServiceClient("", factory, WithSignatureFunction(testSignFn(t)), WithStreamTimeout(bad))
+			require.ErrorIs(t, err, ErrInvalidStreamTimeout)
+			require.EqualError(t, err, "WithStreamTimeout must be a positive duration of at most 2147483647 ms")
+		})
+	}
+
+	t.Run("the largest timeouts are accepted", func(t *testing.T) {
+		_, err := NewServiceClient("", factory, WithSignatureFunction(testSignFn(t)),
+			WithTimeout(maxTimeout), WithStreamTimeout(maxTimeout))
+		require.NoError(t, err)
 	})
 
 	t.Run("empty key and no signFn", func(t *testing.T) {
 		_, err := NewServiceClient("", factory)
 		require.ErrorIs(t, err, ErrEmptyPrivateKey)
+		require.EqualError(t, err, "private key must not be null or empty")
 	})
+}
+
+// Every gRPC client on an http:// base URL shares one transport, with the default dial and idle
+// timeouts, so a client per request does not leave a connection behind each time.
+func TestNewServiceClient_GRPCOverHTTPSharesOneTransport(t *testing.T) {
+	transportOf := func() http.RoundTripper {
+		factory, captured := capturingFactory()
+		_, err := NewServiceClient("", factory,
+			WithSignatureFunction(testSignFn(t)), WithBaseURL("http://localhost:1"), WithProtocol(ProtocolGRPC))
+		require.NoError(t, err)
+		return captured().(*http.Client).Transport.(*SigningTransport).transport
+	}
+
+	first, second := transportOf(), transportOf()
+	require.Same(t, first, second)
+	shared, ok := first.(*http.Transport)
+	require.True(t, ok)
+	require.NotNil(t, shared.DialContext)
+	require.Equal(t, http.DefaultTransport.(*http.Transport).IdleConnTimeout, shared.IdleConnTimeout)
+	require.Nil(t, shared.Proxy)
 }

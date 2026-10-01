@@ -50,6 +50,8 @@ csharp/
 - `NetworkClient.CreatePaymentIntentNetworkServiceClient()` — Auto-signing PaymentIntent gRPC client
 - `SignatureVerificationMiddleware` — ASP.NET Core middleware, verifies incoming requests
 - `SigningDelegatingHandler` — HttpClient handler, signs outgoing requests
+- `NetworkClient.Create(options, signer, invoker => new XClient(invoker))` — Auto-signing client for any generated gRPC client
+- `NetworkClientOptions` — `BaseUrl`, `Timeout` (unary, 15 s), `StreamTimeout` (streams, 5 min)
 - `QuotePublisherService` — Abstract BackgroundService for periodic quote publishing
 
 ## Architecture Notes
@@ -57,6 +59,10 @@ csharp/
 - **Two-phase server build**: `T0ProviderServer` collects service registrations, then `RunAsync()` calls `Build()` + middleware + `MapGrpcService<T>()`
 - **Raw bytes signing**: `SignatureVerificationMiddleware` reads body bytes BEFORE gRPC deserialization
 - **DelegatingHandler pattern**: `SigningDelegatingHandler` wraps HttpClient to auto-sign outgoing requests
+- **First-envelope signing**: for `application/grpc`, `application/grpc+*` and `application/connect+*` the handler signs only the first envelope as sent and pipes the rest unbuffered (`FirstFrameThenPipeContent`); a client stream goes out once its first message is written
+- **Deadlines, not HttpClient.Timeout**: every `NetworkClient` factory installs the internal `DefaultDeadlineInterceptor`, which gives a call without its own deadline the default for its kind and refuses bidirectional streams
+- **Transport**: one process-wide `SocketsHttpHandler` shared by every client (each client has its own `SigningDelegatingHandler` on top), with HTTP/2 keepalive pings every 5 min (10 s timeout) while a call is open and no redirect following (a redirect would re-send the signed request elsewhere); clients need no disposing; no client-side request validation
+- Streaming rules: [`docs/STREAMING.md`](../docs/STREAMING.md)
 - **Interfaces for testability**: `ISigner` and `ISignatureVerifier` enable mocking without real crypto
 - **BackgroundService pattern**: `QuotePublisherService` provides periodic timer with error handling
 
@@ -67,6 +73,7 @@ digest  = Keccak256(body_bytes || LE_uint64(timestamp_ms))
 headers = { X-Public-Key: "0x...", X-Signature: "0x...", X-Signature-Timestamp: "<ms>" }
 ```
 
+- `body_bytes`: for enveloped content the first envelope only, prefix included (for a unary or server-streaming gRPC call that is the whole body); otherwise the whole body
 - Timestamp tolerance: ±60 seconds
 - Public keys: uncompressed secp256k1 (65 bytes, 0x04 prefix)
 - Signatures: 65 bytes (r[32] + s[32] + v[1]), verification accepts 64 bytes too
@@ -74,11 +81,13 @@ headers = { X-Public-Key: "0x...", X-Signature: "0x...", X-Signature-Timestamp: 
 
 ## Dependencies
 
-- **BouncyCastle.Cryptography** (2.6.2) — secp256k1, ECDSA, Keccak-256
-- **Google.Protobuf** (3.34.0) — Protobuf runtime
-- **Grpc.AspNetCore** (2.76.0) — gRPC server
-- **Grpc.Net.Client** (2.76.0) — gRPC client
+- **BouncyCastle.Cryptography** — secp256k1, ECDSA, Keccak-256
+- **Google.Protobuf** — Protobuf runtime
+- **Grpc.AspNetCore** — gRPC server
+- **Grpc.Net.Client** — gRPC client
 - **Target**: .NET 10.0
+
+Versions: `sdk/T0.ProviderSdk/T0.ProviderSdk.csproj`.
 
 ## Go SDK Mapping
 
@@ -86,7 +95,7 @@ headers = { X-Public-Key: "0x...", X-Signature: "0x...", X-Signature-Timestamp: 
 |----|----|
 | `crypto.Sign()` | `Signer.Sign()` |
 | `crypto.VerifySignature()` | `SignatureVerifier.Verify()` |
-| `network.NewServiceClient()` | `NetworkClient.CreateNetworkServiceClient()` |
+| `network.NewServiceClient()` | `NetworkClient.Create()` |
 | `network.SigningTransport` | `SigningDelegatingHandler` |
 | `provider.NewHttpHandler()` | `T0ProviderServer` |
 | `provider.StartServer()` | `T0ProviderServer.RunAsync()` |
@@ -97,9 +106,9 @@ Template files live in `starter/template/` as a buildable standalone project usi
 
 ## Cross-Language Testing
 
-**Test vectors:** `CrossTestVectors.cs` validates crypto against shared `cross_test/test_vectors.json` (Keccak-256, key derivation, request hash, sign/verify round-trips).
+**Test vectors:** `CrossTestVectors.cs` checks the C# crypto and `SigningDelegatingHandler` against the shared `cross_test/test_vectors.json`.
 
-**Server-to-server:** `CrossTest/CrossServerTests.cs` exercises health check round-trips (both directions) and Go→C# PayOut between C# and Go using the shared helper at `cross_test/go_helper/`. Build it first:
+**Server-to-server:** `CrossTest/CrossServerTests.cs` exercises health check round-trips (both directions), Go→C# PayOut, and C#→Go client and server streaming between C# and Go using the shared helper at `cross_test/go_helper/`. Build it first:
 
 ```bash
 cd ../cross_test/go_helper && go build -o go_helper . && cd ../../csharp
@@ -113,3 +122,4 @@ CI builds the Go helper automatically. Tests fail (not skip) in CI if the helper
 Docs live in [`docs/csharp/`](../docs/csharp/):
 - [`ARCHITECTURE.md`](../docs/csharp/ARCHITECTURE.md) — Architecture and design decisions
 - [`QUICKSTART.md`](../docs/csharp/QUICKSTART.md) — Getting started guide
+- [`STREAMING.md`](../docs/STREAMING.md) (shared by all SDKs) — Streaming calls

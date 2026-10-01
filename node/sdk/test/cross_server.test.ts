@@ -1,4 +1,4 @@
-import { describe, it, before } from 'node:test';
+import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import net from 'node:net';
@@ -9,7 +9,7 @@ import fs from 'node:fs';
 import type { AddressInfo } from 'node:net';
 import { createClient } from '../src/client/client.js';
 import { createHandler } from '../src/index.js';
-import { Health } from '../src/service/health_pb.js';
+import { Health, HealthCheckResponse_ServingStatus } from '../src/service/health_pb.js';
 
 const execFileAsync = promisify(execFile);
 
@@ -81,7 +81,7 @@ describe('Cross-language: Node ↔ Go', { skip: !goAvailable() ? `Go helper not 
 
         const client = createClient(CLIENT_PRIVATE_KEY, `http://127.0.0.1:${port}`, Health);
         const resp = await client.check({ service: Health.typeName });
-        assert.ok(resp, 'Health check response should not be null');
+        assert.equal(resp.status, HealthCheckResponse_ServingStatus.SERVING);
       } finally {
         goServer.kill();
       }

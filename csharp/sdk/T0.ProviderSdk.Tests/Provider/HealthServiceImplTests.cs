@@ -1,5 +1,3 @@
-using System.Net;
-using System.Net.Sockets;
 using Grpc.Core;
 using Grpc.Health.V1;
 using Grpc.Net.Client;
@@ -25,34 +23,6 @@ public class HealthServiceImplTests
     private const string PaymentServiceFqn = "tzero.v1.payment.ProviderService";
     private const string HealthServiceFqn = "grpc.health.v1.Health";
 
-    private static int FindFreePort()
-    {
-        var listener = new TcpListener(IPAddress.Loopback, 0);
-        listener.Start();
-        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
-        listener.Stop();
-        return port;
-    }
-
-    private static async Task WaitForPortAsync(int port, TimeSpan timeout)
-    {
-        var deadline = DateTime.UtcNow + timeout;
-        while (DateTime.UtcNow < deadline)
-        {
-            try
-            {
-                using var client = new TcpClient();
-                await client.ConnectAsync(IPAddress.Loopback, port);
-                return;
-            }
-            catch (SocketException)
-            {
-                await Task.Delay(100);
-            }
-        }
-        throw new TimeoutException($"Port {port} not ready after {timeout.TotalSeconds}s");
-    }
-
     /// <summary>
     /// Starts a server with the customer's PaymentService mapped and nothing else
     /// named. Uses args to enable HTTP/2 cleartext, mirroring the starter's
@@ -60,9 +30,10 @@ public class HealthServiceImplTests
     /// </summary>
     private static (T0ProviderServer Server, int Port) NewServer()
     {
-        var port = FindFreePort();
+        var port = TestPorts.FindFreePort();
         var signer = Signer.FromHex(PrivateKey);
-        var dummyNetworkClient = NetworkClient.CreateNetworkServiceClient("http://localhost:1", signer);
+        var dummyNetworkClient = NetworkClient.CreateNetworkServiceClient(
+            new NetworkClientOptions { BaseUrl = "http://localhost:1" }, signer);
 
         var config = new T0Config
         {
@@ -79,9 +50,10 @@ public class HealthServiceImplTests
     }
 
     private static Health.HealthClient NewSignedClient(int port) =>
-        new(NetworkClient.Create(
+        NetworkClient.Create(
             new NetworkClientOptions { BaseUrl = $"http://127.0.0.1:{port}" },
-            Signer.FromHex(PrivateKey)));
+            Signer.FromHex(PrivateKey),
+            invoker => new Health.HealthClient(invoker));
 
     [Fact]
     public async Task SignedCheck_AnswersForRegisteredServicesAndRefusesTheRest()
@@ -92,7 +64,7 @@ public class HealthServiceImplTests
 
         try
         {
-            await WaitForPortAsync(port, TimeSpan.FromSeconds(10));
+            await TestPorts.WaitForPortAsync(port, TimeSpan.FromSeconds(10));
             var client = NewSignedClient(port);
 
             // The customer's own service, health itself, and the whole-process query.
@@ -128,7 +100,7 @@ public class HealthServiceImplTests
 
         try
         {
-            await WaitForPortAsync(port, TimeSpan.FromSeconds(10));
+            await TestPorts.WaitForPortAsync(port, TimeSpan.FromSeconds(10));
 
             using var call = NewSignedClient(port).CheckAsync(new HealthCheckRequest());
             await call.ResponseAsync;
@@ -155,7 +127,7 @@ public class HealthServiceImplTests
 
         try
         {
-            await WaitForPortAsync(port, TimeSpan.FromSeconds(10));
+            await TestPorts.WaitForPortAsync(port, TimeSpan.FromSeconds(10));
 
             using var call = NewSignedClient(port).CheckAsync(new HealthCheckRequest());
             await call.ResponseAsync;
@@ -185,7 +157,7 @@ public class HealthServiceImplTests
 
         try
         {
-            await WaitForPortAsync(port, TimeSpan.FromSeconds(10));
+            await TestPorts.WaitForPortAsync(port, TimeSpan.FromSeconds(10));
 
             // Plain channel — no signing handler.
             using var channel = GrpcChannel.ForAddress($"http://127.0.0.1:{port}");

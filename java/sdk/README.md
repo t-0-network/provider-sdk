@@ -11,6 +11,7 @@ This document provides detailed technical documentation for developers who need 
 - [Critical: Raw Payload Bytes](#critical-raw-payload-bytes)
 - [Signature Format and Headers](#signature-format-and-headers)
 - [Accepted Signature Payload Formats](#accepted-signature-payload-formats)
+- [Streaming and timeouts](#streaming-and-timeouts)
 - [Thread Safety](#thread-safety)
 - [Usage Examples](#usage-examples)
 - [Error Handling](#error-handling)
@@ -48,14 +49,15 @@ Handles outbound requests to the t-0 Network with automatic request signing.
 
 | Class | Description |
 |-------|-------------|
-| `NetworkClient` | Abstract base class managing gRPC channels and signing interceptor |
+| `NetworkClient` | Abstract base class managing the gRPC channel and its signing and default-deadline interceptors |
 | `BlockingNetworkClient<S>` | Synchronous/blocking RPC calls |
 | `AsyncNetworkClient<S>` | Asynchronous calls using `StreamObserver` callbacks |
 | `FutureNetworkClient<S>` | Asynchronous calls returning `ListenableFuture` |
 
 **Key Features:**
 - Automatic request signing via `SigningClientInterceptor`
-- Configurable timeouts (default: 30 seconds)
+- Default deadlines per call type: 15 seconds for unary calls, 5 minutes for streaming calls (configurable per client and per stub)
+- Streaming calls: only the first request message is signed
 - Endpoint parsing (supports `https://host`, `http://host:port`, `host:port`)
 - Graceful shutdown with 5-second timeout
 
@@ -70,7 +72,7 @@ Handles inbound requests from the t-0 Network with automatic signature verificat
 
 **Key Features:**
 - Builder pattern for configuration
-- Configurable message sizes (default: 4MB inbound)
+- Configurable message sizes (default: 10 MiB inbound)
 - Automatic rejection of invalid/expired signatures
 - Inbound signature verification accepts both unframed and gRPC-framed signing payloads
 
@@ -184,12 +186,12 @@ Where:
 
 65 bytes total:
 - **r** (32 bytes): ECDSA r component, big-endian
-- **s** (32 bytes): ECDSA s component, big-endian
+- **s** (32 bytes): ECDSA s component, big-endian, in the lower half of the curve order (a larger s is replaced by n - s)
 - **v** (1 byte): Recovery ID (0 or 1)
 
 ### Timestamp Validation
 
-- **Window**: 60 seconds (configurable via `Headers.TIMESTAMP_VALIDITY_WINDOW_MS`)
+- **Window**: 60 seconds, fixed (`Headers.TIMESTAMP_VALIDITY_WINDOW_MS`)
 - Requests with timestamps outside this window are rejected with `INVALID_ARGUMENT`
 
 ---
@@ -209,6 +211,22 @@ The provider's `SignatureVerificationInterceptor` accepts signatures over either
 - Signature computed over: `Keccak256(frame || protobuf_bytes || timestamp_le_u64)`
 
 The interceptor tries the unframed payload first, then reconstructs the gRPC frame and tries the framed payload. Both paths are load-bearing in production — see [`docs/java/SIGNATURE_VERIFICATION.md`](../../docs/java/SIGNATURE_VERIFICATION.md) for the full rationale.
+
+---
+
+## Streaming and timeouts
+
+Client- and server-streaming calls are signed over their first request message only, and the call goes out as soon as that message is sent. Unary calls get a default deadline of 15 seconds and streaming calls one of 5 minutes, which includes the wait for the first message. A deadline set on the stub or on the caller's `Context` replaces the default, shorter or longer. Bidirectional streams and calls with a non-identity compressor are refused with `UNIMPLEMENTED` before anything is sent.
+
+```java
+// 30 s for unary calls, 30 min for streaming calls; each at most 2147483647 ms
+try (var client = AsyncNetworkClient.create("https://api.t-0.network", signer,
+        NetworkServiceGrpc::newStub, Duration.ofSeconds(30), Duration.ofMinutes(30))) {
+    client.stub(2, TimeUnit.MINUTES).updateQuote(request, responseObserver); // this call only
+}
+```
+
+The streaming rules shared by every SDK: [`docs/STREAMING.md`](../../docs/STREAMING.md).
 
 ---
 
@@ -250,6 +268,8 @@ try (var client = BlockingNetworkClient.create(
 }
 ```
 
+The signer is any `DigestSigner`; `Signer` holds the key in memory. `sign()` runs while the call's lock is held, so an implementation of your own must return quickly and must not block on network I/O.
+
 ### Creating an Async Client
 
 ```java
@@ -262,7 +282,7 @@ try (var client = AsyncNetworkClient.create(
 
     client.stub().updateQuote(request, new StreamObserver<>() {
         @Override
-        public void onNext(Response response) { /* handle response */ }
+        public void onNext(UpdateQuoteResponse response) { /* handle response */ }
         @Override
         public void onError(Throwable t) { /* handle error */ }
         @Override
@@ -287,7 +307,7 @@ ProviderServer server = ProviderServer.create(8080, networkPublicKeyHex)
 server.awaitTermination();
 
 // Or using convenience method
-ProviderServer server = ProviderServer.startWith(
+ProviderServer server2 = ProviderServer.startWith(
     8080,
     networkPublicKeyHex,
     new MyProviderService()
@@ -298,6 +318,7 @@ ProviderServer server = ProviderServer.startWith(
 
 ```java
 import network.t0.sdk.crypto.Signer;
+import network.t0.sdk.crypto.SignResult;
 import network.t0.sdk.crypto.Keccak256;
 
 Signer signer = Signer.fromHex(privateKeyHex);
@@ -309,8 +330,8 @@ byte[] digest = Keccak256.hash(messageBytes, timestampBytes);
 SignResult result = signer.sign(digest);
 
 // Get signature components
-String signatureHex = result.getSignatureHexPrefixed();  // 0x...
-String publicKeyHex = result.getPublicKeyHexPrefixed();  // 0x...
+String signatureHex = result.getSignatureHex();  // 0x...
+String publicKeyHex = result.getPublicKeyHex();  // 0x...
 ```
 
 ### Manual Verification (Advanced)
@@ -344,22 +365,14 @@ boolean valid = SignatureVerifier.verify(publicKey, digest, signature);
 
 ### Client-Side Exceptions
 
-- `StatusRuntimeException` - gRPC call failed with status code
-- `IllegalArgumentException` - Invalid configuration (endpoint, keys)
-- `IOException` - Network connectivity issues
+- `StatusRuntimeException` - gRPC call failed with status code (a connection failure is `UNAVAILABLE`)
+- `IllegalArgumentException` - Invalid configuration (endpoint, keys, timeouts)
 
 ---
 
 ## Dependencies
 
-| Dependency | Version | Purpose |
-|------------|---------|---------|
-| gRPC (netty-shaded) | 1.78.0 | Server transport |
-| gRPC (okhttp) | 1.78.0 | Client transport |
-| gRPC (protobuf) | 1.78.0 | Protobuf integration |
-| Protobuf Java | 4.33.4 | Message serialization |
-| BouncyCastle | 1.83 | Cryptography (secp256k1, Keccak-256) |
-| SLF4J | 2.0.17 | Logging abstraction |
+gRPC (Netty server transport, OkHttp client transport), Protobuf Java, BouncyCastle (secp256k1, Keccak-256) and SLF4J. Versions: [`build.gradle.kts`](build.gradle.kts).
 
 ---
 
@@ -393,7 +406,7 @@ Results are reported in operations per millisecond.
 
 ### Signature Verification Fails
 
-**Symptom**: Server returns `UNAUTHENTICATED` with "Invalid signature"
+**Symptom**: Server returns `UNAUTHENTICATED` with "signature verification failed"
 
 **Possible Causes**:
 1. **Re-serialization**: Message was deserialized and re-serialized before verification. Ensure you're using raw bytes.
@@ -430,20 +443,21 @@ Results are reported in operations per millisecond.
 
 **Symptom**: `OutOfMemoryError` when signing large messages
 
-**Solution**: The SDK streams message bytes. If you're seeing OOM, you may be loading the entire message into memory elsewhere. Check your protobuf message construction.
+**Solution**: The SDK serializes each request message once, in memory, to sign it and send those exact bytes. An OOM here means the message itself is very large; check your protobuf message construction.
 
 ### gRPC Deadline Exceeded
 
 **Symptom**: `DEADLINE_EXCEEDED` status
 
-**Solution**: Increase timeout when creating client:
+**Solution**: Increase the default deadline when creating the client (unary calls get 15 seconds by default, streaming calls 5 minutes):
 ```java
-BlockingNetworkClient.create(endpoint, signer, stubFactory, 60); // 60 seconds
+// Deadlines for unary and streaming calls: each a positive duration of at most 2147483647 ms
+BlockingNetworkClient.create(endpoint, signer, stubFactory, Duration.ofSeconds(60), Duration.ofMinutes(10));
 ```
 
 Or per-call:
 ```java
-client.stub(60, TimeUnit.SECONDS).someMethod(request);
+client.stub(60, TimeUnit.SECONDS).updateQuote(request);
 ```
 
 ### Hex Encoding Errors
@@ -459,14 +473,7 @@ client.stub(60, TimeUnit.SECONDS).someMethod(request);
 
 ## Contributing
 
-- Java 17+ required
-- Run `./gradlew build` to compile and test
-- Proto files in `sdk/src/main/proto/`
-- Generated code in `sdk/build/generated/source/proto/`
+The build, the tests and the pull request process are described in [CONTRIBUTING.md](../../CONTRIBUTING.md). Specific to this SDK:
 
-### Code Style
-
-- Follow existing patterns in the codebase
-- Ensure thread safety for all public APIs
-- Add tests for new functionality
-- Update this README for significant changes
+- The protos in `sdk/src/main/proto/` are synced from the backend, so don't edit them. Their Java code is generated at build time ([docs/java/PROTO_SCHEMA_MANAGEMENT.md](../../docs/java/PROTO_SCHEMA_MANAGEMENT.md)).
+- Public APIs must be thread-safe (see [Thread Safety](#thread-safety)).

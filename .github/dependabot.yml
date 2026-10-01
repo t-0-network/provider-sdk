@@ -1,13 +1,18 @@
-# Dependency-update policy (see .claude/skills/dependency-update/SKILL.md):
+# Dependency-update policy (see docs/DEPENDENCY_UPDATES.md):
 #   * ONE weekly PR ("ci-batch") for every dependency CI can validate, across all
 #     five ecosystems and every sub-project. Entries use ALLOWLIST `patterns`
 #     (Dependabot has no exclude-patterns for multi-ecosystem groups).
 #   * Crypto / signing-path libraries are intentionally NOT in any allowlist, so
-#     Dependabot raises them one dependency per PR. They follow the Tier 3 audit
-#     workflow. Never add them to a pattern below:
+#     Dependabot raises them one dependency per PR. They follow the signing-path
+#     audit in that document. Never add them to a pattern below:
 #       golang.org/x/crypto, github.com/btcsuite/*, github.com/decred/*,
 #       @noble/*, coincurve, pycryptodome,
-#       org.bouncycastle:*, BouncyCastle.Cryptography
+#       org.bouncycastle:*, BouncyCastle.Cryptography,
+#       @connectrpc/connect, @connectrpc/connect-node
+#     The Node SDK's client transport signs the bodies and envelopes connect-es
+#     builds and uses its @private CommonTransportOptions, so those two are
+#     pinned exactly in node/sdk/package.json and bumped together
+#     (connect-node peer-depends on connect's exact version) in one PR.
 #   * A new non-crypto dependency shows up as a solo PR until it is added to the
 #     matching allowlist.
 version: 2
@@ -63,7 +68,7 @@ updates:
       - dependency-name: "@t-0/provider-sdk"                       # release.yaml owns it
     patterns:
       - "@bufbuild/*"
-      - "@connectrpc/*"
+      - "@connectrpc/validate"                                     # not connect / connect-node: signing path, see header
       - "@types/*"
       - "typescript"
       - "tsx"

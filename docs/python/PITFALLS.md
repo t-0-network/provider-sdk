@@ -62,15 +62,10 @@ url = "https://buf.build/gen/python"
 ```
 **Failed** — `uv sync` hangs indefinitely. BSR's package index is apparently not fully compatible with PEP 503 / uv's resolver.
 
-### Solution: `buf generate --include-imports`
-```bash
-cd sdk && buf generate --include-imports
-```
-Generates `buf/validate/validate_pb2.py` locally inside `api/`. Then:
-1. Create `api/buf/__init__.py` and `api/buf/validate/__init__.py`
-2. Add `api/` dir to `sys.path` in SDK `__init__.py` (see pitfall #5)
+### Solution: generate the stubs into `api/`
+`buf generate --include-imports` generates `buf/validate/validate_pb2.py` inside `api/` next to the SDK's own messages. The stubs are committed together with `api/buf/__init__.py` and `api/buf/validate/__init__.py`, and the SDK's `__init__.py` puts `api/` on `sys.path` (see pitfall #4). Regenerate from the repository root as [`python/CLAUDE.md`](../../python/CLAUDE.md#proto-code-generation) describes; `buf generate` keeps the committed stubs.
 
-**No external dependency needed.** Remove `protovalidate` from dependencies.
+**`protovalidate` stays a dependency:** `provider/validate.py` uses its validator, which imports `buf.validate` from these stubs, so `t0_provider_sdk` must be imported before `protovalidate`.
 
 ### buf.gen.yaml — managed.disable
 Add to prevent buf from managing third-party proto options:
@@ -227,10 +222,10 @@ class MyInterceptor:
 
 ## 10. `pyqwest.Client` — Wrapper, Not Subclass
 
-`pyqwest.Client` is Rust-backed (via PyO3). Subclassing fails or produces unpredictable behavior.
+A subclass of `pyqwest.Client` inherits every request method it does not override, and each of those would send requests unsigned. The wrapper exposes only the methods it signs.
 
 ```python
-# WRONG — Rust-backed class, subclassing is fragile
+# WRONG — every method not overridden here sends unsigned
 class SigningClient(pyqwest.Client):
     def post(self, url, headers=None, content=None):
         headers = self._sign(content, headers)
@@ -247,7 +242,9 @@ class SigningClient:
         return await self._inner.post(url, headers=headers, content=content)
 ```
 
-ConnectRPC calls exactly 3 methods: `get()`, `post()`, `stream()`. Only these need wrapping.
+ConnectRPC calls exactly 3 methods: `get()`, `post()`, `stream()`. Only these need wrapping, and `get()` is refused: a GET has no body to sign.
+
+`stream()` gets an (async) iterator of envelopes, not bytes, for every streaming call and every gRPC call, unary included. Treating it as bytes (`content + timestamp_bytes`) raises `TypeError`, which ConnectRPC reports as `UNAVAILABLE`. It signs the first envelope as sent; see [docs/STREAMING.md](../STREAMING.md#what-is-signed).
 
 ---
 
@@ -266,14 +263,11 @@ Go's `VerifySignature()` uses only `signature[:64]` (strips v). Python verificat
 
 ## 12. `buf generate` Without `--include-imports`
 
-Running `buf generate` without `--include-imports` does NOT generate stubs for dependencies like `buf.validate`. You get runtime `ModuleNotFoundError`.
+Running `buf generate` without `--include-imports` does NOT generate stubs for dependencies like `buf.validate`; without the committed `api/buf/validate/` stubs you get a runtime `ModuleNotFoundError`. To regenerate those stubs too, run from the repository root:
 
 ```bash
-# WRONG — missing buf/validate/validate_pb2.py
-cd sdk && buf generate
-
-# CORRECT — generates all transitive proto dependencies
-cd sdk && buf generate --include-imports
+uv sync --project python --all-packages
+buf generate --include-imports
 ```
 
 Must also create `__init__.py` files for generated namespace packages (`api/buf/__init__.py`, `api/buf/validate/__init__.py`).
@@ -324,5 +318,5 @@ The `_parse_wsgi_headers()` function in `middleware_wsgi.py` converts all `HTTP_
 |------|-----------|-------------|-----|
 | Keccak256 | `pysha3`, `hashlib.sha3_256` | `pycryptodome` (`Crypto.Hash.keccak`) | py3.13 compat, correct padding |
 | ConnectRPC | `connectrpc<0.11.1` | `connectrpc>=0.11.1` | Generated stubs target the `google.protobuf` compat codec introduced in v0.11; older runtimes lack it, and pre-0.11 stubs break on newer runtimes |
-| buf.validate stubs | `protovalidate`, BSR index | `buf generate --include-imports` | Self-contained, no external index |
+| buf.validate stubs | the `protovalidate` package (ships no stubs), BSR index | `buf generate --include-imports`, committed under `api/` | Self-contained, no external index |
 | Async subprocess | `subprocess.run()` | `asyncio.create_subprocess_exec()` | Non-blocking in event loop |

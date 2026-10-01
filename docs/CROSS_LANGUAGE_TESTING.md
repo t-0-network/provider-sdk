@@ -16,6 +16,8 @@ All SDKs share cross-language test infrastructure in `cross_test/` to verify cry
 | Python | `python/sdk/tests/crypto/test_cross_vectors.py` |
 | C# | `csharp/sdk/T0.ProviderSdk.Tests/Crypto/CrossTestVectors.cs` |
 
+`stream_signing_cases` covers streaming RPCs, whose signature covers only the first request message. See [`cross_test/README.md`](../cross_test/README.md).
+
 ## Go helper
 
 A single Go binary at `cross_test/go_helper/` that all server-to-server tests share.
@@ -40,6 +42,10 @@ CI builds it automatically (each language's CI workflow sets up Go and builds it
 | `call-pay-out <url> <key> [--grpc]` | Signed PayOut RPC |
 | `call-health <url> <key> [--grpc]` | Signed health check |
 
+`serve` also mounts `test.v1.StreamTest` ([`cross_test/stream_test.proto`](../cross_test/stream_test.proto), reference only — every SDK builds the two methods by hand on `google.protobuf.StringValue`). Its verifier checks a streaming request the way the T-0 Network does: the signature over the first envelope only (or, for gRPC, its payload without the prefix), before the handler reads the rest.
+
+A refused request fails with an `unauthenticated` RPC error whose message is the reason, and every reply to a verified request starts with the framing it was verified over (`envelope:` or `payload:`), so the streaming cross tests check both from the call itself. The verifier also logs its verdict to stderr (`<path> verified over the first envelope|payload` or `<path> rejected: <reason>`); the cross tests still wait for that line to check that the request went out with its first message, and look for its absence when nothing may be sent, so its wording is a contract with those tests. `cd cross_test/go_helper && go test ./...` tests the verifier itself and runs the Go client against it. The verifier step by step: [`cross_test/README.md`](../cross_test/README.md#commands).
+
 Default protocol is Connect (HTTP/1.1). Pass `--grpc` for gRPC protocol over h2c.
 
 ## Server-to-server test matrix
@@ -47,7 +53,10 @@ Default protocol is Connect (HTTP/1.1). Pass `--grpc` for gRPC protocol over h2c
 | Direction | Python | Node | C# | Java |
 |---|---|---|---|---|
 | **Lang→Go** | Health | Health | Health | Health + PayOut |
+| **Lang→Go streaming** | Client + server stream (async + sync) | Client + server stream | Client + server stream | Client + server stream |
 | **Go→Lang** | Health (ASGI+WSGI) | Health | Health + PayOut | Health + PayOut |
+
+Streaming runs one way only: providers don't serve streaming RPCs, so there is no Go→Lang streaming test. The streaming cross tests check that each SDK's client signs the bytes the network verifies and sends the request with its first message; the verifier's own verdicts are pinned in `cross_test/go_helper`. The rules they test: [`docs/STREAMING.md`](STREAMING.md).
 
 ### Test files
 
@@ -55,9 +64,11 @@ Default protocol is Connect (HTTP/1.1). Pass `--grpc` for gRPC protocol over h2c
 |---|---|---|
 | Python (async) | `python/tests/cross_test/test_cross_server.py` | Connect |
 | Python (sync) | `python/tests/cross_test/test_cross_server_sync.py` | Connect |
+| Python streaming (async + sync) | `python/tests/cross_test/test_cross_stream.py` | Connect (binary and JSON) + gRPC |
 | Node | `node/sdk/test/cross_server.test.ts` | Connect |
-| C# | `csharp/sdk/T0.ProviderSdk.Tests/CrossTest/CrossServerTests.cs` | gRPC |
-| Java | `java/sdk/src/test/java/network/t0/sdk/integration/CrossServerTests.java` | gRPC |
+| Node streaming | `node/sdk/test/cross_stream.test.ts` | Connect (binary and JSON) |
+| C# (incl. streaming) | `csharp/sdk/T0.ProviderSdk.Tests/CrossTest/CrossServerTests.cs` | gRPC |
+| Java (incl. streaming) | `java/sdk/src/test/java/network/t0/sdk/integration/CrossServerTests.java` | gRPC |
 
 ## Dual-framing (gRPC interop)
 
@@ -73,6 +84,8 @@ Each SDK's CI workflow:
 3. Builds the helper
 4. Runs the SDK's tests (which include cross-language tests)
 
+The Go workflow also runs the helper's own tests (`go test -race ./...` in `cross_test/go_helper`).
+
 Tests **fail** (not skip) if the Go helper binary is missing in CI.
 
 ## Adding a new SDK
@@ -81,3 +94,4 @@ Tests **fail** (not skip) if the Go helper binary is missing in CI.
 2. Add Go setup + helper build to the SDK's CI workflow (see `ci-python.yaml` for the pattern)
 3. Add `go/**` and `cross_test/**` to the CI workflow's path triggers
 4. Tests must fail (not skip) if the helper binary is missing in CI
+5. Streaming against `go_helper serve`: a client stream of several messages and a server stream, each verified over the expected framing; no buffering (message 2 after the helper logged message 1 as verified); a large first message; and refusals of a stale timestamp and an empty stream

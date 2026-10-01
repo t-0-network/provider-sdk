@@ -69,6 +69,18 @@ class TestSignRequest:
         assert headers["Content-Type"] == "application/proto"
         assert PUBLIC_KEY_HEADER in headers
 
+    def test_replaces_signature_headers_set_by_the_caller(self):
+        sign_fn = new_signer_from_hex(PRIVATE_KEY)
+        existing = pyqwest.Headers(
+            {PUBLIC_KEY_HEADER: "0x04", SIGNATURE_HEADER: "0xdead", SIGNATURE_TIMESTAMP_HEADER: "1"}
+        )
+        headers = _sign_request(sign_fn, b"test", existing)
+        for name in (PUBLIC_KEY_HEADER, SIGNATURE_HEADER, SIGNATURE_TIMESTAMP_HEADER):
+            values = [value for key, value in headers.items() if key.lower() == name.lower()]
+            assert len(values) == 1, name
+        assert headers[PUBLIC_KEY_HEADER] == PUBLIC_KEY_HEX
+        assert headers[SIGNATURE_HEADER] != "0xdead"
+
     def test_empty_body_signs_correctly(self):
         sign_fn = new_signer_from_hex(PRIVATE_KEY)
         headers = _sign_request(sign_fn, b"", None)

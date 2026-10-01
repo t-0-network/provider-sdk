@@ -8,8 +8,6 @@ providers see the failure in their own logs even when they don't wrap their
 responses with :func:`t0_provider_sdk.provider.validate.validate`. The logger
 is overridable via the constructor; the default is
 ``logging.getLogger("t0_provider_sdk")``.
-
-Go equivalent: provider/validate_response.go
 """
 
 from __future__ import annotations

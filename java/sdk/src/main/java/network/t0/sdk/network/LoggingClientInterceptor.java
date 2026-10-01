@@ -19,10 +19,9 @@ import java.util.concurrent.TimeUnit;
  *   <li>WARN: Request failures and errors</li>
  * </ul>
  *
- * <p>Example usage:
+ * <p>The network clients do not add it; add it to a stub to log its calls:
  * <pre>{@code
- * // The interceptor is automatically included when logging is enabled
- * // Logs will appear at DEBUG level by default
+ * client.stub().withInterceptors(new LoggingClientInterceptor()).updateQuote(request);
  * }</pre>
  *
  * <p><b>Thread Safety:</b> This class is thread-safe. Each call creates independent state.

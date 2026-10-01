@@ -3,6 +3,8 @@ using System.Text;
 using System.Text.Json;
 using T0.ProviderSdk.Common;
 using T0.ProviderSdk.Crypto;
+using T0.ProviderSdk.Network;
+using T0.ProviderSdk.Tests.Network;
 
 namespace T0.ProviderSdk.Tests.Crypto;
 
@@ -166,6 +168,46 @@ public class CrossTestVectors
             Assert.Equal(
                 vec.GetProperty("valid").GetBoolean(),
                 SignatureVerifier.Verify(publicKey, RequestDigest(vec), signature));
+        }
+    }
+
+    /// <summary>
+    /// The <c>first_envelope</c> cases sent through <see cref="SigningDelegatingHandler"/>: the
+    /// signature covers the first envelope, prefix included, and the body goes out unchanged.
+    /// </summary>
+    [Fact]
+    public async Task StreamSigningCases_ShouldMatchVectorBytes()
+    {
+        var privateKeyHex = Vectors.RootElement.GetProperty("keys").GetProperty("private_key").GetString()!;
+        var cases = Vectors.RootElement.GetProperty("stream_signing_cases").EnumerateArray()
+            .Where(vec => vec.GetProperty("covers").GetString() == "first_envelope")
+            .ToList();
+        Assert.NotEmpty(cases);
+
+        foreach (var vec in cases)
+        {
+            var body = HexUtils.HexToBytes(vec.GetProperty("body_hex").GetString()!);
+            var timestampMs = vec.GetProperty("timestamp_ms").GetInt64();
+
+            var contentType = vec.GetProperty("content_type").GetString()!;
+            var inner = new RecordingHandler();
+            var handler = new SigningDelegatingHandler(
+                Signer.FromHex(privateKeyHex),
+                new FixedTimeProvider(DateTimeOffset.FromUnixTimeMilliseconds(timestampMs)))
+            {
+                InnerHandler = inner
+            };
+            using var client = new HttpClient(handler);
+            using var response = await client.SendAsync(new HttpRequestMessage(HttpMethod.Post, "http://example.com/")
+            {
+                Content = new PushContent(stream => stream.WriteAsync(body).AsTask(), contentType)
+            }).WithTimeout();
+
+            var request = await inner.Received.Task.WithTimeout();
+            Assert.Equal(timestampMs.ToString(), request.Headers.GetValues(Headers.SignatureTimestamp).Single());
+            Assert.Equal(vec.GetProperty("expected_signature").GetString()!,
+                HexUtils.BytesToHex(StreamingTestHelpers.HeaderBytes(request, Headers.Signature)[..64]));
+            Assert.Equal(body, inner.Body.ToArray());
         }
     }
 

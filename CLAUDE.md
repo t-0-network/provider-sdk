@@ -47,6 +47,7 @@ cd go && go test ./...                            # Go
 cd node/sdk && npm ci && npm run build && npm test # Node
 cd python && uv sync --all-packages && uv run pytest -v  # Python
 cd java && ./gradlew build                        # Java
+cd csharp && dotnet test                          # C#
 ```
 
 ## Cross-Language Testing
@@ -65,11 +66,14 @@ cd csharp && dotnet test                               # C# ↔ Go (included in 
 cd java && ./gradlew test --tests "*.CrossServerTests" # Java ↔ Go
 ```
 
+The helper's stream verifier refuses a `test.v1.StreamTest` request with an `unauthenticated` RPC error whose message is the reason, and starts every reply to a verified request with the framing it was verified over (`envelope:` or `payload:`); the streaming cross tests check both from the call itself. It also logs its verdict to stderr before the handler reads past the first message (`<path> verified over the first envelope|payload` or `<path> rejected: <reason>`); the tests read that log only to check that a request went out right after its first message (the caller's stream produces message 2 only once the line is there) and that a call cancelled before its first message sent nothing. The verifier itself, and the Go client against it, are tested in `cross_test/go_helper` (`go test ./...`).
+
 **When adding a new SDK**, add cross-language server-to-server tests that use `cross_test/go_helper/`:
 1. Create test file(s) that start/call the Go helper for bidirectional health round-trips (with `service` field set for non-empty body)
 2. Add Go setup + helper build to the SDK's CI workflow (see `ci-python.yaml` for pattern)
 3. Add `go/**` and `cross_test/**` to the CI workflow's path triggers
 4. In CI, tests must **fail** (not skip) if the helper binary is missing
+5. Streaming against `go_helper serve`: a client stream of several messages and a server stream, each verified over the expected framing; no buffering (message 2 after the helper logged message 1 as verified); a large first message; and refusals of a stale timestamp and an empty stream
 
 ## Definition of Done
 
@@ -77,7 +81,8 @@ Before a change is considered complete, cross-language tests must pass:
 
 ```bash
 cd cross_test/go_helper && go build -o go_helper .   # Rebuild helper
-cd go && go vet ./... && go test ./...                # Go
+cd cross_test/go_helper && go vet ./... && go test ./... # Helper's verifier + Go client against it
+cd go && go vet ./... && go test -race ./...          # Go
 cd node/sdk && npm ci && npm run build && npm test    # Node (includes cross-tests)
 cd python && uv run pytest tests/cross_test/ -v       # Python ↔ Go
 cd csharp && dotnet test --filter "CrossServerTests"  # C# ↔ Go
@@ -98,9 +103,15 @@ headers = { X-Public-Key: "0x...", X-Signature: "0x...", X-Signature-Timestamp: 
 
 ### body_bytes framing — depends on signer position
 
-`body_bytes` is whichever bytes the signer covers at its own layer. For most SDK clients in this repo and Connect-protocol callers in general, that is **unframed protobuf** (the Java SDK's `NetworkClient` signs above the gRPC framer; Go / Node / Python use Connect protocol, where no frame exists). The exception is C#: its `SigningDelegatingHandler` sits below the gRPC framer in the HttpClient pipeline, so it signs the **gRPC-framed body** — matching Go's primary verification path, not the fallback. The T-0 Network signs unframed bytes when calling a provider via Connect protocol, and signs the **gRPC-framed body** (5-byte prefix + protobuf) when calling via gRPC protocol — in that case the signer sits below the framer.
+`body_bytes` is whichever bytes the signer covers at its own layer. For a unary Connect call (Go, Node and Python by default) there is no frame, so that is the **unframed protobuf** body. The Java SDK's `NetworkClient` signs above the gRPC framer, so it also covers **unframed protobuf**. Clients that sign the HTTP body of a gRPC call sit below the framer and sign the **gRPC-framed body**: C#'s `SigningDelegatingHandler`, and Go and Python with the gRPC protocol option — matching Go's primary verification path, not the fallback. The T-0 Network signs unframed bytes when calling a provider via Connect protocol, and signs the **gRPC-framed body** (5-byte prefix + protobuf) when calling via gRPC protocol — in that case the signer sits below the framer.
 
 Consequently the Java SDK's `SignatureVerificationInterceptor` accepts both framings. **This dual-path is required, not defensive** — see [`docs/java/SIGNATURE_VERIFICATION.md`](docs/java/SIGNATURE_VERIFICATION.md) before touching it.
+
+### Streaming RPCs — only the first message is signed
+
+For client-streaming (upload) and server-streaming (download) RPCs, `body_bytes` is the **first request envelope exactly as sent**: `flags (1) || uint32be(length) || payload`. Later messages are sent unsigned. The server checks the timestamp when the headers arrive, before it reads the body, so a client signs as soon as it has the first message and sends the request at once — never buffer the stream to sign it. Over gRPC the network also accepts the first payload without its 5-byte prefix (the Java SDK signs above the framer, as for unary). A client that signs the HTTP body treats `application/connect+*`, `application/grpc` and `application/grpc+*` as enveloped and signs anything else whole.
+
+The streaming rules every SDK client follows (what is signed, when the request is sent, bidirectional streams, the stream timeout): [`docs/STREAMING.md`](docs/STREAMING.md). Vectors: `stream_signing_cases` in `cross_test/test_vectors.json`; test service: `cross_test/stream_test.proto`, served by `go_helper serve`.
 
 ## Releasing
 
@@ -115,7 +126,7 @@ When the user asks to release, trigger it via `gh workflow run release.yaml -f b
 
 ## Dependency updates
 
-When triaging a Dependabot PR or bumping a library, follow [`.claude/skills/dependency-update/SKILL.md`](.claude/skills/dependency-update/SKILL.md). Non-crypto deps land in a single weekly `ci-batch` PR across all ecosystems (CI is the gate; review the batch changelog once). Crypto / signing-path deps get solo PRs and follow the Tier 3 seven-step audit with pre-bump coverage + cross-language byte-identical verification (PR #99 pattern). New deps appear as solo PRs until added to the allowlist in `.github/dependabot.yml`. The skill auto-triggers on dep-update conversation; there is no slash command.
+When triaging a Dependabot PR or bumping a library, follow [`docs/DEPENDENCY_UPDATES.md`](docs/DEPENDENCY_UPDATES.md). Non-crypto deps land in a single weekly `ci-batch` PR across all ecosystems (CI is the gate; read the changelogs in the batch). Crypto / signing-path deps get solo PRs and the seven-step audit there: direct tests before the bump, then byte-identical cross-language vectors after it (PR #99 pattern). New deps appear as solo PRs until added to the allowlist in `.github/dependabot.yml`.
 
 ## Git Workflow
 

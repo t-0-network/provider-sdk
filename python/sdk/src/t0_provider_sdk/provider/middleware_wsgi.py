@@ -102,8 +102,14 @@ def _read_wsgi_body(environ: WSGIEnviron, max_size: int) -> bytes:
         if length > max_size:
             raise BodyTooLargeError(max_size)
         body = environ["wsgi.input"].read(length)
+    elif environ.get("wsgi.input_terminated"):
+        # A body without a length (chunked): the server ends the input where the body ends. One
+        # byte over the limit is enough to refuse it.
+        body = environ["wsgi.input"].read(max_size + 1)
     else:
-        body = environ["wsgi.input"].read()
+        # No length and no end marked by the server: the request has no body (PEP 3333), and
+        # reading would wait on the open connection.
+        body = b""
 
     if len(body) > max_size:
         raise BodyTooLargeError(max_size)

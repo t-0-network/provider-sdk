@@ -9,6 +9,9 @@ authors = [
 ]
 dependencies = [
     "connectrpc>=0.11.1",
+    # connectrpc's HTTP client. Requires cancellation to abort a streaming upload rather than
+    # finish it normally after a partial body, as well as disabling signed-request redirects.
+    "pyqwest>=0.11.0",
     "protobuf>=7.34.1",
     "coincurve>=21.0",
     "pycryptodome>=3.23",

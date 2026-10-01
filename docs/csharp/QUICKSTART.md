@@ -33,6 +33,8 @@ server.AddHostedService<MyProvider.Services.QuotePublisher>();
 await server.RunAsync();
 ```
 
+The overload that takes `NetworkClientOptions` in place of the base URL also sets `Timeout` (unary calls, default 15 s) and `StreamTimeout` (client and server streams, default 5 min); see [Streaming and timeouts](../../csharp/README.md#streaming-and-timeouts).
+
 ## Environment Variables
 
 | Variable | Required | Default | Description |

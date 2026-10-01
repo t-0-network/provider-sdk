@@ -1,6 +1,9 @@
 using System.Diagnostics;
-using System.Net;
-using System.Net.Sockets;
+using System.Net.Http.Headers;
+using System.Security.Cryptography;
+using Google.Protobuf;
+using Grpc.Core;
+using Grpc.Net.Client;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Server.Kestrel.Core;
@@ -9,6 +12,8 @@ using T0.ProviderSdk.Api.Tzero.V1.Payment;
 using T0.ProviderSdk.Crypto;
 using T0.ProviderSdk.Network;
 using T0.ProviderSdk.Provider;
+using T0.ProviderSdk.Tests.Network;
+using StringValue = Google.Protobuf.WellKnownTypes.StringValue;
 
 namespace T0.ProviderSdk.Tests.CrossTest;
 
@@ -35,34 +40,6 @@ public class CrossServerTests
         return File.Exists(path) ? path : null;
     }
 
-    private static int FindFreePort()
-    {
-        var listener = new TcpListener(IPAddress.Loopback, 0);
-        listener.Start();
-        var port = ((IPEndPoint)listener.LocalEndpoint).Port;
-        listener.Stop();
-        return port;
-    }
-
-    private static async Task WaitForPortAsync(int port, TimeSpan timeout)
-    {
-        var deadline = DateTime.UtcNow + timeout;
-        while (DateTime.UtcNow < deadline)
-        {
-            try
-            {
-                using var client = new TcpClient();
-                await client.ConnectAsync(IPAddress.Loopback, port);
-                return;
-            }
-            catch (SocketException)
-            {
-                await Task.Delay(100);
-            }
-        }
-        throw new TimeoutException($"Port {port} not ready after {timeout.TotalSeconds}s");
-    }
-
     /// <summary>
     /// Go client signs a request → C# server verifies and handles it.
     /// </summary>
@@ -76,7 +53,7 @@ public class CrossServerTests
             return;
         }
 
-        var port = FindFreePort();
+        var port = TestPorts.FindFreePort();
         var handler = new TestPaymentHandler();
 
         // Build ASP.NET Core server with gRPC + signature verification
@@ -99,7 +76,7 @@ public class CrossServerTests
         try
         {
             await app.StartAsync();
-            await WaitForPortAsync(port, TimeSpan.FromSeconds(10));
+            await TestPorts.WaitForPortAsync(port, TimeSpan.FromSeconds(10));
 
             // Run Go client that signs and sends a PayOut request
             var proc = new Process
@@ -155,7 +132,7 @@ public class CrossServerTests
             return;
         }
 
-        var port = FindFreePort();
+        var port = TestPorts.FindFreePort();
         var handler = new TestPaymentHandler();
 
         var builder = WebApplication.CreateBuilder();
@@ -185,7 +162,7 @@ public class CrossServerTests
         try
         {
             await app.StartAsync();
-            await WaitForPortAsync(port, TimeSpan.FromSeconds(10));
+            await TestPorts.WaitForPortAsync(port, TimeSpan.FromSeconds(10));
 
             var proc = new Process
             {
@@ -235,7 +212,7 @@ public class CrossServerTests
             return;
         }
 
-        var port = FindFreePort();
+        var port = TestPorts.FindFreePort();
         var proc = new Process
         {
             StartInfo = new ProcessStartInfo
@@ -251,13 +228,13 @@ public class CrossServerTests
         try
         {
             proc.Start();
-            await WaitForPortAsync(port, TimeSpan.FromSeconds(10));
+            await TestPorts.WaitForPortAsync(port, TimeSpan.FromSeconds(10));
 
             var signer = Signer.FromHex(PrivateKey);
-            using var channel = NetworkClient.Create(
+            var healthClient = NetworkClient.Create(
                 new NetworkClientOptions { BaseUrl = $"http://127.0.0.1:{port}" },
-                signer);
-            var healthClient = new Grpc.Health.V1.Health.HealthClient(channel);
+                signer,
+                invoker => new Grpc.Health.V1.Health.HealthClient(invoker));
 
             var response = await healthClient.CheckAsync(
                 new Grpc.Health.V1.HealthCheckRequest { Service = Grpc.Health.V1.Health.Descriptor.FullName });
@@ -272,6 +249,291 @@ public class CrossServerTests
                 await proc.WaitForExitAsync();
             }
             proc.Dispose();
+        }
+    }
+
+    // test.v1.StreamTest (cross_test/stream_test.proto), built by hand on StringValue.
+    private static readonly Marshaller<StringValue> StringValueMarshaller =
+        Marshallers.Create(value => value.ToByteArray(), StringValue.Parser.ParseFrom);
+
+    private static readonly Method<StringValue, StringValue> ClientStreamMethod = new(
+        MethodType.ClientStreaming, "test.v1.StreamTest", "ClientStream", StringValueMarshaller, StringValueMarshaller);
+
+    private static readonly Method<StringValue, StringValue> ServerStreamMethod = new(
+        MethodType.ServerStreaming, "test.v1.StreamTest", "ServerStream", StringValueMarshaller, StringValueMarshaller);
+
+    private static CallOptions StreamCallOptions() => new(deadline: DateTime.UtcNow.AddSeconds(30));
+
+    [Fact]
+    public async Task CSharpClient_GoServer_ClientStream_VerifiedBeforeLaterMessagesAreWritten()
+    {
+        if (GoHelperPath is null)
+        {
+            if (Environment.GetEnvironmentVariable("CI") != null)
+                Assert.Fail("Go helper binary required in CI but not found");
+            return;
+        }
+
+        await using var server = await GoStreamServer.StartAsync(GoHelperPath);
+        var invoker = NetworkClient.Create(
+            new NetworkClientOptions { BaseUrl = server.BaseUrl }, Signer.FromHex(PrivateKey), i => i);
+
+        using var call = invoker.AsyncClientStreamingCall(ClientStreamMethod, null, StreamCallOptions());
+        await call.RequestStream.WriteAsync(new StringValue { Value = "m1" });
+
+        await server.WaitForLogAsync("/test.v1.StreamTest/ClientStream verified over the first envelope")
+            .WaitAsync(TimeSpan.FromSeconds(10));
+
+        await call.RequestStream.WriteAsync(new StringValue { Value = "m2" });
+        await call.RequestStream.WriteAsync(new StringValue { Value = "m3" });
+        await call.RequestStream.CompleteAsync();
+
+        Assert.Equal("envelope:m1,m2,m3", (await call.ResponseAsync).Value);
+    }
+
+    [Fact]
+    public async Task CSharpClient_GoServer_ServerStream()
+    {
+        if (GoHelperPath is null)
+        {
+            if (Environment.GetEnvironmentVariable("CI") != null)
+                Assert.Fail("Go helper binary required in CI but not found");
+            return;
+        }
+
+        await using var server = await GoStreamServer.StartAsync(GoHelperPath);
+        var invoker = NetworkClient.Create(
+            new NetworkClientOptions { BaseUrl = server.BaseUrl }, Signer.FromHex(PrivateKey), i => i);
+
+        using var call = invoker.AsyncServerStreamingCall(
+            ServerStreamMethod, null, StreamCallOptions(), new StringValue { Value = "hello" });
+        var received = new List<string>();
+        while (await call.ResponseStream.MoveNext(CancellationToken.None))
+            received.Add(call.ResponseStream.Current.Value);
+
+        // The helper names the framing it verified the signature over in every reply.
+        Assert.Equal(["envelope:hello", "envelope:hello", "envelope:hello"], received);
+    }
+
+    [Fact]
+    public async Task CSharpClient_GoServer_EmptyClientStream_IsRejected()
+    {
+        if (GoHelperPath is null)
+        {
+            if (Environment.GetEnvironmentVariable("CI") != null)
+                Assert.Fail("Go helper binary required in CI but not found");
+            return;
+        }
+
+        await using var server = await GoStreamServer.StartAsync(GoHelperPath);
+        var invoker = NetworkClient.Create(
+            new NetworkClientOptions { BaseUrl = server.BaseUrl }, Signer.FromHex(PrivateKey), i => i);
+
+        using var call = invoker.AsyncClientStreamingCall(ClientStreamMethod, null, StreamCallOptions());
+        await call.RequestStream.CompleteAsync();
+
+        var ex = await Assert.ThrowsAsync<RpcException>(() => call.ResponseAsync);
+        Assert.Equal(StatusCode.Unauthenticated, ex.StatusCode);
+        Assert.Contains("no first message", ex.Status.Detail);
+    }
+
+    [Fact]
+    public async Task CSharpClient_GoServer_ClientStream_LargeFirstMessage()
+    {
+        if (GoHelperPath is null)
+        {
+            if (Environment.GetEnvironmentVariable("CI") != null)
+                Assert.Fail("Go helper binary required in CI but not found");
+            return;
+        }
+
+        await using var server = await GoStreamServer.StartAsync(GoHelperPath);
+        var invoker = NetworkClient.Create(
+            new NetworkClientOptions { BaseUrl = server.BaseUrl }, Signer.FromHex(PrivateKey), i => i);
+        var large = Convert.ToBase64String(RandomNumberGenerator.GetBytes(192 * 1024)); // 256 KiB, over the pipe's pause threshold
+
+        using var call = invoker.AsyncClientStreamingCall(ClientStreamMethod, null, StreamCallOptions());
+        await call.RequestStream.WriteAsync(new StringValue { Value = large });
+        await call.RequestStream.WriteAsync(new StringValue { Value = "tail" });
+        await call.RequestStream.CompleteAsync();
+
+        Assert.Equal($"envelope:{large},tail", (await call.ResponseAsync).Value);
+    }
+
+    [Fact]
+    public async Task CSharpClient_GoServer_ClientStream_GzipFirstMessage()
+    {
+        if (GoHelperPath is null)
+        {
+            if (Environment.GetEnvironmentVariable("CI") != null)
+                Assert.Fail("Go helper binary required in CI but not found");
+            return;
+        }
+
+        await using var server = await GoStreamServer.StartAsync(GoHelperPath);
+        // The SDK's signing handler and transport with a header recorder between them, so the test
+        // can check that the first message went out compressed.
+        var recorder = new HeaderRecorder { InnerHandler = NetworkClient.CreateTransport() };
+        using var channel = GrpcChannel.ForAddress(server.BaseUrl, new GrpcChannelOptions
+        {
+            HttpClient = new HttpClient(new SigningDelegatingHandler(Signer.FromHex(PrivateKey)) { InnerHandler = recorder }),
+            DisposeHttpClient = true,
+        });
+        var invoker = channel.CreateCallInvoker();
+        var callOptions = StreamCallOptions().WithHeaders(new Metadata { { "grpc-internal-encoding-request", "gzip" } });
+        var first = new string('m', 1000);
+
+        using var call = invoker.AsyncClientStreamingCall(ClientStreamMethod, null, callOptions);
+        await call.RequestStream.WriteAsync(new StringValue { Value = first });
+        await call.RequestStream.WriteAsync(new StringValue { Value = "tail" });
+        await call.RequestStream.CompleteAsync();
+
+        Assert.Equal($"envelope:{first},tail", (await call.ResponseAsync).Value);
+        Assert.Equal("gzip", Assert.Single(recorder.Sent!.GetValues("grpc-encoding")));
+    }
+
+    [Fact]
+    public async Task CSharpClient_GoServer_ClientStream_StaleTimestamp_IsRejected()
+    {
+        if (GoHelperPath is null)
+        {
+            if (Environment.GetEnvironmentVariable("CI") != null)
+                Assert.Fail("Go helper binary required in CI but not found");
+            return;
+        }
+
+        await using var server = await GoStreamServer.StartAsync(GoHelperPath);
+        // The factories take no clock, so the signing handler is built here with one two minutes behind.
+        var signer = new SigningDelegatingHandler(
+            Signer.FromHex(PrivateKey), new FixedTimeProvider(DateTimeOffset.UtcNow.AddMinutes(-2)))
+        {
+            InnerHandler = NetworkClient.CreateTransport()
+        };
+        using var channel = GrpcChannel.ForAddress(server.BaseUrl, new GrpcChannelOptions
+        {
+            HttpClient = new HttpClient(signer),
+            DisposeHttpClient = true,
+        });
+
+        var ex = await FirstMessageOnlyClientStreamAsync(channel.CreateCallInvoker());
+
+        Assert.Equal(StatusCode.Unauthenticated, ex.StatusCode);
+        Assert.Contains("timestamp is outside the allowed time window", ex.Status.Detail);
+    }
+
+    // Only m1: later writes could race the rejection.
+    private static async Task<RpcException> FirstMessageOnlyClientStreamAsync(CallInvoker invoker)
+    {
+        using var call = invoker.AsyncClientStreamingCall(ClientStreamMethod, null, StreamCallOptions());
+        await call.RequestStream.WriteAsync(new StringValue { Value = "m1" });
+        return await Assert.ThrowsAsync<RpcException>(() => call.ResponseAsync);
+    }
+
+    private sealed class HeaderRecorder : DelegatingHandler
+    {
+        public HttpRequestHeaders? Sent { get; private set; }
+
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            Sent = request.Headers;
+            return base.SendAsync(request, cancellationToken);
+        }
+    }
+
+    /// <summary>
+    /// <c>go_helper serve</c> on a free port. Its output is read asynchronously, so tests wait for
+    /// a log line rather than read it.
+    /// </summary>
+    private sealed class GoStreamServer : IAsyncDisposable
+    {
+        private readonly Process _process;
+        private readonly List<string> _lines = [];
+        private readonly List<(string Text, TaskCompletionSource Seen)> _waiters = [];
+
+        private GoStreamServer(Process process, int port)
+        {
+            _process = process;
+            BaseUrl = $"http://127.0.0.1:{port}";
+        }
+
+        public string BaseUrl { get; }
+
+        public static async Task<GoStreamServer> StartAsync(string helperPath)
+        {
+            var port = TestPorts.FindFreePort();
+            var process = new Process
+            {
+                StartInfo = new ProcessStartInfo
+                {
+                    FileName = helperPath,
+                    ArgumentList = { "serve", port.ToString(), PublicKey },
+                    RedirectStandardOutput = true,
+                    RedirectStandardError = true,
+                    UseShellExecute = false,
+                }
+            };
+            var server = new GoStreamServer(process, port);
+            process.OutputDataReceived += (_, e) => server.OnLine(e.Data);
+            process.ErrorDataReceived += (_, e) => server.OnLine(e.Data);
+
+            try
+            {
+                process.Start();
+                process.BeginOutputReadLine();
+                process.BeginErrorReadLine();
+                await TestPorts.WaitForPortAsync(port, TimeSpan.FromSeconds(10));
+                return server;
+            }
+            catch
+            {
+                await server.DisposeAsync();
+                throw;
+            }
+        }
+
+        public Task WaitForLogAsync(string text)
+        {
+            lock (_lines)
+            {
+                if (_lines.Any(line => line.Contains(text, StringComparison.Ordinal)))
+                    return Task.CompletedTask;
+                var seen = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                _waiters.Add((text, seen));
+                return seen.Task;
+            }
+        }
+
+        private void OnLine(string? line)
+        {
+            if (line is null)
+                return;
+            lock (_lines)
+            {
+                _lines.Add(line);
+                foreach (var waiter in _waiters.Where(w => line.Contains(w.Text, StringComparison.Ordinal)).ToList())
+                {
+                    waiter.Seen.TrySetResult();
+                    _waiters.Remove(waiter);
+                }
+            }
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            try
+            {
+                if (!_process.HasExited)
+                {
+                    _process.Kill();
+                    await _process.WaitForExitAsync();
+                }
+            }
+            catch (InvalidOperationException)
+            {
+                // Never started.
+            }
+            _process.Dispose();
         }
     }
 }

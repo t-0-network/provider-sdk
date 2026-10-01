@@ -13,6 +13,7 @@ import org.bouncycastle.math.ec.FixedPointCombMultiplier;
 
 import java.math.BigInteger;
 import java.util.Arrays;
+import java.util.HexFormat;
 
 /**
  * ECDSA signer using secp256k1 curve, producing Ethereum-style signatures.
@@ -30,7 +31,7 @@ import java.util.Arrays;
  * <p><b>Thread Safety:</b> Instances of this class are thread-safe. The {@link #sign(byte[])}
  * method can be called concurrently from multiple threads.
  */
-public final class Signer {
+public final class Signer implements DigestSigner {
 
     private static final X9ECParameters CURVE_PARAMS = CustomNamedCurves.getByName("secp256k1");
     private static final ECDomainParameters DOMAIN_PARAMS = new ECDomainParameters(
@@ -41,7 +42,6 @@ public final class Signer {
     );
 
     private static final int PRIVATE_KEY_LENGTH = 32;
-    private static final int PRIVATE_KEY_HEX_LENGTH = 64;
 
     private final BigInteger privateKey;
     private final byte[] publicKey;
@@ -56,30 +56,30 @@ public final class Signer {
     /**
      * Creates a new Signer from a hex-encoded private key.
      *
-     * @param hexPrivateKey the private key in hex format (with or without 0x prefix)
+     * @param hexPrivateKey the private key as 64 hex characters, with an optional {@code 0x} or {@code 0X} prefix
      * @return a new Signer instance
-     * @throws IllegalArgumentException if the key is invalid
+     * @throws IllegalArgumentException if the key is null or empty, is not 64 hex characters, or is not in
+     *                                  the range [1, n-1] of the secp256k1 order n
      */
     public static Signer fromHex(String hexPrivateKey) {
         if (hexPrivateKey == null || hexPrivateKey.isEmpty()) {
             throw new IllegalArgumentException("private key must not be null or empty");
         }
 
-        String cleanHex = HexUtils.stripHexPrefix(hexPrivateKey.toLowerCase());
-
-        if (cleanHex.length() != PRIVATE_KEY_HEX_LENGTH) {
+        // Exactly 32 bytes of hex after an optional 0x or 0X prefix; anything else is refused, not repaired.
+        String cleanHex = HexUtils.stripHexPrefix(hexPrivateKey);
+        byte[] privateKeyBytes = null;
+        if (cleanHex.length() == 2 * PRIVATE_KEY_LENGTH) {
+            try {
+                privateKeyBytes = HexFormat.of().parseHex(cleanHex); // ASCII hex digits only, any case
+            } catch (IllegalArgumentException e) {
+                // refused below
+            }
+        }
+        if (privateKeyBytes == null) {
             throw new IllegalArgumentException("private key must be 32 bytes (64 hex characters)");
         }
-
-        try {
-            byte[] privateKeyBytes = HexUtils.hexToBytes(cleanHex);
-            BigInteger privateKeyInt = new BigInteger(1, privateKeyBytes);
-            validatePrivateKeyRange(privateKeyInt);
-            byte[] publicKey = derivePublicKey(privateKeyInt);
-            return new Signer(privateKeyInt, publicKey);
-        } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("invalid hex encoding: " + e.getMessage(), e);
-        }
+        return fromBytes(privateKeyBytes);
     }
 
     /**
@@ -110,6 +110,7 @@ public final class Signer {
      * @return SignResult containing signature and public key
      * @throws IllegalArgumentException if digest is not 32 bytes
      */
+    @Override
     public SignResult sign(byte[] digest) {
         if (digest == null || digest.length != PRIVATE_KEY_LENGTH) {
             throw new IllegalArgumentException("digest must be 32 bytes");
@@ -148,6 +149,7 @@ public final class Signer {
      *
      * @return copy of the public key bytes
      */
+    @Override
     public byte[] getPublicKey() {
         return Arrays.copyOf(publicKey, publicKey.length);
     }
@@ -157,6 +159,7 @@ public final class Signer {
      *
      * @return hex-encoded public key
      */
+    @Override
     public String getPublicKeyHex() {
         return HexUtils.bytesToHex(publicKey);
     }
@@ -166,6 +169,7 @@ public final class Signer {
      *
      * @return hex-encoded public key with 0x prefix
      */
+    @Override
     public String getPublicKeyHexPrefixed() {
         return "0x" + HexUtils.bytesToHex(publicKey);
     }

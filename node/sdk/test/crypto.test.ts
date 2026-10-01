@@ -1,11 +1,15 @@
-import { describe, it, assert } from 'node:test';
+import { describe, it } from 'node:test';
 import * as nodeAssert from 'node:assert/strict';
 import { keccak_256 } from '@noble/hashes/sha3.js';
 import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { CreateSigner } from '../src/client/signer.js';
-import { verifySignature, keccak256, computeDigest, parsePublicKey, publicKeyFromPrivateKey, publicKeysEqual, createRequestVerifier, DEFAULT_TOLERANCE_MS, NetworkHeaders } from '../src/crypto/index.js';
+import { verifySignature, keccak256, computeDigest, parsePublicKey, publicKeyFromPrivateKey, publicKeysEqual, createRequestVerifier, NetworkHeaders } from '../src/crypto/index.js';
 import * as sdk from '../src/index.js';
 import type { VerifyRequest } from '../src/crypto/index.js';
+import type { TestContext } from 'node:test';
+import { Code, ConnectError } from '@connectrpc/connect';
+import type { UniversalClientFn } from '@connectrpc/connect/protocol';
+import { createSigningHttpClient } from '../src/common/client/signing-http-client.js';
 import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -136,8 +140,38 @@ describe('CreateSigner', () => {
     );
   });
 
-  it('rejects invalid private key format', () => {
-    nodeAssert.throws(() => CreateSigner('not-a-valid-key'), { message: /Private key must be 64 hex characters/ });
+  const keyHex = vectors.keys.private_key.replace(/^0x/, '');
+  const order = 'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFEBAAEDCE6AF48A03BBFD25E8CD0364141';
+
+  it('accepts a private key with a 0x prefix, a 0X prefix or none', async () => {
+    for (const key of ['0x' + keyHex, '0X' + keyHex, keyHex]) {
+      const signature = await CreateSigner(key)(Buffer.alloc(32, 0x01));
+      nodeAssert.equal(signature.publicKey.toString('hex'), vectors.keys.public_key);
+    }
+  });
+
+  it('rejects an empty private key', () => {
+    for (const key of ['', Buffer.alloc(0), null, undefined] as unknown as string[]) {
+      nodeAssert.throws(() => CreateSigner(key), { message: 'private key must not be null or empty' });
+    }
+  });
+
+  it('rejects a private key that is not 32 bytes', () => {
+    for (const key of [
+      keyHex.slice(2), keyHex + '00', keyHex.slice(2) + '  ', 'zz' + keyHex.slice(2), 'not-a-valid-key', '0x',
+      '+' + keyHex.slice(1), '\u0666' + keyHex.slice(1), // a sign; a digit that is not ASCII
+    ]) {
+      nodeAssert.throws(() => CreateSigner(key), { message: 'private key must be 32 bytes (64 hex characters)' });
+    }
+    for (const key of [Buffer.alloc(31, 1), Buffer.alloc(33, 1)]) {
+      nodeAssert.throws(() => CreateSigner(key), { message: 'private key must be 32 bytes' });
+    }
+  });
+
+  it('rejects a private key outside [1, n-1]', () => {
+    for (const key of ['0'.repeat(64), order, '0x' + order.toLowerCase(), Buffer.alloc(32), Buffer.from(order, 'hex')]) {
+      nodeAssert.throws(() => CreateSigner(key), { message: 'private key must be in range [1, n-1]' });
+    }
   });
 });
 
@@ -485,8 +519,8 @@ describe('crypto/publicKeyFromPrivateKey', () => {
     }
   });
 
-  it('rejects an uppercase 0X private-key prefix', () => {
-    nodeAssert.throws(() => publicKeyFromPrivateKey(`0X${vectors.keys.private_key}`));
+  it('accepts an uppercase 0X private-key prefix', () => {
+    nodeAssert.equal(publicKeyFromPrivateKey(`0X${vectors.keys.private_key}`), `0x${vectors.keys.public_key}`);
   });
 
   it('rejects malformed, wrong-length, zero, and out-of-range secrets', () => {
@@ -503,8 +537,8 @@ describe('crypto/publicKeyFromPrivateKey', () => {
   });
 
   it('preserves synchronous signer validation for string and Buffer inputs', async () => {
-    nodeAssert.throws(() => CreateSigner('0'.repeat(64)), {message: 'Invalid private key'});
-    nodeAssert.throws(() => CreateSigner(Buffer.alloc(32)), {message: 'Invalid private key'});
+    nodeAssert.throws(() => CreateSigner('0'.repeat(64)), {message: 'private key must be in range [1, n-1]'});
+    nodeAssert.throws(() => CreateSigner(Buffer.alloc(32)), {message: 'private key must be in range [1, n-1]'});
 
     const signer = CreateSigner(Buffer.from(vectors.keys.private_key, 'hex'));
     const signature = await signer(Buffer.alloc(32, 0x01));
@@ -911,4 +945,81 @@ describe('crypto/parsePublicKey hex validation', () => {
       message: /invalid hex/,
     });
   });
+});
+
+// ---- Streaming requests ----
+
+// One envelope per chunk, as connect-es hands them to the HTTP client.
+function splitEnvelopes(body: Buffer): Buffer[] {
+  const envelopes: Buffer[] = [];
+  for (let at = 0; at < body.length;) {
+    const end = at + 5 + body.readUInt32BE(at + 1);
+    envelopes.push(body.subarray(at, end));
+    at = end;
+  }
+  return envelopes;
+}
+
+interface SentRequest {
+  headers: Headers;
+  chunks: Buffer[];
+}
+
+async function sendThroughSigningClient(t: TestContext, vec: any, chunks: Uint8Array[]): Promise<SentRequest | undefined> {
+  t.mock.method(Date, 'now', () => vec.timestamp_ms);
+  let sent: SentRequest | undefined;
+  const recording: UniversalClientFn = async (req) => {
+    const got: Buffer[] = [];
+    for await (const chunk of req.body ?? []) {
+      got.push(Buffer.from(chunk));
+    }
+    sent = { headers: req.header, chunks: got };
+    return { status: 200, header: new Headers(), body: (async function* () {})(), trailer: new Headers() };
+  };
+  const httpClient = createSigningHttpClient(CreateSigner(vectors.keys.private_key), recording);
+  await httpClient({
+    url: 'http://127.0.0.1/test.v1.StreamTest/ClientStream',
+    method: 'POST',
+    header: new Headers({ 'Content-Type': vec.content_type }),
+    body: (async function* () { yield* chunks; })(),
+  });
+  return sent;
+}
+
+describe('Stream signing cases', () => {
+  // The client signs below the framer: first_envelope cases only.
+  const firstEnvelopeCases = vectors.stream_signing_cases.filter((v: any) => v.covers === 'first_envelope');
+
+  for (const vec of firstEnvelopeCases) {
+    it(`${vec.name}: the streaming HTTP client sends the vector signature and the body as given`, async (t) => {
+      const envelopes = splitEnvelopes(Buffer.from(vec.body_hex, 'hex'));
+      const sent = await sendThroughSigningClient(t, vec, envelopes);
+      nodeAssert.ok(sent, 'the request is sent');
+
+      nodeAssert.equal(sent.headers.get(NetworkHeaders.Signature), '0x' + vec.expected_signature);
+      nodeAssert.equal(sent.headers.get(NetworkHeaders.PublicKey), '0x' + vectors.keys.public_key);
+      nodeAssert.equal(sent.headers.get(NetworkHeaders.SignatureTimestamp), String(vec.timestamp_ms));
+      nodeAssert.equal((sent.chunks[0] ?? Buffer.alloc(0)).toString('hex'), vec.signed_hex, 'the first chunk is the signed envelope');
+      nodeAssert.deepEqual(sent.chunks.map((c) => c.toString('hex')), envelopes.map((e) => e.toString('hex')));
+    });
+  }
+
+  const multi = vectors.stream_signing_cases.find((v: any) => v.name === 'connect-client-stream');
+  const multiBody = Buffer.from(multi.body_hex, 'hex');
+  const multiFirst = Buffer.from(multi.signed_hex, 'hex');
+  const badFirstChunks: [string, Buffer[]][] = [
+    ['a body that ends inside its first envelope', [multiFirst.subarray(0, multiFirst.length - 1)]],
+    ['an empty first chunk', [Buffer.alloc(0), multiBody]],
+  ];
+  for (const [name, chunks] of badFirstChunks) {
+    it(`the streaming HTTP client refuses a first chunk shorter than its envelope: ${name}`, async (t) => {
+      let sent: SentRequest | undefined;
+      await nodeAssert.rejects(
+        async () => { sent = await sendThroughSigningClient(t, multi, chunks); },
+        (err: unknown) => err instanceof ConnectError && err.code === Code.InvalidArgument
+          && err.rawMessage === 'streaming request ends inside its first message',
+      );
+      nodeAssert.equal(sent, undefined, 'nothing is sent');
+    });
+  }
 });

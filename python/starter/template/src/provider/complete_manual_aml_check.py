@@ -1,7 +1,5 @@
 """Complete a manual AML check for a payout.
 
-Go equivalent: internal/complete_manual_aml_check.go → CompleteManualAmlCheck()
-
 Pay-Out Provider role — Step 2.6 (optional). If your pay_out handler returned
 manual_aml_check instead of accepted (see handler/payment.py), run your AML
 check out-of-band and report the outcome with this call. On approval the

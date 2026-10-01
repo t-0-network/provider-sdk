@@ -74,12 +74,34 @@ gunicorn provider.wsgi:app --bind 0.0.0.0:8080
 
 The sync variant uses `payment_sync.py` -- implement the same RPC methods as regular `def` functions instead of `async def`.
 
+## Streaming and timeouts
+
+`new_service_client()` and `new_service_client_sync()` sign every request. A streaming call is signed over its first message and sent as soon as that message exists, so send a message (or close the stream) before waiting for a response. Unary calls time out after 15 seconds and streaming calls after 5 minutes; a call's own `timeout_ms` replaces either default.
+
+```python
+from provider.config import load_config
+from t0_provider_sdk.api.tzero.v1.payment.network_connect import NetworkServiceClient
+from t0_provider_sdk.network import Protocol, WireFormat, new_service_client
+
+config = load_config()
+network_client = new_service_client(
+    config.provider_private_key,
+    NetworkServiceClient,
+    base_url=config.tzero_endpoint,
+    timeout=15.0,  # unary calls, seconds
+    stream_timeout=600.0,  # streaming calls, seconds (default 300)
+    wire_format=WireFormat.BINARY,  # or WireFormat.JSON
+    protocol=Protocol.CONNECT,  # or Protocol.GRPC
+)
+```
+
+The streaming rules shared by every SDK: [`docs/STREAMING.md`](../docs/STREAMING.md).
+
 ## Available Commands
 
 ```bash
 uv run python -m provider.main    # Start the provider server
-uv run pytest                     # Run tests
-uv run ruff check .               # Lint
+uvx ruff check .                  # Lint (ruff is not a project dependency)
 ```
 
 ## Deployment
@@ -97,4 +119,4 @@ docker run --env-file .env -p 8080:8080 my-provider
 
 **Signature verification failures** -- Ensure the server clock is synchronized (NTP). Timestamps outside +/- 60 seconds are rejected. Verify that `NETWORK_PUBLIC_KEY` matches the key provided by the T-0 team.
 
-**ConnectRPC PyPI package** -- The package is `connectrpc` (renamed from `connect-python` at v0.10.0). The SDK's `pyproject.toml` pins `connectrpc>=0.10.0`, which resolves to the official runtime. Earlier docs warned about a squatted v0.0.1 on the same PyPI name; that release pre-dates 0.9.0 and pinning `>=0.10.0` skips it.
+**ConnectRPC PyPI package** -- The package is `connectrpc` (renamed from `connect-python` at v0.10.0). The SDK's `pyproject.toml` pins `connectrpc>=0.11.1`, which resolves to the official runtime. Earlier docs warned about a squatted v0.0.1 on the same PyPI name; that release pre-dates 0.9.0 and the pin skips it.

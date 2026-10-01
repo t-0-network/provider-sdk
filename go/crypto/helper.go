@@ -13,18 +13,27 @@ func GetPrivateKeyBytes(privateKey *secp256k1.PrivateKey) []byte {
 	return privateKey.Serialize()
 }
 
+// GetPrivateKeyFromHex parses a private key written as 64 hex characters, with or without a 0x or 0X
+// prefix. Its value must be in [1, n-1], n being the secp256k1 order; it is never reduced mod n.
 func GetPrivateKeyFromHex(privateKeyHexed string) (*secp256k1.PrivateKey, error) {
-	privateKeyBytes, err := hex.DecodeString(strings.TrimPrefix(strings.ToLower(privateKeyHexed), "0x"))
-	if err != nil {
-		return nil, fmt.Errorf("decoding private key hex: %w", err)
+	if privateKeyHexed == "" {
+		return nil, errors.New("private key must not be null or empty")
 	}
 
-	privateKey := secp256k1.PrivKeyFromBytes(privateKeyBytes)
-	if privateKey == nil {
-		return nil, errors.New("invalid private key bytes")
+	cleanHex := privateKeyHexed
+	if strings.HasPrefix(cleanHex, "0x") || strings.HasPrefix(cleanHex, "0X") {
+		cleanHex = cleanHex[2:]
+	}
+	privateKeyBytes, err := hex.DecodeString(cleanHex)
+	if err != nil || len(privateKeyBytes) != secp256k1.PrivKeyBytesLen {
+		return nil, errors.New("private key must be 32 bytes (64 hex characters)")
 	}
 
-	return privateKey, nil
+	var key secp256k1.ModNScalar
+	if overflow := key.SetByteSlice(privateKeyBytes); overflow || key.IsZero() {
+		return nil, errors.New("private key must be in range [1, n-1]")
+	}
+	return secp256k1.NewPrivateKey(&key), nil
 }
 
 func HexPrivateKey(privateKey *secp256k1.PrivateKey) string {

@@ -18,6 +18,8 @@ All flags and the install-only form: [cli/README.md](../../cli/README.md). What 
 npm install @t-0/provider-sdk
 ```
 
+Requires Node.js 20.19 or newer.
+
 ## Usage
 
 ### Provider Service
@@ -33,6 +35,12 @@ import {
   PayoutResponse,
   UpdatePaymentRequest,
   UpdatePaymentResponse,
+  UpdateLimitRequest,
+  UpdateLimitResponse,
+  AppendLedgerEntriesRequest,
+  AppendLedgerEntriesResponse,
+  ApprovePaymentQuoteRequest,
+  ApprovePaymentQuoteResponse,
   HandlerContext,
 } from "@t-0/provider-sdk";
 
@@ -48,6 +56,18 @@ const server = http.createServer(
       async updatePayment(req: UpdatePaymentRequest, ctx: HandlerContext): Promise<UpdatePaymentResponse> {
         // Handle payment status updates
         return {} as UpdatePaymentResponse;
+      },
+      async updateLimit(req: UpdateLimitRequest, ctx: HandlerContext): Promise<UpdateLimitResponse> {
+        // Handle updates of your limits and their usage
+        return {} as UpdateLimitResponse;
+      },
+      async appendLedgerEntries(req: AppendLedgerEntriesRequest, ctx: HandlerContext): Promise<AppendLedgerEntriesResponse> {
+        // Handle new ledger transactions and entries
+        return {} as AppendLedgerEntriesResponse;
+      },
+      async approvePaymentQuotes(req: ApprovePaymentQuoteRequest, ctx: HandlerContext): Promise<ApprovePaymentQuoteResponse> {
+        // Approve the final quote of a payment after a manual AML check
+        return { result: { case: "accepted", value: {} } } as ApprovePaymentQuoteResponse;
       },
     });
   })
@@ -179,14 +199,14 @@ const publicKey = publicKeyFromPrivateKey(process.env.PROVIDER_PRIVATE_KEY!);
 console.log(publicKey); // 0x04-prefixed uncompressed public key
 ```
 
-The input may be bare hexadecimal or use the lowercase `0x` prefix; output is canonical lowercase `0x04...`.
+The input is 64 hex characters, with an optional `0x` or `0X` prefix; output is canonical lowercase `0x04...`.
 
 ### Network Client
 
-Use `createClient` to call T-0 Network APIs. The client handles request signing automatically:
+Use `createClient` to call T-0 Network APIs. The client handles request signing automatically. It speaks the Connect protocol. `endpoint` is the network's base URL; `undefined` means `https://api.t-0.network`.
 
 ```ts
-import { createClient, NetworkService } from "@t-0/provider-sdk";
+import { createClient, NetworkService, PaymentMethodType, QuoteType } from "@t-0/provider-sdk";
 
 const privateKey = process.env.PROVIDER_PRIVATE_KEY!;
 const endpoint = process.env.TZERO_ENDPOINT || "https://api-sandbox.t-0.network";
@@ -198,9 +218,10 @@ await networkClient.updateQuote({
   payOut: [
     {
       currency: "EUR",
-      quoteType: 1, // REALTIME
-      paymentMethod: 1,
-      bands: [{ clientQuoteId: "q1", maxAmount: { value: "10000" }, rate: { value: "0.92" } }],
+      quoteType: QuoteType.REALTIME,
+      paymentMethod: PaymentMethodType.SEPA,
+      // Decimal: unscaled * 10^exponent, so 0.92 is { unscaled: 92n, exponent: -2 }
+      bands: [{ clientQuoteId: "q1", maxAmount: { unscaled: 10000n, exponent: 0 }, rate: { unscaled: 92n, exponent: -2 } }],
       expiration: { seconds: BigInt(Math.floor(Date.now() / 1000) + 30) },
       timestamp: { seconds: BigInt(Math.floor(Date.now() / 1000)) },
     },
@@ -209,12 +230,29 @@ await networkClient.updateQuote({
 
 // Get a quote
 const quote = await networkClient.getQuote({
-  amount: { payOutAmount: { value: "100" } },
+  amount: { amount: { case: "payOutAmount", value: { unscaled: 100n, exponent: 0 } } },
   payOutCurrency: "EUR",
-  payOutMethod: 1,
-  quoteType: 1,
+  payOutMethod: PaymentMethodType.SEPA,
+  quoteType: QuoteType.REALTIME,
 });
 ```
+
+### Streaming and timeouts
+
+Client- and server-streaming calls are signed over their first request message only, and the request goes out as soon as that message is available. Unary calls get a default deadline of 15 seconds and streaming calls one of 5 minutes, which includes the wait for the first message. A call's own `timeoutMs` replaces the default, shorter or longer. Every timeout is greater than 0 and at most 2147483647 ms. Bidirectional streams are refused with `unimplemented` before anything is sent.
+
+```ts
+import { createClient, NetworkService, WireFormat } from "@t-0/provider-sdk";
+
+const client = createClient(privateKey, endpoint, NetworkService, {
+  timeoutMs: 30_000,             // unary calls
+  streamTimeoutMs: 30 * 60_000,  // streaming calls
+  wireFormat: WireFormat.Binary, // the default; WireFormat.Json for Connect JSON
+});
+await client.updateQuote(request, { timeoutMs: 120_000 }); // this call only
+```
+
+The streaming rules shared by every SDK: [`docs/STREAMING.md`](../../docs/STREAMING.md).
 
 ## Development
 
@@ -223,3 +261,5 @@ npm ci               # Install dependencies
 npm run build        # Build (ESM + CJS dual output)
 npm test             # Run tests
 ```
+
+The package ships an ES module build (`lib/esm/`, from `tsconfig.esm.json`) and a CommonJS build (`lib/cjs/`, from `tsconfig.cjs.json`), and its `exports` map routes `import` and `require` to them. secp256k1 comes from `@noble/curves`, and Keccak-256 from `@noble/hashes`.

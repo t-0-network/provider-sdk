@@ -1,7 +1,4 @@
-"""Demonstrates getting a quote from the T-0 Network.
-
-Go equivalent: internal/get_quote.go → GetQuote()
-"""
+"""Demonstrates getting a quote from the T-0 Network."""
 
 from __future__ import annotations
 

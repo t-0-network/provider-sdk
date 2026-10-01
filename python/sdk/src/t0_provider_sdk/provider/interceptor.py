@@ -2,8 +2,6 @@
 
 Reads the error stored by the ASGI middleware via contextvars and raises
 ConnectError with the appropriate code before the RPC handler executes.
-
-Go equivalent: provider/signature_error.go
 """
 
 from __future__ import annotations

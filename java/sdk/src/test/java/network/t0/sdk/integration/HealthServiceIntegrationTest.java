@@ -169,8 +169,12 @@ class HealthServiceIntegrationTest {
         try {
             HealthGrpc.HealthBlockingStub plainStub = HealthGrpc.newBlockingStub(channel);
 
+            // Pin the cause: a transport error would be a StatusRuntimeException too.
             assertThatThrownBy(() -> plainStub.check(HealthCheckRequest.getDefaultInstance()))
-                    .isInstanceOf(StatusRuntimeException.class);
+                    .isInstanceOfSatisfying(StatusRuntimeException.class, e -> {
+                        assertThat(e.getStatus().getCode()).isEqualTo(Status.Code.INVALID_ARGUMENT);
+                        assertThat(e.getStatus().getDescription()).contains("missing required header");
+                    });
         } finally {
             channel.shutdown();
             channel.awaitTermination(2, TimeUnit.SECONDS);

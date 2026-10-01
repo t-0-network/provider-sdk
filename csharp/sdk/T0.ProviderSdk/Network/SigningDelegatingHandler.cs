@@ -4,47 +4,49 @@ using T0.ProviderSdk.Crypto;
 namespace T0.ProviderSdk.Network;
 
 /// <summary>
-/// HTTP message handler that signs outgoing requests with secp256k1.
-/// Reads the raw request body, computes digest = Keccak256(body || LE_uint64(timestamp_ms)),
-/// signs it, and adds X-Signature, X-Public-Key, X-Signature-Timestamp headers.
-///
-/// Port of Go's SigningTransport (go/network/signing_transport.go).
+/// HTTP message handler that signs outgoing requests with secp256k1:
+/// digest = Keccak256(signed_bytes || LE_uint64(timestamp_ms)), sent as X-Public-Key,
+/// X-Signature and X-Signature-Timestamp.
 /// </summary>
+/// <remarks>
+/// It sits below the gRPC framer, so for enveloped content (<c>application/grpc</c>,
+/// <c>application/grpc+*</c> and <c>application/connect+*</c>) it signs the first envelope exactly
+/// as sent, prefix included, and sends the request as soon as that envelope exists: a client stream
+/// goes out only once its first message is written. Other content is signed over the whole body.
+/// See docs/STREAMING.md.
+/// </remarks>
 public sealed class SigningDelegatingHandler : DelegatingHandler
 {
-    private readonly Signer _signer;
+    private readonly ISigner _signer;
     private readonly TimeProvider _timeProvider;
 
-    public SigningDelegatingHandler(Signer signer, TimeProvider? timeProvider = null)
+    public SigningDelegatingHandler(ISigner signer, TimeProvider? timeProvider = null)
     {
         _signer = signer ?? throw new ArgumentNullException(nameof(signer));
         _timeProvider = timeProvider ?? TimeProvider.System;
     }
 
+    /// <summary>
+    /// The base URL's path, such as <c>/v1</c>, put before each request's path; empty for none.
+    /// Grpc.Net ignores the path of a channel's address. The signature does not cover the URL.
+    /// </summary>
+    internal string PathPrefix { get; init; } = "";
+
     protected override async Task<HttpResponseMessage> SendAsync(
         HttpRequestMessage request, CancellationToken cancellationToken)
     {
+        if (PathPrefix.Length > 0 && request.RequestUri is { } uri)
+            request.RequestUri = new Uri(uri, PathPrefix + uri.PathAndQuery);
+
+        if (request.Content is { } content && IsEnveloped(content))
+            return await SendSignedOverFirstFrameAsync(request, content, cancellationToken).ConfigureAwait(false);
+
         // Read raw body bytes (CRITICAL: never re-serialize protobuf)
         var body = request.Content is not null
             ? await request.Content.ReadAsByteArrayAsync(cancellationToken)
             : [];
 
-        // Get current timestamp in milliseconds
-        var timestampMs = _timeProvider.GetUtcNow().ToUnixTimeMilliseconds();
-
-        // Encode timestamp as 8-byte little-endian
-        var timestampBytes = Headers.EncodeTimestamp(timestampMs);
-
-        // Compute digest = Keccak256(body || timestampBytes)
-        var digest = Keccak256.Hash(body, timestampBytes);
-
-        // Sign the digest
-        var result = _signer.Sign(digest);
-
-        // Set signature headers
-        request.Headers.TryAddWithoutValidation(Headers.PublicKey, result.PublicKeyHex);
-        request.Headers.TryAddWithoutValidation(Headers.Signature, result.SignatureHex);
-        request.Headers.TryAddWithoutValidation(Headers.SignatureTimestamp, timestampMs.ToString());
+        AddSignatureHeaders(request, body);
 
         // Restore body content (since ReadAsByteArrayAsync consumed it)
         if (body.Length > 0)
@@ -56,5 +58,50 @@ public sealed class SigningDelegatingHandler : DelegatingHandler
         }
 
         return await base.SendAsync(request, cancellationToken);
+    }
+
+    private async Task<HttpResponseMessage> SendSignedOverFirstFrameAsync(
+        HttpRequestMessage request, HttpContent source, CancellationToken cancellationToken)
+    {
+        var content = await FirstFrameThenPipeContent.CreateAsync(source, cancellationToken).ConfigureAwait(false);
+        try
+        {
+            AddSignatureHeaders(request, content.FirstFrame);
+            request.Content = content;
+            return await base.SendAsync(request, cancellationToken).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            content.Abort(ex);
+            throw;
+        }
+    }
+
+    private void AddSignatureHeaders(HttpRequestMessage request, byte[] signed)
+    {
+        var timestampMs = _timeProvider.GetUtcNow().ToUnixTimeMilliseconds();
+        var digest = Keccak256.Hash(signed, Headers.EncodeTimestamp(timestampMs));
+        var result = _signer.Sign(digest);
+
+        SetHeader(request, Headers.PublicKey, result.PublicKeyHex);
+        SetHeader(request, Headers.Signature, result.SignatureHex);
+        SetHeader(request, Headers.SignatureTimestamp, timestampMs.ToString());
+    }
+
+    // Replaces a value the caller set (e.g. as call metadata): a second value would make the
+    // request unverifiable.
+    private static void SetHeader(HttpRequestMessage request, string name, string value)
+    {
+        request.Headers.Remove(name);
+        request.Headers.TryAddWithoutValidation(name, value);
+    }
+
+    private static bool IsEnveloped(HttpContent content)
+    {
+        var mediaType = content.Headers.ContentType?.MediaType;
+        return mediaType is not null
+            && (string.Equals(mediaType, "application/grpc", StringComparison.OrdinalIgnoreCase)
+                || mediaType.StartsWith("application/grpc+", StringComparison.OrdinalIgnoreCase)
+                || mediaType.StartsWith("application/connect+", StringComparison.OrdinalIgnoreCase));
     }
 }

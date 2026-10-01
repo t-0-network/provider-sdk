@@ -1,63 +1,148 @@
-import {createClient as createConnectClient} from "@connectrpc/connect";
-import {createConnectTransport} from "@connectrpc/connect-web";
-import {keccak_256} from "@noble/hashes/sha3.js";
+import {Code, ConnectError, createClient as createConnectClient, type CallOptions, type Client} from "@connectrpc/connect";
+import {validateReadWriteMaxBytes, type CommonTransportOptions} from "@connectrpc/connect/protocol";
+import {createTransport} from "@connectrpc/connect/protocol-connect";
 import CreateSigner from "./signer.js";
-import NetworkHeaders from "../headers.js";
+import {createSigningHttpClient} from "./signing-http-client.js";
+import {WireFormat} from "../wire-format.js";
 import {DescService} from "@bufbuild/protobuf";
 
-export function createClient<T extends DescService>(signer: string | Buffer | ((data: Buffer) => Promise<Signature>) | Buffer<ArrayBufferLike>, endpoint: string, svc: T) {
-    let customFetch: typeof global.fetch;
+/**
+ * Creates a Connect client for a T-0 Network service that signs every request: a unary call over
+ * its whole body, a client- or server-streaming call over its first request envelope. Bidirectional
+ * streams fail with `unimplemented`. See docs/STREAMING.md.
+ */
+export function createClient<T extends DescService>(signer: string | Buffer | ((data: Buffer) => Promise<Signature>) | Buffer<ArrayBufferLike>, endpoint: string, svc: T, opts?: ClientOptions) {
+    const sign: SignerFunction = typeof signer === "function" ? signer : CreateSigner(signer);
 
-    if (typeof signer === "string" || Buffer.isBuffer(signer)) {
-        signer = CreateSigner(signer);
-    }
+    const wireFormat = opts?.wireFormat ?? WireFormat.Binary;
+    const unaryTimeoutMs = timeout("timeoutMs", opts?.timeoutMs) ?? DEFAULT_TIMEOUT_MS;
+    const streamTimeoutMs = timeout("streamTimeoutMs", opts?.streamTimeoutMs) ?? DEFAULT_STREAM_TIMEOUT_MS;
+    const unaryTransport = createTransport(transportOptions(sign, endpoint, unaryTimeoutMs, wireFormat));
+    const streamTransport = createTransport(transportOptions(sign, endpoint, streamTimeoutMs, wireFormat));
 
-    customFetch = async (r, init) => {
-        if (!init?.body || !((init.body) instanceof Uint8Array)) {
-            throw "unsupported body type";
-        }
-
-        const ts = Date.now();
-        // 64‑bit little‑endian timestamp
-        const tsBuf = Buffer.alloc(8);
-        tsBuf.writeBigUInt64LE(BigInt(ts));
-
-        const hash = keccak_256.create()
-            .update(init.body)
-            .update(tsBuf);
-        const hashHex = Buffer.from(hash.digest())
-
-        const sig = await signer(hashHex);
-
-        const headers = new Headers(init?.headers);
-        headers.append(NetworkHeaders.Signature, "0x" + sig.signature.toString('hex'));
-        headers.append(NetworkHeaders.PublicKey, "0x" + sig.publicKey.toString('hex'));
-        headers.append(NetworkHeaders.SignatureTimestamp, ts.toString());
-
-        const modifiedInit: RequestInit = {...init, headers};
-        return fetch(r, modifiedInit)
-    };
-
-    const transport = createConnectTransport({
-        baseUrl: endpoint,
-        fetch: customFetch,
+    // async: a refused call fails where the call's result is awaited, and nothing is sent.
+    const client = createConnectClient(svc, {
+        unary: async (method, signal, timeoutMs, header, input, contextValues) =>
+            unaryTransport.unary(method, signal, timeout("timeoutMs", timeoutMs), header, input, contextValues),
+        stream: (method, signal, timeoutMs, header, input, contextValues) => {
+            const response = (async () => {
+                // Policy: the network accepts no bidi streams (#370); over HTTP/1.1 they could not interleave anyway.
+                if (method.methodKind === "bidi_streaming") {
+                    throw new ConnectError("bidirectional streams are not supported", Code.Unimplemented);
+                }
+                return streamTransport.stream(method, signal, timeout("timeoutMs", timeoutMs), header, input, contextValues);
+            })();
+            // A server stream is awaited only once its iteration starts; until then a refusal must not
+            // count as an unhandled rejection. The caller still gets it from the first next().
+            response.catch(() => {});
+            return response;
+        },
     });
+    const calls = client as Record<string, unknown>;
+    for (const method of svc.methods) {
+        if (method.methodKind === "server_streaming") {
+            calls[method.localName] = cancelOnReturn(calls[method.localName] as ServerStreamingCall);
+        }
+    }
+    return client as Client<T>;
+}
 
-    return createConnectClient(svc, transport);
+type ServerStreamingCall = (input: unknown, options?: CallOptions) => AsyncIterable<unknown>;
+
+// Leaving a for-await loop over a server stream early calls return(): it cancels the call and reads
+// it to its end, so the socket and the deadline timer are released at once, not at the deadline.
+function cancelOnReturn(call: ServerStreamingCall): ServerStreamingCall {
+    return (input, options) => {
+        const cancel = new AbortController();
+        const signal = options?.signal === undefined ? cancel.signal : AbortSignal.any([options.signal, cancel.signal]);
+        const it = call(input, {...options, signal})[Symbol.asyncIterator]();
+        return {
+            [Symbol.asyncIterator]: () => ({
+                next: () => it.next(),
+                return: async (value?: unknown) => {
+                    cancel.abort(new ConnectError("the stream was closed before its end", Code.Canceled));
+                    try {
+                        while (!(await it.next()).done) { /* discard */ }
+                    } catch {
+                        // the cancellation
+                    }
+                    return {done: true, value};
+                },
+            }),
+        };
+    };
 }
 
 /**
- * Signature with metadata for particular request
+ * CommonTransportOptions is `@private` connect-es API: every field is spelled out so that an
+ * upstream change fails the build.
+ *
+ * @internal
+ */
+export function transportOptions(signer: SignerFunction, endpoint: string, timeoutMs: number, wireFormat: WireFormat): CommonTransportOptions {
+    return {
+        httpClient: createSigningHttpClient(signer),
+        baseUrl: endpoint,
+        useBinaryFormat: wireFormat !== WireFormat.Json,
+        interceptors: [],
+        acceptCompression: [],
+        sendCompression: null,
+        ...validateReadWriteMaxBytes(undefined, undefined, undefined),
+        defaultTimeoutMs: timeoutMs,
+    };
+}
+
+const DEFAULT_TIMEOUT_MS = 15_000;
+const DEFAULT_STREAM_TIMEOUT_MS = 300_000;
+
+// Node's timers fire at once from 2^31 ms, Infinity included.
+const MAX_TIMEOUT_MS = 2 ** 31 - 1;
+
+/**
+ * A timeout in ms, or undefined when none is given (the default applies). Anything else that is
+ * not a positive number up to MAX_TIMEOUT_MS is refused: 0, a negative value or null would mean
+ * no deadline, and NaN or a larger value would end the call at once.
+ */
+function timeout(name: string, ms: number | undefined): number | undefined {
+    if (ms === undefined) {
+        return undefined;
+    }
+    if (typeof ms !== "number" || !(ms > 0 && ms <= MAX_TIMEOUT_MS)) {
+        throw new RangeError(`${name} must be a positive duration of at most ${MAX_TIMEOUT_MS} ms`);
+    }
+    // Connect-Timeout-Ms is a whole number of ms; a server refuses "1000.5".
+    return Math.ceil(ms);
+}
+
+/**
+ * Options for createClient.
+ */
+export interface ClientOptions {
+    /**
+     * Deadline of each unary call in ms: greater than 0, at most 2^31 − 1. A call's own `timeoutMs`
+     * replaces it. Default: 15_000.
+     */
+    timeoutMs?: number;
+    /**
+     * Deadline of each client- or server-streaming call in ms, including the wait for the first
+     * request message: greater than 0, at most 2^31 − 1. A call's own `timeoutMs` replaces it.
+     * Default: 300_000 (5 minutes).
+     */
+    streamTimeoutMs?: number;
+    /** `WireFormat.Binary` (default) or `WireFormat.Json`. Either is signed over the bytes as sent. */
+    wireFormat?: WireFormat;
+}
+
+/**
+ * A signature over a request digest and the signer's public key, as raw bytes; the client sends
+ * them hex-encoded in the signature headers.
  */
 export interface Signature {
-    //hex encoded signature
     signature: Buffer;
-    // hex encoded public key
     publicKey: Buffer;
 }
 
 /**
- * Signature function for signing requests to T-0 API. Accepts any data in string format and return signature
- * with metadata
+ * Signs a 32-byte request digest: Keccak256(signed bytes || uint64le(timestamp_ms)).
  */
 export type SignerFunction = (data: Buffer) => Promise<Signature>;

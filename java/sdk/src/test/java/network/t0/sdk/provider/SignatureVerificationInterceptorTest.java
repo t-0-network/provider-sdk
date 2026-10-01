@@ -1,5 +1,10 @@
 package network.t0.sdk.provider;
 
+import io.grpc.Metadata;
+import io.grpc.MethodDescriptor;
+import io.grpc.ServerCall;
+import io.grpc.ServerCallHandler;
+import io.grpc.Status;
 import network.t0.sdk.common.Headers;
 import network.t0.sdk.common.HexUtils;
 import network.t0.sdk.crypto.Keccak256;
@@ -8,9 +13,14 @@ import network.t0.sdk.crypto.SignatureVerifier;
 import network.t0.sdk.crypto.Signer;
 import org.junit.jupiter.api.*;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
+import java.util.ArrayList;
+import java.util.List;
 
 import static org.assertj.core.api.Assertions.*;
 
@@ -31,6 +41,7 @@ class SignatureVerificationInterceptorTest {
     private static final String PUBLIC_KEY_HEX = "044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0";
     private static final String OTHER_PRIVATE_KEY_HEX = "0000000000000000000000000000000000000000000000000000000000000001";
     private static final long FIXED_TIMESTAMP_MS = 1706000000000L;
+    private static final byte[] BODY = "test request body".getBytes();
 
     private Signer signer;
     private Signer otherSigner;
@@ -191,55 +202,128 @@ class SignatureVerificationInterceptorTest {
     }
 
     // ==================== Timestamp Validation Tests ====================
+    // Valid signatures on a fake call with a fixed clock: only the timestamp decides.
 
     @Test
-    @DisplayName("Should accept timestamp within validity window")
+    @DisplayName("Should accept timestamp within validity window and pass the call on")
     void shouldAcceptTimestampWithinWindow() {
-        Clock fixedClock = Clock.fixed(Instant.ofEpochMilli(FIXED_TIMESTAMP_MS), ZoneOffset.UTC);
-        long currentMs = fixedClock.millis();
+        CallOutcome outcome = interceptAt(FIXED_TIMESTAMP_MS - 30_000);
 
-        // Timestamp exactly at current time
-        long diff = Math.abs(currentMs - FIXED_TIMESTAMP_MS);
-        assertThat(diff).isLessThanOrEqualTo(Headers.TIMESTAMP_VALIDITY_WINDOW_MS);
-    }
-
-    @Test
-    @DisplayName("Should reject timestamp outside validity window - past")
-    void shouldRejectExpiredTimestamp() {
-        Clock fixedClock = Clock.fixed(Instant.ofEpochMilli(FIXED_TIMESTAMP_MS), ZoneOffset.UTC);
-        long currentMs = fixedClock.millis();
-
-        // Timestamp more than 60 seconds in the past
-        long expiredTimestamp = FIXED_TIMESTAMP_MS - Headers.TIMESTAMP_VALIDITY_WINDOW_MS - 1000;
-        long diff = Math.abs(currentMs - expiredTimestamp);
-
-        assertThat(diff).isGreaterThan(Headers.TIMESTAMP_VALIDITY_WINDOW_MS);
-    }
-
-    @Test
-    @DisplayName("Should reject timestamp outside validity window - future")
-    void shouldRejectFutureTimestamp() {
-        Clock fixedClock = Clock.fixed(Instant.ofEpochMilli(FIXED_TIMESTAMP_MS), ZoneOffset.UTC);
-        long currentMs = fixedClock.millis();
-
-        // Timestamp more than 60 seconds in the future
-        long futureTimestamp = FIXED_TIMESTAMP_MS + Headers.TIMESTAMP_VALIDITY_WINDOW_MS + 1000;
-        long diff = Math.abs(currentMs - futureTimestamp);
-
-        assertThat(diff).isGreaterThan(Headers.TIMESTAMP_VALIDITY_WINDOW_MS);
+        assertThat(outcome.call.closeStatus).isNull();
+        assertThat(outcome.handler.started).isTrue();
+        assertThat(outcome.handler.messages).containsExactly(BODY);
     }
 
     @Test
     @DisplayName("Should accept timestamp at edge of validity window")
     void shouldAcceptTimestampAtEdge() {
-        Clock fixedClock = Clock.fixed(Instant.ofEpochMilli(FIXED_TIMESTAMP_MS), ZoneOffset.UTC);
-        long currentMs = fixedClock.millis();
+        CallOutcome outcome = interceptAt(FIXED_TIMESTAMP_MS - Headers.TIMESTAMP_VALIDITY_WINDOW_MS);
 
-        // Timestamp exactly at the edge (60 seconds ago)
-        long edgeTimestamp = FIXED_TIMESTAMP_MS - Headers.TIMESTAMP_VALIDITY_WINDOW_MS;
-        long diff = Math.abs(currentMs - edgeTimestamp);
+        assertThat(outcome.call.closeStatus).isNull();
+        assertThat(outcome.handler.messages).containsExactly(BODY);
+    }
 
-        assertThat(diff).isEqualTo(Headers.TIMESTAMP_VALIDITY_WINDOW_MS);
+    @Test
+    @DisplayName("Should reject timestamp outside validity window - past")
+    void shouldRejectExpiredTimestamp() {
+        CallOutcome outcome = interceptAt(FIXED_TIMESTAMP_MS - Headers.TIMESTAMP_VALIDITY_WINDOW_MS - 1000);
+
+        assertRejectedForTimeWindow(outcome);
+    }
+
+    @Test
+    @DisplayName("Should reject timestamp outside validity window - future")
+    void shouldRejectFutureTimestamp() {
+        CallOutcome outcome = interceptAt(FIXED_TIMESTAMP_MS + Headers.TIMESTAMP_VALIDITY_WINDOW_MS + 1000);
+
+        assertRejectedForTimeWindow(outcome);
+    }
+
+    private static void assertRejectedForTimeWindow(CallOutcome outcome) {
+        assertThat(outcome.call.closeStatus).isNotNull();
+        assertThat(outcome.call.closeStatus.getCode()).isEqualTo(Status.Code.INVALID_ARGUMENT);
+        assertThat(outcome.call.closeStatus.getDescription()).contains("time window");
+        assertThat(outcome.handler.started).isFalse();
+        assertThat(outcome.handler.messages).isEmpty();
+    }
+
+    private record CallOutcome(RecordingServerCall call, RecordingHandler handler) {}
+
+    /**
+     * Runs a call signed at {@code timestampMs} over {@link #BODY} through an interceptor whose
+     * clock reads {@link #FIXED_TIMESTAMP_MS}, then delivers the body if the call was let through.
+     */
+    private CallOutcome interceptAt(long timestampMs) {
+        SignResult signResult = signer.sign(Keccak256.hash(BODY, Headers.encodeTimestamp(timestampMs)));
+        Metadata headers = new Metadata();
+        headers.put(Metadata.Key.of(Headers.PUBLIC_KEY, Metadata.ASCII_STRING_MARSHALLER), signResult.getPublicKeyHex());
+        headers.put(Metadata.Key.of(Headers.SIGNATURE, Metadata.ASCII_STRING_MARSHALLER), signResult.getSignatureHex());
+        headers.put(Metadata.Key.of(Headers.SIGNATURE_TIMESTAMP, Metadata.ASCII_STRING_MARSHALLER),
+                String.valueOf(timestampMs));
+
+        SignatureVerificationInterceptor interceptor = new SignatureVerificationInterceptor(PUBLIC_KEY_HEX,
+                Clock.fixed(Instant.ofEpochMilli(FIXED_TIMESTAMP_MS), ZoneOffset.UTC));
+        RecordingServerCall call = new RecordingServerCall();
+        RecordingHandler handler = new RecordingHandler();
+
+        ServerCall.Listener<InputStream> listener = interceptor.interceptCall(call, headers, handler);
+        if (call.closeStatus == null) {
+            listener.onMessage(new ByteArrayInputStream(BODY));
+        }
+        return new CallOutcome(call, handler);
+    }
+
+    /** Records how the interceptor closes the call; the rest is unused by it. */
+    private static final class RecordingServerCall extends ServerCall<InputStream, InputStream> {
+        Status closeStatus;
+
+        @Override
+        public void close(Status status, Metadata trailers) {
+            closeStatus = status;
+        }
+
+        @Override
+        public void request(int numMessages) {
+        }
+
+        @Override
+        public void sendHeaders(Metadata headers) {
+        }
+
+        @Override
+        public void sendMessage(InputStream message) {
+        }
+
+        @Override
+        public boolean isCancelled() {
+            return false;
+        }
+
+        @Override
+        public MethodDescriptor<InputStream, InputStream> getMethodDescriptor() {
+            return null;
+        }
+    }
+
+    /** Stands in for the service: records whether the call reached it and the bytes it received. */
+    private static final class RecordingHandler implements ServerCallHandler<InputStream, InputStream> {
+        boolean started;
+        final List<byte[]> messages = new ArrayList<>();
+
+        @Override
+        public ServerCall.Listener<InputStream> startCall(ServerCall<InputStream, InputStream> call, Metadata headers) {
+            started = true;
+            return new ServerCall.Listener<>() {
+                @Override
+                public void onMessage(InputStream message) {
+                    try {
+                        messages.add(message.readAllBytes());
+                    } catch (IOException e) {
+                        throw new AssertionError(e);
+                    }
+                }
+            };
+        }
     }
 
     // ==================== Public Key Matching Tests ====================

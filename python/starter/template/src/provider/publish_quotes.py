@@ -1,7 +1,5 @@
 """Quote publishing to the T-0 Network.
 
-Go equivalent: internal/publish_quotes.go → PublishQuotes()
-
 Publishes sample PayOut (off-ramp) quotes every 5 seconds.
 TODO: Step 1.3 Replace this with fetching quotes from your systems and publishing them.
 We recommend publishing at least once per 5 seconds, but not more than once per second.

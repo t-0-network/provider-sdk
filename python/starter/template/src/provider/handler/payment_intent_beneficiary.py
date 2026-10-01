@@ -1,7 +1,5 @@
 """Payment Intent — Beneficiary Provider role (async).
 
-Go equivalent: internal/handler/payment_intent_beneficiary.go
-
 Implement this handler if you are a beneficiary provider (you receive settlement
 for the crypto side). Please refer to docs and proto definition comments to
 understand the full flow.

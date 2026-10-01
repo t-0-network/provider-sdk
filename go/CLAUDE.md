@@ -34,7 +34,6 @@ go/
 ├── crypto/               # Keccak256, secp256k1 signing/verification
 ├── network/              # Network client with signing transport
 ├── provider/             # Server, handler, signature verification middleware
-├── examples/             # Usage examples (test files)
 └── starter/template/     # Starter template (scaffolded by the unified CLI)
 ```
 
@@ -43,8 +42,8 @@ go/
 - `provider.StartServer()` — Starts HTTP/2 (h2c) server, returns immediately with shutdown function
 - `provider.NewHttpHandler()` — Creates handler with signature verification middleware.
 - `provider.Handler()` — Registers ConnectRPC service with options (`WithMaxBodySize`, `WithVerifySignatureFn`)
-- `network.NewServiceClient()` — Creates auto-signing ConnectRPC client
-- `crypto.Sign()` / `crypto.VerifySignature()` — secp256k1 operations
+- `network.NewServiceClient()` — Creates auto-signing ConnectRPC client: unary calls signed over the whole body, client-/server-streaming calls over their first request envelope (by content type; see [`docs/STREAMING.md`](../docs/STREAMING.md)); `WithTimeout` (unary, 15s), `WithStreamTimeout` (streams, 5 min), a context deadline replaces them; `WithWireFormat`, `WithProtocol` (gRPC on `http://` runs over HTTP/2 without TLS); GET and bidi calls are refused.
+- `crypto.NewSigner()` / `crypto.VerifySignature()` — secp256k1 operations
 - `sdkversion.Version` — the version the running SDK reports about itself. Bumped by `release.yaml`, validated by `publish.yaml`. See [`docs/VERSIONING.md`](../docs/VERSIONING.md).
 
 ## Module Tags
@@ -58,7 +57,7 @@ The SDK module requires a separate tag for releases:
 - Server uses functional options pattern for configuration
 - `StartServer()` is async — returns after confirming server is listening (5s timeout)
 - Shutdown function is idempotent and safe for concurrent calls
-- Default max request body size: 1 MB (configurable via `WithMaxBodySize`)
+- Default max request body size: 10 MiB (configurable via `WithMaxBodySize`)
 - Signature errors stored in context, converted to ConnectRPC errors by interceptor
 - Uses `github.com/decred/dcrd/dcrec/secp256k1/v4` for signing/verification
 - Uses `golang.org/x/crypto/sha3.NewLegacyKeccak256()` — must be Legacy variant, not standard SHA-3

@@ -1,7 +1,5 @@
 """Payment intent quote publishing to the T-0 Network.
 
-Go equivalent: internal/publish_payment_intent_quotes.go → PublishPaymentIntentQuotes()
-
 Pay-In Provider role — Step 3A.1. Publishes sample pay-in quotes every 5 seconds.
 Replace the hardcoded values with quotes from your own pricing systems.
 """

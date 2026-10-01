@@ -1,8 +1,6 @@
 package crypto
 
 import (
-	"fmt"
-
 	"github.com/btcsuite/btcd/btcec/v2/ecdsa"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 )
@@ -24,7 +22,7 @@ func NewSigner(privateKey *secp256k1.PrivateKey) SignFn {
 func NewSignerFromHex(hexedPrivateKey string) (SignFn, error) {
 	privateKey, err := GetPrivateKeyFromHex(hexedPrivateKey)
 	if err != nil {
-		return nil, fmt.Errorf("creating signer from hexed private key: %w", err)
+		return nil, err
 	}
 
 	return NewSigner(privateKey), nil

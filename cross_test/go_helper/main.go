@@ -14,7 +14,6 @@ package main
 
 import (
 	"context"
-	"crypto/tls"
 	"encoding/hex"
 	"fmt"
 	"log"
@@ -134,27 +133,18 @@ func cmdServe() {
 		os.Exit(1)
 	}
 	port := os.Args[2]
-	networkPubKey := provider.NetworkPublicKeyHexed(os.Args[3])
 
-	service := &testProviderService{}
-
-	httpHandler, err := provider.NewHttpHandler(
-		networkPubKey,
-		provider.Handler(paymentconnect.NewProviderServiceHandler, paymentconnect.ProviderServiceHandler(service)),
-	)
+	handler, err := newServeHandler(os.Args[3])
 	if err != nil {
 		log.Fatalf("Failed to create handler: %v", err)
 	}
-
-	// Wrap with h2c so both Connect (HTTP/1.1) and gRPC (HTTP/2) work on the same port.
-	h2cHandler := h2c.NewHandler(httpHandler, &http2.Server{})
 
 	ln, err := net.Listen("tcp", ":"+port)
 	if err != nil {
 		log.Fatalf("Failed to listen: %v", err)
 	}
 
-	srv := &http.Server{Handler: h2cHandler}
+	srv := &http.Server{Handler: handler}
 
 	fmt.Printf("READY on :%s\n", port)
 	os.Stdout.Sync()
@@ -162,6 +152,26 @@ func cmdServe() {
 	if err := srv.Serve(ln); err != nil && err != http.ErrServerClosed {
 		log.Fatalf("Server error: %v", err)
 	}
+}
+
+// newServeHandler serves the provider service behind the SDK's verification and test.v1.StreamTest
+// behind the first-envelope verifier; h2c lets Connect (HTTP/1.1) and gRPC share the port.
+func newServeHandler(networkPublicKeyHex string) (http.Handler, error) {
+	httpHandler, err := provider.NewHttpHandler(
+		provider.NetworkPublicKeyHexed(networkPublicKeyHex),
+		provider.Handler(paymentconnect.NewProviderServiceHandler, paymentconnect.ProviderServiceHandler(&testProviderService{})),
+	)
+	if err != nil {
+		return nil, err
+	}
+	streamHandler, err := newStreamTestHandler(networkPublicKeyHex)
+	if err != nil {
+		return nil, fmt.Errorf("stream test handler: %w", err)
+	}
+	mux := http.NewServeMux()
+	mux.Handle(streamTestPrefix, streamHandler)
+	mux.Handle("/", httpHandler)
+	return h2c.NewHandler(mux, &http2.Server{}), nil
 }
 
 func hasFlag(flag string) bool {
@@ -192,10 +202,7 @@ func cmdCallPayOut() {
 	var clientOpts []network.ClientOption
 	clientOpts = append(clientOpts, network.WithBaseURL(baseURL))
 	if grpcMode {
-		clientOpts = append(clientOpts,
-			network.WithConnectOptions(connect.WithGRPC()),
-			network.WithHTTPTransport(newH2CTransport()),
-		)
+		clientOpts = append(clientOpts, network.WithProtocol(network.ProtocolGRPC))
 	}
 
 	client, err := network.NewServiceClient(
@@ -243,10 +250,7 @@ func cmdCallHealth() {
 	var clientOpts []network.ClientOption
 	clientOpts = append(clientOpts, network.WithBaseURL(baseURL))
 	if grpcMode {
-		clientOpts = append(clientOpts,
-			network.WithConnectOptions(connect.WithGRPC()),
-			network.WithHTTPTransport(newH2CTransport()),
-		)
+		clientOpts = append(clientOpts, network.WithProtocol(network.ProtocolGRPC))
 	}
 
 	client, err := network.NewServiceClient(
@@ -268,18 +272,6 @@ func cmdCallHealth() {
 		os.Exit(1)
 	}
 	fmt.Printf("status=%s\n", resp.Status)
-}
-
-// newH2CTransport returns an HTTP transport that speaks h2c (HTTP/2 over cleartext).
-// Required for --grpc mode against plaintext servers.
-func newH2CTransport() *http2.Transport {
-	return &http2.Transport{
-		AllowHTTP: true,
-		DialTLSContext: func(ctx context.Context, netw, addr string, _ *tls.Config) (net.Conn, error) {
-			var d net.Dialer
-			return d.DialContext(ctx, netw, addr)
-		},
-	}
 }
 
 type testProviderService struct{}

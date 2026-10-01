@@ -1,19 +1,25 @@
 import { secp256k1 } from '@noble/curves/secp256k1.js';
 
 export function parsePrivateKey(privateKey: string | Buffer): Buffer {
+  if (privateKey === undefined || privateKey === null || privateKey.length === 0) {
+    throw new Error('private key must not be null or empty');
+  }
   if (typeof privateKey === 'string') {
-    privateKey = privateKey.replace(/^0x/, '');
-    if (!/^[0-9a-fA-F]{64}$/.test(privateKey)) {
-      throw new Error('Private key must be 64 hex characters');
+    const hex = privateKey.startsWith('0x') || privateKey.startsWith('0X') ? privateKey.slice(2) : privateKey;
+    // Checked before decoding: Buffer.from(hex, 'hex'), and Uint8Array.fromHex on Node 26 for 32 characters
+    // or more, read a character above U+00FF by its low byte ("٦" as "f"), so a malformed key would
+    // become a different, valid one.
+    if (!/^[0-9a-fA-F]{64}$/.test(hex)) {
+      throw new Error('private key must be 32 bytes (64 hex characters)');
     }
-
-    privateKey = Buffer.from(privateKey, 'hex');
+    privateKey = Buffer.from(hex, 'hex');
+  } else if (privateKey.length !== 32) {
+    throw new Error('private key must be 32 bytes');
   }
-
+  // A number in [1, n-1], n being the order of secp256k1.
   if (!secp256k1.utils.isValidSecretKey(privateKey)) {
-    throw new Error('Invalid private key');
+    throw new Error('private key must be in range [1, n-1]');
   }
-
   return privateKey;
 }
 
