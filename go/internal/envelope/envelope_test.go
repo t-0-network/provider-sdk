@@ -23,15 +23,16 @@ func TestIsEnveloped(t *testing.T) {
 }
 
 func TestIsGRPC(t *testing.T) {
-	for mediaType, want := range map[string]bool{
-		"application/grpc":          true,
-		"application/grpc+proto":    true,
-		"application/grpc+json":     true,
-		"application/grpcx":         false,
-		"application/connect+proto": false,
-		"application/proto":         false,
-		"":                          false,
+	for contentType, want := range map[string]bool{
+		"application/grpc":            true,
+		"application/grpc+proto":      true,
+		"application/grpc+json":       true,
+		"Application/GRPC+proto; x=y": true,
+		"application/grpcx":           false,
+		"application/connect+proto":   false,
+		"application/proto":           false,
+		"":                            false,
 	} {
-		require.Equal(t, want, IsGRPC(mediaType), mediaType)
+		require.Equal(t, want, IsGRPC(contentType), contentType)
 	}
 }

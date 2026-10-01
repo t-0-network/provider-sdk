@@ -139,8 +139,7 @@ func (t *SigningTransport) setSignatureHeaders(header http.Header, signed []byte
 	timestampBytes := [8]byte{}
 	binary.LittleEndian.PutUint64(timestampBytes[:], uint64(timestamp))
 
-	// Full slice expression: append must copy, never write into signed's spare capacity.
-	digest := crypto.LegacyKeccak256(append(signed[:len(signed):len(signed)], timestampBytes[:]...))
+	digest := crypto.LegacyKeccak256Concat(signed, timestampBytes[:])
 
 	signature, pubKeyBytes, err := t.sign(digest)
 	if err != nil {

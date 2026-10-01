@@ -102,7 +102,7 @@ type signatureVerifier struct {
 	networkPublicKey *secp256k1.PublicKey
 }
 
-func newVerifySignature(networkPublicKeyHexed string) (*signatureVerifier, error) {
+func newSignatureVerifier(networkPublicKeyHexed string) (*signatureVerifier, error) {
 	networkPublicKey, err := pubkey.ParseHex(networkPublicKeyHexed)
 	if err != nil {
 		return nil, fmt.Errorf("invalid network public key: %w", err)
@@ -134,7 +134,7 @@ func (v *signatureVerifier) verify(req *http.Request, body io.Reader, maxBodySiz
 		return verdict{err: rejection}, read
 	case v.verifies(read, timestampBytes, signature):
 		return verdict{part: part}, read
-	case envelope.IsGRPC(envelope.MediaType(contentType)) && read[0] == 0 && v.verifies(read[5:], timestampBytes, signature):
+	case envelope.IsGRPC(contentType) && read[0] == 0 && v.verifies(read[5:], timestampBytes, signature):
 		// A signer above the gRPC framer covers the uncompressed message alone (the Java SDK).
 		return verdict{part: SignedPayload}, read
 	default:
@@ -146,33 +146,35 @@ func (v *signatureVerifier) verify(req *http.Request, body io.Reader, maxBodySiz
 // read: that the three are present and well-formed, the timestamp window, that the public key is
 // the network key, and the signature length. It returns the signature and the timestamp bytes.
 func (v *signatureVerifier) checkHeaders(headers http.Header) ([]byte, [8]byte, *SignatureError) {
-	var noTimestamp [8]byte
+	reject := func(code connect.Code, err error) ([]byte, [8]byte, *SignatureError) {
+		return nil, [8]byte{}, signatureError(code, err)
+	}
 
 	publicKey, err := parsePublicKeyHeader(headers)
 	if err != nil {
-		return nil, noTimestamp, signatureError(connect.CodeInvalidArgument, err)
+		return reject(connect.CodeInvalidArgument, err)
 	}
 	signature, err := parseRequiredHexedHeader(common.SignatureHeader, headers)
 	if err != nil {
-		return nil, noTimestamp, signatureError(connect.CodeInvalidArgument, err)
+		return reject(connect.CodeInvalidArgument, err)
 	}
 	timestamp, timestampBytes, err := parseTimestamp(headers)
 	if err != nil {
-		return nil, noTimestamp, signatureError(connect.CodeInvalidArgument, err)
+		return reject(connect.CodeInvalidArgument, err)
 	}
 	if !timesWithinDelta(timestamp, time.Now(), time.Minute) {
-		return nil, noTimestamp, signatureError(connect.CodeInvalidArgument, errors.New("timestamp is outside the allowed time window"))
+		return reject(connect.CodeInvalidArgument, errors.New("timestamp is outside the allowed time window"))
 	}
 
 	signerPublicKey, err := pubkey.ParseHex(publicKey)
 	if err != nil {
-		return nil, noTimestamp, signatureError(connect.CodeUnauthenticated, fmt.Errorf("invalid public key: %w", err))
+		return reject(connect.CodeUnauthenticated, fmt.Errorf("invalid public key: %w", err))
 	}
 	if !signerPublicKey.IsEqual(v.networkPublicKey) {
-		return nil, noTimestamp, signatureError(connect.CodeUnauthenticated, ErrUnknownPublicKey)
+		return reject(connect.CodeUnauthenticated, ErrUnknownPublicKey)
 	}
 	if len(signature) < 64 || len(signature) > 65 {
-		return nil, noTimestamp, signatureError(connect.CodeUnauthenticated, ErrInvalidSignature)
+		return reject(connect.CodeUnauthenticated, ErrInvalidSignature)
 	}
 
 	return signature, timestampBytes, nil
@@ -181,8 +183,7 @@ func (v *signatureVerifier) checkHeaders(headers http.Header) ([]byte, [8]byte, 
 // verifies reports whether signature verifies over Keccak256(signed || timestampBytes) with the
 // network public key. A 65th byte, the recovery id, is ignored.
 func (v *signatureVerifier) verifies(signed []byte, timestampBytes [8]byte, signature []byte) bool {
-	// Full slice expression: append must copy, never write into the spare capacity of signed.
-	digest := crypto.LegacyKeccak256(append(signed[:len(signed):len(signed)], timestampBytes[:]...))
+	digest := crypto.LegacyKeccak256Concat(signed, timestampBytes[:])
 	return crypto.VerifySignature(v.networkPublicKey, digest, signature[:64])
 }
 
