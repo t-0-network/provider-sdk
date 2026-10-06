@@ -15,7 +15,7 @@ For *which files* hold versions, see [`VERSIONING.md`](./VERSIONING.md).
 
 Triggered by `gh workflow run release.yaml -f bump=<patch|minor|major> --ref master`. Default bump is `patch`.
 
-**Choosing the bump.** `patch` is for fixes only. A release with new API or breaking changes needs at least `minor`, and its GitHub Release notes should list the breaking changes. The release workflow does not write notes, so add them to the GitHub Release it creates. A `major` bump needs more than the workflow: Go's module path must first move to `/v2` (semantic import versioning), or `go get` refuses a `v2.0.0` tag.
+**Choosing the bump.** `patch` is for fixes only. A release with new API or breaking changes needs at least `minor`, and its GitHub Release notes should list the breaking changes. The release workflow generates notes that only list the merged pull requests by title, grouped by label ([`.github/release.yml`](../.github/release.yml)). Add the breaking changes and the migration steps by editing the GitHub Release after the workflow has created it. A `major` bump needs more than the workflow: Go's module path must first move to `/v2` (semantic import versioning), or `go get` refuses a `v2.0.0` tag.
 
 Steps in order:
 

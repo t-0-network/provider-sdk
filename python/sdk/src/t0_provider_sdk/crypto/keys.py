@@ -30,13 +30,11 @@ def private_key_from_hex(hex_key: str) -> PrivateKey:
     return PrivateKey(secret)
 
 
-@warnings.deprecated(
-    "public_key_from_hex is deprecated: not used by the SDK; will be removed in a future major version"
-)
+@warnings.deprecated("public_key_from_hex is deprecated: not used by the SDK; will be removed in a future release")
 def public_key_from_hex(hex_key: str) -> PublicKey:
     """Create a PublicKey from a hex-encoded string.
 
-    Deprecated: not used by the SDK; will be removed in a future major version.
+    Deprecated: not used by the SDK; will be removed in a future release.
 
     Follows the server's rule for public keys: an optional '0x' or '0X' prefix, strict hex, and a
     SEC1-encoded secp256k1 key (coincurve's parser). Raises ValueError.
@@ -79,13 +77,11 @@ def public_key_to_bytes(key: PublicKey) -> bytes:
     return key.format(compressed=False)
 
 
-@warnings.deprecated(
-    "public_key_from_bytes is deprecated: not used by the SDK; will be removed in a future major version"
-)
+@warnings.deprecated("public_key_from_bytes is deprecated: not used by the SDK; will be removed in a future release")
 def public_key_from_bytes(data: bytes) -> PublicKey:
     """Deserialize a PublicKey from bytes.
 
-    Deprecated: not used by the SDK; will be removed in a future major version.
+    Deprecated: not used by the SDK; will be removed in a future release.
 
     Accepts a SEC1-encoded secp256k1 key (coincurve's parser), as the server does. Raises ValueError.
     """

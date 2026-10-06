@@ -34,8 +34,3 @@ export function createNetworkValidationInterceptor(logger?: Logger): Interceptor
 export function createRequestDecoder(opts: Omit<CreateDecoderOptions, 'registry'>): RequestDecoder {
   return createBaseRequestDecoder({ ...opts, registry: networkRegistry, version: opts.version ?? SDK_VERSION });
 }
-
-/**
- * @deprecated Use createValidationInterceptor instead.
- */
-export const createResponseValidation = createValidationInterceptor;

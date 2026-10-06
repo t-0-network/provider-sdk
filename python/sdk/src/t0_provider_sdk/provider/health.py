@@ -15,8 +15,8 @@ assembled here from `Endpoint` rather than generated. Because they are not
 generated, they must pass the `google.protobuf` compat codecs explicitly — the
 runtime's default codec targets protobuf-py and cannot serialize these
 messages. Only `Check` is mounted:
-`Watch` is server-streaming, and the body-hash signature scheme these servers
-run behind has no story for streams.
+`Watch` is server-streaming, and this server verifies the signature of unary
+calls only.
 """
 
 from __future__ import annotations

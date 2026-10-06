@@ -185,6 +185,30 @@ class CrossVectorTest {
         }
     }
 
+    /** Rule S5: the parser of the private key a client signs with. */
+    @Test
+    void privateKeyParsing_shouldMatchAllVectors() {
+        JsonArray cases = vectors.getAsJsonArray("private_key_parsing");
+        assertThat(cases).hasSize(17);
+
+        for (var element : cases) {
+            JsonObject vec = element.getAsJsonObject();
+            String name = vec.get("name").getAsString();
+            String input = vec.get("input").getAsString();
+
+            if (vec.get("valid").getAsBoolean()) {
+                assertThat(HexUtils.bytesToHex(Signer.fromHex(input).getPublicKey()))
+                        .as(name)
+                        .isEqualTo(vec.get("public_key").getAsString());
+            } else {
+                assertThatThrownBy(() -> Signer.fromHex(input))
+                        .as(name)
+                        .isInstanceOf(IllegalArgumentException.class)
+                        .hasMessage(vec.get("error").getAsString());
+            }
+        }
+    }
+
     /** What a provider hashes: the raw body with the little-endian timestamp appended. */
     private static byte[] requestDigest(JsonObject vec) {
         byte[] body = HexUtils.hexToBytes(vec.get("body_hex").getAsString());

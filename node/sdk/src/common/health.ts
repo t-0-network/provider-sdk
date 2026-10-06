@@ -23,9 +23,9 @@ const SDK_ECOSYSTEM = "node";
  * anything else. The set is frozen at registration; nothing is computed per
  * request.
  *
- * `watch` is absent on purpose: it is server-streaming, and the body-hash
- * signature scheme these servers run behind has no story for streams. Omitting
- * it from a partial `ServiceImpl` makes connect-es answer UNIMPLEMENTED.
+ * `watch` is absent on purpose: it is server-streaming, and this server verifies
+ * the signature of unary calls only. Omitting it from a partial `ServiceImpl`
+ * makes connect-es answer UNIMPLEMENTED.
  */
 export const createHealthServiceImpl = (
   services: string[],

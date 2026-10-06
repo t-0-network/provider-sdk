@@ -20,6 +20,8 @@ All SDKs share cross-language test infrastructure in `cross_test/` to verify cry
 
 `public_key_parsing` is the rule every provider server applies to its configured network key and to the `X-Public-Key` header, `timestamp_parsing` the rule for `X-Signature-Timestamp`, and `base_url_parsing` the base URL rule of every client. Go and Java run it from the provider package, where the parser lives: `go/provider/cross_test.go` and `java/sdk/src/test/java/network/t0/sdk/provider/PublicKeyParsingVectorTest.java`. Node, Python and C# run it from the files above.
 
+`private_key_parsing` is the rule every SDK parses the private key a client signs with (S5 in [`CROSS_SDK_RULES.md`](CROSS_SDK_RULES.md)). Every SDK runs it from the files above.
+
 ## Go helper
 
 A single Go binary at `cross_test/go_helper/` that all server-to-server tests share.

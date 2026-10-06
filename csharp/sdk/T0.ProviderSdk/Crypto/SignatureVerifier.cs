@@ -67,7 +67,7 @@ public static class SignatureVerifier
     /// </summary>
     /// <exception cref="FormatException">The value is null, empty or not hex.</exception>
     /// <exception cref="ArgumentException">The bytes are not a point on the curve.</exception>
-    [Obsolete("Not used by the SDK; will be removed in a future major version.")]
+    [Obsolete("Not used by the SDK; will be removed in a future release.")]
     public static byte[] ParsePublicKeyHex(string hexPublicKey) =>
         SignatureVerificationMiddleware.ParsePublicKey(hexPublicKey);
 }

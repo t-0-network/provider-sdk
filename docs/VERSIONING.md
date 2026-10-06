@@ -32,7 +32,7 @@ A constant compiled or bundled into the SDK, so the running server can report wh
 | **Node** | `node/sdk/package.json` — `"version"` | `node/starter/template/package.json` — `"@t-0/provider-sdk": "^X.Y.Z"` (caret, rewritten by release) | `node/sdk/src/version.ts` — `export const SDK_VERSION = "X.Y.Z"` |
 | **Python** | `python/sdk/pyproject.toml` — `version =` | `python/starter/template/pyproject.toml` — `t0-provider-sdk>=0.1.0` (floor, **NOT bumped**) | `python/sdk/src/t0_provider_sdk/_version.py` — `__version__ = "X.Y.Z"` |
 | **Java** | `java/gradle.properties` — `version=X.Y.Z` | `java/starter/template/build.gradle.kts` — `provider-sdk:+` (latest, **NOT bumped**) | `java/sdk/src/main/resources/META-INF/sdk-version.properties` — `sdk.version=X.Y.Z` (classpath resource) |
-| **C#** | `csharp/sdk/T0.ProviderSdk/T0.ProviderSdk.csproj` — `<Version>` | `csharp/starter/template/my-provider.csproj` — `T0.ProviderSdk" Version="X.Y.Z"` (rewritten by release) | n/a (not implemented yet) |
+| **C#** | `csharp/sdk/T0.ProviderSdk/T0.ProviderSdk.csproj` — `<Version>` | `csharp/starter/template/my-provider.csproj` — `T0.ProviderSdk" Version="X.Y.Z"` (rewritten by release) | none of its own: `HealthServiceImpl.LoadSdkVersion()` reads the assembly's `AssemblyInformationalVersionAttribute`, which MSBuild fills from the `.csproj` `<Version>` (column A) |
 
 ---
 
@@ -72,7 +72,7 @@ The SDK must be able to report its own version at runtime even when:
 - The Python wheel is installed in editable mode (`importlib.metadata.version` is unreliable across `uv` / `pip --user` / system / venv combinations).
 - The Node bundle was tree-shaken to remove `package.json` reads.
 
-A small runtime constant (one line of code or a properties file) is the most robust way to bake the version in. Maintaining it is cheap because the release workflow updates all four constants in lockstep with the package-level versions.
+A small runtime constant (one line of code or a properties file) is the most robust way to bake the version in. Maintaining it is cheap because the release workflow updates the four constant files (Go, Node, Python, Java) in lockstep with the package-level versions. C# needs no constant file: MSBuild compiles the `.csproj` `<Version>` into the assembly.
 
 What reads it: [`HEALTH_SERVICE.md`](./HEALTH_SERVICE.md).
 

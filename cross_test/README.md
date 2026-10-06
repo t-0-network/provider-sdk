@@ -13,7 +13,8 @@ a change here is a change every language has to agree with:
 | Python | `python/sdk/tests/crypto/test_cross_vectors.py` |
 | C# | `csharp/sdk/T0.ProviderSdk.Tests/Crypto/CrossTestVectors.cs` |
 
-Hex values carry no `0x` prefix. Signatures are 64 bytes (`r || s`) unless a case
+Hex values carry no `0x` prefix, except the `input` of the `*_parsing` sections, which is
+given exactly as a caller would pass it. Signatures are 64 bytes (`r || s`) unless a case
 appends a recovery byte.
 
 ### The scheme
@@ -42,6 +43,7 @@ assertion rather than a sign-then-verify round trip.
 | `public_key_parsing` | a public key string → accepted or not, and its 65-byte uncompressed form |
 | `timestamp_parsing` | an `X-Signature-Timestamp` value → accepted or not, and its value |
 | `base_url_parsing` | a client's base URL → accepted or not, and the error message |
+| `private_key_parsing` | a private key string → its 65-byte uncompressed public key, or the error message |
 
 `body_hex` is the exact preimage: whatever the transport put in the body, before the
 timestamp is appended and before anything decodes it. `grpc-framed-body` carries the gRPC
@@ -59,10 +61,12 @@ to sign the first envelope rather than the whole body. `empty-client-stream` is 
 closed before its first message: every SDK signs those empty bytes and sends the request, and the
 network rejects it.
 
-`public_key_parsing`, `timestamp_parsing` and `base_url_parsing` check rules V2, V3 and C2 of
-[`docs/CROSS_SDK_RULES.md`](../docs/CROSS_SDK_RULES.md). A valid public key row gives the key's
-65-byte uncompressed form, so the compressed and uncompressed forms of a key compare equal; a
-valid timestamp row gives its value.
+`public_key_parsing`, `timestamp_parsing`, `base_url_parsing` and `private_key_parsing` check
+rules V2, V3, C2 and S5 of [`docs/CROSS_SDK_RULES.md`](../docs/CROSS_SDK_RULES.md). A valid public
+key row gives the key's 65-byte uncompressed form, so the compressed and uncompressed forms of a
+key compare equal; a valid timestamp row gives its value. A valid private key row gives the
+uncompressed public key of the key it parses to, and an invalid one the message every SDK fails
+with.
 
 `signature_verification` answers one question: does this signature verify against this
 public key for this body and timestamp. It stops there on purpose. Whether a request is

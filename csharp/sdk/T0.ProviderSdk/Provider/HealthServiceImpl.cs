@@ -11,8 +11,8 @@ namespace T0.ProviderSdk.Provider;
 /// <para>Reports SERVING for the services registered on this server and NotFound
 /// for anything else. The set is frozen at construction; nothing is computed per
 /// request. <c>Watch</c> is left at <see cref="Health.HealthBase"/>'s
-/// UNIMPLEMENTED: it is server-streaming, and the body-hash signature scheme
-/// these servers run behind has no story for streams.</para>
+/// UNIMPLEMENTED: it is server-streaming, and this server verifies the signature
+/// of unary calls only.</para>
 /// </summary>
 internal sealed class HealthServiceImpl : Health.HealthBase
 {

@@ -49,6 +49,13 @@ type testVectors struct {
 		Valid        bool   `json:"valid"`
 		Uncompressed string `json:"uncompressed"`
 	} `json:"public_key_parsing"`
+	PrivateKeyParsing []struct {
+		Name      string `json:"name"`
+		Input     string `json:"input"`
+		Valid     bool   `json:"valid"`
+		PublicKey string `json:"public_key"`
+		Error     string `json:"error"`
+	} `json:"private_key_parsing"`
 }
 
 // requestDigest is what a provider hashes: the raw body with the little-endian
@@ -213,6 +220,24 @@ func TestCrossVectors_PublicKeyParsing(t *testing.T) {
 				return
 			}
 			check(crypto.GetPublicKeyFromBytes(publicKeyBytes))
+		})
+	}
+}
+
+// Every SDK parses a private key against the rows in cross_test/test_vectors.json (rule S5).
+func TestCrossVectors_PrivateKeyParsing(t *testing.T) {
+	v := loadVectors(t)
+	require.Len(t, v.PrivateKeyParsing, 17)
+
+	for _, tc := range v.PrivateKeyParsing {
+		t.Run(tc.Name, func(t *testing.T) {
+			privateKey, err := crypto.GetPrivateKeyFromHex(tc.Input)
+			if !tc.Valid {
+				require.EqualError(t, err, tc.Error)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.PublicKey, hex.EncodeToString(crypto.GetPublicKeyBytes(privateKey.PubKey())))
 		})
 	}
 }

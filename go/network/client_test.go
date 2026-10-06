@@ -56,7 +56,7 @@ func TestNewServiceClient_SignsRequests(t *testing.T) {
 	_, err := NewServiceClient("", factory,
 		WithSignatureFunction(testSignFn(t)),
 		WithBaseURL("http://localhost"),
-		withHTTPTransport(recorder),
+		WithHTTPTransport(recorder),
 	)
 	require.NoError(t, err)
 
@@ -122,7 +122,7 @@ func TestNewServiceClient_NilTransportIgnored(t *testing.T) {
 	_, err := NewServiceClient("", factory,
 		WithSignatureFunction(testSignFn(t)),
 		WithBaseURL(ts.URL),
-		withHTTPTransport(nil),
+		WithHTTPTransport(nil),
 	)
 	require.NoError(t, err)
 

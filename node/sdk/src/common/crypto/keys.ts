@@ -35,7 +35,7 @@ export function publicKeyFromPrivateKey(hex: string): string {
  * Parses a secp256k1 public key by the rule the SDK applies to the network key and the
  * X-Public-Key header, and returns its 65-byte uncompressed encoding.
  *
- * @deprecated Not used by the SDK; will be removed in a future major version.
+ * @deprecated Not used by the SDK; will be removed in a future release.
  */
 export function parsePublicKey(key: string | Buffer): Buffer {
   return parsePublicKeyPoint(key);

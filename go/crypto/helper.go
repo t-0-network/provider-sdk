@@ -46,7 +46,7 @@ func GetPublicKeyBytes(publicKey *secp256k1.PublicKey) []byte {
 
 // GetPublicKeyFromBytes parses a public key with secp256k1.ParsePubKey.
 //
-// Deprecated: not used by the SDK; will be removed in a future major version.
+// Deprecated: not used by the SDK; will be removed in a future release.
 func GetPublicKeyFromBytes(pubKeyBytes []byte) (*secp256k1.PublicKey, error) {
 	return pubkey.ParseBytes(pubKeyBytes)
 }
@@ -54,7 +54,7 @@ func GetPublicKeyFromBytes(pubKeyBytes []byte) (*secp256k1.PublicKey, error) {
 // GetPublicKeyFromHex parses a public key written in hex, with or without a 0x or 0X prefix, under
 // the rule of GetPublicKeyFromBytes.
 //
-// Deprecated: not used by the SDK; will be removed in a future major version.
+// Deprecated: not used by the SDK; will be removed in a future release.
 func GetPublicKeyFromHex(publicKeyHexed string) (*secp256k1.PublicKey, error) {
 	return pubkey.ParseHex(publicKeyHexed)
 }

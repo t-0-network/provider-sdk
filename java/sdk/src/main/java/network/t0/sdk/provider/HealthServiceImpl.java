@@ -22,8 +22,8 @@ import java.util.Set;
  * <p>Reports SERVING for the services registered on this server and NOT_FOUND
  * for anything else. The set is frozen at construction; nothing is computed per
  * request. {@code watch} is left at {@link HealthGrpc.HealthImplBase}'s
- * UNIMPLEMENTED: it is server-streaming, and the body-hash signature scheme
- * these servers run behind has no story for streams.
+ * UNIMPLEMENTED: it is server-streaming, and this server verifies the signature
+ * of unary calls only.
  */
 final class HealthServiceImpl extends HealthGrpc.HealthImplBase {
 

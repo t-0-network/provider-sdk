@@ -92,7 +92,7 @@ public final class SignatureVerifier {
      * @param hexPublicKey the public key in hex format (with or without 0x prefix)
      * @return the key's 65-byte uncompressed encoding, the same for every form of one key
      * @throws IllegalArgumentException if the hex is malformed or the bytes are not a key on the curve
-     * @deprecated Not for application use; will be removed in a future major version.
+     * @deprecated Not for application use; will be removed in a future release.
      */
     @Deprecated
     public static byte[] parsePublicKeyHex(String hexPublicKey) {

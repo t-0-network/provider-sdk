@@ -24,8 +24,7 @@ const sdkEcosystem = "go"
 // computed per request.
 //
 // It implements grpchealth.Checker but not grpchealth.Watcher, so the package's
-// handler answers Watch with UNIMPLEMENTED — the body-hash signature scheme
-// these servers run behind has no story for streams.
+// handler answers Watch with UNIMPLEMENTED, as in every other SDK.
 type healthChecker struct {
 	registered map[string]struct{}
 }
