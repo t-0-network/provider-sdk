@@ -115,6 +115,8 @@ server := provider.NewServer(providerServiceHandler, provider.WithAddr(":8080"))
 
 **Handler options:** `WithConnectHandlerOptions`, `WithMaxBodySize` (the largest request message, default: 10 MiB; the body of a unary call, or each message of a stream).
 
+The function you pass as the first argument of `provider.Handler` gets connect options, and it must pass all of them to every connect handler it builds. The generated `paymentconnect.NewProviderServiceHandler` does so, and [`cross_test/go_helper/stream.go`](../cross_test/go_helper/stream.go) has one written by hand. The options include the interceptor that refuses a request that failed the signature check, so a function that drops them serves such requests. Add your own connect options with `WithConnectHandlerOptions`, not inside that function.
+
 A handler built with `provider.Handler` verifies streaming calls too: over their first message only, before the handler runs, without buffering the stream ([`docs/STREAMING.md`](../docs/STREAMING.md#server-side-go-sdk)). `provider.SignatureVerification(ctx)` reports what a request's signature covered.
 
 ### Network Client

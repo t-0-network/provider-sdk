@@ -23,8 +23,10 @@ const (
 type streamTest struct{}
 
 // newStreamTestHandler serves test.v1.StreamTest. Built with provider.Handler, it is behind the
-// SDK's signature verification, which checks a stream over its first envelope as the network does
-// and fails a rejected one before its handler runs. See cross_test/README.md.
+// SDK's signature verification, which checks a stream over its first envelope as the network does.
+// It passes opts to both connect handlers, and the opts carry the interceptor that fails a rejected
+// stream before its handler runs. The http.HandlerFunc it returns runs for a rejected request too,
+// so it can log the verdict. See cross_test/README.md.
 func newStreamTestHandler(svc streamTest, opts ...connect.HandlerOption) (string, http.Handler) {
 	mux := http.NewServeMux()
 	mux.Handle(streamTestClientStream, connect.NewClientStreamHandler(streamTestClientStream, svc.clientStream, opts...))
