@@ -21,9 +21,13 @@ on:
       - ".github/actions/setup-go-helper/**"
       - ".github/actions/test-node/**"
       - ".github/workflows/ci-node.yaml"
+  # Nightly, so node-latest-deps sees a new dependency release even when nobody
+  # touches the SDK.
+  schedule:
+    - cron: "0 3 * * *"
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
@@ -57,3 +61,25 @@ jobs:
       - name: Test starter template against local SDK
         working-directory: node/starter/template
         run: npm test
+
+  # Customers install the SDK without our lockfile: npm does not publish
+  # package-lock.json, so their install takes the newest release in every range,
+  # and every transitive dependency floats too. The job above only ever tests
+  # package-lock.json, which is how a dependency release can break customers
+  # before CI sees it (connectrpc 0.11 broke every Python request for months,
+  # #298). This job drops the lockfile, installs the way a fresh
+  # `npm install @t-0/provider-sdk` would, and runs the full suite on that.
+  # devDependencies float here too; a failure from them is ours to fix but does
+  # not reach customers.
+  node-latest-deps:
+    name: Node (unlocked latest deps)
+    runs-on: blacksmith-4vcpu-ubuntu-2404
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          show-progress: false
+
+      - uses: ./.github/actions/test-node
+        with:
+          lockfile: "false"
