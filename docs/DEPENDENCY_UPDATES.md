@@ -6,7 +6,7 @@ The five SDKs sign and verify the same bytes, checked against `cross_test/test_v
 
 ## How Dependabot groups updates
 
-- **One weekly batch.** Every dependency that CI can validate goes into one pull request across all ecosystems, `ci-batch`, opened on Mondays. The config lists these dependencies per ecosystem as allowlist `patterns`, because Dependabot has no exclude patterns for groups that span ecosystems. `.github/tools/sumtool` is the exception and gets its own pull requests: every batch that included it failed to open (HTTP 400), and one failed ecosystem keeps the whole batch from opening.
+- **One weekly batch.** Every dependency that CI can validate goes into one pull request across all ecosystems, `ci-batch`, opened on Mondays. The config lists these dependencies per ecosystem as allowlist `patterns`, because Dependabot has no exclude patterns for groups that span ecosystems. `.github/tools/sumtool` is not watched: every pull request Dependabot built for it was refused (HTTP 400), so its one dependency is updated by hand.
 - **Signing-path libraries get their own pull requests.** They are deliberately left out of every allowlist, so Dependabot opens one pull request per library. The list is in the header of `.github/dependabot.yml`. Never add one of them to a pattern.
 - **New dependencies start alone.** A dependency that is in no allowlist also gets its own pull request. Decide whether it is on the signing path (see below). If it is not, add it to its ecosystem's `patterns` so later updates join the batch.
 - **Release-owned pins are ignored.** The starter templates' pins of the SDK itself are ignored, because `release.yaml` updates them.
@@ -74,7 +74,7 @@ The build and test commands for each area are in [CONTRIBUTING.md](../CONTRIBUTI
 
 | Ecosystem | Manifests | Installed version | Update one dependency |
 | --- | --- | --- | --- |
-| Go | `go/go.mod`, `go/starter/template/go.mod`, `cli/go.mod`, `.github/tools/sumtool/go.mod` (outside the batch); `cross_test/go_helper/go.mod` is not watched by Dependabot (its `go.work` also uses `../../go`), so update it by hand to match `go/go.mod` | `go list -m <pkg>` | edit `go.mod`, then `go mod tidy` |
+| Go | `go/go.mod`, `go/starter/template/go.mod`, `cli/go.mod`; Dependabot does not watch `.github/tools/sumtool/go.mod` or `cross_test/go_helper/go.mod` (its `go.work` also uses `../../go`), so update them by hand, `go_helper` to match `go/go.mod` | `go list -m <pkg>` | edit `go.mod`, then `go mod tidy` |
 | Node | `node/sdk/package.json`, `node/starter/template/package.json` | `npm ls <pkg>` | `npm install <pkg>@x.y.z` |
 | Python | `python/pyproject.toml`, `python/sdk/pyproject.toml`, `python/starter/template/pyproject.toml` | `uv pip show <pkg>` or `uv tree` | edit `pyproject.toml`, then `uv sync --all-packages` |
 | Java | `java/sdk/build.gradle.kts`, `java/starter/template/build.gradle.kts` | `./gradlew :sdk:dependencyInsight --dependency <pkg>` | edit `build.gradle.kts`, then `./gradlew build` |

@@ -1,7 +1,7 @@
 # Dependency-update policy (see docs/DEPENDENCY_UPDATES.md):
 #   * ONE weekly PR ("ci-batch") for every dependency CI can validate, across all
-#     five ecosystems and their sub-projects, except .github/tools/sumtool (its own
-#     PRs) and cross_test/go_helper (not watched); both are explained below.
+#     five ecosystems and their sub-projects, except .github/tools/sumtool and
+#     cross_test/go_helper, which are not watched and are updated by hand.
 #     Entries use ALLOWLIST `patterns` (Dependabot has no exclude-patterns for
 #     multi-ecosystem groups).
 #   * Crypto / signing-path libraries are intentionally NOT in any allowlist, so
@@ -61,22 +61,6 @@ updates:
       - "github.com/stretchr/*"
       - "github.com/joho/*"
       - "github.com/google/uuid"
-
-  # Outside the batch: every ci-batch run that included this directory failed to open its
-  # pull request (HTTP 400, "invalid or unauthorized changes"), and one failed ecosystem
-  # keeps the whole batch from opening. A failure here now only loses this update.
-  - package-ecosystem: "gomod"
-    directory: "/.github/tools/sumtool"
-    schedule:
-      interval: "weekly"
-      day: "monday"
-      time: "06:00"
-      timezone: "Europe/Berlin"
-    labels: ["dependencies"]
-    commit-message:
-      prefix: "chore(deps)"
-    cooldown:
-      default-days: 3
 
   - package-ecosystem: "npm"
     directories:

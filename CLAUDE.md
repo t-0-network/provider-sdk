@@ -130,7 +130,7 @@ When the user asks to release, trigger it via `gh workflow run release.yaml -f b
 
 ## Dependency updates
 
-When triaging a Dependabot PR or bumping a library, follow [`docs/DEPENDENCY_UPDATES.md`](docs/DEPENDENCY_UPDATES.md). Non-crypto deps land in a single weekly `ci-batch` PR across all ecosystems (CI is the gate; read the changelogs in the batch); `.github/tools/sumtool` gets its own PRs, and `cross_test/go_helper` is updated by hand. Crypto / signing-path deps get solo PRs and the seven-step audit there: direct tests before the bump, then byte-identical cross-language vectors after it (PR #99 pattern). New deps appear as solo PRs until added to the allowlist in `.github/dependabot.yml`.
+When triaging a Dependabot PR or bumping a library, follow [`docs/DEPENDENCY_UPDATES.md`](docs/DEPENDENCY_UPDATES.md). Non-crypto deps land in a single weekly `ci-batch` PR across all ecosystems (CI is the gate; read the changelogs in the batch); `.github/tools/sumtool` and `cross_test/go_helper` are updated by hand. Crypto / signing-path deps get solo PRs and the seven-step audit there: direct tests before the bump, then byte-identical cross-language vectors after it (PR #99 pattern). New deps appear as solo PRs until added to the allowlist in `.github/dependabot.yml`.
 
 ## Git Workflow
 
