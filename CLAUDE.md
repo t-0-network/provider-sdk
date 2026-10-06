@@ -126,11 +126,11 @@ The streaming rules every SDK client follows (what is signed, when the request i
 - DO NOT push tags directly — the workflow creates and pushes `vX.Y.Z`, `go/vX.Y.Z`, etc.
 - The publish workflow (`publish.yaml`) is triggered automatically by tag push — never trigger it manually
 
-When the user asks to release, trigger it via `gh workflow run release.yaml -f bump=<type> --ref master`. Default to `patch` unless the user specifies otherwise.
+When the user asks to release, trigger it via `gh workflow run release.yaml -f bump=<type> --ref master`. Use `patch` only when the release has nothing but fixes; a release with new API or breaking changes needs `minor` (see [`docs/RELEASE_AND_PUBLISH.md`](docs/RELEASE_AND_PUBLISH.md)). The user's choice of bump wins.
 
 ## Dependency updates
 
-When triaging a Dependabot PR or bumping a library, follow [`docs/DEPENDENCY_UPDATES.md`](docs/DEPENDENCY_UPDATES.md). Non-crypto deps land in a single weekly `ci-batch` PR across all ecosystems (CI is the gate; read the changelogs in the batch). Crypto / signing-path deps get solo PRs and the seven-step audit there: direct tests before the bump, then byte-identical cross-language vectors after it (PR #99 pattern). New deps appear as solo PRs until added to the allowlist in `.github/dependabot.yml`.
+When triaging a Dependabot PR or bumping a library, follow [`docs/DEPENDENCY_UPDATES.md`](docs/DEPENDENCY_UPDATES.md). Non-crypto deps land in a single weekly `ci-batch` PR across all ecosystems (CI is the gate; read the changelogs in the batch); `.github/tools/sumtool` gets its own PRs, and `cross_test/go_helper` is updated by hand. Crypto / signing-path deps get solo PRs and the seven-step audit there: direct tests before the bump, then byte-identical cross-language vectors after it (PR #99 pattern). New deps appear as solo PRs until added to the allowlist in `.github/dependabot.yml`.
 
 ## Git Workflow
 

@@ -155,10 +155,14 @@ func WithProtocol(p Protocol) ClientOption {
 	}
 }
 
-// withHTTPTransport sets the http.RoundTripper under the signing transport; tests use it to reach
-// their own servers. It replaces the one the client picks itself: http.DefaultTransport, or for
-// ProtocolGRPC on an http:// base URL an HTTP/2 transport without TLS. A nil value is ignored.
-func withHTTPTransport(rt http.RoundTripper) ClientOption {
+// WithHTTPTransport sets the http.RoundTripper under the signing transport. It is meant for tests:
+// it sends the client's requests, still signed, through a mock RoundTripper or the transport of a
+// test server, such as httptest.Server.Client().Transport. Production code normally does not need it.
+//
+// It replaces the transport the client picks itself: http.DefaultTransport, or for ProtocolGRPC on
+// an http:// base URL an HTTP/2 transport without TLS. A gRPC test over http:// therefore passes a
+// transport that speaks HTTP/2. A nil value is ignored.
+func WithHTTPTransport(rt http.RoundTripper) ClientOption {
 	return func(c *clientOptions) {
 		c.transport = rt
 	}

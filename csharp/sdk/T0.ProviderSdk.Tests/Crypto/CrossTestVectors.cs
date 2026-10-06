@@ -211,6 +211,35 @@ public class CrossTestVectors
     }
 
     /// <summary>
+    /// Rule S5: the rule <see cref="Signer.FromHex"/> parses the private key a client signs with.
+    /// </summary>
+    [Fact]
+    public void PrivateKeyParsing_ShouldMatchVectorOutcomes()
+    {
+        var cases = Vectors.RootElement.GetProperty("private_key_parsing");
+        Assert.Equal(17, cases.GetArrayLength());
+
+        foreach (var vec in cases.EnumerateArray())
+        {
+            var name = vec.GetProperty("name").GetString();
+            var expected = vec.GetProperty("valid").GetBoolean()
+                ? vec.GetProperty("public_key").GetString()
+                : vec.GetProperty("error").GetString();
+
+            string outcome;
+            try
+            {
+                outcome = Signer.FromHex(vec.GetProperty("input").GetString()!).GetPublicKeyHex();
+            }
+            catch (ArgumentException e)
+            {
+                outcome = e.Message;
+            }
+            Assert.Equal($"{name}: {expected}", $"{name}: {outcome}");
+        }
+    }
+
+    /// <summary>
     /// The rule the middleware parses X-Signature-Timestamp with: decimal digits only, at most
     /// <see cref="long.MaxValue"/>.
     /// </summary>

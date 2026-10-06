@@ -10,7 +10,7 @@ import type { TestContext } from 'node:test';
 import { Code, ConnectError } from '@connectrpc/connect';
 import type { UniversalClientFn } from '@connectrpc/connect/protocol';
 import { createSigningHttpClient } from '../src/common/client/signing-http-client.js';
-import { parsePublicKeyPoint } from '../src/common/crypto/keys.js';
+import { parsePrivateKey, parsePublicKeyPoint, uncompressedPublicKeyFromPrivateKey } from '../src/common/crypto/keys.js';
 import { parseTimestamp } from '../src/common/crypto/request.js';
 import { readFileSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
@@ -279,6 +279,22 @@ describe('Public key parsing cases', () => {
         }
       });
     }
+  }
+});
+
+describe('Private key parsing cases', () => {
+  // Rule S5: the parser of the private key a client signs with.
+  it('has every row', () => {
+    nodeAssert.equal(vectors.private_key_parsing.length, 17);
+  });
+  for (const vec of vectors.private_key_parsing) {
+    it(`${vec.name} is ${vec.valid ? 'parsed' : vec.error}`, () => {
+      if (vec.valid) {
+        nodeAssert.equal(uncompressedPublicKeyFromPrivateKey(parsePrivateKey(vec.input)).toString('hex'), vec.public_key);
+      } else {
+        nodeAssert.throws(() => parsePrivateKey(vec.input), { message: vec.error });
+      }
+    });
   }
 });
 

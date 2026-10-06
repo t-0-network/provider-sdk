@@ -1,18 +1,23 @@
 # Dependency-update policy (see docs/DEPENDENCY_UPDATES.md):
 #   * ONE weekly PR ("ci-batch") for every dependency CI can validate, across all
-#     five ecosystems and every sub-project. Entries use ALLOWLIST `patterns`
-#     (Dependabot has no exclude-patterns for multi-ecosystem groups).
+#     five ecosystems and their sub-projects, except .github/tools/sumtool (its own
+#     PRs) and cross_test/go_helper (not watched); both are explained below.
+#     Entries use ALLOWLIST `patterns` (Dependabot has no exclude-patterns for
+#     multi-ecosystem groups).
 #   * Crypto / signing-path libraries are intentionally NOT in any allowlist, so
 #     Dependabot raises them one dependency per PR. They follow the signing-path
 #     audit in that document. Never add them to a pattern below:
 #       golang.org/x/crypto, github.com/btcsuite/*, github.com/decred/*,
 #       @noble/*, coincurve, pycryptodome,
 #       org.bouncycastle:*, BouncyCastle.Cryptography,
-#       @connectrpc/connect, @connectrpc/connect-node
+#       @connectrpc/connect, @connectrpc/connect-node,
+#       connectrpc.com/connect, golang.org/x/net
 #     The Node SDK's client transport signs the bodies and envelopes connect-es
 #     builds and uses its @private CommonTransportOptions, so those two are
 #     pinned exactly in node/sdk/package.json and bumped together
 #     (connect-node peer-depends on connect's exact version) in one PR.
+#     The Go client signs the bodies and envelopes connect-go builds, and
+#     golang.org/x/net pulls golang.org/x/crypto along with it.
 #   * A new non-crypto dependency shows up as a solo PR until it is added to the
 #     matching allowlist.
 version: 2
@@ -36,26 +41,42 @@ updates:
     cooldown:
       default-days: 3
 
+  # cross_test/go_helper is not listed: its go.work also uses ../../go, and how Dependabot
+  # treats a workspace is unclear. Its versions follow /go by hand.
   - package-ecosystem: "gomod"
     directories:
       - "/go"
       - "/go/starter/template"
       - "/cli"
-      - "/.github/tools/sumtool"
     multi-ecosystem-group: "ci-batch"
     cooldown:
       default-days: 3
     ignore:
       - dependency-name: "github.com/t-0-network/provider-sdk/go"   # release.yaml owns the template pin
     patterns:
-      - "connectrpc.com/*"
+      - "connectrpc.com/validate"     # not connectrpc.com/*: connect is on the signing path, see header
+      - "connectrpc.com/grpchealth"
       - "google.golang.org/*"
       - "buf.build/*"                 # protovalidate + generated schema modules
-      - "golang.org/x/net"            # NOT golang.org/x/* — that would pull in x/crypto
-      - "golang.org/x/mod"
       - "github.com/stretchr/*"
       - "github.com/joho/*"
       - "github.com/google/uuid"
+
+  # Outside the batch: every ci-batch run that included this directory failed to open its
+  # pull request (HTTP 400, "invalid or unauthorized changes"), and one failed ecosystem
+  # keeps the whole batch from opening. A failure here now only loses this update.
+  - package-ecosystem: "gomod"
+    directory: "/.github/tools/sumtool"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "06:00"
+      timezone: "Europe/Berlin"
+    labels: ["dependencies"]
+    commit-message:
+      prefix: "chore(deps)"
+    cooldown:
+      default-days: 3
 
   - package-ecosystem: "npm"
     directories:

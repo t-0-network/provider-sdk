@@ -115,7 +115,7 @@ class TestPublicKeyFromHex:
     ids=["public_key_from_hex", "public_key_from_bytes"],
 )
 def test_public_key_helper_warns_that_it_is_deprecated(helper, key):
-    with pytest.warns(DeprecationWarning, match="not used by the SDK; will be removed in a future major version"):
+    with pytest.warns(DeprecationWarning, match="not used by the SDK; will be removed in a future release"):
         helper(key)
 
 

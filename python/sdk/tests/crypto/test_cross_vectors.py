@@ -1,6 +1,7 @@
 """Tests using shared cross-language test vectors."""
 
 import json
+import re
 import struct
 from contextlib import asynccontextmanager, contextmanager
 from pathlib import Path
@@ -13,6 +14,7 @@ from t0_provider_sdk.crypto.keys import (
     _decode_hex_strict,
     _parse_public_key,
     _public_key_from_bytes_strict,
+    private_key_from_hex,
     public_key_from_bytes,
     public_key_from_hex,
 )
@@ -147,6 +149,22 @@ class TestCrossVectorsPublicKeyParsing:
             else:
                 with pytest.raises(ValueError):
                     public_key_from_bytes(data)
+
+
+class TestCrossVectorsPrivateKeyParsing:
+    """Rule S5: the parser of the private key a client signs with."""
+
+    def test_row_count(self):
+        assert len(VECTORS["private_key_parsing"]) == 17
+
+    @pytest.mark.parametrize("vec", VECTORS["private_key_parsing"], ids=lambda vec: vec["name"])
+    def test_case(self, vec):
+        if vec["valid"]:
+            key = private_key_from_hex(vec["input"])
+            assert key.public_key.format(compressed=False).hex() == vec["public_key"]
+        else:
+            with pytest.raises(ValueError, match=f"^{re.escape(vec['error'])}$"):
+                private_key_from_hex(vec["input"])
 
 
 class TestCrossVectorsTimestampParsing:

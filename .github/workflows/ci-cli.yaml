@@ -5,12 +5,20 @@ on:
     branches: [master]
     paths:
       - "cli/**"
-      - "go/starter/template/**"
+      - "go/**"                       # the Go scaffold builds against this tree's SDK
+      - ".github/tools/sumtool/**"
       - "node/starter/template/**"
       - "node/sdk/**"
       - "python/starter/template/**"
       - "python/sdk/**"
+      - "python/pyproject.toml"
+      - "python/uv.lock"
       - "java/starter/template/**"
+      - "java/sdk/**"
+      - "java/*.gradle.kts"
+      - "java/gradle.properties"
+      - "java/gradle/**"
+      - "java/gradlew"
       - "csharp/starter/template/**"
       - "csharp/sdk/**"
       - ".github/workflows/ci-cli.yaml"
@@ -18,12 +26,20 @@ on:
     branches: [master]
     paths:
       - "cli/**"
-      - "go/starter/template/**"
+      - "go/**"                       # the Go scaffold builds against this tree's SDK
+      - ".github/tools/sumtool/**"
       - "node/starter/template/**"
       - "node/sdk/**"
       - "python/starter/template/**"
       - "python/sdk/**"
+      - "python/pyproject.toml"
+      - "python/uv.lock"
       - "java/starter/template/**"
+      - "java/sdk/**"
+      - "java/*.gradle.kts"
+      - "java/gradle.properties"
+      - "java/gradle/**"
+      - "java/gradlew"
       - "csharp/starter/template/**"
       - "csharp/sdk/**"
       - ".github/workflows/ci-cli.yaml"

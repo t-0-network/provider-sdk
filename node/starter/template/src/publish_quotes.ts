@@ -15,7 +15,7 @@ export default async function publishQuotes(networkClient: Client<typeof Network
       await networkClient.updateQuote({
         payOut: [{
           bands: [{
-            // note that rate is always USD/XXX, os that for EUR quote should be USD/EUR
+            // note that rate is always USD/XXX, so that for EUR quote should be USD/EUR
             rate: sampleRate, // rate 0.873
             maxAmount: sampleMaxAmount, // maximum amount in USD, could be 1000,5000,10000 or 25000
             clientQuoteId: randomUUID(),
