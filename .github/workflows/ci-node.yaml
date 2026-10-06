@@ -21,10 +21,10 @@ on:
       - ".github/actions/setup-go-helper/**"
       - ".github/actions/test-node/**"
       - ".github/workflows/ci-node.yaml"
-  # Weekly, so node-latest-deps sees a new dependency release even when nobody
+  # Nightly, so node-latest-deps sees a new dependency release even when nobody
   # touches the SDK.
   schedule:
-    - cron: "0 6 * * 1"
+    - cron: "0 3 * * *"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
