@@ -21,9 +21,13 @@ on:
       - ".github/actions/setup-go-helper/**"
       - ".github/actions/test-python/**"
       - ".github/workflows/ci-python.yaml"
+  # Weekly, so python-latest-deps sees a new dependency release even when nobody
+  # touches the SDK.
+  schedule:
+    - cron: "0 6 * * 1"
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
