@@ -80,28 +80,6 @@ jobs:
         with:
           show-progress: false
 
-      # No npm cache: its key is the lockfile, which this job deletes.
-      - name: Setup Node
-        uses: actions/setup-node@v7
+      - uses: ./.github/actions/test-node
         with:
-          node-version: lts/*
-
-      - uses: ./.github/actions/setup-go-helper
-
-      - name: Install latest dependencies without the lockfile
-        working-directory: node/sdk
-        run: |
-          rm package-lock.json
-          npm install --no-audit --no-fund
-
-      - name: Show resolved versions
-        working-directory: node/sdk
-        run: npm ls --omit=dev --all
-
-      - name: Build
-        working-directory: node/sdk
-        run: npm run build
-
-      - name: Run SDK tests against latest dependencies
-        working-directory: node/sdk
-        run: npm test
+          lockfile: "false"
