@@ -7,6 +7,7 @@ namespace T0.ProviderSdk.Common;
 /// </summary>
 internal static class ValidationUtils
 {
+    // Each violation as "<field path>: <message>", joined by "; ", as every SDK formats them.
     internal static string FormatViolations(ValidationResult result) =>
-        string.Join("; ", result.Violations.Select(v => v.ToString()));
+        string.Join("; ", result.Violations.Select(v => $"{(v.Field is null ? "" : v.Field.GetPath())}: {v.Message}"));
 }

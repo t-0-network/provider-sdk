@@ -3,7 +3,13 @@ package provider
 import (
 	"context"
 	"crypto/tls"
+	"errors"
+	"fmt"
+	"io"
+	"io/fs"
+	"net"
 	"net/http"
+	"strings"
 	"sync"
 	"testing"
 	"time"
@@ -40,7 +46,139 @@ func TestStartServer_InvalidAddress(t *testing.T) {
 	shutdownFn, err := StartServer(handler, WithAddr("invalid:address"))
 	assert.Error(t, err)
 	assert.Nil(t, shutdownFn)
-	assert.Contains(t, err.Error(), "failed to create listener")
+	var opErr *net.OpError
+	assert.ErrorAs(t, err, &opErr)
+}
+
+// StartServer refuses a numeric port outside 0..65535 with the shared message. NewServer does not
+// check it: its caller's listen call reports it, as before.
+func TestServer_PortNotValid(t *testing.T) {
+	for _, addr := range []string{":65536", "127.0.0.1:-1", ":99999999999999999999"} {
+		shutdownFn, err := StartServer(http.NotFoundHandler(), WithAddr(addr))
+		require.Nil(t, shutdownFn, addr)
+		require.EqualError(t, err, "port must be between 0 and 65535", addr)
+		require.NotPanics(t, func() {
+			require.Equal(t, addr, NewServer(http.NotFoundHandler(), WithAddr(addr)).Addr)
+		}, addr)
+	}
+	shutdownFn, err := StartServer(http.NotFoundHandler(), WithAddr("127.0.0.1:0"))
+	require.NoError(t, err)
+	require.NoError(t, shutdownFn(context.Background()))
+}
+
+// A bind error is net.Listen's, with no prefix of the SDK's, as in the other SDKs.
+func TestStartServer_BindErrorPassedThrough(t *testing.T) {
+	taken, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	defer func() { _ = taken.Close() }()
+
+	shutdownFn, err := StartServer(http.NotFoundHandler(), WithAddr(taken.Addr().String()))
+	require.Nil(t, shutdownFn)
+	_, want := net.Listen("tcp", taken.Addr().String())
+	require.Error(t, want)
+	require.EqualError(t, err, want.Error())
+}
+
+// An error that ends serving is returned by the shutdown function, and never panics.
+func TestStartServer_ServeErrorReturnedByShutdown(t *testing.T) {
+	// ServeTLS fails at once: the configuration has no certificate.
+	shutdownFn, err := StartServer(http.NotFoundHandler(), WithAddr("127.0.0.1:0"), WithTLSConfig(&tls.Config{}))
+	require.NoError(t, err)
+
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	require.ErrorIs(t, shutdownFn(ctx), fs.ErrNotExist)
+}
+
+// serveForTest serves the handler with the options on a loopback port and returns its address.
+func serveForTest(t *testing.T, handler http.Handler, opts ...ServerOption) string {
+	t.Helper()
+	server := NewServer(handler, opts...)
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+	go func() { _ = server.Serve(listener) }()
+	t.Cleanup(func() { _ = server.Close() })
+	return listener.Addr().String()
+}
+
+// An HTTP/1.1 request that asks to upgrade to h2c is served as HTTP/1.1, so its
+// body reaches the handler, and its limit, unread. HTTP/2 with prior knowledge is
+// still served.
+func TestServer_H2CUpgradeServedAsHTTP1(t *testing.T) {
+	addr := serveForTest(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = fmt.Fprintf(w, "%s upgrade=%q", r.Proto, r.Header.Get("Upgrade"))
+	}))
+
+	req, err := http.NewRequest(http.MethodPost, "http://"+addr+"/", strings.NewReader("body"))
+	require.NoError(t, err)
+	req.Header.Set("Connection", "Upgrade, HTTP2-Settings")
+	req.Header.Set("Upgrade", "h2c")
+	req.Header.Set("HTTP2-Settings", "AAMAAABkAARAAAAAAAIAAAAA")
+	resp, err := http.DefaultClient.Do(req)
+	require.NoError(t, err)
+	defer func() { _ = resp.Body.Close() }()
+	require.Equal(t, http.StatusOK, resp.StatusCode)
+	body, err := io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	require.Equal(t, `HTTP/1.1 upgrade=""`, string(body))
+
+	h2c := &http.Client{Transport: &http2.Transport{
+		AllowHTTP: true,
+		DialTLSContext: func(ctx context.Context, network, addr string, _ *tls.Config) (net.Conn, error) {
+			return (&net.Dialer{}).DialContext(ctx, network, addr)
+		},
+	}}
+	resp, err = h2c.Post("http://"+addr+"/", "text/plain", strings.NewReader("body"))
+	require.NoError(t, err)
+	defer func() { _ = resp.Body.Close() }()
+	body, err = io.ReadAll(resp.Body)
+	require.NoError(t, err)
+	require.Equal(t, `HTTP/2.0 upgrade=""`, string(body))
+}
+
+// An idle h2c connection is closed after the read timeout, as an HTTP/1.1 one is.
+func TestServer_H2CIdleTimeout(t *testing.T) {
+	addr := serveForTest(t, http.NotFoundHandler(), WithReadTimeout(200*time.Millisecond))
+
+	conn, err := net.Dial("tcp", addr)
+	require.NoError(t, err)
+	defer func() { _ = conn.Close() }()
+	_, err = conn.Write([]byte(http2.ClientPreface))
+	require.NoError(t, err)
+	framer := http2.NewFramer(conn, conn)
+	require.NoError(t, framer.WriteSettings())
+
+	start := time.Now()
+	require.NoError(t, conn.SetReadDeadline(start.Add(5*time.Second)))
+	var goAway bool
+	for {
+		frame, err := framer.ReadFrame()
+		if err != nil {
+			var netErr net.Error
+			require.False(t, errors.As(err, &netErr) && netErr.Timeout(), "the idle connection was not closed")
+			break
+		}
+		switch f := frame.(type) {
+		case *http2.SettingsFrame:
+			if !f.IsAck() {
+				require.NoError(t, framer.WriteSettingsAck())
+			}
+		case *http2.GoAwayFrame:
+			goAway = true
+		}
+	}
+	require.True(t, goAway, "the server closes an idle connection with GOAWAY")
+	require.Less(t, time.Since(start), 5*time.Second)
+}
+
+// The h2c idle timeout is set on a copy: neither the default HTTP/2
+// configuration nor the caller's changes.
+func TestCreateServer_HTTP2ConfigNotChanged(t *testing.T) {
+	custom := &http2.Server{MaxConcurrentStreams: 7}
+	createServer(http.NotFoundHandler(), []ServerOption{WithHTTP2Config(custom)})
+	createServer(http.NotFoundHandler(), nil)
+	require.Equal(t, time.Duration(0), custom.IdleTimeout)
+	require.Equal(t, time.Duration(0), defaultServerOptions.http2Config.IdleTimeout)
 }
 
 func TestStartServer_PortAlreadyInUse(t *testing.T) {
@@ -336,7 +474,7 @@ func TestWithHTTP2Config(t *testing.T) {
 }
 
 func TestNewServerNilHandler(t *testing.T) {
-	assert.Panics(t, func() {
+	assert.PanicsWithValue(t, "service must not be null", func() {
 		NewServer(nil)
 	})
 }
@@ -370,7 +508,7 @@ func TestStartServerNilHandler(t *testing.T) {
 	shutdownFn, err := StartServer(nil)
 	assert.Error(t, err)
 	assert.Nil(t, shutdownFn)
-	assert.Contains(t, err.Error(), "handler cannot be nil")
+	assert.EqualError(t, err, "service must not be null")
 }
 
 func TestStartServerCancelledContextShutdown(t *testing.T) {

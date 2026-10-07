@@ -191,7 +191,7 @@ Where:
 
 ### Timestamp Validation
 
-The timestamp rule and its window are the same in every SDK: [Cross-SDK rules](https://github.com/t-0-network/provider-sdk/blob/master/docs/CROSS_SDK_RULES.md) (V3, V4). Java keeps the window in `Headers.TIMESTAMP_VALIDITY_WINDOW_MS`.
+The timestamp rule and its window are the same in every SDK: [Cross-SDK rules](https://github.com/t-0-network/provider-sdk/blob/master/docs/CROSS_SDK_RULES.md) (V3, V4). Java keeps the window in `ProviderServer.TIMESTAMP_WINDOW`.
 
 ---
 
@@ -267,7 +267,15 @@ try (var client = BlockingNetworkClient.create(
 }
 ```
 
-The signer is any `DigestSigner`; `Signer` holds the key in memory. `sign()` runs while the call's lock is held, so an implementation of your own must return quickly and must not block on network I/O.
+The signer is any `DigestSigner`; `Signer` holds the key in memory. A key held elsewhere (an HSM, a KMS) is a function from the 32-byte digest to the signature and the public key:
+
+```java
+DigestSigner signer = digest -> new SignResult(
+        hsm.sign(digest),    // 64 bytes r‖s, or 65 bytes r‖s‖v
+        hsm.publicKey());    // 65 bytes, uncompressed (0x04 ‖ x ‖ y)
+```
+
+The client checks the output before it sends anything: a signature that is not 64 or 65 bytes, then a public key that is not 65 bytes uncompressed, fails the call with `INTERNAL` "signing the request failed: <cause>", as does a signer that throws. The signature is sent as it is. `sign()` runs while the call's lock is held, so a signer of your own must return quickly and must not block on network I/O.
 
 ### Creating an Async Client
 
@@ -298,7 +306,7 @@ import network.t0.sdk.provider.ProviderServer;
 // Using builder pattern
 ProviderServer server = ProviderServer.create(8080, networkPublicKeyHex)
     .withService(new MyProviderService())
-    .withMaxInboundMessageSize(8 * 1024 * 1024)  // 8MB
+    .withMaxBodySize(8 * 1024 * 1024)            // 8 MiB; default ProviderServer.DEFAULT_MAX_BODY_SIZE (10 MiB), also for 0 or less
     .withMaxInboundMetadataSize(16 * 1024)       // 16KB
     .withHandshakeTimeout(60, TimeUnit.SECONDS)
     .start();
@@ -357,7 +365,7 @@ The status code for each verification failure is the same in every SDK: [Cross-S
 
 ### Client-Side Exceptions
 
-- `StatusRuntimeException` - gRPC call failed with status code (a connection failure is `UNAVAILABLE`)
+- `StatusRuntimeException` - gRPC call failed with status code (a connection failure is `UNAVAILABLE`; a signer that fails gives `INTERNAL` "signing the request failed: <cause>", and nothing is sent)
 - `IllegalArgumentException` - Invalid configuration (endpoint, keys, timeouts)
 
 ---
@@ -443,7 +451,7 @@ Results are reported in operations per millisecond.
 
 **Solution**: Increase the default deadline when creating the client (unary calls get 15 seconds by default, streaming calls 5 minutes):
 ```java
-// Deadlines for unary and streaming calls: each a positive duration
+// Deadlines for unary and streaming calls: each a positive duration of at most 2147483647 ms
 BlockingNetworkClient.create(endpoint, signer, stubFactory, Duration.ofSeconds(60), Duration.ofMinutes(10));
 ```
 

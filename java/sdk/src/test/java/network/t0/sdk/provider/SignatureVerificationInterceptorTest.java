@@ -225,7 +225,7 @@ class SignatureVerificationInterceptorTest {
     @Test
     @DisplayName("Should accept timestamp at edge of validity window")
     void shouldAcceptTimestampAtEdge() {
-        CallOutcome outcome = interceptAt(FIXED_TIMESTAMP_MS - Headers.TIMESTAMP_VALIDITY_WINDOW_MS);
+        CallOutcome outcome = interceptAt(FIXED_TIMESTAMP_MS - ProviderServer.TIMESTAMP_WINDOW.toMillis());
 
         assertThat(outcome.call.closeStatus).isNull();
         assertThat(outcome.handler.messages).containsExactly(BODY);
@@ -234,7 +234,7 @@ class SignatureVerificationInterceptorTest {
     @Test
     @DisplayName("Should reject timestamp outside validity window - past")
     void shouldRejectExpiredTimestamp() {
-        CallOutcome outcome = interceptAt(FIXED_TIMESTAMP_MS - Headers.TIMESTAMP_VALIDITY_WINDOW_MS - 1000);
+        CallOutcome outcome = interceptAt(FIXED_TIMESTAMP_MS - ProviderServer.TIMESTAMP_WINDOW.toMillis() - 1000);
 
         assertRejectedForTimeWindow(outcome);
     }
@@ -242,7 +242,7 @@ class SignatureVerificationInterceptorTest {
     @Test
     @DisplayName("Should reject timestamp outside validity window - future")
     void shouldRejectFutureTimestamp() {
-        CallOutcome outcome = interceptAt(FIXED_TIMESTAMP_MS + Headers.TIMESTAMP_VALIDITY_WINDOW_MS + 1000);
+        CallOutcome outcome = interceptAt(FIXED_TIMESTAMP_MS + ProviderServer.TIMESTAMP_WINDOW.toMillis() + 1000);
 
         assertRejectedForTimeWindow(outcome);
     }

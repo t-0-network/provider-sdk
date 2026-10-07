@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Org.BouncyCastle.Asn1.X9;
 using Org.BouncyCastle.Crypto.Digests;
 using Org.BouncyCastle.Crypto.EC;
@@ -17,7 +18,7 @@ namespace T0.ProviderSdk.Crypto;
 /// Uses RFC 6979 deterministic nonce generation with HMAC-SHA256.
 /// Thread-safe.
 /// </summary>
-public sealed class Signer : ISigner
+public sealed class Signer
 {
     private static readonly X9ECParameters CurveParams = CustomNamedCurves.GetByName("secp256k1");
     private static readonly ECDomainParameters DomainParams = new(
@@ -48,11 +49,11 @@ public sealed class Signer : ISigner
     public static Signer FromHex(string hexPrivateKey)
     {
         if (string.IsNullOrEmpty(hexPrivateKey))
-            throw new ArgumentException("private key must not be null or empty");
+            throw new ArgumentException(Messages.PrivateKeyEmpty);
 
         var cleanHex = HexUtils.StripHexPrefix(hexPrivateKey);
         if (cleanHex.Length != PrivateKeyHexLength || !HexUtils.TryParseHex(cleanHex, out var privateKeyBytes))
-            throw new ArgumentException("private key must be 32 bytes (64 hex characters)");
+            throw new ArgumentException(Messages.PrivateKeyMalformed);
         var privateKeyInt = new BigInteger(1, privateKeyBytes);
         ValidatePrivateKeyRange(privateKeyInt);
         var publicKey = DerivePublicKey(privateKeyInt);
@@ -60,18 +61,37 @@ public sealed class Signer : ISigner
     }
 
     /// <summary>
+    /// Returns the public key of a hex-encoded private key as "0x" and 130 lowercase hex characters
+    /// (the 65-byte uncompressed key). The key is parsed as in <see cref="FromHex"/>, with the same errors.
+    /// </summary>
+    /// <param name="hexPrivateKey">Private key as 64 hex characters, with or without a 0x or 0X prefix.</param>
+    public static string PublicKeyFromPrivateKey(string hexPrivateKey) =>
+        FromHex(hexPrivateKey).GetPublicKeyHexPrefixed();
+
+    /// <summary>
     /// Creates a new Signer from raw private key bytes.
     /// </summary>
     public static Signer FromBytes(byte[] privateKeyBytes)
     {
         if (privateKeyBytes is null || privateKeyBytes.Length != PrivateKeyLength)
-            throw new ArgumentException("private key must be 32 bytes");
+            throw new ArgumentException(Messages.PrivateKeyBytesLength);
 
         var privateKeyInt = new BigInteger(1, privateKeyBytes);
         ValidatePrivateKeyRange(privateKeyInt);
         var publicKey = DerivePublicKey(privateKeyInt);
         return new Signer(privateKeyInt, publicKey);
     }
+
+    /// <summary>
+    /// This signer as the <see cref="SignFn"/> a client takes; null for null.
+    /// </summary>
+    [return: NotNullIfNotNull(nameof(signer))]
+    public static implicit operator SignFn?(Signer? signer) =>
+        signer is null ? null : digest =>
+        {
+            var result = signer.Sign(digest);
+            return (result.Signature, result.PublicKey);
+        };
 
     /// <summary>
     /// Signs a 32-byte digest and returns the signature with public key.
@@ -80,7 +100,7 @@ public sealed class Signer : ISigner
     public SignResult Sign(byte[] digest)
     {
         if (digest is null || digest.Length != PrivateKeyLength)
-            throw new ArgumentException("digest must be 32 bytes");
+            throw new ArgumentException(Messages.DigestLength);
 
         var signer = new ECDsaSigner(new HMacDsaKCalculator(new Sha256Digest()));
         signer.Init(true, _privateKeyParams);
@@ -127,7 +147,7 @@ public sealed class Signer : ISigner
     {
         var n = DomainParams.N;
         if (privateKey.CompareTo(BigInteger.One) < 0 || privateKey.CompareTo(n) >= 0)
-            throw new ArgumentException("private key must be in range [1, n-1]");
+            throw new ArgumentException(Messages.PrivateKeyOutOfRange);
     }
 
     private static byte[] DerivePublicKey(BigInteger privateKey)
@@ -145,7 +165,7 @@ public sealed class Signer : ISigner
                 return recId;
         }
 
-        throw new InvalidOperationException("Could not determine recovery ID");
+        throw new InvalidOperationException(Messages.RecoveryIdNotFound);
     }
 
     private static byte[]? RecoverPublicKey(byte[] digest, BigInteger r, BigInteger s, int recId)

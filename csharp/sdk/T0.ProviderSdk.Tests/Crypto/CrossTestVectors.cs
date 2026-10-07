@@ -194,7 +194,7 @@ public class CrossTestVectors
                 var name = $"{parse.Method.Name} {vec.GetProperty("name").GetString()}";
                 var expected = vec.GetProperty("valid").GetBoolean()
                     ? vec.GetProperty("uncompressed").GetString()!
-                    : "rejected";
+                    : $"rejected: {vec.GetProperty("error").GetString()}";
 
                 string parsed;
                 try
@@ -203,7 +203,7 @@ public class CrossTestVectors
                 }
                 catch (Exception e) when (e is FormatException or ArgumentException or ArithmeticException)
                 {
-                    parsed = "rejected";
+                    parsed = $"rejected: {e.Message}";
                 }
                 Assert.Equal($"{name}: {expected}", $"{name}: {parsed}");
             }
@@ -240,6 +240,61 @@ public class CrossTestVectors
     }
 
     /// <summary>
+    /// What the factory's signer gives for fixed digests, used as the client uses it: converted to a
+    /// <see cref="SignFn"/>.
+    /// </summary>
+    [Fact]
+    public void SignerCases_ShouldMatchVectorOutcomes()
+    {
+        var cases = Vectors.RootElement.GetProperty("signer_cases");
+        Assert.NotEmpty(cases.EnumerateArray());
+
+        foreach (var vec in cases.EnumerateArray())
+        {
+            var name = vec.GetProperty("name").GetString();
+            SignFn sign = Signer.FromHex(vec.GetProperty("private_key").GetString()!);
+            var expected = vec.TryGetProperty("error", out var error) && error.GetString() is { Length: > 0 } message
+                ? message
+                : $"{vec.GetProperty("signature").GetString()} {vec.GetProperty("public_key").GetString()}";
+
+            string outcome;
+            try
+            {
+                var (signature, publicKey) = sign(Convert.FromHexString(vec.GetProperty("digest").GetString()!));
+                outcome = $"{Convert.ToHexStringLower(signature)} {Convert.ToHexStringLower(publicKey)}";
+            }
+            catch (ArgumentException e)
+            {
+                outcome = e.Message;
+            }
+            Assert.Equal($"{name}: {expected}", $"{name}: {outcome}");
+        }
+    }
+
+    [Fact]
+    public void PublicKeyFromPrivateKey_ShouldMatchVectorOutcomes()
+    {
+        foreach (var vec in Vectors.RootElement.GetProperty("private_key_parsing").EnumerateArray())
+        {
+            var name = vec.GetProperty("name").GetString();
+            var expected = vec.GetProperty("valid").GetBoolean()
+                ? "0x" + vec.GetProperty("public_key").GetString()
+                : vec.GetProperty("error").GetString();
+
+            string outcome;
+            try
+            {
+                outcome = Signer.PublicKeyFromPrivateKey(vec.GetProperty("input").GetString()!);
+            }
+            catch (ArgumentException e)
+            {
+                outcome = e.Message;
+            }
+            Assert.Equal($"{name}: {expected}", $"{name}: {outcome}");
+        }
+    }
+
+    /// <summary>
     /// The rule the middleware parses X-Signature-Timestamp with: decimal digits only, at most
     /// <see cref="long.MaxValue"/>.
     /// </summary>
@@ -252,14 +307,15 @@ public class CrossTestVectors
         foreach (var vec in cases.EnumerateArray())
         {
             var name = vec.GetProperty("name").GetString();
+            var input = vec.GetProperty("input").GetString()!;
+            if (input.Length == 0)
+                continue; // a missing header, refused before parsing
             var expected = vec.GetProperty("valid").GetBoolean()
                 ? vec.GetProperty("value").GetString()!
-                : "rejected";
+                : vec.GetProperty("error").GetString()!;
 
-            var parsed = SignatureVerificationMiddleware.TryParseTimestamp(
-                vec.GetProperty("input").GetString(), out var timestampMs)
-                ? timestampMs.ToString(CultureInfo.InvariantCulture)
-                : "rejected";
+            var parsed = SignatureVerificationMiddleware.ParseTimestamp(input, out var timestampMs)
+                ?? timestampMs.ToString(CultureInfo.InvariantCulture);
             Assert.Equal($"{name}: {expected}", $"{name}: {parsed}");
         }
     }
@@ -280,7 +336,7 @@ public class CrossTestVectors
             var name = vec.GetProperty("name").GetString();
             var expected = vec.GetProperty("valid").GetBoolean()
                 ? "valid"
-                : $"{vec.GetProperty("error").GetString()} (Parameter 'BaseUrl')";
+                : vec.GetProperty("error").GetString();
 
             string outcome;
             try

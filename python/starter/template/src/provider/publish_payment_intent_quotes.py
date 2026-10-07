@@ -64,8 +64,8 @@ async def publish_payment_intent_quotes(
                 ),
             )
         except Exception:
+            # Logged; the next tick publishes again.
             logger.exception("Error updating payment intent quote")
-            return
 
         try:
             await asyncio.wait_for(shutdown_event.wait(), timeout=interval_seconds)

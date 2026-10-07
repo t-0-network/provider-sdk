@@ -1,6 +1,7 @@
 using Grpc.Core;
 using Grpc.Core.Interceptors;
 using Grpc.Net.Client;
+using T0.ProviderSdk.Common;
 using T0.ProviderSdk.Crypto;
 using PaymentApi = T0.ProviderSdk.Api.Tzero.V1.Payment;
 using PaymentIntentApi = T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.Provider;
@@ -24,12 +25,15 @@ public static class NetworkClient
     /// </summary>
     public static TClient Create<TClient>(
         NetworkClientOptions options,
-        ISigner signer,
+        SignFn signer,
         Func<CallInvoker, TClient> newClient)
     {
-        ArgumentNullException.ThrowIfNull(options);
-        ArgumentNullException.ThrowIfNull(signer);
-        ArgumentNullException.ThrowIfNull(newClient);
+        if (options is null)
+            throw new ArgumentNullException(null, Messages.ArgumentNull("options"));
+        if (signer is null)
+            throw new ArgumentNullException(null, Messages.SignerNull);
+        if (newClient is null)
+            throw new ArgumentNullException(null, Messages.ArgumentNull("newClient"));
 
         var httpClient = CreateHttpClient(signer, options.PathPrefix);
         GrpcChannel channel;
@@ -62,7 +66,7 @@ public static class NetworkClient
     // pool of open connections behind it, since nothing disposes a client.
     internal static readonly SocketsHttpHandler SharedTransport = CreateTransport();
 
-    internal static HttpClient CreateHttpClient(ISigner signer, string pathPrefix = "")
+    internal static HttpClient CreateHttpClient(SignFn signer, string pathPrefix = "")
     {
         // disposeHandler: false, so disposing one client's channel leaves the shared transport open.
         // Deadlines come from the call: HttpClient.Timeout only runs until the response headers,
@@ -73,17 +77,16 @@ public static class NetworkClient
         };
     }
 
-    internal static SigningDelegatingHandler CreateSigningHandler(ISigner signer, string pathPrefix = "") =>
+    internal static SigningDelegatingHandler CreateSigningHandler(SignFn signer, string pathPrefix = "") =>
         new(signer) { InnerHandler = SharedTransport, PathPrefix = pathPrefix };
 
-    // Pings find a dead HTTP/2 connection while a call waits on it, such as a stream between messages.
-    // A redirect is not followed: it would send the signed request to another server.
+    // A redirect is not followed: it would send the signed request to another server. No cookies
+    // are kept: the transport is shared by every client, whatever key signs its requests. No HTTP/2
+    // keepalive pings are sent, as in the other SDKs' clients.
     internal static SocketsHttpHandler CreateTransport() => new()
     {
         AllowAutoRedirect = false,
-        KeepAlivePingDelay = TimeSpan.FromMinutes(5),
-        KeepAlivePingTimeout = TimeSpan.FromSeconds(10),
-        KeepAlivePingPolicy = HttpKeepAlivePingPolicy.WithActiveRequests,
+        UseCookies = false,
     };
 
     /// <summary>
@@ -91,7 +94,7 @@ public static class NetworkClient
     /// </summary>
     public static PaymentApi.NetworkService.NetworkServiceClient CreateNetworkServiceClient(
         NetworkClientOptions options,
-        ISigner signer) =>
+        SignFn signer) =>
         Create(options, signer, invoker => new PaymentApi.NetworkService.NetworkServiceClient(invoker));
 
     /// <summary>
@@ -100,7 +103,7 @@ public static class NetworkClient
     /// </summary>
     public static PaymentApi.NetworkService.NetworkServiceClient CreateNetworkServiceClient(
         string baseUrl,
-        ISigner signer) =>
+        SignFn signer) =>
         CreateNetworkServiceClient(new NetworkClientOptions { BaseUrl = baseUrl }, signer);
 
     /// <summary>
@@ -108,7 +111,7 @@ public static class NetworkClient
     /// </summary>
     public static PaymentIntentApi.NetworkService.NetworkServiceClient CreatePaymentIntentNetworkServiceClient(
         NetworkClientOptions options,
-        ISigner signer) =>
+        SignFn signer) =>
         Create(options, signer, invoker => new PaymentIntentApi.NetworkService.NetworkServiceClient(invoker));
 
     /// <summary>
@@ -117,6 +120,6 @@ public static class NetworkClient
     /// </summary>
     public static PaymentIntentApi.NetworkService.NetworkServiceClient CreatePaymentIntentNetworkServiceClient(
         string baseUrl,
-        ISigner signer) =>
+        SignFn signer) =>
         CreatePaymentIntentNetworkServiceClient(new NetworkClientOptions { BaseUrl = baseUrl }, signer);
 }

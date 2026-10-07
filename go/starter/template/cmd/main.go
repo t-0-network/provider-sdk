@@ -3,6 +3,8 @@ package main
 import (
 	"cmp"
 	"context"
+	"errors"
+	"io/fs"
 	"log"
 	"log/slog"
 	"os"
@@ -78,11 +80,13 @@ func main() {
 }
 
 func loadConfig() Config {
-	if err := godotenv.Load(".env"); err != nil {
+	// .env is optional: without it, the values come from the environment.
+	if err := godotenv.Load(".env"); err != nil && !errors.Is(err, fs.ErrNotExist) {
 		log.Fatalf("Failed to load .env file: %v", err)
 	}
 
-	intervalMs, err := strconv.ParseInt(os.Getenv("QUOTE_PUBLISHING_INTERVAL"), 10, 64)
+	// Anything but an integer in 1..2147483647 gives the default of 5000 ms.
+	intervalMs, err := strconv.ParseInt(os.Getenv("QUOTE_PUBLISHING_INTERVAL"), 10, 32)
 	if err != nil || intervalMs <= 0 {
 		intervalMs = 5000
 	}

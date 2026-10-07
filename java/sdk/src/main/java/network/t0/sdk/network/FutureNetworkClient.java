@@ -1,5 +1,6 @@
 package network.t0.sdk.network;
 
+import network.t0.sdk.common.Messages;
 import io.grpc.Channel;
 import io.grpc.ManagedChannel;
 import io.grpc.stub.AbstractFutureStub;
@@ -78,7 +79,7 @@ public final class FutureNetworkClient<S extends AbstractFutureStub<S>> extends 
      * @param <S>            the future stub type
      * @return a new FutureNetworkClient instance
      * @throws IllegalArgumentException if the endpoint, signer or stub factory is invalid, or the timeout is not
-     *                                  a positive duration
+     *                                  a positive duration of at most 2147483647 ms
      * @deprecated Use {@link #create(String, DigestSigner, Function, Duration, Duration)}, which also sets the
      *             stream timeout.
      */
@@ -105,7 +106,7 @@ public final class FutureNetworkClient<S extends AbstractFutureStub<S>> extends 
      * @param <S>           the future stub type
      * @return a new FutureNetworkClient instance
      * @throws IllegalArgumentException if the endpoint, signer or stub factory is invalid, or a timeout is
-     *                                  not a positive duration
+     *                                  not a positive duration of at most 2147483647 ms
      */
     public static <S extends AbstractFutureStub<S>> FutureNetworkClient<S> create(
             String endpoint,
@@ -114,7 +115,7 @@ public final class FutureNetworkClient<S extends AbstractFutureStub<S>> extends 
             Duration timeout,
             Duration streamTimeout) {
         if (stubFactory == null) {
-            throw new IllegalArgumentException("stubFactory must not be null");
+            throw new IllegalArgumentException(String.format(Messages.ARGUMENT_NULL, "stubFactory"));
         }
         ChannelPair pair = createChannel(endpoint, signer, timeout, streamTimeout);
         S stub = stubFactory.apply(pair.interceptedChannel());

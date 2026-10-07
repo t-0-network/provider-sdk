@@ -5,6 +5,7 @@ from t0_provider_sdk.network.options import (
     DEFAULT_BASE_URL,
     DEFAULT_STREAM_TIMEOUT,
     DEFAULT_TIMEOUT,
+    MAX_TIMEOUT,
     Protocol,
     WireFormat,
 )
@@ -14,6 +15,7 @@ __all__ = [
     "DEFAULT_BASE_URL",
     "DEFAULT_STREAM_TIMEOUT",
     "DEFAULT_TIMEOUT",
+    "MAX_TIMEOUT",
     "Protocol",
     "SigningClient",
     "SigningSyncClient",

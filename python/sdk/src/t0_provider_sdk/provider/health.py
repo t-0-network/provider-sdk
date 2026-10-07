@@ -14,9 +14,10 @@ connect-python publishes no health bindings, so the ASGI/WSGI applications are
 assembled here from `Endpoint` rather than generated. Because they are not
 generated, they must pass the `google.protobuf` compat codecs explicitly — the
 runtime's default codec targets protobuf-py and cannot serialize these
-messages. Only `Check` is mounted:
+messages. Only `Check` is mounted, and over POST only:
 `Watch` is server-streaming, and this server verifies the signature of unary
-calls only.
+calls only. A call to `Watch` gets HTTP 404, which Connect and gRPC clients read
+as UNIMPLEMENTED, the code the other SDKs answer it with.
 """
 
 from __future__ import annotations
@@ -33,7 +34,9 @@ from connectrpc.request import Headers, RequestContext
 from connectrpc.server import ConnectASGIApplication, ConnectWSGIApplication, Endpoint, EndpointSync
 from grpc_health.v1 import health_pb2
 
-from t0_provider_sdk._version import __version__
+from t0_provider_sdk._messages import UNKNOWN_SERVICE
+from t0_provider_sdk.provider._sdk_version import _reported_version
+from t0_provider_sdk.provider.middleware import DEFAULT_MAX_BODY_SIZE
 
 HEALTH_SERVICE_FQN = health_pb2.DESCRIPTOR.services_by_name["Health"].full_name
 
@@ -53,14 +56,16 @@ _CHECK_METHOD = MethodInfo(
     service_name=HEALTH_SERVICE_FQN,
     input=health_pb2.HealthCheckRequest,
     output=health_pb2.HealthCheckResponse,
-    idempotency_level=IdempotencyLevel.NO_SIDE_EFFECTS,
+    # Not NO_SIDE_EFFECTS, which would serve Check over GET too: the signature covers the body, and a
+    # GET carries its message in the query instead. POST only, as in every SDK.
+    idempotency_level=IdempotencyLevel.UNKNOWN,
 )
 
 
 class _Health:
     def __init__(self, services: Iterable[str], version: str | None = None) -> None:
         self._registered = frozenset(services)
-        self._version = version
+        self._version = _reported_version(version)
 
     def _check(
         self,
@@ -68,12 +73,12 @@ class _Health:
         ctx: RequestContext,
     ) -> health_pb2.HealthCheckResponse:
         ctx.response_headers[SDK_ECOSYSTEM_HEADER] = _SDK_ECOSYSTEM
-        ctx.response_headers[SDK_VERSION_HEADER] = self._version or __version__
+        ctx.response_headers[SDK_VERSION_HEADER] = self._version
 
         # An empty service name asks about the process as a whole, which is up if
         # this handler is running at all.
         if request.service and request.service not in self._registered:
-            raise ConnectError(Code.NOT_FOUND, f"unknown service '{request.service}'")
+            raise ConnectError(Code.NOT_FOUND, UNKNOWN_SERVICE.format(service=request.service))
         return _SERVING
 
 
@@ -100,13 +105,20 @@ class HealthImplSync(_Health):
 
 
 class HealthASGIApplication(ConnectASGIApplication[HealthImpl]):
-    def __init__(self, service: HealthImpl, *, interceptors: Iterable[Interceptor] = ()) -> None:
+    def __init__(
+        self,
+        service: HealthImpl,
+        *,
+        interceptors: Iterable[Interceptor] = (),
+        read_max_bytes: int | None = DEFAULT_MAX_BODY_SIZE,
+    ) -> None:
         super().__init__(
             service=service,
             endpoints=lambda svc: {
                 _CHECK_PATH: Endpoint.unary(method=_CHECK_METHOD, function=svc.check),
             },
             interceptors=interceptors,
+            read_max_bytes=read_max_bytes,
             codecs=google_protobuf_codecs(),
         )
 
@@ -116,7 +128,13 @@ class HealthASGIApplication(ConnectASGIApplication[HealthImpl]):
 
 
 class HealthWSGIApplication(ConnectWSGIApplication):
-    def __init__(self, service: HealthImplSync, *, interceptors: Iterable[InterceptorSync] = ()) -> None:
+    def __init__(
+        self,
+        service: HealthImplSync,
+        *,
+        interceptors: Iterable[InterceptorSync] = (),
+        read_max_bytes: int | None = DEFAULT_MAX_BODY_SIZE,
+    ) -> None:
         # Unlike the ASGI base, the WSGI base takes the endpoint map directly
         # (no service/factory pair), which is also how generated WSGI stubs
         # call it.
@@ -125,6 +143,7 @@ class HealthWSGIApplication(ConnectWSGIApplication):
                 _CHECK_PATH: EndpointSync.unary(method=_CHECK_METHOD, function=service.check),
             },
             interceptors=interceptors,
+            read_max_bytes=read_max_bytes,
             codecs=google_protobuf_codecs(),
         )
 

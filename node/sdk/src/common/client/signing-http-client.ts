@@ -3,6 +3,7 @@ import type {UniversalClientFn} from "@connectrpc/connect/protocol";
 import {createNodeHttpClient} from "@connectrpc/connect-node";
 import {signatureHeaders} from "./sign.js";
 import type {SignerFunction} from "./client.js";
+import {FIRST_CHUNK_NOT_ONE_ENVELOPE, FIRST_MESSAGE_INCOMPLETE, UNARY_BODY_NOT_ONE_CHUNK} from "../messages.js";
 
 /**
  * The transport's HTTP client: signs an enveloped body (Connect streaming, gRPC) over its first
@@ -33,7 +34,7 @@ export function createSigningHttpClient(signer: SignerFunction, httpClient: Univ
                 const r = await untilAborted(it.next(), req.signal);
                 whole = r.done === true ? new Uint8Array(0) : r.value;
                 if ((await it.next()).done !== true) {
-                    throw new ConnectError("a unary request body must be one chunk", Code.Internal);
+                    throw new ConnectError(UNARY_BODY_NOT_ONE_CHUNK, Code.Internal);
                 }
                 req.header.set("Content-Length", String(whole.byteLength));
                 headers = await untilAborted(signatureHeaders(signer, whole), req.signal);
@@ -64,10 +65,10 @@ function requireOneEnvelope(chunk: Uint8Array): void {
         ? 5 + new DataView(chunk.buffer, chunk.byteOffset, chunk.byteLength).getUint32(1)
         : Infinity;
     if (size > chunk.byteLength) {
-        throw new ConnectError("streaming request ends inside its first message", Code.InvalidArgument);
+        throw new ConnectError(FIRST_MESSAGE_INCOMPLETE, Code.InvalidArgument);
     }
     if (size < chunk.byteLength) {
-        throw new ConnectError("the first request chunk is not one complete envelope", Code.Internal);
+        throw new ConnectError(FIRST_CHUNK_NOT_ONE_ENVELOPE, Code.Internal);
     }
 }
 

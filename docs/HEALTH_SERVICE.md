@@ -45,7 +45,7 @@ The rule is that each ecosystem consumes a published `grpc.health.v1` package ra
 | a service the customer registered, e.g. `tzero.v1.payment.ProviderService` | `SERVING` |
 | `grpc.health.v1.Health` itself | `SERVING` |
 | `""` — the process as a whole | `SERVING` |
-| anything else | `NOT_FOUND` |
+| anything else | `NOT_FOUND`, "unknown service '<name>'" |
 
 The registered set is frozen when the server is constructed. Nothing about it is computed per request.
 
@@ -56,7 +56,7 @@ t0-sdk-ecosystem: go | node | python | java | csharp
 t0-sdk-version:   <the SDK's own version, e.g. 1.1.28>
 ```
 
-Set on the `Check` response and on nothing else. They are headers rather than fields because `HealthCheckResponse` has exactly one field and `Check` names its service in the *request* — the contract has nowhere to carry the identity of the SDK answering. Scoping them to this one handler is what makes headers acceptable: every callback the customer actually serves is untouched.
+Set on every `Check` reply, `NOT_FOUND` included, and on nothing else (`Watch` carries none). `t0-sdk-version` is the version set on the server, or the SDK's own when none or a blank one is set. They are headers rather than fields because `HealthCheckResponse` has exactly one field and `Check` names its service in the *request* — the contract has nowhere to carry the identity of the SDK answering. Scoping them to this one handler is what makes headers acceptable: every callback the customer actually serves is untouched.
 
 The version comes from the ecosystem's runtime version constant (see [`VERSIONING.md`](./VERSIONING.md)); the ecosystem token comes from the SDK doing the serving, so a server can only ever report the SDK it is actually running.
 
@@ -89,7 +89,7 @@ How each ecosystem scopes the identity headers to this handler:
 - **Go** — a `connect.HandlerOption` carrying one unary interceptor, passed only to `grpchealth.NewHandler`.
 - **Node** — `ctx.responseHeader.set(...)` inside `check` itself.
 - **Python** — `ctx.response_headers()[...]` inside `check` itself.
-- **Java** — a `ServerInterceptor` applied only to the health `ServerServiceDefinition`.
+- **Java** — a `ServerInterceptor` applied only to the health `ServerServiceDefinition`, which sets them on `Check` replies only, before the call closes, so `NOT_FOUND` carries them too.
 - **C#** — `context.WriteResponseHeadersAsync(...)` inside the `Check` override.
 
 **Java:** the health service is appended inside `buildGrpcServer()` and never into `Builder.services`, so `Builder.build()`'s "at least one service must be added with `withService()`" check still catches a customer who forgot to register their own.
@@ -113,10 +113,10 @@ How each ecosystem scopes the identity headers to this handler:
 
 Each SDK covers the same three claims, end to end through its public server-construction wrapper:
 
-1. Signed `Check` returns `SERVING` for a registered FQN, for health itself and for `""`, and `NOT_FOUND` for an unregistered name.
-2. The `Check` response carries `t0-sdk-ecosystem` and `t0-sdk-version`, the latter matching the SDK's own version constant.
+1. Signed `Check` returns `SERVING` for a registered FQN, for health itself and for `""`, and `NOT_FOUND` "unknown service '<name>'" for an unregistered name.
+2. Every `Check` reply, `NOT_FOUND` included, carries `t0-sdk-ecosystem` and `t0-sdk-version`, the latter matching the SDK's own version constant.
 3. An **unsigned** call is refused by the signature interceptor — the mounted service is behind the same auth as everything else.
 
 Where they live: [`go/provider/health_test.go`](../go/provider/health_test.go), [`node/sdk/test/health.test.ts`](../node/sdk/test/health.test.ts), [`python/sdk/tests/integration/test_health_signed.py`](../python/sdk/tests/integration/test_health_signed.py), [`HealthServiceIntegrationTest.java`](../java/sdk/src/test/java/network/t0/sdk/integration/HealthServiceIntegrationTest.java), [`HealthServiceImplTests.cs`](../csharp/sdk/T0.ProviderSdk.Tests/Provider/HealthServiceImplTests.cs).
 
-[`cross_test/`](../cross_test/) is deliberately not used here. Its job is locking crypto and wire-format invariants (Keccak256, secp256k1) across languages; health is an ordinary unary RPC layered on those, and per-ecosystem tests cover it without cross-vector duplication.
+The shared `server_cases` in [`cross_test/test_vectors.json`](../cross_test/test_vectors.json) also run against every SDK's server (`go_helper probe`): `health-unknown-service` pins the `NOT_FOUND` code and message, and every health case checks that `T0-Sdk-Ecosystem` names the SDK and `T0-Sdk-Version` is not empty (rule V11 in [`CROSS_SDK_RULES.md`](CROSS_SDK_RULES.md)).

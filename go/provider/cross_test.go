@@ -18,6 +18,7 @@ type timestampParsingVectors struct {
 		Input string `json:"input"`
 		Valid bool   `json:"valid"`
 		Value string `json:"value"`
+		Error string `json:"error"`
 	} `json:"timestamp_parsing"`
 }
 
@@ -36,10 +37,7 @@ func TestCrossVectors_TimestampParsing(t *testing.T) {
 			headers := http.Header{common.SignatureTimestampHeader: {tc.Input}}
 			timestamp, timestampBytes, err := parseTimestamp(headers)
 			if !tc.Valid {
-				require.Error(t, err)
-				if tc.Input == "" {
-					require.ErrorIs(t, err, ErrMissingRequiredHeader)
-				}
+				require.EqualError(t, err, tc.Error)
 				return
 			}
 			require.NoError(t, err)

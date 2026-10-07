@@ -1,6 +1,8 @@
 import { Code, ConnectError } from "@connectrpc/connect";
 import { createValidator } from "@bufbuild/protovalidate";
 import type { DescMessage, MessageShape } from "@bufbuild/protobuf";
+import { pathToString } from "@bufbuild/protobuf/reflect";
+import { RESPONSE_INVALID, RESPONSE_VALIDATION_ERROR } from "./messages.js";
 
 /**
  * Shared protovalidate validator instance for the public {@link validate} helper.
@@ -33,13 +35,13 @@ export function validate<Desc extends DescMessage>(
   const result = validator.validate(schema, msg);
   if (result.kind === "invalid") {
     const details = result.violations
-      .map((v) => `${v.field?.toString() ?? ""}: ${v.message}`)
+      .map((v) => `${pathToString(v.field)}: ${v.message}`)
       .join("; ");
-    throw new ConnectError(`response validation failed: ${details}`, Code.Internal);
+    throw new ConnectError(RESPONSE_INVALID(details), Code.Internal);
   }
   if (result.kind === "error") {
     throw new ConnectError(
-      `response validation error: ${result.error.message}`,
+      RESPONSE_VALIDATION_ERROR(result.error.message),
       Code.Internal,
     );
   }

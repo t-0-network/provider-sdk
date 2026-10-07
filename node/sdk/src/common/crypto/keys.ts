@@ -1,8 +1,18 @@
 import { secp256k1 } from '@noble/curves/secp256k1.js';
+import {
+  NETWORK_PUBLIC_KEY_INVALID,
+  NETWORK_PUBLIC_KEY_NOT_SET,
+  PRIVATE_KEY_BYTES_LENGTH,
+  PRIVATE_KEY_EMPTY,
+  PRIVATE_KEY_MALFORMED,
+  PRIVATE_KEY_OUT_OF_RANGE,
+  PUBLIC_KEY_NOT_A_POINT,
+  PUBLIC_KEY_NOT_HEX,
+} from '../messages.js';
 
 export function parsePrivateKey(privateKey: string | Buffer): Buffer {
   if (privateKey === undefined || privateKey === null || privateKey.length === 0) {
-    throw new Error('private key must not be null or empty');
+    throw new Error(PRIVATE_KEY_EMPTY);
   }
   if (typeof privateKey === 'string') {
     const hex = privateKey.startsWith('0x') || privateKey.startsWith('0X') ? privateKey.slice(2) : privateKey;
@@ -10,15 +20,15 @@ export function parsePrivateKey(privateKey: string | Buffer): Buffer {
     // or more, read a character above U+00FF by its low byte ("٦" as "f"), so a malformed key would
     // become a different, valid one.
     if (!/^[0-9a-fA-F]{64}$/.test(hex)) {
-      throw new Error('private key must be 32 bytes (64 hex characters)');
+      throw new Error(PRIVATE_KEY_MALFORMED);
     }
     privateKey = Buffer.from(hex, 'hex');
   } else if (privateKey.length !== 32) {
-    throw new Error('private key must be 32 bytes');
+    throw new Error(PRIVATE_KEY_BYTES_LENGTH);
   }
   // A number in [1, n-1], n being the order of secp256k1.
   if (!secp256k1.utils.isValidSecretKey(privateKey)) {
-    throw new Error('private key must be in range [1, n-1]');
+    throw new Error(PRIVATE_KEY_OUT_OF_RANGE);
   }
   return privateKey;
 }
@@ -50,14 +60,14 @@ export function parsePublicKeyPoint(key: string | Uint8Array): Buffer {
     const hex = key.startsWith('0x') || key.startsWith('0X') ? key.slice(2) : key;
     // Checked before decoding: Buffer.from(hex, 'hex') stops at the first bad character.
     if (!/^(?:[0-9a-fA-F]{2})+$/.test(hex)) {
-      throw new Error('must be hex, with an optional 0x or 0X prefix');
+      throw new Error(PUBLIC_KEY_NOT_HEX);
     }
     key = Buffer.from(hex, 'hex');
   }
   try {
     return Buffer.from(secp256k1.Point.fromBytes(key).toBytes(false));
   } catch {
-    throw new Error('not a point on secp256k1');
+    throw new Error(PUBLIC_KEY_NOT_A_POINT);
   }
 }
 
@@ -68,13 +78,13 @@ export function parseNetworkPublicKey(key: string | Buffer): Buffer {
     key = key.trim();
   }
   if (key === undefined || key === null || key.length === 0) {
-    throw new Error('network public key is not set');
+    throw new Error(NETWORK_PUBLIC_KEY_NOT_SET);
   }
   try {
     return parsePublicKeyPoint(key);
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
-    throw new Error(`invalid network public key: ${msg}`);
+    throw new Error(NETWORK_PUBLIC_KEY_INVALID(msg));
   }
 }
 

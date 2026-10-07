@@ -123,6 +123,24 @@
       "signature": "00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
       "valid": false,
       "note": "r = s = 0. A verifier that skips the range check on r and s takes this one."
+    },
+    {
+      "name": "high-s",
+      "body_hex": "74657374207265717565737420626f6479",
+      "timestamp_ms": 1706000000000,
+      "public_key": "044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0",
+      "signature": "dc7cede55d344fb59f10fa71b4915968a9d5c3f811faf7ddd834feb3cdce1065c6329fa4a5d2a01ca3de0d8506d2fe5830a805fe9ba28c60fbc3cde5288dafc0",
+      "valid": true,
+      "note": "The valid signature with s replaced by n - s. Every SDK signs with a low s; a verifier accepts both (V5)."
+    },
+    {
+      "name": "r-not-below-n",
+      "body_hex": "74657374207265717565737420626f6479",
+      "timestamp_ms": 1706000000000,
+      "public_key": "044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0",
+      "signature": "fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd036414239cd605b5a2d5fe35c21f27af92d01a68a06d6e813a613dac40e90a7a7a89181",
+      "valid": false,
+      "note": "r = n + 1, outside [1, n-1]. A verifier that reduces r mod n reads it as r = 1."
     }
   ],
   "stream_signing_cases": [
@@ -204,230 +222,337 @@
       "note": "A client stream closed before its first message. Every SDK signs these empty bytes and sends the request; the network rejects the call."
     }
   ],
-  "public_key_parsing_note": "Every SDK parses the configured network public key and the X-Public-Key header with this rule. Valid keys are compared by point, so the compressed and uncompressed forms of a key are equal.",
+  "signer_cases_note": "What the signer that each SDK's signer-from-hex factory builds from `private_key` gives for `digest`: `signature`, 65 bytes r‖s‖v with a low s (RFC 6979) and v the recovery id, 0 or 1, and `public_key`, the 65-byte uncompressed key; or, for a digest that is not 32 bytes, the error `error`. The factory's result is what a client takes as its signer argument, and a custom signer is a function of the same shape (client_cases, `custom_signer`).",
+  "signer_cases": [
+    {
+      "name": "keys",
+      "private_key": "6b30303de7b26bfb1222b317a52113357f8bb06de00160b4261a2fef9c8b9bd8",
+      "digest": "49a567a359bf25d9652b24acc5567bc38c93139467c8fcf798f059ada585697e",
+      "signature": "dc7cede55d344fb59f10fa71b4915968a9d5c3f811faf7ddd834feb3cdce106539cd605b5a2d5fe35c21f27af92d01a68a06d6e813a613dac40e90a7a7a8918101",
+      "public_key": "044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0",
+      "note": "The digest of request_signing; its signature with v = 1 appended."
+    },
+    {
+      "name": "impostor-keys",
+      "private_key": "2222222222222222222222222222222222222222222222222222222222222222",
+      "digest": "49a567a359bf25d9652b24acc5567bc38c93139467c8fcf798f059ada585697e",
+      "signature": "cf0928c28b0859999ecae51481a9733fe1beede0db3a46310fce89ee131a684314c12e2f193198c67bb010e04317fc39dba29f9279629a2ebc9d65ca84b7c0fe00",
+      "public_key": "04466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f276728176c3c6431f8eeda4538dc37c865e2784f3a9e77d044f33e407797e1278a",
+      "note": "The same digest signed by impostor_keys: v = 0."
+    },
+    {
+      "name": "keys-empty-input-digest",
+      "private_key": "6b30303de7b26bfb1222b317a52113357f8bb06de00160b4261a2fef9c8b9bd8",
+      "digest": "c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470",
+      "signature": "e2b342fc8722109e5607fee96c876aa5341e4a76673e248627d10b01e4033d6c1856c1c5a4926fb3a85d4f8bcc2f4830049970e05e49e292881eeda4d62909fa01",
+      "public_key": "044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0",
+      "note": "The Keccak-256 of no bytes."
+    },
+    {
+      "name": "impostor-keys-empty-input-digest",
+      "private_key": "2222222222222222222222222222222222222222222222222222222222222222",
+      "digest": "c5d2460186f7233c927e7db2dcc703c0e500b653ca82273b7bfad8045d85a470",
+      "signature": "a49a837843de8681d297e17d66bd65a1f23d0773d17e479ca8e1490db438d7de5cf3c79c67303e68d715ccbd21febc013aba1ae9a228935965575fb4b56b506400",
+      "public_key": "04466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f276728176c3c6431f8eeda4538dc37c865e2784f3a9e77d044f33e407797e1278a"
+    },
+    {
+      "name": "digest-31-bytes",
+      "private_key": "6b30303de7b26bfb1222b317a52113357f8bb06de00160b4261a2fef9c8b9bd8",
+      "digest": "49a567a359bf25d9652b24acc5567bc38c93139467c8fcf798f059ada58569",
+      "error": "digest must be 32 bytes"
+    },
+    {
+      "name": "digest-33-bytes",
+      "private_key": "6b30303de7b26bfb1222b317a52113357f8bb06de00160b4261a2fef9c8b9bd8",
+      "digest": "49a567a359bf25d9652b24acc5567bc38c93139467c8fcf798f059ada585697e00",
+      "error": "digest must be 32 bytes"
+    },
+    {
+      "name": "digest-empty",
+      "private_key": "6b30303de7b26bfb1222b317a52113357f8bb06de00160b4261a2fef9c8b9bd8",
+      "digest": "",
+      "error": "digest must be 32 bytes"
+    }
+  ],
+  "public_key_parsing_note": "Every SDK parses the configured network public key and the X-Public-Key header with this rule. Valid keys are compared by point, so the compressed and uncompressed forms of a key are equal. An invalid key fails with `error`. For the configured network key, an empty or whitespace-only value fails with \"network public key is not set\" and any other invalid value with \"invalid network public key: \" followed by `error`; surrounding whitespace is trimmed first.",
   "public_key_parsing": [
     {
       "name": "uncompressed-0x",
       "input": "0x044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0",
       "valid": true,
       "uncompressed": "044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0",
-      "note": "65-byte uncompressed key, the form the network sends."
+      "note": "65-byte uncompressed key, the form the network sends.",
+      "error": ""
     },
     {
       "name": "uncompressed-0X",
       "input": "0X044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0",
       "valid": true,
       "uncompressed": "044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0",
-      "note": "Upper-case prefix, as for private keys."
+      "note": "Upper-case prefix, as for private keys.",
+      "error": ""
     },
     {
       "name": "uncompressed-no-prefix",
       "input": "044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0",
       "valid": true,
       "uncompressed": "044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0",
-      "note": ""
+      "note": "",
+      "error": ""
     },
     {
       "name": "uncompressed-upper-hex",
       "input": "0x044FA1465C087AAF42E5FF707050B8F77D2CE92129C5F300686BDD3ADFFFE44567713BB7931632837C5268A832512E75599B6964F4484C9531C02E96D90384D9F0",
       "valid": true,
       "uncompressed": "044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0",
-      "note": ""
+      "note": "",
+      "error": ""
     },
     {
       "name": "compressed-0x",
       "input": "0x024fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567",
       "valid": true,
       "uncompressed": "044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0",
-      "note": "33-byte compressed form (02) of the same key."
+      "note": "33-byte compressed form (02) of the same key.",
+      "error": ""
     },
     {
       "name": "compressed-no-prefix",
       "input": "024fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567",
       "valid": true,
       "uncompressed": "044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0",
-      "note": ""
+      "note": "",
+      "error": ""
     },
     {
       "name": "compressed-other-parity",
       "input": "0x03fff97bd5755eeea420453a14355235d382f6472f8568a18b2f057a1460297556",
       "valid": true,
       "uncompressed": "04fff97bd5755eeea420453a14355235d382f6472f8568a18b2f057a1460297556ae12777aacfbb620f3be96017f45c560de80f0f6518fe4a03c870c36b075f297",
-      "note": "Compressed key with prefix 03."
+      "note": "Compressed key with prefix 03.",
+      "error": ""
     },
     {
       "name": "compressed-prefix-on-65-bytes",
       "input": "0x024fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0",
       "valid": false,
       "uncompressed": "",
-      "note": ""
+      "note": "",
+      "error": "not a point on secp256k1"
     },
     {
       "name": "uncompressed-prefix-on-33-bytes",
       "input": "0x044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567",
       "valid": false,
       "uncompressed": "",
-      "note": ""
+      "note": "",
+      "error": "not a point on secp256k1"
     },
     {
       "name": "off-curve",
       "input": "0x0400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
       "valid": false,
       "uncompressed": "",
-      "note": "Right length and prefix, not a point on secp256k1."
+      "note": "Right length and prefix, not a point on secp256k1.",
+      "error": "not a point on secp256k1"
     },
     {
       "name": "truncated",
       "input": "0x044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9",
       "valid": false,
       "uncompressed": "",
-      "note": ""
+      "note": "",
+      "error": "not a point on secp256k1"
     },
     {
       "name": "odd-length",
       "input": "0x044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f",
       "valid": false,
       "uncompressed": "",
-      "note": ""
+      "note": "",
+      "error": "must be hex, with an optional 0x or 0X prefix"
     },
     {
       "name": "whitespace-inside",
       "input": "0x044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567 713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0",
       "valid": false,
       "uncompressed": "",
-      "note": "Hex parsers that skip whitespace must not be used."
+      "note": "Hex parsers that skip whitespace must not be used.",
+      "error": "must be hex, with an optional 0x or 0X prefix"
     },
     {
       "name": "trailing-junk",
       "input": "0x044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0zz",
       "valid": false,
       "uncompressed": "",
-      "note": "Hex parsers that stop at the first bad character must not be used."
+      "note": "Hex parsers that stop at the first bad character must not be used.",
+      "error": "must be hex, with an optional 0x or 0X prefix"
     },
     {
       "name": "non-hex",
       "input": "0xnot-a-key",
       "valid": false,
       "uncompressed": "",
-      "note": ""
+      "note": "",
+      "error": "must be hex, with an optional 0x or 0X prefix"
     },
     {
       "name": "prefix-only",
       "input": "0x",
       "valid": false,
       "uncompressed": "",
-      "note": ""
+      "note": "",
+      "error": "must be hex, with an optional 0x or 0X prefix"
     },
     {
       "name": "empty",
       "input": "",
       "valid": false,
       "uncompressed": "",
-      "note": ""
+      "note": "",
+      "error": "must be hex, with an optional 0x or 0X prefix"
+    },
+    {
+      "name": "hybrid-06",
+      "input": "0x064fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0",
+      "valid": false,
+      "uncompressed": "",
+      "note": "Hybrid encoding (06/07): some libraries accept it, V2 does not.",
+      "error": "not a point on secp256k1"
+    },
+    {
+      "name": "hybrid-07",
+      "input": "0x074fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0",
+      "valid": false,
+      "uncompressed": "",
+      "note": "Hybrid encoding with the other parity byte.",
+      "error": "not a point on secp256k1"
+    },
+    {
+      "name": "infinity",
+      "input": "0x00",
+      "valid": false,
+      "uncompressed": "",
+      "note": "The encoding of the point at infinity: some libraries accept it, V2 does not.",
+      "error": "not a point on secp256k1"
     }
   ],
-  "timestamp_parsing_note": "Every SDK parses X-Signature-Timestamp with this rule: ASCII digits 0-9 only (no sign, no spaces, nothing else), a value that fits a signed 64-bit integer. Anything else is InvalidArgument. The +-60 s window is checked after parsing.",
+  "timestamp_parsing_note": "Every SDK parses X-Signature-Timestamp with this rule: ASCII digits 0-9 only (no sign, no spaces, nothing else), a value that fits a signed 64-bit integer. Anything else is InvalidArgument with `error`. The +-60 s window is checked after parsing.",
   "timestamp_parsing": [
     {
       "name": "plain",
       "input": "1706000000000",
       "valid": true,
       "value": "1706000000000",
-      "note": ""
+      "note": "",
+      "error": ""
     },
     {
       "name": "zero",
       "input": "0",
       "valid": true,
       "value": "0",
-      "note": ""
+      "note": "",
+      "error": ""
     },
     {
       "name": "leading-zeros",
       "input": "0001706000000000",
       "valid": true,
       "value": "1706000000000",
-      "note": "Leading zeros are allowed: the signature covers the parsed value."
+      "note": "Leading zeros are allowed: the signature covers the parsed value.",
+      "error": ""
     },
     {
       "name": "int64-max",
       "input": "9223372036854775807",
       "valid": true,
       "value": "9223372036854775807",
-      "note": "The largest value; the time window rejects it later."
+      "note": "The largest value; the time window rejects it later.",
+      "error": ""
     },
     {
       "name": "int64-max-plus-one",
       "input": "9223372036854775808",
       "valid": false,
       "value": "",
-      "note": "Does not fit a signed 64-bit integer."
+      "note": "Does not fit a signed 64-bit integer.",
+      "error": "invalid timestamp header: value out of range"
     },
     {
       "name": "plus-sign",
       "input": "+1706000000000",
       "valid": false,
       "value": "",
-      "note": "No sign."
+      "note": "No sign.",
+      "error": "invalid timestamp header: not a decimal number"
     },
     {
       "name": "minus-sign",
       "input": "-1",
       "valid": false,
       "value": "",
-      "note": ""
+      "note": "",
+      "error": "invalid timestamp header: not a decimal number"
     },
     {
       "name": "leading-space",
       "input": " 1706000000000",
       "valid": false,
       "value": "",
-      "note": "Not trimmed by the SDK (an HTTP server may strip spaces around a header value before the SDK sees it)."
+      "note": "Not trimmed by the SDK (an HTTP server may strip spaces around a header value before the SDK sees it).",
+      "error": "invalid timestamp header: not a decimal number"
     },
     {
       "name": "trailing-space",
       "input": "1706000000000 ",
       "valid": false,
       "value": "",
-      "note": ""
+      "note": "",
+      "error": "invalid timestamp header: not a decimal number"
     },
     {
       "name": "trailing-junk",
       "input": "1706000000000abc",
       "valid": false,
       "value": "",
-      "note": ""
+      "note": "",
+      "error": "invalid timestamp header: not a decimal number"
     },
     {
       "name": "hex",
       "input": "0x1F",
       "valid": false,
       "value": "",
-      "note": ""
+      "note": "",
+      "error": "invalid timestamp header: not a decimal number"
     },
     {
       "name": "float",
       "input": "1.706e12",
       "valid": false,
       "value": "",
-      "note": ""
+      "note": "",
+      "error": "invalid timestamp header: not a decimal number"
     },
     {
       "name": "underscore",
       "input": "1_706_000_000_000",
       "valid": false,
       "value": "",
-      "note": ""
+      "note": "",
+      "error": "invalid timestamp header: not a decimal number"
     },
     {
       "name": "empty",
       "input": "",
       "valid": false,
       "value": "",
-      "note": "A missing or empty header is rejected as missing."
+      "note": "A missing or empty header is rejected as missing.",
+      "error": "missing required header: X-Signature-Timestamp"
     }
   ],
-  "base_url_parsing_note": "Every SDK client checks its base URL with this rule: empty is 'base URL is not set'; a value without '://' is read as 'https://' + value; then the language's standard URL parser, plus: scheme http or https, a host, no user info, no query, no fragment, a port (if any) in 1..65535. Anything else is 'base URL is not valid'. A path prefixes every call. Inputs outside these rows may differ between SDKs, by their URL parsers.",
+  "base_url_parsing_note": "Every SDK client checks its base URL with this rule: empty is 'base URL is not set'; a value without '://' is read as 'https://' + value; then the language's standard URL parser, plus: scheme http or https, a host, no user info, no query, no fragment, a port (if any) in 1..65535. Anything else is 'base URL is not valid'. Surrounding whitespace is never trimmed: a value with it, or of whitespace only, is 'base URL is not valid'. A path prefixes every call. Inputs outside these rows may differ between SDKs, by their URL parsers.",
   "base_url_parsing": [
     {
       "name": "plain",
@@ -540,6 +665,30 @@
     {
       "name": "port-too-large",
       "input": "http://h:99999",
+      "valid": false,
+      "error": "base URL is not valid"
+    },
+    {
+      "name": "leading-space",
+      "input": " https://api.t-0.network",
+      "valid": false,
+      "error": "base URL is not valid"
+    },
+    {
+      "name": "trailing-space",
+      "input": "https://api.t-0.network ",
+      "valid": false,
+      "error": "base URL is not valid"
+    },
+    {
+      "name": "trailing-newline",
+      "input": "https://api.t-0.network\n",
+      "valid": false,
+      "error": "base URL is not valid"
+    },
+    {
+      "name": "whitespace-only",
+      "input": " ",
       "valid": false,
       "error": "base URL is not valid"
     }
@@ -664,6 +813,718 @@
       "valid": false,
       "public_key": "",
       "error": "private key must be in range [1, n-1]"
+    }
+  ],
+  "constants_note": "The values every SDK defines, each as one named constant. Each SDK's contract test compares its constants with these. Durations are in milliseconds, sizes in bytes. default_base_url, default_timeout_ms and default_stream_timeout_ms are what a client uses when it is given no base URL, unary timeout or stream timeout. max_timeout_ms is the largest client timeout and stream timeout an SDK accepts; a larger one is refused when the client is built.",
+  "constants": {
+    "default_max_body_size": 10485760,
+    "timestamp_window_ms": 60000,
+    "public_key_header": "X-Public-Key",
+    "signature_header": "X-Signature",
+    "signature_timestamp_header": "X-Signature-Timestamp",
+    "default_base_url": "https://api.t-0.network",
+    "default_timeout_ms": 15000,
+    "default_stream_timeout_ms": 300000,
+    "max_timeout_ms": 2147483647
+  },
+  "messages_note": "Every message an SDK raises itself (DECISIONS §1), by name. Each SDK holds each message as one named constant in its own casing, and its constants test compares them with this section the way it compares `constants`: it defines exactly the names that apply to it, which is every name except those whose `messages_scope` entry does not list the SDK. A `{placeholder}` is filled in when the message is raised: `{reason}` is public_key_not_hex or public_key_not_a_point; `{cause}` is the message of the error underneath (for signing_failed, the message the custom signer's error carries, or the failed output check's message), with no type name in front; `{header}` a header name; `{limit}` the body limit in bytes; `{service}` the service asked for; `{violations}` each violation as `<field path>: <message>`, joined by `; `, the field path as protovalidate renders it (field names joined by `.`, a list index in brackets, a map key in brackets and double quotes: `failed.details`, `limits[0].version`, `labels[\"key\"]`) and an empty path as nothing, so that such a violation reads `: <message>`; `{argument}` the parameter's name. For such a message the SDK holds the text around the placeholder as its constant (a format string or a function), and its test fills each placeholder with a sample value and compares the result. Setup messages are raised when a key, signer, client or server is built or given a bad value, as the language's argument error. The others are RPC errors: signing_failed is Internal, with a custom signer's error or a failed output check (signer_signature_invalid, signer_public_key_invalid) as its cause; get_not_supported, bidi_not_supported, compressed_not_supported and streaming_not_supported are Unimplemented; first_message_incomplete is InvalidArgument; call_deadline_passed is DeadlineExceeded (a per-call timeout of 0 or less, before anything is sent); stream_closed_early is Canceled; first_chunk_not_one_envelope, unary_body_not_one_chunk, first_message_read_failed, response_invalid, response_validation_error (protovalidate could not evaluate a rule) and no_signature_result are Internal; a server answers with the codes in server_cases and docs/CROSS_SDK_RULES.md, unknown_service with NotFound, and request_body_read_failed (the request body could not be read while it was verified) with Unauthenticated. The request decoder's texts (unsupported_content_type, malformed_request_body, request_invalid, request_validation_error) are Node-only (DECISIONS §8). Texts that the RPC library or the language runtime writes (for example .NET's \"Value cannot be null.\" or a FormatException's text) are not SDK messages (DECISIONS §1), and deprecation warnings are not messages.",
+  "messages": {
+    "private_key_empty": "private key must not be null or empty",
+    "private_key_malformed": "private key must be 32 bytes (64 hex characters)",
+    "private_key_out_of_range": "private key must be in range [1, n-1]",
+    "private_key_bytes_length": "private key must be 32 bytes",
+    "public_key_not_hex": "must be hex, with an optional 0x or 0X prefix",
+    "public_key_not_a_point": "not a point on secp256k1",
+    "network_public_key_not_set": "network public key is not set",
+    "network_public_key_invalid": "invalid network public key: {reason}",
+    "signer_null": "signer must not be null",
+    "digest_length": "digest must be 32 bytes",
+    "signer_signature_invalid": "signature must be 64 or 65 bytes",
+    "signer_public_key_invalid": "public key must be 65 bytes, uncompressed",
+    "base_url_not_set": "base URL is not set",
+    "base_url_not_valid": "base URL is not valid",
+    "timeout_not_valid": "timeout must be a positive duration of at most 2147483647 ms",
+    "stream_timeout_not_valid": "stream timeout must be a positive duration of at most 2147483647 ms",
+    "signing_failed": "signing the request failed: {cause}",
+    "get_not_supported": "GET requests are not supported",
+    "bidi_not_supported": "bidirectional streams are not supported",
+    "first_message_incomplete": "streaming request ends inside its first message",
+    "first_chunk_not_one_envelope": "the first request chunk is not one complete envelope",
+    "unary_body_not_one_chunk": "a unary request body must be one chunk",
+    "compressed_not_supported": "compressed requests are not supported",
+    "argument_null": "{argument} must not be null",
+    "service_null": "service must not be null",
+    "port_not_valid": "port must be between 0 and 65535",
+    "missing_header": "missing required header: {header}",
+    "invalid_header_encoding": "invalid header encoding: {header}",
+    "timestamp_not_decimal": "invalid timestamp header: not a decimal number",
+    "timestamp_out_of_range": "invalid timestamp header: value out of range",
+    "timestamp_outside_window": "timestamp is outside the allowed time window",
+    "unknown_public_key": "request signed with unknown public key",
+    "signature_verification_failed": "signature verification failed",
+    "body_too_large": "max payload size of {limit} bytes exceeded",
+    "no_signature_result": "no signature result in context",
+    "no_first_message": "no first message: {cause}",
+    "truncated_first_message": "truncated first message: {cause}",
+    "unknown_service": "unknown service '{service}'",
+    "response_invalid": "response validation failed: {violations}",
+    "key_and_signer": "a private key and a signer must not both be given",
+    "call_deadline_passed": "the operation timed out",
+    "stream_closed_early": "the stream was closed before its end",
+    "client_stream_aborted": "The request body of a streaming call cannot be sent: the request was aborted.",
+    "client_stream_resend": "The request body of a streaming call cannot be sent again once forwarding of its later messages has started.",
+    "request_body_read_failed": "reading request body: {cause}",
+    "first_message_read_failed": "reading first request message: {cause}",
+    "recovery_id_not_found": "Could not determine recovery ID",
+    "streaming_not_supported": "streaming calls are not supported",
+    "response_validation_error": "response validation error: {cause}",
+    "no_service": "at least one service must be added with withService()",
+    "max_inbound_metadata_size_not_valid": "maxInboundMetadataSize must be positive",
+    "handshake_timeout_not_valid": "timeout must be positive",
+    "shutdown_context_done": "shutdown context already done: {cause}",
+    "server_shutdown_failed": "http server shutdown: {cause}",
+    "unsupported_content_type": "Unsupported Content-Type",
+    "malformed_request_body": "Malformed request body",
+    "request_invalid": "Request validation failed",
+    "request_validation_error": "Validation error: {cause}",
+    "signature_has_no_v": "a 64-byte signature has no v",
+    "signer_public_key_unsupported": "use the public key returned by sign",
+    "message_serialization_failed": "Failed to serialize message for signing",
+    "stream_read_failed": "Failed to read bytes from stream"
+  },
+  "messages_scope_note": "The SDKs that raise a message, for the messages that some SDKs cannot raise: the situation does not arise in the others (no binary key input, no server, a protocol or framing they do not use). A message without an entry is raised by every SDK.",
+  "messages_scope": {
+    "private_key_bytes_length": [
+      "node",
+      "java",
+      "csharp"
+    ],
+    "get_not_supported": [
+      "go",
+      "python"
+    ],
+    "first_message_incomplete": [
+      "go",
+      "node",
+      "python",
+      "csharp"
+    ],
+    "first_chunk_not_one_envelope": [
+      "node",
+      "python"
+    ],
+    "unary_body_not_one_chunk": [
+      "node"
+    ],
+    "compressed_not_supported": [
+      "java"
+    ],
+    "argument_null": [
+      "java",
+      "csharp"
+    ],
+    "service_null": [
+      "go",
+      "node",
+      "python",
+      "java"
+    ],
+    "port_not_valid": [
+      "go",
+      "java",
+      "csharp"
+    ],
+    "no_signature_result": [
+      "go",
+      "node",
+      "python",
+      "java"
+    ],
+    "no_first_message": [
+      "go"
+    ],
+    "truncated_first_message": [
+      "go"
+    ],
+    "key_and_signer": [
+      "go",
+      "python"
+    ],
+    "call_deadline_passed": [
+      "node",
+      "python"
+    ],
+    "stream_closed_early": [
+      "node"
+    ],
+    "client_stream_aborted": [
+      "csharp"
+    ],
+    "client_stream_resend": [
+      "csharp"
+    ],
+    "request_body_read_failed": [
+      "go",
+      "java"
+    ],
+    "first_message_read_failed": [
+      "go"
+    ],
+    "recovery_id_not_found": [
+      "java",
+      "csharp"
+    ],
+    "streaming_not_supported": [
+      "node"
+    ],
+    "response_validation_error": [
+      "go",
+      "node",
+      "java"
+    ],
+    "no_service": [
+      "java"
+    ],
+    "max_inbound_metadata_size_not_valid": [
+      "java"
+    ],
+    "handshake_timeout_not_valid": [
+      "java"
+    ],
+    "shutdown_context_done": [
+      "go"
+    ],
+    "server_shutdown_failed": [
+      "go"
+    ],
+    "unsupported_content_type": [
+      "node"
+    ],
+    "malformed_request_body": [
+      "node"
+    ],
+    "request_invalid": [
+      "node"
+    ],
+    "request_validation_error": [
+      "node"
+    ],
+    "body_too_large": [
+      "go",
+      "node",
+      "python",
+      "csharp"
+    ],
+    "signature_has_no_v": [
+      "java"
+    ],
+    "signer_public_key_unsupported": [
+      "java"
+    ],
+    "message_serialization_failed": [
+      "java"
+    ],
+    "stream_read_failed": [
+      "java"
+    ]
+  },
+  "max_body_size_cases_note": "The body limit a server uses for the max body size it is given: 0 or less keeps constants.default_max_body_size, and a positive value is the limit. No SDK raises an error for it. Each SDK's constants test checks these rows against its max body size option. Node only: NaN also keeps the default; the other languages take an integer.",
+  "max_body_size_cases": [
+    {
+      "name": "zero",
+      "input": 0,
+      "limit": 10485760
+    },
+    {
+      "name": "negative",
+      "input": -1,
+      "limit": 10485760
+    },
+    {
+      "name": "positive",
+      "input": 1024,
+      "limit": 1024
+    }
+  ],
+  "server_cases_note": "How every provider server answers a request to grpc.health.v1.Health/Check. `go_helper probe` sends each case to a running server, over Connect (application/proto, HTTP/1.1) and over gRPC (application/grpc, h2c) unless `protocols` names one, and checks the code and the message. The request is signed by keys.private_key over its whole body unless a field says otherwise; the server's network key is keys.public_key. Fields: `public_key` network (default), compressed, impostor, absent or a literal; `signature` valid (default), absent, a literal, or one of the named variants; `signed_by` impostor signs with impostor_keys.private_key; `timestamp` now (default), absent, a literal, or `timestamp_offset_ms`; `body_size` is the size of the whole HTTP body, gRPC prefix included (the request is padded with an unknown field); `body` garbage sends bytes that are not a HealthCheckRequest; `before` server_stream first sends a signed server-streaming Health/Watch whose body arrives after its headers, and ignores its answer (rule V9). `service` asks Check for that service instead of \"\". `call` sends a valid tzero.v1.payment.ProviderService request instead of Check: approve_payment_quotes an ApprovePaymentQuotes request, pay_out a PayOut request. The SDK's probe test mounts a ProviderService whose ApprovePaymentQuotes returns an empty ApprovePaymentQuoteResponse (its oneof `result` is required) and whose PayOut returns a PayoutResponse whose `failed.details` is 1025 characters (at most 1024): both fail response validation. `expect.code` ok means a SERVING reply. `expect.message_prefix` checks that the message starts with it; the rest is the validator's rule text, which differs between protovalidate versions (DECISIONS §1). A reply of the health service (a Check case that expects ok, or one with `service`) carries T0-Sdk-Ecosystem, the SDK's name as `--sdk` gives it, and a non-empty T0-Sdk-Version, as headers or, for a gRPC error, trailers. `expect.library_message` lists the SDKs whose message for this case comes from the RPC library underneath; their code is still checked.",
+  "server_cases": [
+    {
+      "name": "valid",
+      "expect": {
+        "code": "ok"
+      }
+    },
+    {
+      "name": "valid-compressed-network-key",
+      "public_key": "compressed",
+      "expect": {
+        "code": "ok"
+      }
+    },
+    {
+      "name": "valid-signature-0X-prefix",
+      "signature": "valid_0X",
+      "expect": {
+        "code": "ok"
+      }
+    },
+    {
+      "name": "valid-signature-no-prefix",
+      "signature": "valid_no_prefix",
+      "expect": {
+        "code": "ok"
+      }
+    },
+    {
+      "name": "valid-signature-64-bytes",
+      "signature": "valid_64",
+      "expect": {
+        "code": "ok"
+      }
+    },
+    {
+      "name": "valid-signature-recovery-byte-ignored",
+      "signature": "valid_v27",
+      "expect": {
+        "code": "ok"
+      }
+    },
+    {
+      "name": "valid-signature-high-s",
+      "signature": "valid_high_s",
+      "expect": {
+        "code": "ok"
+      }
+    },
+    {
+      "name": "valid-grpc-signed-without-prefix",
+      "protocols": [
+        "grpc"
+      ],
+      "signed_over": "payload",
+      "expect": {
+        "code": "ok"
+      }
+    },
+    {
+      "name": "valid-5-mib",
+      "body_size": 5242880,
+      "expect": {
+        "code": "ok"
+      }
+    },
+    {
+      "name": "valid-at-limit",
+      "body_size": 10485760,
+      "expect": {
+        "code": "ok"
+      }
+    },
+    {
+      "name": "missing-public-key",
+      "public_key": "absent",
+      "expect": {
+        "code": "invalid_argument",
+        "message": "missing required header: X-Public-Key"
+      }
+    },
+    {
+      "name": "missing-signature",
+      "signature": "absent",
+      "expect": {
+        "code": "invalid_argument",
+        "message": "missing required header: X-Signature"
+      }
+    },
+    {
+      "name": "missing-timestamp",
+      "timestamp": "absent",
+      "expect": {
+        "code": "invalid_argument",
+        "message": "missing required header: X-Signature-Timestamp"
+      }
+    },
+    {
+      "name": "missing-all-headers",
+      "public_key": "absent",
+      "signature": "absent",
+      "timestamp": "absent",
+      "expect": {
+        "code": "invalid_argument",
+        "message": "missing required header: X-Public-Key"
+      }
+    },
+    {
+      "name": "signature-not-hex",
+      "signature": "0xzz",
+      "expect": {
+        "code": "invalid_argument",
+        "message": "invalid header encoding: X-Signature"
+      }
+    },
+    {
+      "name": "signature-trailing-junk",
+      "signature": "valid_trailing_junk",
+      "expect": {
+        "code": "invalid_argument",
+        "message": "invalid header encoding: X-Signature"
+      }
+    },
+    {
+      "name": "signature-odd-length",
+      "signature": "valid_odd_length",
+      "expect": {
+        "code": "invalid_argument",
+        "message": "invalid header encoding: X-Signature"
+      }
+    },
+    {
+      "name": "signature-prefix-only",
+      "signature": "0x",
+      "expect": {
+        "code": "invalid_argument",
+        "message": "invalid header encoding: X-Signature"
+      }
+    },
+    {
+      "name": "timestamp-signed-number",
+      "timestamp": "+1706000000000",
+      "expect": {
+        "code": "invalid_argument",
+        "message": "invalid timestamp header: not a decimal number"
+      }
+    },
+    {
+      "name": "timestamp-overflow",
+      "timestamp": "9223372036854775808",
+      "expect": {
+        "code": "invalid_argument",
+        "message": "invalid timestamp header: value out of range"
+      }
+    },
+    {
+      "name": "timestamp-stale",
+      "timestamp_offset_ms": -61000,
+      "expect": {
+        "code": "invalid_argument",
+        "message": "timestamp is outside the allowed time window"
+      }
+    },
+    {
+      "name": "timestamp-future",
+      "timestamp_offset_ms": 61000,
+      "expect": {
+        "code": "invalid_argument",
+        "message": "timestamp is outside the allowed time window"
+      }
+    },
+    {
+      "name": "public-key-other-key",
+      "public_key": "impostor",
+      "signed_by": "impostor",
+      "expect": {
+        "code": "unauthenticated",
+        "message": "request signed with unknown public key"
+      }
+    },
+    {
+      "name": "public-key-not-hex",
+      "public_key": "0xnot-a-key",
+      "expect": {
+        "code": "unauthenticated",
+        "message": "request signed with unknown public key"
+      }
+    },
+    {
+      "name": "public-key-not-a-point",
+      "public_key": "0x0400000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000",
+      "expect": {
+        "code": "unauthenticated",
+        "message": "request signed with unknown public key"
+      }
+    },
+    {
+      "name": "public-key-hybrid",
+      "public_key": "0x064fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0",
+      "expect": {
+        "code": "unauthenticated",
+        "message": "request signed with unknown public key"
+      }
+    },
+    {
+      "name": "signature-63-bytes",
+      "signature": "0x111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      "expect": {
+        "code": "unauthenticated",
+        "message": "signature verification failed"
+      }
+    },
+    {
+      "name": "signature-66-bytes",
+      "signature": "0x111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      "expect": {
+        "code": "unauthenticated",
+        "message": "signature verification failed"
+      }
+    },
+    {
+      "name": "signature-other-body",
+      "signature": "other_body",
+      "expect": {
+        "code": "unauthenticated",
+        "message": "signature verification failed"
+      }
+    },
+    {
+      "name": "signature-by-other-key",
+      "signed_by": "impostor",
+      "expect": {
+        "code": "unauthenticated",
+        "message": "signature verification failed"
+      }
+    },
+    {
+      "name": "body-over-limit",
+      "body_size": 10485761,
+      "expect": {
+        "code": "resource_exhausted",
+        "message": "max payload size of 10485760 bytes exceeded",
+        "library_message": [
+          "java"
+        ]
+      }
+    },
+    {
+      "name": "body-11-mib",
+      "body_size": 11534336,
+      "expect": {
+        "code": "resource_exhausted",
+        "message": "max payload size of 10485760 bytes exceeded",
+        "library_message": [
+          "java"
+        ]
+      }
+    },
+    {
+      "name": "order-window-before-key",
+      "public_key": "impostor",
+      "signed_by": "impostor",
+      "timestamp_offset_ms": -61000,
+      "expect": {
+        "code": "invalid_argument",
+        "message": "timestamp is outside the allowed time window"
+      }
+    },
+    {
+      "name": "order-window-before-malformed-key",
+      "public_key": "0xnot-a-key",
+      "timestamp_offset_ms": -61000,
+      "expect": {
+        "code": "invalid_argument",
+        "message": "timestamp is outside the allowed time window"
+      }
+    },
+    {
+      "name": "order-key-before-signature-length",
+      "public_key": "impostor",
+      "signature": "0x111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111111",
+      "expect": {
+        "code": "unauthenticated",
+        "message": "request signed with unknown public key"
+      }
+    },
+    {
+      "name": "order-signature-header-before-timestamp",
+      "signature": "absent",
+      "timestamp": "x",
+      "expect": {
+        "code": "invalid_argument",
+        "message": "missing required header: X-Signature"
+      }
+    },
+    {
+      "name": "order-headers-before-body-size",
+      "timestamp_offset_ms": -61000,
+      "body_size": 11534336,
+      "expect": {
+        "code": "invalid_argument",
+        "message": "timestamp is outside the allowed time window"
+      }
+    },
+    {
+      "name": "order-signature-before-decode",
+      "body": "garbage",
+      "signature": "other_body",
+      "expect": {
+        "code": "unauthenticated",
+        "message": "signature verification failed"
+      }
+    },
+    {
+      "name": "order-headers-before-decode",
+      "body": "garbage",
+      "public_key": "absent",
+      "expect": {
+        "code": "invalid_argument",
+        "message": "missing required header: X-Public-Key"
+      }
+    },
+    {
+      "name": "unary-after-server-stream",
+      "before": "server_stream",
+      "expect": {
+        "code": "ok"
+      }
+    },
+    {
+      "name": "health-unknown-service",
+      "service": "unknown.Service",
+      "expect": {
+        "code": "not_found",
+        "message": "unknown service 'unknown.Service'"
+      }
+    },
+    {
+      "name": "response-invalid",
+      "call": "approve_payment_quotes",
+      "expect": {
+        "code": "internal",
+        "message": "response validation failed: result: exactly one field is required in oneof"
+      }
+    },
+    {
+      "name": "response-invalid-nested-field",
+      "call": "pay_out",
+      "expect": {
+        "code": "internal",
+        "message_prefix": "response validation failed: failed.details: "
+      }
+    }
+  ],
+  "client_cases_note": "What every SDK client sends, checked by a reference server. `go_helper client-probe --sdk <name> --vectors <path>` serves Connect (HTTP/1.1) and gRPC (h2c) on one port, prints `READY <base_url>` as its first line on stdout, logs one PASS or FAIL line per request on stderr, and runs until it is killed. For each case, an SDK test builds its client with the base URL `<base_url>/<name>` and the signer of the case, makes one unary grpc.health.v1.Health/Check call (any HealthCheckRequest), and checks that the call ends with `expect.code`: ok is a SERVING reply, any other value is the error code. Where the case has `expect.message`, an SDK-raised message, the test also compares the error's message without its code (Go connect.Error.Message(); Node ConnectError.rawMessage, not .message; Python the error's .message; Java getStatus().getDescription(); C# RpcException.Status.Detail). Without one, the message comes from the RPC library (DECISIONS §1) and is not compared. The test runs every case over every protocol its client speaks (Go and Python: Connect and gRPC; Node: Connect; Java and C#: gRPC), with every client the SDK ships (Python: async and sync). Fields: `client_timeout_ms` sets the client's unary timeout option, in the SDK's unit; `call_timeout_ms` sets a per-call timeout (Go: a context deadline; Node: CallOptions.timeoutMs; Python: timeout_ms; Java: a CallOptions deadline, as stub(ms, MILLISECONDS) sets; C#: the call deadline); a case without them uses the defaults. The signer is the one the client builds from keys.private_key given as a hex key, unless `signer` factory passes the result of the SDK's signer-from-hex factory (signer_cases) for keys.private_key as the client's signer argument, or `custom_signer` passes a custom signer function: it signs the digest with the factory's signer for impostor_keys.private_key and returns that signature and public key, changed as the object says: `signature` r_s returns the first 64 bytes, v_plus_27 the 65 bytes with 27 added to the last one, first_63_bytes the first 63 bytes; `public_key` returns that key (hex) instead; `error` makes the function fail with an error whose message is that text. The client checks a custom signer's output before it sends anything: first that the signature is 64 or 65 bytes, then that the public key is 65 bytes, uncompressed (0x04 first); a failure, or the signer's own error, ends the call with Internal signing_failed (messages). It never checks v, which every server ignores (rule V5), and sends the signature exactly as the signer returned it: it never adds, removes or changes v. The probe checks every request it gets: a binary body (application/proto or application/grpc); X-Public-Key is 0x and the uncompressed public key of the signer (impostor_keys for `custom_signer`, else keys); X-Signature-Timestamp is decimal milliseconds within timestamp_window_ms of its clock; X-Signature is 0x and, in lowercase hex, exactly the bytes the signer returned: the factory's deterministic signature (signer_cases) over the Keccak-256 of the body and the timestamp, changed as `custom_signer` says (over gRPC, Java may sign the message without its 5-byte prefix, DECISIONS §10); the deadline header (Connect-Timeout-Ms, or Grpc-Timeout in any unit) is at most the call's timeout (call_timeout_ms, else client_timeout_ms, else constants.default_timeout_ms) and less than 5000 ms below it. A request that fails a check, or that arrives for a case with `expect.sent` false (a call that must fail in the client), is answered failed_precondition with a message that starts `client probe:` and says why; an SDK test shows the error message when its assertion fails. Only the probe reads `sent`. `reply` redirect answers 307 with a Location that answers SERVING, so a client that follows redirects gets ok instead of the expected unknown.",
+  "client_cases": [
+    {
+      "name": "default-timeout",
+      "expect": {
+        "code": "ok"
+      }
+    },
+    {
+      "name": "client-timeout",
+      "client_timeout_ms": 45000,
+      "expect": {
+        "code": "ok"
+      }
+    },
+    {
+      "name": "call-timeout",
+      "call_timeout_ms": 60000,
+      "expect": {
+        "code": "ok"
+      }
+    },
+    {
+      "name": "call-timeout-zero",
+      "call_timeout_ms": 0,
+      "expect": {
+        "code": "deadline_exceeded",
+        "sent": false
+      }
+    },
+    {
+      "name": "redirect-not-followed",
+      "reply": "redirect",
+      "expect": {
+        "code": "unknown"
+      }
+    },
+    {
+      "name": "factory-signer",
+      "signer": "factory",
+      "expect": {
+        "code": "ok"
+      }
+    },
+    {
+      "name": "custom-signer",
+      "custom_signer": {},
+      "expect": {
+        "code": "ok"
+      }
+    },
+    {
+      "name": "custom-signer-r-s",
+      "custom_signer": {
+        "signature": "r_s"
+      },
+      "expect": {
+        "code": "ok"
+      }
+    },
+    {
+      "name": "custom-signer-v-27",
+      "custom_signer": {
+        "signature": "v_plus_27"
+      },
+      "expect": {
+        "code": "ok"
+      }
+    },
+    {
+      "name": "custom-signer-63-bytes",
+      "custom_signer": {
+        "signature": "first_63_bytes"
+      },
+      "expect": {
+        "code": "internal",
+        "message": "signing the request failed: signature must be 64 or 65 bytes",
+        "sent": false
+      }
+    },
+    {
+      "name": "custom-signer-compressed-key",
+      "custom_signer": {
+        "public_key": "02466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f27"
+      },
+      "expect": {
+        "code": "internal",
+        "message": "signing the request failed: public key must be 65 bytes, uncompressed",
+        "sent": false
+      }
+    },
+    {
+      "name": "custom-signer-error",
+      "custom_signer": {
+        "error": "custom signer failed"
+      },
+      "expect": {
+        "code": "internal",
+        "message": "signing the request failed: custom signer failed",
+        "sent": false
+      }
+    },
+    {
+      "name": "custom-signer-63-bytes-compressed-key",
+      "custom_signer": {
+        "signature": "first_63_bytes",
+        "public_key": "02466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f27"
+      },
+      "expect": {
+        "code": "internal",
+        "message": "signing the request failed: signature must be 64 or 65 bytes",
+        "sent": false
+      }
+    },
+    {
+      "name": "custom-signer-hybrid-key",
+      "custom_signer": {
+        "public_key": "06466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f276728176c3c6431f8eeda4538dc37c865e2784f3a9e77d044f33e407797e1278a"
+      },
+      "expect": {
+        "code": "internal",
+        "message": "signing the request failed: public key must be 65 bytes, uncompressed",
+        "sent": false
+      }
     }
   ]
 }

@@ -33,8 +33,10 @@ func WithLogger(logger *slog.Logger) HttpHandlerOption {
 }
 
 // WithSDKVersion overrides the SDK version reported in health-check response
-// headers. Wrapping SDKs use this to stamp their own version instead of the
-// provider-sdk's built-in version.
+// headers and in the sdk_version field of the response-validation log line.
+// Wrapping SDKs use this to stamp their own version instead of the
+// provider-sdk's built-in version. A blank or whitespace-only version is
+// ignored.
 func WithSDKVersion(version string) HttpHandlerOption {
 	return func(o *providerHandlerOptions) {
 		if strings.TrimSpace(version) != "" {
@@ -95,14 +97,13 @@ func NewHttpHandlerWithOptions(
 	for _, o := range opts {
 		o(&scratch)
 	}
-	defaultOptions, err := newDefaultHandlerOptions(verifier, scratch.logger)
-	if err != nil {
-		return nil, err
-	}
-
 	sdkVer := scratch.sdkVersion
 	if sdkVer == "" {
 		sdkVer = sdkversion.Version
+	}
+	defaultOptions, err := newDefaultHandlerOptions(verifier, scratch.logger, sdkVer)
+	if err != nil {
+		return nil, err
 	}
 
 	mux := http.NewServeMux()

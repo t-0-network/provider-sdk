@@ -1,6 +1,7 @@
 using System.Reflection;
 using Grpc.Core;
 using Grpc.Health.V1;
+using T0.ProviderSdk.Common;
 
 namespace T0.ProviderSdk.Provider;
 
@@ -32,7 +33,7 @@ internal sealed class HealthServiceImpl : Health.HealthBase
         Status = HealthCheckResponse.Types.ServingStatus.Serving,
     };
 
-    private static readonly string CachedSdkVersion = LoadSdkVersion();
+    internal static readonly string CachedSdkVersion = LoadSdkVersion();
 
     private readonly HashSet<string> _registered;
     private readonly string? _versionOverride;
@@ -54,7 +55,7 @@ internal sealed class HealthServiceImpl : Health.HealthBase
         // An empty service name asks about the process as a whole, which is up if
         // this handler is running at all.
         if (request.Service.Length > 0 && !_registered.Contains(request.Service))
-            throw new RpcException(new Status(StatusCode.NotFound, $"unknown service '{request.Service}'"));
+            throw new RpcException(new Status(StatusCode.NotFound, Messages.UnknownService(request.Service)));
 
         return Serving;
     }

@@ -7,11 +7,15 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"strconv"
 	"sync"
 	"time"
 
+	"golang.org/x/net/http/httpguts"
 	"golang.org/x/net/http2"
 	"golang.org/x/net/http2/h2c"
+
+	"github.com/t-0-network/provider-sdk/go/internal/contract"
 )
 
 // Default timeout values
@@ -21,7 +25,12 @@ const (
 	DefaultWriteTimeout      = 10 * time.Second
 	DefaultReadHeaderTimeout = 10 * time.Second
 	DefaultShutdownTimeout   = 15 * time.Second
-	ServerStartupTimeout     = 5 * time.Second
+
+	// ServerStartupTimeout was how long StartServer waited for the server to be
+	// ready. StartServer returns once the address is bound.
+	//
+	// Deprecated: Not used by the SDK; will be removed in a future release.
+	ServerStartupTimeout = 5 * time.Second
 )
 
 // ServerOption configures server options using the functional options pattern
@@ -38,7 +47,8 @@ type serverOptions struct {
 }
 
 // WithAddr sets the server's address to listen on (host:port format)
-// If an empty string is provided, the default ":8080" will be used
+// If an empty string is provided, the default ":8080" will be used.
+// StartServer refuses a numeric port outside 0..65535.
 func WithAddr(addr string) ServerOption {
 	return func(opts *serverOptions) {
 		if addr != "" {
@@ -131,7 +141,7 @@ type ServerShutdownFn func(ctx context.Context) error
 // The server is not started - you need to call ListenAndServe or similar methods.
 func NewServer(handler http.Handler, serverOptions ...ServerOption) *http.Server {
 	if handler == nil {
-		panic("handler cannot be nil")
+		panic(contract.ServiceNull)
 	}
 
 	server, _ := createServer(handler, serverOptions)
@@ -140,8 +150,8 @@ func NewServer(handler http.Handler, serverOptions ...ServerOption) *http.Server
 
 // StartServer creates and starts a new HTTP server with the provided handler.
 //
-// The server starts asynchronously and this function returns immediately after
-// confirming the server is ready to accept connections or after ServerStartupTimeout.
+// It binds the address, starts serving in the background and returns. An error
+// that ends serving later is returned by the shutdown function.
 //
 // Example:
 //
@@ -160,21 +170,24 @@ func NewServer(handler http.Handler, serverOptions ...ServerOption) *http.Server
 //
 // Returns:
 //   - ServerShutdownFn: Safe for concurrent use, only first call performs shutdown
-//   - error: Non-nil if server failed to start or bind to address
+//   - error: Non-nil if the address could not be bound: the error of net.Listen
 func StartServer(handler http.Handler, serverOptions ...ServerOption) (ServerShutdownFn, error) {
 	if handler == nil {
-		return nil, fmt.Errorf("handler cannot be nil")
+		return nil, errors.New(contract.ServiceNull)
 	}
 
 	server, opts := createServer(handler, serverOptions)
-	listener, err := createListener(server.Addr)
+	if err := opts.validate(); err != nil {
+		return nil, err
+	}
+	listener, err := net.Listen("tcp", server.Addr)
 	if err != nil {
 		return nil, err
 	}
 
-	// Channels to communicate server startup status
-	startupErr := make(chan error, 1)
-	startupReady := make(chan struct{})
+	// The error serving ended with, if it was not ended by Shutdown. Buffered, so
+	// the server goroutine never blocks on it; the shutdown function reads it.
+	serveErr := make(chan error, 1)
 
 	// Wait group for graceful shutdown
 	var wg sync.WaitGroup
@@ -186,48 +199,22 @@ func StartServer(handler http.Handler, serverOptions ...ServerOption) (ServerShu
 	go func() {
 		defer wg.Done()
 
-		// Signal that server is ready to accept connections
-		close(startupReady)
-
 		var err error
 		if opts.tlsConfig != nil {
 			err = server.ServeTLS(listener, "", "")
 		} else {
 			err = server.Serve(listener)
 		}
-
-		// Only report startup errors, ignore shutdown errors
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			select {
-			case startupErr <- err:
-			default:
-				// Startup phase is over, ignore the error
-				// The server.Shutdown() call will handle cleanup
-			}
+			serveErr <- err
 		}
 	}()
-
-	// Wait for server to be ready, error out, or timeout
-	select {
-	case <-startupReady:
-		// Server is ready to accept connections
-	case err := <-startupErr:
-		if err != nil {
-			// Server failed to start, close listener and return error
-			listener.Close()
-			return nil, fmt.Errorf("failed to start provider server on %s: %w", server.Addr, err)
-		}
-	case <-time.After(ServerStartupTimeout):
-		// Timeout waiting for server to be ready
-		listener.Close()
-		return nil, fmt.Errorf("server startup timeout after %v on %s", ServerStartupTimeout, server.Addr)
-	}
 
 	// Create a reusable shutdown function that can be called concurrently
 	serverShutdown := func(ctx context.Context) error {
 		// Check if context is already cancelled
 		if err := ctx.Err(); err != nil {
-			return fmt.Errorf("shutdown context already done: %w", err)
+			return fmt.Errorf(contract.ShutdownContextDone, err)
 		}
 
 		// Variable to collect shutdown errors
@@ -252,7 +239,7 @@ func StartServer(handler http.Handler, serverOptions ...ServerOption) (ServerShu
 
 			// Shutdown the server gracefully
 			if err := server.Shutdown(timeoutCtx); err != nil {
-				shutdownErr = fmt.Errorf("http server shutdown: %w", err)
+				shutdownErr = fmt.Errorf(contract.ServerShutdownFailed, err)
 			}
 
 			// Always ensure listener is closed
@@ -276,25 +263,30 @@ func StartServer(handler http.Handler, serverOptions ...ServerOption) (ServerShu
 				// The goroutine will eventually finish when the server stops
 			}
 
-			// No need to check server errors - shutdown error is more important
+			// An error that ended serving before the shutdown.
+			select {
+			case err := <-serveErr:
+				shutdownErr = errors.Join(shutdownErr, err)
+			default:
+			}
 		})
 
 		return shutdownErr
 	}
 
-	// Close startup error channel to prevent goroutine leaks
-	close(startupErr)
-
 	return serverShutdown, nil
 }
 
-// createListener creates a TCP listener for the given address
-func createListener(addr string) (net.Listener, error) {
-	listener, err := net.Listen("tcp", addr)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create listener on %s: %w", addr, err)
+// validate refuses a numeric port outside 0..65535. Any other address is left to net.Listen, which
+// also takes a service name such as ":http".
+func (o *serverOptions) validate() error {
+	if _, port, err := net.SplitHostPort(o.addr); err == nil {
+		n, err := strconv.ParseInt(port, 10, 64)
+		if errors.Is(err, strconv.ErrRange) || err == nil && (n < 0 || n > 65535) {
+			return errors.New(contract.PortNotValid)
+		}
 	}
-	return listener, nil
+	return nil
 }
 
 // createServer creates a new http.Server with the provided handler and options
@@ -306,12 +298,40 @@ func createServer(handler http.Handler, options []ServerOption) (*http.Server, *
 		opt(&opts)
 	}
 
-	return &http.Server{
+	server := &http.Server{
 		Addr:              opts.addr,
 		ReadTimeout:       opts.readTimeout,
 		ReadHeaderTimeout: opts.readHeaderTimeout,
 		WriteTimeout:      opts.writeTimeout,
 		TLSConfig:         opts.tlsConfig,
-		Handler:           h2c.NewHandler(handler, opts.http2Config),
-	}, &opts
+	}
+
+	// An h2c connection gets the idle timeout of an HTTP/1.1 one, as
+	// http2.ConfigureServer gives a TLS one: IdleTimeout, else ReadTimeout. x/net's
+	// h2c leaves it at none. A copy, so that neither the default nor the
+	// caller's configuration changes.
+	http2Config := *opts.http2Config
+	if http2Config.IdleTimeout == 0 {
+		http2Config.IdleTimeout = server.IdleTimeout
+		if http2Config.IdleTimeout == 0 {
+			http2Config.IdleTimeout = server.ReadTimeout
+		}
+	}
+	server.Handler = withoutH2CUpgrade(h2c.NewHandler(handler, &http2Config))
+	return server, &opts
+}
+
+// withoutH2CUpgrade serves an HTTP/1.1 request that asks to upgrade to h2c as
+// the HTTP/1.1 request it is, by dropping its Upgrade header. x/net's h2c reads
+// the whole body of an upgrade request into memory before any handler runs, so
+// no body limit could apply to it. HTTP/2 without TLS is still served to a client
+// that starts with it (prior knowledge), as gRPC clients do.
+func withoutH2CUpgrade(handler http.Handler) http.Handler {
+	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if httpguts.HeaderValuesContainsToken(r.Header["Upgrade"], "h2c") {
+			r.Header.Del("Upgrade")
+			r.Header.Del("Http2-Settings")
+		}
+		handler.ServeHTTP(w, r)
+	})
 }

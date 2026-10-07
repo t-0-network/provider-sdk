@@ -24,8 +24,10 @@ public sealed class SignatureVerificationMiddleware
         ProviderServerOptions options,
         TimeProvider? timeProvider = null)
     {
+        if (options is null)
+            throw new ArgumentNullException(null, Messages.ArgumentNull("options"));
         _next = next;
-        _maxBodySize = options.MaxBodySize;
+        _maxBodySize = options.MaxBodySize > 0 ? options.MaxBodySize : ProviderServerOptions.DefaultMaxBodySize;
         _timeProvider = timeProvider ?? TimeProvider.System;
 
         _networkPublicKey = ParseNetworkPublicKey(options.NetworkPublicKeyHex);
@@ -44,14 +46,14 @@ public sealed class SignatureVerificationMiddleware
     {
         var key = networkPublicKeyHex?.Trim() ?? "";
         if (key.Length == 0)
-            throw new ArgumentException("network public key is not set");
+            throw new ArgumentException(Messages.NetworkPublicKeyNotSet);
         try
         {
             return ParsePublicKey(key);
         }
         catch (Exception e) when (e is ArgumentException or FormatException or ArithmeticException)
         {
-            throw new ArgumentException($"invalid network public key: {e.Message}", e);
+            throw new ArgumentException(Messages.NetworkPublicKeyInvalid(e.Message), e);
         }
     }
 
@@ -63,50 +65,74 @@ public sealed class SignatureVerificationMiddleware
     /// </summary>
     /// <exception cref="FormatException">The value is not hex.</exception>
     /// <exception cref="ArgumentException">The bytes are not a point on the curve.</exception>
-    internal static byte[] ParsePublicKey(string value) =>
-        ParseHex(value) is { } encoded
-            ? Secp256k1.DecodePoint(encoded).GetEncoded(false)
-            : throw new FormatException("public key must be hex with an optional 0x prefix");
+    internal static byte[] ParsePublicKey(string value)
+    {
+        var encoded = ParseHex(value) ?? throw new FormatException(Messages.PublicKeyNotHex);
+        // Rule V2: a compressed (33 bytes, 02 or 03) or uncompressed (65 bytes, 04) point.
+        // DecodePoint also accepts the hybrid forms (06, 07) and the point at infinity (00).
+        var compressed = encoded.Length == 33 && (encoded[0] == 0x02 || encoded[0] == 0x03);
+        var uncompressed = encoded.Length == 65 && encoded[0] == 0x04;
+        if (!compressed && !uncompressed)
+            throw new ArgumentException(Messages.PublicKeyNotAPoint);
+        try
+        {
+            return Secp256k1.DecodePoint(encoded).GetEncoded(false);
+        }
+        catch (Exception e) when (e is ArgumentException or ArithmeticException)
+        {
+            throw new ArgumentException(Messages.PublicKeyNotAPoint);
+        }
+    }
+
+    // For tests: the body limit in effect.
+    internal long MaxBodySize => _maxBodySize;
 
     public async Task InvokeAsync(HttpContext context)
     {
-        // 1. Check the public key header is present (whether it is the network key: step 4)
-        var publicKeyHex = context.Request.Headers[Headers.PublicKey].FirstOrDefault();
+        var headers = context.Request.Headers;
+
+        // The headers, in the order of every SDK: the three are present and well-formed, the
+        // timestamp window, the network key, and the signature length. None of the body is read.
+        var publicKeyHex = headers[Headers.PublicKey].FirstOrDefault();
         if (string.IsNullOrEmpty(publicKeyHex))
         {
-            await WriteGrpcError(context, StatusCode.InvalidArgument,
-                $"missing or invalid header: {Headers.PublicKey}");
+            await WriteGrpcError(context, StatusCode.InvalidArgument, Messages.MissingHeader(Headers.PublicKey));
             return;
         }
 
-        // 2. Parse signature header
-        var signature = ParseHexHeader(context, Headers.Signature);
+        var signatureHex = headers[Headers.Signature].FirstOrDefault();
+        if (string.IsNullOrEmpty(signatureHex))
+        {
+            await WriteGrpcError(context, StatusCode.InvalidArgument, Messages.MissingHeader(Headers.Signature));
+            return;
+        }
+        var signature = ParseHex(signatureHex);
         if (signature is null)
         {
-            await WriteGrpcError(context, StatusCode.InvalidArgument,
-                $"missing or invalid header: {Headers.Signature}");
+            await WriteGrpcError(context, StatusCode.InvalidArgument, Messages.InvalidHeaderEncoding(Headers.Signature));
             return;
         }
 
-        // 3. Parse and validate timestamp
-        if (!TryParseTimestamp(context.Request.Headers[Headers.SignatureTimestamp].FirstOrDefault(), out var timestampMs))
+        var timestampValue = headers[Headers.SignatureTimestamp].FirstOrDefault();
+        if (string.IsNullOrEmpty(timestampValue))
         {
-            await WriteGrpcError(context, StatusCode.InvalidArgument,
-                $"missing or invalid header: {Headers.SignatureTimestamp}");
+            await WriteGrpcError(context, StatusCode.InvalidArgument, Messages.MissingHeader(Headers.SignatureTimestamp));
             return;
         }
-
-        var timestampBytes = Headers.EncodeTimestamp(timestampMs);
+        if (ParseTimestamp(timestampValue, out var timestampMs) is { } timestampError)
+        {
+            await WriteGrpcError(context, StatusCode.InvalidArgument, timestampError);
+            return;
+        }
 
         var now = _timeProvider.GetUtcNow().ToUnixTimeMilliseconds();
-        if (Math.Abs(now - timestampMs) > (long)Headers.TimestampValidityWindow.TotalMilliseconds)
+        if (Math.Abs(now - timestampMs) > (long)ProviderServerOptions.TimestampWindow.TotalMilliseconds)
         {
-            await WriteGrpcError(context, StatusCode.InvalidArgument,
-                "timestamp is outside the allowed time window");
+            await WriteGrpcError(context, StatusCode.InvalidArgument, Messages.TimestampOutsideWindow);
             return;
         }
 
-        // 4. Verify the public key is the expected network key, compressed or uncompressed
+        // A value that is not a key is not the network key either; keys are compared as points.
         byte[]? signerPublicKey;
         try
         {
@@ -118,32 +144,35 @@ public sealed class SignatureVerificationMiddleware
         }
         if (signerPublicKey is null || !signerPublicKey.AsSpan().SequenceEqual(_networkPublicKey))
         {
-            await WriteGrpcError(context, StatusCode.Unauthenticated, "unknown public key");
+            await WriteGrpcError(context, StatusCode.Unauthenticated, Messages.UnknownPublicKey);
             return;
         }
 
-        // 5. Read raw body bytes (with size cap)
-        context.Request.EnableBuffering();
-        var body = await ReadBodyWithCap(context.Request, _maxBodySize);
+        if (signature.Length != 64 && signature.Length != 65)
+        {
+            await WriteGrpcError(context, StatusCode.Unauthenticated, Messages.SignatureVerificationFailed);
+            return;
+        }
+
+        // The body, at most the limit, held once in memory; a declared length over the limit is
+        // refused before anything is read.
+        var body = context.Request.ContentLength > _maxBodySize
+            ? null
+            : await ReadBodyWithCap(context.Request, _maxBodySize);
         if (body is null)
         {
-            await WriteGrpcError(context, StatusCode.ResourceExhausted,
-                $"max payload size of {_maxBodySize} bytes exceeded");
+            await WriteGrpcError(context, StatusCode.ResourceExhausted, Messages.BodyTooLarge(_maxBodySize));
             return;
         }
+        context.Request.Body = new MemoryStream(body, writable: false);
 
-        // Rewind body stream for downstream handlers
-        context.Request.Body.Position = 0;
-
-        // 6. Verify the signature over Keccak256(body || timestampBytes)
-        if (!VerifyWithFramingFallback(signerPublicKey, body, timestampBytes, signature, context.Request.ContentType))
+        if (!VerifyWithFramingFallback(signerPublicKey, body, Headers.EncodeTimestamp(timestampMs), signature,
+                context.Request.ContentType))
         {
-            await WriteGrpcError(context, StatusCode.Unauthenticated,
-                "signature verification failed");
+            await WriteGrpcError(context, StatusCode.Unauthenticated, Messages.SignatureVerificationFailed);
             return;
         }
 
-        // 7. Proceed to next middleware/handler
         await _next(context);
     }
 
@@ -156,17 +185,18 @@ public sealed class SignatureVerificationMiddleware
     private static bool VerifyWithFramingFallback(
         byte[] publicKey, byte[] body, byte[] timestampBytes, byte[] signature, string? contentType) =>
         SignatureVerifier.Verify(publicKey, Keccak256.Hash(body, timestampBytes), signature)
-        || (contentType?.StartsWith("application/grpc", StringComparison.Ordinal) == true
+        || (IsGrpc(contentType)
             && body.Length >= 5
             && body[0] == 0
             && BinaryPrimitives.ReadUInt32BigEndian(body.AsSpan(1, 4)) == body.Length - 5
             && SignatureVerifier.Verify(publicKey, Keccak256.Hash(body[5..], timestampBytes), signature));
 
-    /// <summary>
-    /// Parses a hex-encoded header value (0x prefix optional). Returns null on failure.
-    /// </summary>
-    private static byte[]? ParseHexHeader(HttpContext context, string headerName) =>
-        ParseHex(context.Request.Headers[headerName].FirstOrDefault());
+    private static bool IsGrpc(string? contentType)
+    {
+        var mediaType = contentType?.Split(';')[0].Trim() ?? "";
+        return mediaType.Equals("application/grpc", StringComparison.OrdinalIgnoreCase)
+            || mediaType.StartsWith("application/grpc+", StringComparison.OrdinalIgnoreCase);
+    }
 
     /// <summary>
     /// Decodes at least one byte of even-length hex (0x prefix optional). Returns null on failure.
@@ -188,14 +218,17 @@ public sealed class SignatureVerificationMiddleware
     }
 
     /// <summary>
-    /// Parses the timestamp header: decimal digits only (no sign, no spaces), at most
-    /// <see cref="long.MaxValue"/>. Returns false on failure.
+    /// Parses the timestamp header: ASCII digits only (no sign, no spaces), at most
+    /// <see cref="long.MaxValue"/>. Returns the message it is refused with, or null.
     /// </summary>
-    internal static bool TryParseTimestamp(string? value, out long timestampMs)
+    internal static string? ParseTimestamp(string value, out long timestampMs)
     {
         timestampMs = 0;
-        return !string.IsNullOrEmpty(value)
-            && long.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out timestampMs);
+        if (value.Length == 0 || !value.All(char.IsAsciiDigit))
+            return Messages.TimestampNotDecimal;
+        return long.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out timestampMs)
+            ? null
+            : Messages.TimestampOutOfRange;
     }
 
     private static async Task<byte[]?> ReadBodyWithCap(HttpRequest request, long maxSize)

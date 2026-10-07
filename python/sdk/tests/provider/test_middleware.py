@@ -7,13 +7,17 @@ import struct
 import time
 
 import pytest
+from t0_provider_sdk._messages import TIMESTAMP_NOT_DECIMAL
 from t0_provider_sdk.crypto.hash import legacy_keccak256
 from t0_provider_sdk.crypto.keys import private_key_from_hex
 from t0_provider_sdk.crypto.signer import new_signer
 from t0_provider_sdk.provider.errors import (
     InvalidHeaderEncodingError,
+    InvalidTimestampError,
+    MissingRequiredHeaderError,
     SignatureFailedError,
     TimestampOutOfRangeError,
+    UnknownPublicKeyError,
 )
 from t0_provider_sdk.provider.middleware import (
     DEFAULT_MAX_BODY_SIZE,
@@ -75,10 +79,15 @@ def _make_signed_request(
 
 
 async def _run_middleware(
-    scope: dict, body: bytes, network_key: str = PUBLIC_KEY, max_body_size: int = DEFAULT_MAX_BODY_SIZE
+    scope: dict,
+    body: bytes,
+    network_key: str = PUBLIC_KEY,
+    max_body_size: int = DEFAULT_MAX_BODY_SIZE,
+    verify_fn=None,
 ):
     """Run the middleware and return the signature error (if any)."""
-    verify_fn = new_verify_signature(network_key)
+    if verify_fn is None:
+        verify_fn = new_verify_signature(network_key)
 
     captured_error = None
 
@@ -171,10 +180,10 @@ class TestSignatureVerificationMiddleware:
 
     @pytest.mark.parametrize("timestamp", MALFORMED_TIMESTAMPS)
     async def test_malformed_timestamp(self, timestamp):
-        """Anything but ASCII digits below 2^63 -> invalid encoding, never an exception."""
+        """Anything but ASCII digits below 2^63 -> an invalid timestamp, never an exception."""
         scope, body = _make_signed_request(override_headers={"x-signature-timestamp": timestamp})
         error = await _run_middleware(scope, body)
-        assert isinstance(error, InvalidHeaderEncodingError)
+        assert isinstance(error, InvalidTimestampError)
 
     async def test_largest_timestamp_is_out_of_range(self):
         scope, body = _make_signed_request(override_headers={"x-signature-timestamp": str(2**63 - 1)})
@@ -194,7 +203,7 @@ class TestSignatureVerificationMiddleware:
         scope, body = _make_signed_request()
         error = await _run_middleware(scope, body, network_key=OTHER_PUBLIC_KEY)
         assert error is not None
-        assert "unknown public key" in str(error)
+        assert str(error) == "request signed with unknown public key"
 
     async def test_invalid_signature(self):
         """Tampered signature → error."""
@@ -255,3 +264,72 @@ class TestSignatureVerificationMiddleware:
         scope, body = _make_signed_request()
         assert await _run_middleware(scope, body) is None
         assert signature_error_var.get() is NOT_VERIFIED
+
+
+class _RecordingVerifyFn:
+    """A verify_fn of the caller's own: records its calls and accepts what accept says."""
+
+    def __init__(self, accept=lambda public_key, message, signature: True):
+        self.calls = []
+        self._accept = accept
+
+    def __call__(self, public_key: bytes, message: bytes, signature: bytes) -> None:
+        self.calls.append((public_key, message, signature))
+        if not self._accept(public_key, message, signature):
+            raise SignatureFailedError()
+
+
+def _header(scope: dict, name: bytes) -> str:
+    return next(v for k, v in scope["headers"] if k == name).decode()
+
+
+@pytest.mark.asyncio
+class TestCustomVerifyFn:
+    """A plain callable as verify_fn, as 1.2.1 took it: called after the header checks with the
+    X-Public-Key bytes, the body and the timestamp bytes, and the X-Signature bytes."""
+
+    async def test_called_with_the_raw_header_bytes_and_the_signed_message(self):
+        scope, body = _make_signed_request()
+        verify_fn = _RecordingVerifyFn()
+        assert await _run_middleware(scope, body, verify_fn=verify_fn) is None
+        timestamp_bytes = struct.pack("<Q", int(_header(scope, b"x-signature-timestamp")))
+        assert verify_fn.calls == [
+            (
+                bytes.fromhex(_header(scope, b"x-public-key")[2:]),
+                body + timestamp_bytes,
+                bytes.fromhex(_header(scope, b"x-signature")[2:]),
+            )
+        ]
+
+    async def test_its_refusal_is_the_result(self):
+        scope, body = _make_signed_request()
+        verify_fn = _RecordingVerifyFn(accept=lambda *_: False)
+        assert isinstance(await _run_middleware(scope, body, verify_fn=verify_fn), SignatureFailedError)
+
+    @pytest.mark.parametrize("content_type", ["application/grpc", "application/grpc+proto"])
+    async def test_retried_over_the_message_of_one_grpc_frame(self, content_type):
+        scope, body = _make_signed_request(body=GRPC_FRAME, override_headers={"content-type": content_type})
+        verify_fn = _RecordingVerifyFn(accept=lambda _key, message, _sig: message.startswith(GRPC_MESSAGE))
+        assert await _run_middleware(scope, body, verify_fn=verify_fn) is None
+        assert [message[: len(GRPC_MESSAGE)] for _, message, _ in verify_fn.calls] == [GRPC_FRAME[:12], GRPC_MESSAGE]
+
+    async def test_header_checks_come_first(self):
+        scope, body = _make_signed_request()
+        scope["headers"] = [(k, v) for k, v in scope["headers"] if k != b"x-signature"]
+        verify_fn = _RecordingVerifyFn()
+        assert isinstance(await _run_middleware(scope, body, verify_fn=verify_fn), MissingRequiredHeaderError)
+        assert verify_fn.calls == []
+
+    async def test_public_key_that_is_not_hex_is_unknown(self):
+        scope, body = _make_signed_request(override_headers={"x-public-key": "0xnothex"})
+        verify_fn = _RecordingVerifyFn()
+        assert isinstance(await _run_middleware(scope, body, verify_fn=verify_fn), UnknownPublicKeyError)
+        assert verify_fn.calls == []
+
+
+def test_invalid_timestamp_is_an_invalid_header_encoding():
+    """A malformed timestamp is still caught as InvalidHeaderEncodingError, as in 1.2.1, with its own message."""
+    error = InvalidTimestampError(TIMESTAMP_NOT_DECIMAL)
+    assert isinstance(error, InvalidHeaderEncodingError)
+    assert error.header_name == "X-Signature-Timestamp"
+    assert str(error) == "invalid timestamp header: not a decimal number"

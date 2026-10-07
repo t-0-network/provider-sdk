@@ -1,5 +1,6 @@
 package network.t0.sdk.crypto;
 
+import network.t0.sdk.common.Messages;
 import network.t0.sdk.common.HexUtils;
 import org.bouncycastle.asn1.x9.X9ECParameters;
 import org.bouncycastle.crypto.ec.CustomNamedCurves;
@@ -99,14 +100,27 @@ public final class SignatureVerifier {
         // The SDK's one public key parser. SignatureVerificationInterceptor, in another package,
         // delegates here (Java has no internal visibility across packages), so removing this
         // method means moving its body there.
-        byte[] publicKey = HexUtils.hexToBytes(HexUtils.stripHexPrefix(hexPublicKey));
-        if (publicKey.length == 0) {
-            // decodePoint would throw ArrayIndexOutOfBoundsException.
-            throw new IllegalArgumentException("public key must not be empty");
+        byte[] publicKey;
+        try {
+            publicKey = HexUtils.hexToBytes(HexUtils.stripHexPrefix(hexPublicKey == null ? "" : hexPublicKey));
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException(Messages.PUBLIC_KEY_NOT_HEX);
         }
-        // Throws IllegalArgumentException for an encoding of the wrong length or type and for a point
-        // off the curve.
-        return DOMAIN_PARAMS.getCurve().decodePoint(publicKey).getEncoded(false);
+        if (publicKey.length == 0) {
+            throw new IllegalArgumentException(Messages.PUBLIC_KEY_NOT_HEX);
+        }
+        // Rule V2: a compressed (33 bytes, 02 or 03) or uncompressed (65 bytes, 04) point.
+        // decodePoint also accepts the hybrid forms (06, 07) and the point at infinity (00).
+        boolean compressed = publicKey.length == 33 && (publicKey[0] == 0x02 || publicKey[0] == 0x03);
+        boolean uncompressed = publicKey.length == PUBLIC_KEY_LENGTH && publicKey[0] == 0x04;
+        if (!compressed && !uncompressed) {
+            throw new IllegalArgumentException(Messages.PUBLIC_KEY_NOT_A_POINT);
+        }
+        try {
+            return DOMAIN_PARAMS.getCurve().decodePoint(publicKey).getEncoded(false);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException(Messages.PUBLIC_KEY_NOT_A_POINT);
+        }
     }
 
     /**

@@ -1,5 +1,6 @@
 package network.t0.sdk.network;
 
+import network.t0.sdk.common.Messages;
 import io.grpc.MethodDescriptor;
 
 import java.io.ByteArrayInputStream;
@@ -23,7 +24,7 @@ public enum ByteArrayMarshaller implements MethodDescriptor.Marshaller<byte[]> {
         try {
             return stream.readAllBytes();
         } catch (IOException e) {
-            throw new RuntimeException("Failed to read bytes from stream", e);
+            throw new RuntimeException(Messages.STREAM_READ_FAILED, e);
         }
     }
 

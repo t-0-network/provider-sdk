@@ -23,6 +23,14 @@ import pyqwest
 from connectrpc.code import Code
 from connectrpc.errors import ConnectError
 
+from t0_provider_sdk._messages import (
+    FIRST_CHUNK_NOT_ONE_ENVELOPE,
+    FIRST_MESSAGE_INCOMPLETE,
+    GET_NOT_SUPPORTED,
+    SIGNER_PUBLIC_KEY_INVALID,
+    SIGNER_SIGNATURE_INVALID,
+    SIGNING_FAILED,
+)
 from t0_provider_sdk.common.headers import (
     PUBLIC_KEY_HEADER,
     SIGNATURE_HEADER,
@@ -63,7 +71,13 @@ def _sign_request(
     timestamp_ms = _timestamp_ms()
     timestamp_bytes = struct.pack("<Q", timestamp_ms)
     digest = legacy_keccak256(body + timestamp_bytes)
-    signature, pub_key = sign_fn(digest)
+    try:
+        signature, pub_key = sign_fn(digest)
+        _check_signer_output(signature, pub_key)
+    except Exception as e:
+        # Internal, not the Unavailable connectrpc gives an exception of the transport: a failing
+        # signer is not a transient fault, and callers retry Unavailable.
+        raise ConnectError(Code.INTERNAL, SIGNING_FAILED.format(cause=e)) from e
 
     if headers is None:
         headers = pyqwest.Headers()
@@ -73,8 +87,17 @@ def _sign_request(
     return headers
 
 
+def _check_signer_output(signature: bytes, public_key: bytes) -> None:
+    """What a SignFn returns, checked before anything is sent: a signature of 64 or 65 bytes (its
+    last byte is not checked, and it is sent as it is), then a 65-byte uncompressed public key."""
+    if not isinstance(signature, bytes | bytearray) or len(signature) not in (64, 65):
+        raise ValueError(SIGNER_SIGNATURE_INVALID)
+    if not isinstance(public_key, bytes | bytearray) or len(public_key) != 65 or public_key[0] != 0x04:
+        raise ValueError(SIGNER_PUBLIC_KEY_INVALID)
+
+
 def _broken_first_message() -> ConnectError:
-    return ConnectError(Code.INVALID_ARGUMENT, "streaming request ends inside its first message")
+    return ConnectError(Code.INVALID_ARGUMENT, FIRST_MESSAGE_INCOMPLETE)
 
 
 def _require_one_envelope(chunk: bytes) -> None:
@@ -84,12 +107,12 @@ def _require_one_envelope(chunk: bytes) -> None:
     if len(chunk) < _ENVELOPE_PREFIX_SIZE or len(chunk) < size:
         raise _broken_first_message()
     if len(chunk) != size:
-        raise ConnectError(Code.INTERNAL, "the first request chunk is not one complete envelope")
+        raise ConnectError(Code.INTERNAL, FIRST_CHUNK_NOT_ONE_ENVELOPE)
 
 
 def _get_unsupported() -> ConnectError:
     # A GET carries its message in the URL, which the signature would not cover.
-    return ConnectError(Code.UNIMPLEMENTED, "GET requests are not supported")
+    return ConnectError(Code.UNIMPLEMENTED, GET_NOT_SUPPORTED)
 
 
 def _remaining_timeout(timeout: float | None, started: float, waited_for: str) -> float | None:

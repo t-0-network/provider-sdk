@@ -5,6 +5,8 @@ import {
   HealthCheckResponse_ServingStatus,
   HealthCheckResponseSchema,
 } from "./health_pb.js";
+import { reportedVersion } from "../version.js";
+import { UNKNOWN_SERVICE } from "./messages.js";
 
 /**
  * Headers carrying the identity of the SDK answering the probe. They ride on
@@ -32,6 +34,7 @@ export const createHealthServiceImpl = (
   version?: string,
 ): Partial<ServiceImpl<typeof Health>> => {
   const registered = new Set(services);
+  const reported = reportedVersion(version);
   const serving = create(HealthCheckResponseSchema, {
     status: HealthCheckResponse_ServingStatus.SERVING,
   });
@@ -39,14 +42,12 @@ export const createHealthServiceImpl = (
   return {
     check(req, ctx) {
       ctx.responseHeader.set(SDK_ECOSYSTEM_HEADER, SDK_ECOSYSTEM);
-      if (version) {
-        ctx.responseHeader.set(SDK_VERSION_HEADER, version);
-      }
+      ctx.responseHeader.set(SDK_VERSION_HEADER, reported);
 
       const { service } = req;
 
       if (service !== "" && !registered.has(service)) {
-        throw new ConnectError(`unknown service '${service}'`, Code.NotFound);
+        throw new ConnectError(UNKNOWN_SERVICE(service), Code.NotFound);
       }
       return serving;
     },

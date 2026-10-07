@@ -30,7 +30,7 @@ A constant compiled or bundled into the SDK, so the running server can report wh
 |---|---|---|---|
 | **Go** | `go/go.mod` (module path; tagged via git, not edited at release time) | `go/starter/template/go.mod` line 9 — `github.com/t-0-network/provider-sdk/go vX.Y.Z` (exact, rewritten by release) | `go/sdkversion/version.go` — `const Version = "X.Y.Z"` |
 | **Node** | `node/sdk/package.json` — `"version"` | `node/starter/template/package.json` — `"@t-0/provider-sdk": "^X.Y.Z"` (caret, rewritten by release) | `node/sdk/src/version.ts` — `export const SDK_VERSION = "X.Y.Z"` |
-| **Python** | `python/sdk/pyproject.toml` — `version =` | `python/starter/template/pyproject.toml` — `t0-provider-sdk>=0.1.0` (floor, **NOT bumped**) | `python/sdk/src/t0_provider_sdk/_version.py` — `__version__ = "X.Y.Z"` |
+| **Python** | `python/sdk/pyproject.toml` — `version =` | `python/starter/template/pyproject.toml` — `t0-provider-sdk>=1.2.0` (floor, **NOT bumped**) | `python/sdk/src/t0_provider_sdk/_version.py` — `__version__ = "X.Y.Z"` |
 | **Java** | `java/gradle.properties` — `version=X.Y.Z` | `java/starter/template/build.gradle.kts` — `provider-sdk:+` (latest, **NOT bumped**) | `java/sdk/src/main/resources/META-INF/sdk-version.properties` — `sdk.version=X.Y.Z` (classpath resource) |
 | **C#** | `csharp/sdk/T0.ProviderSdk/T0.ProviderSdk.csproj` — `<Version>` | `csharp/starter/template/my-provider.csproj` — `T0.ProviderSdk" Version="X.Y.Z"` (rewritten by release) | none of its own: `HealthServiceImpl.LoadSdkVersion()` reads the assembly's `AssemblyInformationalVersionAttribute`, which MSBuild fills from the `.csproj` `<Version>` (column A) |
 
@@ -57,7 +57,7 @@ What a customer runs to pick up a new SDK version:
 |---|---|---|
 | Go | `go/starter/template/go.mod` line 9: `github.com/t-0-network/provider-sdk/go vX.Y.Z` (exact) | `go get -u github.com/t-0-network/provider-sdk/go && go mod tidy` |
 | Node | `node/starter/template/package.json`: `"@t-0/provider-sdk": "^X.Y.Z"` (caret) | `npm install` (lockfile bump within same major) |
-| Python | `python/starter/template/pyproject.toml`: `"t0-provider-sdk>=0.1.0"` (floor) | `uv sync` (always picks latest) |
+| Python | `python/starter/template/pyproject.toml`: `"t0-provider-sdk>=1.2.0"` (floor) | `uv sync` (always picks latest) |
 | Java | `java/starter/template/build.gradle.kts`: `provider-sdk:+` (latest) | `./gradlew build --refresh-dependencies` |
 | C# | `csharp/starter/template/my-provider.csproj`: pinned per release | re-scaffold or edit `.csproj` |
 

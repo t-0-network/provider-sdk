@@ -136,18 +136,30 @@ public class DefaultDeadlineInterceptorTests
     [Theory]
     [InlineData(0L)]
     [InlineData(-10_000L)] // Timeout.InfiniteTimeSpan
-    public void TimeoutsThatAreNotPositive_AreRefusedWhenSet(long ticks)
+    [InlineData(2147483647L * TimeSpan.TicksPerMillisecond + 1)] // 1 tick over 2147483647 ms
+    [InlineData(long.MaxValue)] // TimeSpan.MaxValue
+    public void TimeoutsOutOfRange_AreRefusedWhenSet(long ticks)
     {
         var timeout = TimeSpan.FromTicks(ticks);
         var options = new NetworkClientOptions();
 
         var ex = Assert.Throws<ArgumentOutOfRangeException>(() => options.Timeout = timeout);
-        Assert.StartsWith("Timeout must be a positive duration", ex.Message);
+        Assert.Equal("timeout must be a positive duration of at most 2147483647 ms", ex.Message);
         ex = Assert.Throws<ArgumentOutOfRangeException>(() => options.StreamTimeout = timeout);
-        Assert.StartsWith("StreamTimeout must be a positive duration", ex.Message);
+        Assert.Equal("stream timeout must be a positive duration of at most 2147483647 ms", ex.Message);
 
         Assert.Equal(TimeSpan.FromSeconds(15), options.Timeout);
         Assert.Equal(TimeSpan.FromMinutes(5), options.StreamTimeout);
+    }
+
+    [Fact]
+    public void TimeoutsAtTheUpperBound_AreKept()
+    {
+        var max = TimeSpan.FromMilliseconds(2147483647L);
+        var options = new NetworkClientOptions { Timeout = max, StreamTimeout = max };
+
+        Assert.Equal(max, options.Timeout);
+        Assert.Equal(max, options.StreamTimeout);
     }
 
     [Fact]

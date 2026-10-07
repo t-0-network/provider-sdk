@@ -7,11 +7,10 @@ namespace T0.ProviderSdk.Crypto;
 /// </summary>
 public sealed class SignResult
 {
-    private const int SignatureLength = 65;
     private const int PublicKeyLength = 65;
 
     /// <summary>
-    /// The 65-byte Ethereum-style signature: r[32] + s[32] + v[1].
+    /// The signature: r[32] + s[32], or the 65-byte Ethereum-style r[32] + s[32] + v[1].
     /// </summary>
     public byte[] Signature { get; }
 
@@ -20,12 +19,14 @@ public sealed class SignResult
     /// </summary>
     public byte[] PublicKey { get; }
 
+    /// <exception cref="ArgumentException">The signature is not 64 or 65 bytes, or the public key is
+    /// not 65 bytes starting with 0x04.</exception>
     public SignResult(byte[] signature, byte[] publicKey)
     {
-        if (signature is null || signature.Length != SignatureLength)
-            throw new ArgumentException("signature must be 65 bytes");
-        if (publicKey is null || publicKey.Length != PublicKeyLength)
-            throw new ArgumentException("publicKey must be 65 bytes");
+        if (signature is null || signature.Length is not (64 or 65))
+            throw new ArgumentException(Messages.SignerSignatureInvalid);
+        if (publicKey is null || publicKey.Length != PublicKeyLength || publicKey[0] != 0x04)
+            throw new ArgumentException(Messages.SignerPublicKeyInvalid);
 
         Signature = (byte[])signature.Clone();
         PublicKey = (byte[])publicKey.Clone();

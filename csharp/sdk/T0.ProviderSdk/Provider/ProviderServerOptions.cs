@@ -13,7 +13,20 @@ public sealed class ProviderServerOptions
     public string NetworkPublicKeyHex { get; set; } = "";
 
     /// <summary>
-    /// Maximum request body size in bytes. Default: 10 MiB.
+    /// The largest request body a provider server accepts unless <see cref="MaxBodySize"/> sets
+    /// another: the whole HTTP body of a unary call, its gRPC prefix included.
     /// </summary>
-    public long MaxBodySize { get; set; } = 10 * 1024 * 1024;
+    public const long DefaultMaxBodySize = 10 * 1024 * 1024; // 10 MiB
+
+    /// <summary>
+    /// How far X-Signature-Timestamp may be from the server's clock, either way. Fixed: no option
+    /// changes it.
+    /// </summary>
+    public static readonly TimeSpan TimestampWindow = TimeSpan.FromSeconds(60);
+
+    /// <summary>
+    /// The largest request body accepted, in bytes. Default: <see cref="DefaultMaxBodySize"/>, also
+    /// for a value of 0 or less.
+    /// </summary>
+    public long MaxBodySize { get; set; } = DefaultMaxBodySize;
 }

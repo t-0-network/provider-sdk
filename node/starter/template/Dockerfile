@@ -45,8 +45,8 @@ RUN chown -R nodejs:nodejs /app
 # Switch to non-root user
 USER nodejs
 
-# Expose the port (default 3000, can be overridden)
-EXPOSE 3000
+# Expose the port (default 8080, can be overridden)
+EXPOSE 8080
 
 # Start the application
 CMD ["node", "dist/index.js"]

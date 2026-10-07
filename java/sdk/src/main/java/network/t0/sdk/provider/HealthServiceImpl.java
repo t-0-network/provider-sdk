@@ -1,5 +1,6 @@
 package network.t0.sdk.provider;
 
+import network.t0.sdk.common.Messages;
 import io.grpc.Metadata;
 import io.grpc.ServerCall;
 import io.grpc.ServerCallHandler;
@@ -57,7 +58,7 @@ final class HealthServiceImpl extends HealthGrpc.HealthImplBase {
         // this handler is running at all.
         if (!request.getService().isEmpty() && !registered.contains(request.getService())) {
             responseObserver.onError(Status.NOT_FOUND
-                    .withDescription("unknown service '" + request.getService() + "'")
+                    .withDescription(String.format(Messages.UNKNOWN_SERVICE, request.getService()))
                     .asRuntimeException());
             return;
         }
@@ -65,19 +66,35 @@ final class HealthServiceImpl extends HealthGrpc.HealthImplBase {
         responseObserver.onCompleted();
     }
 
-    /** Stamps the SDK identity onto responses from this service only. */
+    /** Stamps the SDK identity onto every Check reply, and nothing else's. */
     static ServerInterceptor sdkIdentityInterceptor(String versionOverride) {
         String effectiveVersion = versionOverride != null ? versionOverride : SDK_VERSION;
         return new ServerInterceptor() {
             @Override
             public <ReqT, RespT> ServerCall.Listener<ReqT> interceptCall(
                     ServerCall<ReqT, RespT> call, Metadata headers, ServerCallHandler<ReqT, RespT> next) {
+                if (!HealthGrpc.getCheckMethod().getFullMethodName()
+                        .equals(call.getMethodDescriptor().getFullMethodName())) {
+                    return next.startCall(call, headers);
+                }
                 return next.startCall(new io.grpc.ForwardingServerCall.SimpleForwardingServerCall<>(call) {
+                    private boolean headersSent;
+
                     @Override
                     public void sendHeaders(Metadata responseHeaders) {
+                        headersSent = true;
                         responseHeaders.put(SDK_ECOSYSTEM_HEADER, SDK_ECOSYSTEM);
                         responseHeaders.put(SDK_VERSION_HEADER, effectiveVersion);
                         super.sendHeaders(responseHeaders);
+                    }
+
+                    @Override
+                    public void close(Status status, Metadata trailers) {
+                        // NOT_FOUND sends no headers of its own; the identity goes on it too.
+                        if (!headersSent) {
+                            sendHeaders(new Metadata());
+                        }
+                        super.close(status, trailers);
                     }
                 }, headers);
             }

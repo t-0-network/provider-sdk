@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"github.com/t-0-network/provider-sdk/go/provider"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -31,7 +32,8 @@ func serveHelper(t *testing.T) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(handler)
+	// The handler of the SDK's own server: h2c, so Connect and gRPC share the port.
+	srv := httptest.NewServer(provider.NewServer(handler).Handler)
 	t.Cleanup(srv.Close)
 	return srv.URL
 }

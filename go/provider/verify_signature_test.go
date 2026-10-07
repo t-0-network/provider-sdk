@@ -5,10 +5,11 @@ import (
 	"context"
 	"encoding/binary"
 	"encoding/hex"
-	"errors"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"slices"
 	"strconv"
 	"strings"
@@ -137,9 +138,9 @@ func TestSignatureVerifierMiddleware(t *testing.T) {
 		{name: "timestamp inside the window", contentType: "application/connect+proto", body: stream, headers: signedHeaders(t, networkKey, env1, now.Add(-59*time.Second)), part: SignedEnvelope},
 		{name: "other key", contentType: "application/connect+proto", body: stream, headers: signedHeaders(t, otherKey, env1, now), code: connect.CodeUnauthenticated, reason: "request signed with unknown public key"},
 		{name: "other key and stale timestamp", contentType: "application/connect+proto", body: stream, headers: signedHeaders(t, otherKey, env1, now.Add(-2*time.Minute)), code: connect.CodeInvalidArgument, reason: "timestamp is outside the allowed time window"},
-		{name: "public key not a key", contentType: "application/proto", body: unaryBody, headers: withHeader(sign(unaryBody), common.PublicKeyHeader, "0xzz"), code: connect.CodeUnauthenticated, reason: "invalid public key"},
+		{name: "public key not a key", contentType: "application/proto", body: unaryBody, headers: withHeader(sign(unaryBody), common.PublicKeyHeader, "0xzz"), code: connect.CodeUnauthenticated, reason: "request signed with unknown public key"},
 		{name: "64-byte signature", contentType: "application/grpc", body: stream, headers: withHeader(sign(p1), common.SignatureHeader, fullSignature[:2+128]), part: SignedPayload},
-		{name: "63-byte signature", contentType: "application/grpc", body: stream, headers: withHeader(sign(p1), common.SignatureHeader, fullSignature[:2+126]), code: connect.CodeUnauthenticated, reason: "invalid signature"},
+		{name: "63-byte signature", contentType: "application/grpc", body: stream, headers: withHeader(sign(p1), common.SignatureHeader, fullSignature[:2+126]), code: connect.CodeUnauthenticated, reason: "signature verification failed"},
 		{name: "rejected headers, body over the limit", contentType: "application/proto", body: overLimit, headers: http.Header{}, code: connect.CodeInvalidArgument, reason: "missing required header"},
 	}
 	for _, tc := range cases {
@@ -148,7 +149,9 @@ func TestSignatureVerifierMiddleware(t *testing.T) {
 			var verifyErr error
 			var read []byte
 			var readErr error
+			handlerRan := false
 			handler := newSignatureVerifierMiddleware(verifier, limit)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+				handlerRan = true
 				part, verifyErr = SignatureVerification(r.Context())
 				read, readErr = io.ReadAll(r.Body)
 			}))
@@ -163,28 +166,59 @@ func TestSignatureVerifierMiddleware(t *testing.T) {
 			if tc.contentType != "" {
 				req.Header.Set("Content-Type", tc.contentType)
 			}
-			handler.ServeHTTP(httptest.NewRecorder(), req)
+			recorder := httptest.NewRecorder()
+			handler.ServeHTTP(recorder, req)
 
-			if tc.part != "" {
-				require.NoError(t, verifyErr)
-				require.Equal(t, tc.part, part)
-			} else {
-				requireRefused(t, verifyErr, tc.code, tc.reason)
-			}
-
-			// The handler reads the whole body, the part read for the signature included. The body of
-			// a rejected request stays under the limit.
-			if tc.part == "" && len(tc.body) > limit {
-				_, overTheLimit := errors.AsType[*http.MaxBytesError](readErr)
-				require.True(t, overTheLimit, "read error: %v", readErr)
-				require.Equal(t, tc.body[:len(read)], read)
+			if tc.part == "" {
+				// The middleware answers a rejected request itself, in the request's protocol.
+				require.False(t, handlerRan, "a rejected request reached the handler")
+				code, message := recordedError(t, recorder, tc.contentType)
+				require.Equal(t, tc.code, code, "message: %s", message)
+				require.Contains(t, message, tc.reason)
 				return
 			}
+			require.True(t, handlerRan)
+			require.NoError(t, verifyErr)
+			require.Equal(t, tc.part, part)
+
+			// The handler reads the whole body, the part read for the signature included.
 			require.NoError(t, readErr)
 			require.Equal(t, len(tc.body), len(read))
 			require.True(t, bytes.Equal(tc.body, read), "the handler reads another body")
 		})
 	}
+}
+
+// recordedError reads the code and message of the error response the middleware wrote: gRPC
+// trailers-only headers, a Connect end-stream message, or a Connect unary JSON body.
+func recordedError(t *testing.T, recorder *httptest.ResponseRecorder, contentType string) (connect.Code, string) {
+	t.Helper()
+	var wire struct {
+		Code    string `json:"code"`
+		Message string `json:"message"`
+	}
+	switch ct := strings.ToLower(contentType); {
+	case strings.HasPrefix(ct, "application/grpc"):
+		status, err := strconv.Atoi(recorder.Header().Get("Grpc-Status"))
+		require.NoError(t, err, "grpc-status of %v", recorder.Header())
+		message, err := url.PathUnescape(recorder.Header().Get("Grpc-Message"))
+		require.NoError(t, err)
+		return connect.Code(status), message
+	case strings.HasPrefix(ct, "application/connect+"):
+		body := recorder.Body.Bytes()
+		require.GreaterOrEqual(t, len(body), 5)
+		require.Equal(t, byte(2), body[0], "an end-stream message")
+		var endStream struct {
+			Error json.RawMessage `json:"error"`
+		}
+		require.NoError(t, json.Unmarshal(body[5:], &endStream))
+		require.NoError(t, json.Unmarshal(endStream.Error, &wire))
+	default:
+		require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &wire), "body: %s", recorder.Body.String())
+	}
+	var code connect.Code
+	require.NoError(t, code.UnmarshalText([]byte(wire.Code)))
+	return code, wire.Message
 }
 
 func TestSignatureVerification_OutsideTheMiddleware(t *testing.T) {
@@ -282,7 +316,7 @@ func TestSignatureVerification_BodyOverTheLimit(t *testing.T) {
 	require.NoError(t, err)
 	verify, err := newSignatureVerifier(crypto.HexPublicKey(networkKey.PubKey()))
 	require.NoError(t, err)
-	defaultOptions, err := newDefaultHandlerOptions(verify, nil)
+	defaultOptions, err := newDefaultHandlerOptions(verify, nil, "")
 	require.NoError(t, err)
 	path, handler := Handler(grpchealth.NewHandler, grpchealth.Checker(grpchealth.NewStaticChecker()), WithMaxBodySize(limit))(defaultOptions)
 
@@ -311,14 +345,16 @@ func TestSignatureVerification_BodyOverTheLimit(t *testing.T) {
 		for _, client := range []struct {
 			name       string
 			httpClient *http.Client
+			code       connect.Code
 		}{
-			{"no signature headers", srv.Client()},
-			{"signed", signed},
+			// The headers are checked first: a request they reject is refused without its body.
+			{"no signature headers", srv.Client(), connect.CodeInvalidArgument},
+			{"signed", signed, connect.CodeResourceExhausted},
 		} {
 			t.Run(protocol.name+"/"+client.name, func(t *testing.T) {
 				read.Store(0)
 				_, err := grpchealth.NewClient(client.httpClient, srv.URL, protocol.opts...).Check(context.Background(), request)
-				require.Equal(t, connect.CodeResourceExhausted, connect.CodeOf(err), "error: %v", err)
+				require.Equal(t, client.code, connect.CodeOf(err), "error: %v", err)
 				require.LessOrEqual(t, read.Load(), int64(limit+1))
 			})
 		}

@@ -2,9 +2,12 @@ package provider
 
 import (
 	"context"
+	"fmt"
 
 	"connectrpc.com/connect"
 	"connectrpc.com/grpchealth"
+
+	"github.com/t-0-network/provider-sdk/go/internal/contract"
 )
 
 // Header names carrying the identity of the SDK answering the probe. They ride
@@ -44,23 +47,23 @@ func (h *healthChecker) Check(_ context.Context, req *grpchealth.CheckRequest) (
 		return &grpchealth.CheckResponse{Status: grpchealth.StatusServing}, nil
 	}
 	if _, ok := h.registered[req.Service]; !ok {
-		return nil, connect.NewError(connect.CodeNotFound, nil)
+		return nil, connect.NewError(connect.CodeNotFound, fmt.Errorf(contract.UnknownService, req.Service))
 	}
 	return &grpchealth.CheckResponse{Status: grpchealth.StatusServing}, nil
 }
 
-// withSDKIdentity stamps the SDK identity onto health responses.
+// withSDKIdentity stamps the SDK identity onto every Check reply, NotFound
+// included. The headers go through the call's CallInfo, which connect-go sends
+// on an error too, over every protocol.
 func withSDKIdentity(version string) connect.HandlerOption {
 	return connect.WithInterceptors(connect.UnaryInterceptorFunc(
 		func(next connect.UnaryFunc) connect.UnaryFunc {
 			return func(ctx context.Context, req connect.AnyRequest) (connect.AnyResponse, error) {
-				resp, err := next(ctx, req)
-				if err != nil {
-					return nil, err
+				if info, ok := connect.CallInfoForHandlerContext(ctx); ok {
+					info.ResponseHeader().Set(SDKEcosystemHeader, sdkEcosystem)
+					info.ResponseHeader().Set(SDKVersionHeader, version)
 				}
-				resp.Header().Set(SDKEcosystemHeader, sdkEcosystem)
-				resp.Header().Set(SDKVersionHeader, version)
-				return resp, nil
+				return next(ctx, req)
 			}
 		},
 	))

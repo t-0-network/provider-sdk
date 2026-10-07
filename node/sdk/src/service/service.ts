@@ -2,7 +2,7 @@ import { createService as createServiceCommon, type CreateServiceOptions, type R
 import { SDK_VERSION } from "../version.js";
 
 export type { CreateServiceOptions, Router } from "../common/service.js";
-export { REQUEST_VALIDITY_MILLIS } from "../common/service.js";
+export { DEFAULT_MAX_BODY_SIZE, TIMESTAMP_WINDOW_MS } from "../common/service.js";
 
 /**
  * Throws if the network public key is missing or malformed; surrounding

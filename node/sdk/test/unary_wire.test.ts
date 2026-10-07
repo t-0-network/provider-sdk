@@ -1,6 +1,7 @@
 import { describe, it, type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
+import { gzipSync } from 'node:zlib';
 import type { AddressInfo } from 'node:net';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -33,6 +34,7 @@ const CALL_OPTIONS = { headers: { 'X-Call': 'golden' }, timeoutMs: 5_000 };
 const JSON_REQUEST = {
   body: '{"service":"grpc.health.v1.Health"}',
   headers: {
+    'accept-encoding': 'gzip',
     'connect-protocol-version': '1',
     'connect-timeout-ms': '5000',
     'content-type': 'application/json',
@@ -223,7 +225,8 @@ function envelope(flags: number, payload: Uint8Array): Buffer {
 }
 
 // Records each request as it arrived and answers StreamTest calls with "ok"; a request with an
-// X-Redirect header gets a 307 to its own path.
+// X-Redirect header gets a 307 to its own path, and a unary request with an X-Gzip header a gzip
+// response.
 async function withWireServer(fn: (url: string, arrived: Arrived[]) => Promise<void>) {
   const arrived: Arrived[] = [];
   const ok = toBinary(StringValueSchema, create(StringValueSchema, { value: 'ok' }));
@@ -235,6 +238,8 @@ async function withWireServer(fn: (url: string, arrived: Arrived[]) => Promise<v
     arrived.push({ headers: req.headers, body: Buffer.concat(chunks) });
     if (req.headers['x-redirect'] !== undefined) {
       res.writeHead(307, { Location: req.url }).end();
+    } else if (req.headers['content-type'] === 'application/proto' && req.headers['x-gzip'] !== undefined) {
+      res.writeHead(200, { 'Content-Type': 'application/proto', 'Content-Encoding': 'gzip' }).end(gzipSync(ok));
     } else if (req.headers['content-type'] === 'application/proto') {
       res.writeHead(200, { 'Content-Type': 'application/proto' }).end(ok);
     } else {
@@ -250,7 +255,7 @@ async function withWireServer(fn: (url: string, arrived: Arrived[]) => Promise<v
 }
 
 describe('On the wire (connect-node over HTTP/1.1)', () => {
-  it('a unary body is sent with its Content-Length, and no Accept-Encoding', async () => {
+  it('a unary body is sent with its Content-Length, accepting a gzip response', async () => {
     await withWireServer(async (url, arrived) => {
       const client = createClient(vectors.keys.private_key, url, StreamTest);
       assert.equal((await client.unary({ value: 'hello' })).value, 'ok');
@@ -260,7 +265,14 @@ describe('On the wire (connect-node over HTTP/1.1)', () => {
       assert.equal(a.body.toString('hex'), '0a0568656c6c6f');
       assert.equal(a.headers['content-length'], String(a.body.length));
       assert.equal(a.headers['transfer-encoding'], undefined);
-      assert.equal(a.headers['accept-encoding'], undefined);
+      assert.equal(a.headers['accept-encoding'], 'gzip');
+    });
+  });
+
+  it('a gzip response is read, as in every SDK', async () => {
+    await withWireServer(async (url) => {
+      const client = createClient(vectors.keys.private_key, url, StreamTest);
+      assert.equal((await client.unary({ value: 'hello' }, { headers: { 'X-Gzip': '1' } })).value, 'ok');
     });
   });
 
@@ -273,7 +285,8 @@ describe('On the wire (connect-node over HTTP/1.1)', () => {
       const [a] = arrived;
       assert.equal(a.headers['transfer-encoding'], 'chunked');
       assert.equal(a.headers['content-length'], undefined);
-      assert.equal(a.headers['accept-encoding'], undefined);
+      assert.equal(a.headers['connect-accept-encoding'], 'gzip');
+      assert.equal(a.headers['connect-content-encoding'], undefined);
     });
   });
 

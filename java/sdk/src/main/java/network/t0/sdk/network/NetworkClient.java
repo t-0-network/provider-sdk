@@ -1,5 +1,6 @@
 package network.t0.sdk.network;
 
+import network.t0.sdk.common.Messages;
 import io.grpc.Attributes;
 import io.grpc.CallOptions;
 import io.grpc.Channel;
@@ -80,17 +81,28 @@ public abstract class NetworkClient implements Closeable {
     private static final Logger log = LoggerFactory.getLogger(NetworkClient.class);
 
     /** The base URL used when the caller passes {@code null}. */
-    protected static final String DEFAULT_ENDPOINT = "https://api.t-0.network";
+    public static final String DEFAULT_BASE_URL = "https://api.t-0.network";
+
+    /**
+     * The base URL used when the caller passes {@code null}.
+     *
+     * @deprecated Use {@link #DEFAULT_BASE_URL}.
+     */
+    @Deprecated
+    protected static final String DEFAULT_ENDPOINT = DEFAULT_BASE_URL;
 
     /**
      * Default deadline for unary calls.
      */
-    protected static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(15);
+    public static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(15);
 
     /**
      * Default deadline for client- and server-streaming calls, counted from when the call is created.
      */
-    protected static final Duration DEFAULT_STREAM_TIMEOUT = Duration.ofMinutes(5);
+    public static final Duration DEFAULT_STREAM_TIMEOUT = Duration.ofMinutes(5);
+
+    /** The longest timeout and stream timeout a client accepts. */
+    public static final Duration MAX_TIMEOUT = Duration.ofMillis(Integer.MAX_VALUE);
 
     /**
      * The underlying gRPC managed channel.
@@ -131,7 +143,7 @@ public abstract class NetworkClient implements Closeable {
      * @param streamTimeout the default deadline for client- and server-streaming calls
      * @return a ChannelPair containing the managed channel and intercepted channel
      * @throws IllegalArgumentException if the endpoint or signer is invalid, or a timeout is not a positive
-     *                                  duration
+     *                                  duration of at most 2147483647 ms
      */
     protected static ChannelPair createChannel(
             String endpoint, DigestSigner signer, Duration timeout, Duration streamTimeout) {
@@ -139,15 +151,12 @@ public abstract class NetworkClient implements Closeable {
         BaseUrl baseUrl = parseBaseUrl(endpoint);
         EndpointInfo endpointInfo = baseUrl.endpoint();
         if (signer == null) {
-            throw new IllegalArgumentException("signer must not be null");
+            throw new IllegalArgumentException(Messages.SIGNER_NULL);
         }
         DefaultDeadlineInterceptor deadlines = new DefaultDeadlineInterceptor(timeout, streamTimeout);
 
         OkHttpChannelBuilder builder = OkHttpChannelBuilder
-                .forAddress(endpointInfo.host(), endpointInfo.port())
-                // Not more often than grpc servers allow by default (every 5 min), or they close the connection.
-                .keepAliveTime(5, TimeUnit.MINUTES)
-                .keepAliveTimeout(10, TimeUnit.SECONDS);
+                .forAddress(endpointInfo.host(), endpointInfo.port());
 
         if (endpointInfo.usePlaintext()) {
             builder.usePlaintext();
@@ -167,13 +176,13 @@ public abstract class NetworkClient implements Closeable {
     }
 
     /**
-     * Returns {@code value} if it is a positive duration.
+     * Returns {@code value} if it is a positive duration of at most {@link #MAX_TIMEOUT}.
      *
-     * @throws IllegalArgumentException otherwise, naming {@code option}
+     * @throws IllegalArgumentException with {@code message} otherwise
      */
-    static Duration checkTimeout(String option, Duration value) {
-        if (value == null || value.isNegative() || value.isZero()) {
-            throw new IllegalArgumentException(option + " must be a positive duration");
+    static Duration checkTimeout(String message, Duration value) {
+        if (value == null || value.isNegative() || value.isZero() || value.compareTo(MAX_TIMEOUT) > 0) {
+            throw new IllegalArgumentException(message);
         }
         return value;
     }
@@ -266,7 +275,7 @@ public abstract class NetworkClient implements Closeable {
      * Parses a base URL into its components.
      *
      * @param endpoint the endpoint (e.g., "https://api.t-0.network" or "api.t-0.network:443"), or
-     *                 {@code null} for {@value #DEFAULT_ENDPOINT}; see {@link #parseBaseUrl(String)}
+     *                 {@code null} for {@value #DEFAULT_BASE_URL}; see {@link #parseBaseUrl(String)}
      * @return the parsed endpoint information
      * @throws IllegalArgumentException if the base URL is empty or not valid
      */
@@ -279,16 +288,16 @@ public abstract class NetworkClient implements Closeable {
      *
      * @param endpoint an http or https URL with a host, an optional port from 1 to 65535 and an optional
      *                 path, and no user info, query or fragment; without {@code ://} it is read as https
-     *                 ({@code "api.t-0.network:443"}); {@code null} for {@value #DEFAULT_ENDPOINT}. The path
+     *                 ({@code "api.t-0.network:443"}); {@code null} for {@value #DEFAULT_BASE_URL}. The path
      *                 prefixes every call ({@code https://host/v1} calls {@code https://host/v1/<service>/<method>})
      * @throws IllegalArgumentException if the base URL is empty or not valid
      */
     static BaseUrl parseBaseUrl(String endpoint) {
         if (endpoint == null) {
-            endpoint = DEFAULT_ENDPOINT;
+            endpoint = DEFAULT_BASE_URL;
         }
         if (endpoint.isEmpty()) {
-            throw new IllegalArgumentException("base URL is not set");
+            throw new IllegalArgumentException(Messages.BASE_URL_NOT_SET);
         }
         if (!endpoint.contains("://")) {
             endpoint = "https://" + endpoint;
@@ -317,7 +326,7 @@ public abstract class NetworkClient implements Closeable {
     }
 
     private static IllegalArgumentException invalidBaseUrl() {
-        return new IllegalArgumentException("base URL is not valid");
+        return new IllegalArgumentException(Messages.BASE_URL_NOT_VALID);
     }
 
     // --- Path prefix interceptor ---
@@ -363,7 +372,8 @@ public abstract class NetworkClient implements Closeable {
      * that first message, since the headers must be complete by then, or on a half-close without one,
      * signed over empty bytes. A call cancelled before then sends nothing (see {@code docs/STREAMING.md}).
      * Bidirectional streams and calls with a non-identity compressor are refused with
-     * {@code UNIMPLEMENTED} before anything is sent.
+     * {@code UNIMPLEMENTED} before anything is sent; a call whose signer fails ends with
+     * {@code INTERNAL} "signing the request failed: &lt;cause&gt;", and sends nothing.
      *
      * <p>This class is thread-safe. Each call to {@link #interceptCall} creates
      * independent state for that specific call.
@@ -403,14 +413,14 @@ public abstract class NetworkClient implements Closeable {
             // The network accepts no bidi streams, and with the deferred start a bidi caller that
             // awaits a response before sending would hang: fail fast.
             if (method.getType() == MethodDescriptor.MethodType.BIDI_STREAMING) {
-                return new RefusedCall<>(Status.UNIMPLEMENTED.withDescription("bidirectional streams are not supported"),
+                return new RefusedCall<>(Status.UNIMPLEMENTED.withDescription(Messages.BIDI_NOT_SUPPORTED),
                         executor);
             }
             // The signature covers the message as serialized here, and a non-identity compressor would
             // change the bytes on the wire after that, so the network would refuse the call: refuse it first.
             String compressor = callOptions.getCompressor();
             if (compressor != null && !"identity".equals(compressor)) {
-                return new RefusedCall<>(Status.UNIMPLEMENTED.withDescription("compressed requests are not supported"),
+                return new RefusedCall<>(Status.UNIMPLEMENTED.withDescription(Messages.COMPRESSED_NOT_SUPPORTED),
                         executor);
             }
 
@@ -437,6 +447,7 @@ public abstract class NetworkClient implements Closeable {
                 private Metadata headers;
                 private boolean started; // rawCall started, with the first message sent if there is one
                 private boolean cancelled; // before rawCall started
+                private boolean signingFailed; // the call was closed before rawCall started, and sent nothing
                 private int pendingRequests;
 
                 @Override
@@ -465,30 +476,50 @@ public abstract class NetworkClient implements Closeable {
                     try (InputStream stream = method.getRequestMarshaller().stream(message)) {
                         messageBytes = stream.readAllBytes();
                     } catch (IOException e) {
-                        throw new RuntimeException("Failed to serialize message for signing", e);
+                        throw new RuntimeException(Messages.MESSAGE_SERIALIZATION_FAILED, e);
                     }
 
                     // CRITICAL: Send the EXACT bytes we signed, not the original message.
                     // This prevents double-serialization which would produce different bytes.
                     // Only the first message is signed; later stream messages go out as-is.
+                    Status failure;
                     synchronized (lock) {
-                        if (!started && !cancelled) {
-                            startSigned(messageBytes);
-                            rawCall.sendMessage(messageBytes);
-                            started = true;
+                        if (signingFailed) {
                             return;
                         }
+                        if (started || cancelled) {
+                            failure = null;
+                        } else {
+                            failure = startSigned(messageBytes);
+                            if (failure == null) {
+                                rawCall.sendMessage(messageBytes);
+                                started = true;
+                                return;
+                            }
+                        }
+                    }
+                    if (failure != null) {
+                        responseListener.onClose(failure, new Metadata());
+                        return;
                     }
                     rawCall.sendMessage(messageBytes);
                 }
 
                 @Override
                 public void halfClose() {
+                    Status failure = null;
                     synchronized (lock) {
-                        if (!started && !cancelled) {
-                            startSigned(new byte[0]); // no message: signed over empty bytes
-                            started = true;
+                        if (signingFailed) {
+                            return;
                         }
+                        if (!started && !cancelled) {
+                            failure = startSigned(new byte[0]); // no message: signed over empty bytes
+                            started = failure == null;
+                        }
+                    }
+                    if (failure != null) {
+                        responseListener.onClose(failure, new Metadata());
+                        return;
                     }
                     rawCall.halfClose();
                 }
@@ -508,7 +539,7 @@ public abstract class NetworkClient implements Closeable {
                 public void cancel(String message, Throwable cause) {
                     Listener<RespT> unstarted = null;
                     synchronized (lock) {
-                        if (!started && !cancelled) {
+                        if (!started && !cancelled && !signingFailed) {
                             cancelled = true;
                             unstarted = responseListener; // null before start()
                         }
@@ -525,7 +556,7 @@ public abstract class NetworkClient implements Closeable {
                     synchronized (lock) {
                         if (!started) {
                             // Ready for the first message, which starts the call.
-                            return !cancelled;
+                            return !cancelled && !signingFailed;
                         }
                     }
                     return rawCall.isReady();
@@ -542,13 +573,21 @@ public abstract class NetworkClient implements Closeable {
                 }
 
                 // Under the lock: starts rawCall with the headers signed over `signed`, then passes on the
-                // request() calls made before.
-                private void startSigned(byte[] signed) {
-                    addSignatureHeaders(signed, clock.millis());
+                // request() calls made before. If the signer fails, sends nothing and returns the status
+                // to close the call with, outside the lock: Internal, as the failure is not transient.
+                private Status startSigned(byte[] signed) {
+                    try {
+                        addSignatureHeaders(signed, clock.millis());
+                    } catch (RuntimeException e) {
+                        signingFailed = true;
+                        return Status.INTERNAL.withDescription(String.format(Messages.SIGNING_FAILED, e.getMessage()))
+                                .withCause(e);
+                    }
                     rawCall.start(responseListener, headers);
                     if (pendingRequests > 0) {
                         rawCall.request(pendingRequests);
                     }
+                    return null;
                 }
 
                 // Under the lock, before start: once started, the headers belong to the transport.
@@ -631,11 +670,11 @@ public abstract class NetworkClient implements Closeable {
          *
          * @param timeout       the deadline for unary calls
          * @param streamTimeout the deadline for client- and server-streaming calls
-         * @throws IllegalArgumentException if a timeout is not a positive duration
+         * @throws IllegalArgumentException if a timeout is not a positive duration of at most 2147483647 ms
          */
         DefaultDeadlineInterceptor(Duration timeout, Duration streamTimeout) {
-            this.timeout = checkTimeout("timeout", timeout);
-            this.streamTimeout = checkTimeout("streamTimeout", streamTimeout);
+            this.timeout = checkTimeout(Messages.TIMEOUT_NOT_VALID, timeout);
+            this.streamTimeout = checkTimeout(Messages.STREAM_TIMEOUT_NOT_VALID, streamTimeout);
         }
 
         @Override

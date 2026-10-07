@@ -24,9 +24,13 @@ from typing import Any
 from t0_provider_sdk.provider.errors import BodyTooLargeError, SignatureVerificationError
 from t0_provider_sdk.provider.middleware import (
     DEFAULT_MAX_BODY_SIZE,
+    CustomVerifyFn,
     VerifySignatureFn,
-    _empty_message_body,
-    _verify_request,
+    _body_limit,
+    _check_headers,
+    _declared_length,
+    _rejection_body,
+    _verify_body,
     signature_error_var,
 )
 
@@ -37,30 +41,33 @@ WSGIApp = Callable[[WSGIEnviron, StartResponse], Iterable[bytes]]
 
 def signature_verification_middleware_wsgi(
     app: WSGIApp,
-    verify_fn: VerifySignatureFn,
+    verify_fn: VerifySignatureFn | CustomVerifyFn,
     max_body_size: int = DEFAULT_MAX_BODY_SIZE,
 ) -> WSGIApp:
     """Wrap a WSGI app with signature verification middleware.
 
-    The middleware:
-    1. Reads the entire request body from wsgi.input
-    2. Parses signature headers from WSGI environ HTTP_* keys
-    3. Validates timestamp within +/-60 seconds
-    4. Verifies the signature against the network public key
-    5. Stores any error in contextvars.ContextVar for the interceptor
-    6. Replaces wsgi.input with a BytesIO to replay body downstream
+    The same rules as signature_verification_middleware (ASGI): the signature headers are checked,
+    then the body is read (at most max_body_size bytes) and the signature verified over it, before
+    the app reads anything. A rejected request goes on with an empty request message in place of
+    its body, and the interceptor answers it with the rejection's code and message. verify_fn is
+    taken as by signature_verification_middleware.
     """
+    max_body_size = _body_limit(max_body_size)
 
     def middleware(environ: WSGIEnviron, start_response: StartResponse) -> Iterable[bytes]:
         headers = _parse_wsgi_headers(environ)
 
-        # Read the full body, then parse and verify
-        error: SignatureVerificationError | None
+        error: SignatureVerificationError | None = None
         try:
-            body = _read_wsgi_body(environ, max_body_size)
-            error = _verify_request(verify_fn, headers, body)
-        except BodyTooLargeError as e:
-            body, error = _empty_message_body(headers), e
+            signed = _check_headers(verify_fn, headers)
+            body = _read_wsgi_body(environ, headers, max_body_size)
+            _verify_body(verify_fn, headers, body, signed)
+        except SignatureVerificationError as e:
+            error = e
+            body = _rejection_body(headers)
+            # The replayed body is neither compressed nor of the sent length.
+            for key in ("HTTP_CONTENT_ENCODING", "HTTP_CONNECT_CONTENT_ENCODING", "HTTP_GRPC_ENCODING"):
+                environ.pop(key, None)
 
         # Replay body to downstream. A unary call has passed the interceptor by the time the app
         # returns, so the result is reset then: the thread serves other requests in this context,
@@ -96,11 +103,11 @@ def _parse_wsgi_headers(environ: WSGIEnviron) -> dict[str, str]:
     return result
 
 
-def _read_wsgi_body(environ: WSGIEnviron, max_size: int) -> bytes:
-    """Read the full request body from WSGI environ, enforcing size limit."""
-    content_length = environ.get("CONTENT_LENGTH", "")
-    if content_length:
-        length = int(content_length)
+def _read_wsgi_body(environ: WSGIEnviron, headers: dict[str, str], max_size: int) -> bytes:
+    """Read the whole body, at most max_size bytes: a declared Content-Length over the limit is
+    refused before anything is read."""
+    length = _declared_length(headers)
+    if length is not None:
         if length > max_size:
             raise BodyTooLargeError(max_size)
         body = environ["wsgi.input"].read(length)

@@ -37,17 +37,54 @@ public class NetworkClientOptionsTests
         Assert.NotNull(NetworkClient.CreateNetworkServiceClient("api.t-0.network", signer));
         Assert.NotNull(NetworkClient.CreatePaymentIntentNetworkServiceClient("localhost:8080", signer));
         var ex = Assert.Throws<ArgumentException>(() => NetworkClient.CreateNetworkServiceClient("user@h", signer));
-        Assert.StartsWith("base URL is not valid", ex.Message);
+        Assert.Equal("base URL is not valid", ex.Message);
+    }
+
+    // Internal, not Unavailable (which callers retry), with the signer's error as the cause; nothing is sent.
+    [Fact]
+    public async Task SignerFailure_IsInternal_WithItsCause()
+    {
+        var publicKey = Signer.FromHex(Key).GetPublicKey();
+        var signers = new (SignFn Signer, string Cause)[]
+        {
+            (_ => throw new InvalidOperationException("signer is offline"), "signer is offline"),
+            (_ => (new byte[63], publicKey), "signature must be 64 or 65 bytes"),
+            (_ => (new byte[65], publicKey[..33]), "public key must be 65 bytes, uncompressed"),
+        };
+
+        foreach (var (signer, cause) in signers)
+        {
+            var client = NetworkClient.CreateNetworkServiceClient("http://127.0.0.1:1", signer);
+            var ex = await Assert.ThrowsAsync<RpcException>(
+                () => client.UpdateQuoteAsync(new PaymentApi.UpdateQuoteRequest()).ResponseAsync);
+
+            Assert.Equal(StatusCode.Internal, ex.StatusCode);
+            Assert.Equal($"signing the request failed: {cause}", ex.Status.Detail);
+        }
     }
 
     [Fact]
-    public void Transport_PingsEvery5Minutes_WithA10SecondTimeout()
+    public void NullArguments_AreRefused_WithoutAParameterSuffix()
+    {
+        var signer = Signer.FromHex(Key);
+        var options = new NetworkClientOptions();
+
+        Assert.Equal("options must not be null", Assert.Throws<ArgumentNullException>(
+            () => NetworkClient.Create<CallInvoker>(null!, signer, invoker => invoker)).Message);
+        Assert.Equal("signer must not be null", Assert.Throws<ArgumentNullException>(
+            () => NetworkClient.Create<CallInvoker>(options, null!, invoker => invoker)).Message);
+        Assert.Equal("newClient must not be null", Assert.Throws<ArgumentNullException>(
+            () => NetworkClient.Create<CallInvoker>(options, signer, null!)).Message);
+        Assert.Equal("signer must not be null", Assert.Throws<ArgumentNullException>(
+            () => new SigningDelegatingHandler(null!)).Message);
+    }
+
+    [Fact]
+    public void Transport_SendsNoPings_AndFollowsNoRedirect()
     {
         using var transport = NetworkClient.CreateTransport();
 
-        Assert.Equal(TimeSpan.FromMinutes(5), transport.KeepAlivePingDelay);
-        Assert.Equal(TimeSpan.FromSeconds(10), transport.KeepAlivePingTimeout);
-        Assert.Equal(HttpKeepAlivePingPolicy.WithActiveRequests, transport.KeepAlivePingPolicy);
+        Assert.Equal(Timeout.InfiniteTimeSpan, transport.KeepAlivePingDelay);
         Assert.False(transport.AllowAutoRedirect);
     }
 
@@ -88,6 +125,37 @@ public class NetworkClientOptionsTests
         }
     }
 
+    // The transport is shared by every client, so a cookie one server sets must not reach any request.
+    [Fact]
+    public async Task CookieFromTheServer_IsNotSentBack()
+    {
+        var cookies = new System.Collections.Concurrent.ConcurrentQueue<string>();
+        var (server, url) = await StartServerAsync(context =>
+        {
+            cookies.Enqueue(context.Request.Headers.Cookie.ToString());
+            context.Response.Headers.SetCookie = "session=abc; Path=/";
+            context.Response.ContentType = "application/grpc";
+            context.Response.Headers["grpc-status"] = "0";
+            return Task.CompletedTask;
+        });
+
+        try
+        {
+            var client = NetworkClient.CreateNetworkServiceClient(
+                new NetworkClientOptions { BaseUrl = url }, Signer.FromHex(Key));
+            for (var i = 0; i < 2; i++)
+                await Assert.ThrowsAsync<RpcException>(
+                    () => client.UpdateQuoteAsync(new PaymentApi.UpdateQuoteRequest()).ResponseAsync);
+
+            Assert.Equal(["", ""], cookies);
+            Assert.False(NetworkClient.SharedTransport.UseCookies);
+        }
+        finally
+        {
+            await server.DisposeAsync();
+        }
+    }
+
     /// <summary>
     /// HTTP/2 cleartext server on a free port.
     /// </summary>
@@ -121,7 +189,7 @@ public class NetworkClientOptionsTests
 
         Assert.Same(NetworkClient.SharedTransport, first.InnerHandler);
         Assert.Same(NetworkClient.SharedTransport, second.InnerHandler);
-        Assert.Equal(TimeSpan.FromMinutes(5), NetworkClient.SharedTransport.KeepAlivePingDelay);
+        Assert.False(NetworkClient.SharedTransport.AllowAutoRedirect);
     }
 
     [Fact]

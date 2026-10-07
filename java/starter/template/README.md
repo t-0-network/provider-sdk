@@ -12,7 +12,7 @@ T-0 Network provider implementation generated from the official Java starter.
 1. **Review `.env`** (written with a fresh keypair during init):
    - `PROVIDER_PRIVATE_KEY` - Your provider's private key (generated during init)
    - `TZERO_ENDPOINT` - API endpoint (default: sandbox)
-   - `PORT` - Port for your provider server
+   - `PORT` - Port for your provider server (default: 8080)
    - `QUOTE_PUBLISHING_INTERVAL` - Quote publishing frequency in milliseconds (default: 5000)
 
 2. **Run the application:**

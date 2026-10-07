@@ -103,7 +103,7 @@ shutdownFunc, err := provider.StartServer(
 )
 ```
 
-`StartServer` returns once the server accepts connections, or after 5 seconds (`provider.ServerStartupTimeout`). The function it returns shuts the server down gracefully and is safe to call more than once, even concurrently; only the first call shuts down.
+`StartServer` returns once the address is bound; a bind error is `net.Listen`'s. The function it returns shuts the server down gracefully and is safe to call more than once, even concurrently; only the first call shuts down, and it also returns an error that ended serving before the shutdown.
 
 Or create an HTTP server instance without starting it, for use with your own server setup:
 
@@ -151,7 +151,23 @@ _, err = networkClient.GetQuote(ctx, connect.NewRequest(&networkproto.GetQuoteRe
 _, err = networkClient.CreatePayment(ctx, connect.NewRequest(&networkproto.CreatePaymentRequest{ /* ... */ }))
 ```
 
-**Client options:** `WithBaseURL` (default: `https://api.t-0.network`), `WithTimeout` (unary calls, default: 15s), `WithStreamTimeout` (streaming calls, default: 5 min), `WithWireFormat` (`WireFormatBinary` default, `WireFormatJSON`), `WithProtocol` (`ProtocolConnect` default, `ProtocolGRPC`), `WithSignatureFunction`, `WithHTTPTransport` (for tests: sends the signed requests through a mock `http.RoundTripper` or a test server's transport).
+**Client options:** `WithBaseURL` (default: `network.DefaultBaseURL`, `https://api.t-0.network`), `WithTimeout` (unary calls, default: `network.DefaultTimeout`, 15s), `WithStreamTimeout` (streaming calls, default: `network.DefaultStreamTimeout`, 5 min), `WithWireFormat` (`WireFormatBinary` default, `WireFormatJSON`), `WithProtocol` (`ProtocolConnect` default, `ProtocolGRPC`), `WithSignatureFunction` (a custom signer, below), `WithHTTPTransport` (for tests: sends the signed requests through a mock `http.RoundTripper` or a test server's transport). A timeout must be positive and at most `network.MaxTimeout` (2147483647 ms).
+
+#### Custom signer
+
+To sign somewhere other than in the process (a KMS or an HSM, say), pass an empty key and give the client a `crypto.SignFn` with `WithSignatureFunction`; a key given as well is refused ("a private key and a signer must not both be given"), and so is a nil signer. It gets the 32-byte digest and returns the signature, 64 bytes r‖s or 65 bytes r‖s‖v, and the 65-byte uncompressed public key it verifies against. `crypto.NewSignerFromHex` builds the SDK's own signer from a hex key, and `crypto.PublicKeyFromPrivateKey` gives the public key of a hex key (`0x` and 130 lowercase hex characters).
+
+```go
+var signer crypto.SignFn = func(digest []byte) (signature, publicKey []byte, err error) {
+    // Sign the 32-byte digest with your key store.
+}
+
+networkClient, err := network.NewServiceClient("", paymentconnect.NewNetworkServiceClient,
+    network.WithSignatureFunction(signer),
+)
+```
+
+The client checks the signer's output before it sends anything, and sends the signature exactly as the signer returned it. A signer error, a signature that is not 64 or 65 bytes, or a public key that is not 65 bytes uncompressed fails the call with `connect.CodeInternal` "signing the request failed: <cause>".
 
 #### Streaming and timeouts
 

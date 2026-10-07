@@ -12,7 +12,7 @@ from t0_provider_sdk.crypto.hash import legacy_keccak256
 from t0_provider_sdk.crypto.keys import private_key_from_hex
 from t0_provider_sdk.crypto.signer import new_signer
 from t0_provider_sdk.provider.errors import (
-    InvalidHeaderEncodingError,
+    InvalidTimestampError,
     SignatureFailedError,
     TimestampOutOfRangeError,
 )
@@ -81,9 +81,12 @@ def _make_signed_environ(
     return environ
 
 
-def _run_middleware(environ: dict, network_key: str = PUBLIC_KEY, max_body_size: int = DEFAULT_MAX_BODY_SIZE):
+def _run_middleware(
+    environ: dict, network_key: str = PUBLIC_KEY, max_body_size: int = DEFAULT_MAX_BODY_SIZE, verify_fn=None
+):
     """Run the WSGI middleware and return (signature_error, downstream_body)."""
-    verify_fn = new_verify_signature(network_key)
+    if verify_fn is None:
+        verify_fn = new_verify_signature(network_key)
 
     captured_error = None
     captured_body = None
@@ -197,10 +200,10 @@ class TestSignatureVerificationMiddlewareWSGI:
 
     @pytest.mark.parametrize("timestamp", MALFORMED_TIMESTAMPS)
     def test_malformed_timestamp(self, timestamp):
-        """Anything but ASCII digits below 2^63 -> invalid encoding, never an exception."""
+        """Anything but ASCII digits below 2^63 -> an invalid timestamp, never an exception."""
         environ = _make_signed_environ(override_headers={"x-signature-timestamp": timestamp})
         error, _ = _run_middleware(environ)
-        assert isinstance(error, InvalidHeaderEncodingError)
+        assert isinstance(error, InvalidTimestampError)
 
     def test_largest_timestamp_is_out_of_range(self):
         environ = _make_signed_environ(override_headers={"x-signature-timestamp": str(2**63 - 1)})
@@ -220,7 +223,7 @@ class TestSignatureVerificationMiddlewareWSGI:
         environ = _make_signed_environ()
         error, _ = _run_middleware(environ, network_key=OTHER_PUBLIC_KEY)
         assert error is not None
-        assert "unknown public key" in str(error)
+        assert str(error) == "request signed with unknown public key"
 
     def test_invalid_signature(self):
         """Tampered signature -> error."""
@@ -281,3 +284,33 @@ class TestSignatureVerificationMiddlewareWSGI:
         error, _ = _run_middleware(environ)
         assert error is None
         assert signature_error_var.get() is NOT_VERIFIED
+
+
+class TestCustomVerifyFnWSGI:
+    """A plain callable as verify_fn, as 1.2.1 took it (see test_middleware.TestCustomVerifyFn)."""
+
+    def test_called_with_the_raw_header_bytes_and_the_signed_message(self):
+        environ = _make_signed_environ(body=b"payload")
+        calls = []
+
+        def verify_fn(public_key: bytes, message: bytes, signature: bytes) -> None:
+            calls.append((public_key, message, signature))
+
+        error, body = _run_middleware(environ, verify_fn=verify_fn)
+        assert error is None
+        assert body == b"payload"
+        timestamp_bytes = struct.pack("<Q", int(environ["HTTP_X_SIGNATURE_TIMESTAMP"]))
+        assert calls == [
+            (
+                bytes.fromhex(environ["HTTP_X_PUBLIC_KEY"][2:]),
+                b"payload" + timestamp_bytes,
+                bytes.fromhex(environ["HTTP_X_SIGNATURE"][2:]),
+            )
+        ]
+
+    def test_its_refusal_is_the_result(self):
+        def verify_fn(public_key: bytes, message: bytes, signature: bytes) -> None:
+            raise SignatureFailedError()
+
+        error, _ = _run_middleware(_make_signed_environ(), verify_fn=verify_fn)
+        assert isinstance(error, SignatureFailedError)

@@ -8,8 +8,10 @@ in-process; the answer is read as the Connect error code ("ok" for a response).
 import asyncio
 import io
 import json
+import logging
 
 import pytest
+from t0_provider_sdk._version import __version__
 from t0_provider_sdk.crypto.keys import private_key_from_hex
 from t0_provider_sdk.crypto.signer import new_signer_from_hex
 from t0_provider_sdk.network.signing import _sign_request
@@ -43,6 +45,23 @@ TRANSPORTS = ["asgi", "wsgi"]
 def test_missing_key_is_rejected(build, key):
     with pytest.raises(NetworkPublicKeyRequiredError, match="network public key is not set"):
         build(key)
+
+
+@pytest.mark.parametrize(
+    ("register", "app_class"),
+    [(handler, ProviderServiceASGIApplication), (handler_sync, ProviderServiceWSGIApplication)],
+    ids=["handler", "handler_sync"],
+)
+def test_service_must_not_be_none(register, app_class):
+    with pytest.raises(ValueError, match="^service must not be null$"):
+        register(app_class, None)
+
+
+def test_network_public_key_required_error_is_importable_from_handler():
+    """1.2.0 and 1.2.1 had it in this module's namespace; code that imports it from there still works."""
+    from t0_provider_sdk.provider.handler import NetworkPublicKeyRequiredError as FromHandler
+
+    assert FromHandler is NetworkPublicKeyRequiredError
 
 
 @pytest.mark.parametrize("build", BUILDERS)
@@ -292,3 +311,138 @@ def test_unverified_call_is_refused_over_wsgi():
 
     assert _call_wsgi(new_wsgi_app(PUBLIC_KEY), CHECK_PATH, _signed_headers())[0] == "ok"
     assert _call_wsgi(unwrapped, CHECK_PATH, _signed_headers()) == ("internal", "no signature result in context")
+
+
+class _Records(logging.Handler):
+    def __init__(self) -> None:
+        super().__init__(level=logging.DEBUG)
+        self.records: list[logging.LogRecord] = []
+
+    def emit(self, record: logging.LogRecord) -> None:
+        self.records.append(record)
+
+
+def _version_header(headers) -> str:
+    return next(
+        v.decode() if isinstance(v, bytes) else v
+        for k, v in headers
+        if k.lower() in (b"t0-sdk-version", "t0-sdk-version")
+    )
+
+
+def _report_of(transport: str, version: str | None) -> tuple[str, str]:
+    """The version a server built with this override reports: in the health headers, and in the log
+    line of a response that fails validation (the stub's PayoutResponse has no result)."""
+    logger = logging.getLogger(f"t0_provider_sdk.tests.version.{transport}")
+    logger.propagate = False
+    records = _Records()
+    logger.addHandler(records)
+    try:
+        if transport == "asgi":
+            app = new_asgi_app(
+                PUBLIC_KEY,
+                handler(ProviderServiceASGIApplication, _StubProviderService()),
+                logger=logger,
+                version=version,
+            )
+            health = asyncio.run(_send_asgi(app, CHECK_PATH, _signed_headers()))[0]["headers"]
+            assert asyncio.run(_call_asgi(app, PAY_OUT_PATH, _signed_headers()))[0] == "internal"
+        else:
+            app = new_wsgi_app(
+                PUBLIC_KEY,
+                handler_sync(ProviderServiceWSGIApplication, _StubProviderServiceSync()),
+                logger=logger,
+                version=version,
+            )
+            captured = []
+            environ = {
+                "REQUEST_METHOD": "POST",
+                "PATH_INFO": CHECK_PATH,
+                "SCRIPT_NAME": "",
+                "CONTENT_TYPE": "application/proto",
+                "CONTENT_LENGTH": "0",
+                "wsgi.input": io.BytesIO(b""),
+                "wsgi.errors": io.StringIO(),
+            }
+            for name, value in _signed_headers().items():
+                environ["HTTP_" + name.upper().replace("-", "_")] = value
+            b"".join(app(environ, lambda status, headers, exc_info=None: captured.append(headers)))
+            health = captured[0]
+            assert _call_wsgi(app, PAY_OUT_PATH, _signed_headers())[0] == "internal"
+    finally:
+        logger.removeHandler(records)
+    [record] = records.records
+    return _version_header(health), record.sdk_version
+
+
+@pytest.mark.parametrize("transport", TRANSPORTS)
+@pytest.mark.parametrize(
+    ("version", "reported"),
+    [("0.2.9", "0.2.9"), (None, __version__), ("", __version__), (" \t", __version__)],
+    ids=["override", "none", "empty", "whitespace"],
+)
+def test_version_override_reaches_health_headers_and_validation_log(transport, version, reported):
+    """One server reports one version: the override when it is not blank, else the SDK's."""
+    assert _report_of(transport, version) == (reported, reported)
+
+
+def _status(transport: str, method: str, path: str, query: str = "", content_type: str = "application/proto") -> int:
+    """The HTTP status a signed call with an empty body gets from new_asgi_app / new_wsgi_app."""
+    headers = _signed_headers()
+    if transport == "asgi":
+        app = new_asgi_app(PUBLIC_KEY, handler(ProviderServiceASGIApplication, _StubProviderService()))
+        scope = {
+            "type": "http",
+            "method": method,
+            "path": path,
+            "root_path": "",
+            "query_string": query.encode(),
+            "headers": [(b"content-type", content_type.encode())]
+            + [(k.encode(), v.encode()) for k, v in headers.items()],
+            "extensions": {"http.response.trailers": {}},
+        }
+        sent = []
+
+        async def receive():
+            return {"type": "http.request", "body": b"", "more_body": False}
+
+        async def send(message):
+            sent.append(message)
+
+        asyncio.run(app(scope, receive, send))
+        return sent[0]["status"]
+    app = new_wsgi_app(PUBLIC_KEY, handler_sync(ProviderServiceWSGIApplication, _StubProviderServiceSync()))
+    environ = {
+        "REQUEST_METHOD": method,
+        "PATH_INFO": path,
+        "SCRIPT_NAME": "",
+        "QUERY_STRING": query,
+        "CONTENT_TYPE": content_type,
+        "CONTENT_LENGTH": "0",
+        "wsgi.input": io.BytesIO(b""),
+        "wsgi.errors": io.StringIO(),
+    }
+    for name, value in headers.items():
+        environ["HTTP_" + name.upper().replace("-", "_")] = value
+    statuses = []
+    b"".join(app(environ, lambda status, headers, exc_info=None: statuses.append(int(status.split()[0]))))
+    return statuses[0]
+
+
+@pytest.mark.parametrize("transport", TRANSPORTS)
+def test_health_check_is_post_only(transport):
+    """A Connect GET would carry the request in the query, outside the signed body: refused, as in
+    every SDK."""
+    assert _status(transport, "POST", CHECK_PATH) == 200
+    assert _status(transport, "GET", CHECK_PATH, query="encoding=proto&message=") == 405
+
+
+@pytest.mark.parametrize(
+    ("transport", "content_type"),
+    [("asgi", "application/proto"), ("asgi", "application/grpc"), ("wsgi", "application/proto")],
+    ids=["asgi connect", "asgi grpc", "wsgi connect"],
+)
+@pytest.mark.parametrize("method", ["Watch", "List"])
+def test_health_watch_and_list_are_not_served(transport, content_type, method):
+    """HTTP 404, which Connect and gRPC clients read as UNIMPLEMENTED, the code of every SDK."""
+    assert _status(transport, "POST", f"/grpc.health.v1.Health/{method}", content_type=content_type) == 404

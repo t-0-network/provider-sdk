@@ -8,6 +8,7 @@ import { resolve } from 'node:path';
 import { Code, createConnectRouter, type ServiceImpl } from '@connectrpc/connect';
 import { universalRequestFromNodeRequest, universalResponseToNodeResponse } from '@connectrpc/connect-node';
 import { createClient, WireFormat, type Signature } from '../src/client/client.js';
+import { CreateSigner } from '../src/client/signer.js';
 import { computeDigest, NetworkHeaders, parsePublicKey, publicKeysEqual, verifySignature } from '../src/crypto/index.js';
 import { StreamTest, isCode, newKeypair, stringValues } from './stream_helpers.js';
 
@@ -19,6 +20,8 @@ interface Check {
   timeoutMs: string | null;
   // The first envelope of a stream (empty without one), the whole body of a unary call.
   signed: Buffer;
+  // The X-Signature header as sent.
+  signature: string;
   valid: boolean;
 }
 
@@ -112,6 +115,7 @@ async function bootStreamServer(clientPublicKeyHex: string, pathPrefix = ''): Pr
       contentType,
       timeoutMs: req.headers['connect-timeout-ms'] === undefined ? null : String(req.headers['connect-timeout-ms']),
       signed: Buffer.from(signed),
+      signature: String(req.headers['x-signature'] ?? ''),
       valid,
     });
     if (!valid || (enveloped && !hasFirstMessage)) {
@@ -358,13 +362,34 @@ describe('createClient routes unary and streaming calls to their own transport',
     });
   });
 
+  it('a call timeout of 0 or less fails at once with deadline_exceeded, unsent; a larger one than 2^31 − 1 is cut to it', async () => {
+    await withServer(async (srv, key) => {
+      const client = createClient(key.privateKeyHex, srv.url, StreamTest);
+      for (const timeoutMs of [0, -1, NaN]) {
+        await assert.rejects(client.unary({ value: 'u' }, { timeoutMs }), isCode(Code.DeadlineExceeded));
+        await assert.rejects(client.clientStream(stringValues('c'), { timeoutMs }), isCode(Code.DeadlineExceeded));
+        await assert.rejects(
+          (async () => { for await (const _ of client.serverStream({ value: 's' }, { timeoutMs })) { /* drain */ } })(),
+          isCode(Code.DeadlineExceeded),
+        );
+      }
+      assert.equal(srv.checks.length, 0, 'nothing is sent');
+
+      await client.unary({ value: 'u' }, { timeoutMs: 2 ** 31 });
+      assert.deepEqual(srv.checks.map((c) => c.timeoutMs), ['2147483647']);
+    });
+  });
+
   // From 2^31 ms Node fires a timer at once, so every call would fail at once.
   it('a configured timeout that is 0 or too large for a Node timer is refused', () => {
-    for (const ms of [0, 2 ** 31]) {
-      for (const [name, opts] of [['timeoutMs', { timeoutMs: ms }], ['streamTimeoutMs', { streamTimeoutMs: ms }]] as const) {
+    for (const ms of [0, -1, NaN, 2 ** 31]) {
+      for (const [message, opts] of [
+        ['timeout must be a positive duration of at most 2147483647 ms', { timeoutMs: ms }],
+        ['stream timeout must be a positive duration of at most 2147483647 ms', { streamTimeoutMs: ms }],
+      ] as const) {
         assert.throws(() => createClient(newKeypair().privateKeyHex, 'http://127.0.0.1:9', StreamTest, opts), {
           name: 'RangeError',
-          message: `${name} must be a positive duration of at most 2147483647 ms`,
+          message,
         });
       }
     }
@@ -382,10 +407,21 @@ describe('createClient routes unary and streaming calls to their own transport',
     });
   }
 
-  it('a base URL that is not given is the default one; null is not set', () => {
+  it('a base URL that is not given, undefined or null, is the default one', () => {
     const key = newKeypair().privateKeyHex;
     assert.doesNotThrow(() => createClient(key, undefined, StreamTest));
-    assert.throws(() => createClient(key, null as unknown as string, StreamTest), { message: 'base URL is not set' });
+    assert.doesNotThrow(() => createClient(key, null as unknown as string, StreamTest));
+  });
+
+  it('checks the base URL, then the timeouts, then the key, as every SDK does', () => {
+    assert.throws(() => createClient('bad key', ' ', StreamTest, { timeoutMs: 0 }), { message: 'base URL is not valid' });
+    assert.throws(() => createClient('bad key', undefined, StreamTest, { timeoutMs: 0 }), {
+      message: 'timeout must be a positive duration of at most 2147483647 ms',
+    });
+    assert.throws(() => createClient('bad key', undefined, StreamTest, { streamTimeoutMs: 0 }), {
+      message: 'stream timeout must be a positive duration of at most 2147483647 ms',
+    });
+    assert.throws(() => createClient('bad key', undefined, StreamTest), { message: 'private key must be 32 bytes (64 hex characters)' });
   });
 
   it('a path in the base URL prefixes every call, with or without a trailing "/"; the signature is unchanged', async () => {
@@ -425,10 +461,51 @@ describe('createClient routes unary and streaming calls to their own transport',
     }
   });
 
-  it('a missing private key is refused', () => {
-    for (const key of ['', null, undefined] as unknown as string[]) {
-      assert.throws(() => createClient(key, 'http://127.0.0.1:9', StreamTest), { message: 'private key must not be null or empty' });
+  it('an empty private key or a missing signer is refused', () => {
+    assert.throws(() => createClient('', 'http://127.0.0.1:9', StreamTest), { message: 'private key must not be null or empty' });
+    for (const signer of [null, undefined] as unknown as string[]) {
+      assert.throws(() => createClient(signer, 'http://127.0.0.1:9', StreamTest), { name: 'TypeError', message: 'signer must not be null' });
     }
+  });
+
+  it("a signer's failure or malformed output fails the call with internal, and nothing is sent", async () => {
+    await withServer(async (srv, key) => {
+      const sign = CreateSigner(key.privateKeyHex);
+      const output = (change: (sig: Signature) => Partial<Signature>) => async (digest: Buffer) => {
+        const sig = await sign(digest);
+        return { ...sig, ...change(sig) } as Signature;
+      };
+      const SIGNATURE = 'signature must be 64 or 65 bytes';
+      const PUBLIC_KEY = 'public key must be 65 bytes, uncompressed';
+      const refused: [string, (digest: Buffer) => Promise<Signature>][] = [
+        ['boom', async () => { throw new Error('boom'); }],
+        [SIGNATURE, output((sig) => ({ signature: sig.signature.subarray(0, 63) }))],
+        [SIGNATURE, output((sig) => ({ signature: Buffer.concat([sig.signature, Buffer.of(0)]) }))],
+        [SIGNATURE, output(() => ({ signature: undefined }))],
+        [PUBLIC_KEY, output((sig) => ({ publicKey: Buffer.concat([Buffer.of(2), sig.publicKey.subarray(1, 33)]) }))],
+        [PUBLIC_KEY, output((sig) => ({ publicKey: Buffer.concat([Buffer.of(6), sig.publicKey.subarray(1)]) }))],
+      ];
+      for (const [cause, signer] of refused) {
+        const client = createClient(signer, srv.url, StreamTest);
+        for (const call of [() => client.unary({ value: 'u' }), () => client.clientStream(stringValues('c'))]) {
+          await assert.rejects(call(), (err: unknown) => {
+            assert.ok(isCode(Code.Internal)(err), String(err));
+            assert.equal((err as { rawMessage: string }).rawMessage, `signing the request failed: ${cause}`);
+            return true;
+          });
+        }
+      }
+      assert.equal(srv.checks.length, 0, 'nothing is sent');
+
+      // A Uint8Array is as good as a Buffer, a 64-byte signature is accepted, and a 65-byte one is
+      // sent as it is, whatever its last byte.
+      const plain = output((sig) => ({ signature: new Uint8Array(sig.signature.subarray(0, 64)) as Buffer, publicKey: new Uint8Array(sig.publicKey) as Buffer }));
+      assert.equal((await createClient(plain, srv.url, StreamTest).unary({ value: 'u' })).value, 'u');
+      const v27 = output((sig) => ({ signature: Buffer.concat([sig.signature.subarray(0, 64), Buffer.of(sig.signature[64] + 27)]) }));
+      assert.equal((await createClient(v27, srv.url, StreamTest).unary({ value: 'u' })).value, 'u');
+      assert.deepEqual(srv.checks.map((c) => c.valid), [true, true]);
+      assert.match(srv.checks[1].signature, /^0x[0-9a-f]{128}(1b|1c)$/);
+    });
   });
 
   it('the stream timeout covers the wait for the first message', async () => {

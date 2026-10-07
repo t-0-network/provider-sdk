@@ -15,7 +15,8 @@ from connectrpc.compat import google_protobuf_binary_codec
 from connectrpc.errors import ConnectError
 from connectrpc.method import IdempotencyLevel, MethodInfo
 from google.protobuf.wrappers_pb2 import StringValue
-from t0_provider_sdk.network import Protocol, new_service_client, new_service_client_sync
+from t0_provider_sdk._messages import STREAM_TIMEOUT_NOT_VALID, TIMEOUT_NOT_VALID
+from t0_provider_sdk.network import MAX_TIMEOUT, Protocol, new_service_client, new_service_client_sync
 
 PRIVATE_KEY = "0x6b30303de7b26bfb1222b317a52113357f8bb06de00160b4261a2fef9c8b9bd8"
 BASE_URL = "http://example.test"
@@ -129,7 +130,7 @@ async def _messages():
     yield StringValue(value="m1")
 
 
-async def _call(client, kind: str, timeout_ms: int | None = None) -> None:
+async def _call(client, kind: str, timeout_ms: int | None = None, code: Code = Code.UNAVAILABLE) -> str:
     with pytest.raises(ConnectError) as exc_info:
         match kind:
             case "unary":
@@ -139,10 +140,11 @@ async def _call(client, kind: str, timeout_ms: int | None = None) -> None:
             case "server_stream":
                 async for _ in client.server_stream(StringValue(value="m1"), timeout_ms=timeout_ms):
                     pass
-    assert exc_info.value.code == Code.UNAVAILABLE
+    assert exc_info.value.code == code
+    return exc_info.value.message
 
 
-def _call_sync(client, kind: str, timeout_ms: int | None = None) -> None:
+def _call_sync(client, kind: str, timeout_ms: int | None = None, code: Code = Code.UNAVAILABLE) -> str:
     with pytest.raises(ConnectError) as exc_info:
         match kind:
             case "unary":
@@ -152,7 +154,8 @@ def _call_sync(client, kind: str, timeout_ms: int | None = None) -> None:
             case "server_stream":
                 for _ in client.server_stream(StringValue(value="m1"), timeout_ms=timeout_ms):
                     pass
-    assert exc_info.value.code == Code.UNAVAILABLE
+    assert exc_info.value.code == code
+    return exc_info.value.message
 
 
 STREAMS = ["client_stream", "server_stream"]
@@ -204,6 +207,21 @@ class TestAsyncClientTimeouts:
         await _call(client, kind, timeout_ms=timeout_ms)
         assert recorder.timeout_header == str(timeout_ms)
 
+    @pytest.mark.parametrize("timeout_ms", [0, -1])
+    @pytest.mark.parametrize("kind", KINDS)
+    async def test_call_timeout_not_greater_than_zero_fails_unsent(self, kind: str, timeout_ms: int) -> None:
+        """A deadline that has already passed: DEADLINE_EXCEEDED, and nothing is sent (connectrpc
+        alone would take 0 as no deadline)."""
+        client, recorder = _async_client()
+        message = await _call(client, kind, timeout_ms=timeout_ms, code=Code.DEADLINE_EXCEEDED)
+        assert message == "the operation timed out"
+        assert recorder.timeout_header is None
+
+    async def test_timeout_under_a_millisecond_is_one(self) -> None:
+        client, recorder = _async_client(timeout=0.0004)
+        await _call(client, "unary")
+        assert recorder.timeout_header == "1"
+
 
 class TestSyncClientTimeouts:
     def test_unary_gets_the_unary_default(self) -> None:
@@ -246,11 +264,33 @@ class TestSyncClientTimeouts:
         assert recorder.timeout is not None
         assert timeout_ms / 1000 - 0.1 < recorder.timeout <= timeout_ms / 1000
 
+    @pytest.mark.parametrize("timeout_ms", [0, -1])
+    @pytest.mark.parametrize("kind", KINDS)
+    def test_call_timeout_not_greater_than_zero_fails_unsent(self, kind: str, timeout_ms: int) -> None:
+        client, recorder = _sync_client()
+        message = _call_sync(client, kind, timeout_ms=timeout_ms, code=Code.DEADLINE_EXCEEDED)
+        assert message == "the operation timed out"
+        assert recorder.timeout_header is None
+
+
+OPTION_MESSAGES = {"timeout": TIMEOUT_NOT_VALID, "stream_timeout": STREAM_TIMEOUT_NOT_VALID}
+
 
 class TestTimeoutOptions:
-    @pytest.mark.parametrize("value", [0, -1])
+    @pytest.mark.parametrize(
+        "value",
+        [0, -1, float("nan"), float("inf"), MAX_TIMEOUT + 0.001, True],
+        ids=["zero", "negative", "nan", "inf", "over the maximum", "bool"],
+    )
     @pytest.mark.parametrize("option", ["timeout", "stream_timeout"])
     @pytest.mark.parametrize("factory", [new_service_client, new_service_client_sync])
-    def test_value_not_greater_than_zero_is_refused(self, factory, option: str, value: float) -> None:
-        with pytest.raises(ValueError, match=f"^{option} must be a positive duration$"):
+    def test_value_outside_the_bounds_is_refused(self, factory, option: str, value: float) -> None:
+        """Greater than zero and at most 2147483647 ms, the same message in every SDK."""
+        with pytest.raises(ValueError) as exc_info:
             factory(PRIVATE_KEY, _Client, **{option: value})
+        assert str(exc_info.value) == OPTION_MESSAGES[option]
+
+    @pytest.mark.parametrize("option", ["timeout", "stream_timeout"])
+    @pytest.mark.parametrize("factory", [new_service_client, new_service_client_sync])
+    def test_the_maximum_is_accepted(self, factory, option: str) -> None:
+        assert factory(PRIVATE_KEY, _Client, **{option: MAX_TIMEOUT}) is not None

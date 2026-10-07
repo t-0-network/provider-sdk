@@ -20,3 +20,10 @@ runs:
       shell: bash
       working-directory: cross_test/go_helper
       run: go work use && go build -o go_helper .
+
+    # Every SDK's cross tests skip outside CI when the helper is missing; in CI a missing helper
+    # must fail the job, never let a probe or client-probe test skip.
+    - name: Check the helper binary
+      shell: bash
+      working-directory: cross_test/go_helper
+      run: test -x go_helper || { echo "::error::cross_test/go_helper/go_helper was not built"; exit 1; }

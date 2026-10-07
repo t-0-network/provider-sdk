@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { create } from '@bufbuild/protobuf';
 import { Code, ConnectError } from '@connectrpc/connect';
 import { DecimalSchema } from '../src/common/gen/tzero/v1/common/common_pb.js';
+import { ApprovePaymentQuoteResponseSchema } from '../src/common/gen/tzero/v1/payment/provider_pb.js';
 import { validate } from '../src/service/validate.js';
 import { createValidationInterceptor } from '../src/service/validate_response.js';
 
@@ -26,6 +27,15 @@ describe('validate() helper', () => {
         return true;
       },
     );
+  });
+
+  it('names each violation by its field path, as every SDK does', () => {
+    const msg = create(ApprovePaymentQuoteResponseSchema);
+    assert.throws(() => validate(ApprovePaymentQuoteResponseSchema, msg), (err: unknown) => {
+      assert.ok(err instanceof ConnectError);
+      assert.equal(err.rawMessage, 'response validation failed: result: exactly one field is required in oneof');
+      return true;
+    });
   });
 
   it('preserves narrow TypeScript type', () => {

@@ -14,11 +14,22 @@ from connectrpc.compat import google_protobuf_json_codec
 from connectrpc.errors import ConnectError
 from connectrpc.protocol import ProtocolType
 
+from t0_provider_sdk._messages import (
+    BASE_URL_NOT_SET,
+    BASE_URL_NOT_VALID,
+    BIDI_NOT_SUPPORTED,
+    CALL_DEADLINE_PASSED,
+    KEY_AND_SIGNER,
+    SIGNER_NULL,
+    STREAM_TIMEOUT_NOT_VALID,
+    TIMEOUT_NOT_VALID,
+)
 from t0_provider_sdk.crypto.signer import SignFn, new_signer_from_hex
 from t0_provider_sdk.network.options import (
     DEFAULT_BASE_URL,
     DEFAULT_STREAM_TIMEOUT,
     DEFAULT_TIMEOUT,
+    MAX_TIMEOUT,
     Protocol,
     WireFormat,
 )
@@ -39,7 +50,7 @@ _EXECUTE_METHODS = (
 
 
 def new_service_client(
-    private_key: str,
+    private_key: str | SignFn | None,
     client_class: type[T],
     *,
     base_url: str | None = DEFAULT_BASE_URL,
@@ -56,21 +67,30 @@ def new_service_client(
     raise ConnectError UNIMPLEMENTED. See docs/STREAMING.md.
 
     Args:
-        private_key: Hex-encoded secp256k1 private key: 64 hex digits, optionally after 0x or 0X.
-            Ignored when sign_fn is given.
+        private_key: The signer: a hex-encoded secp256k1 private key (64 hex digits, optionally
+            after 0x or 0X), or a SignFn, such as new_signer_from_hex's result or a function that
+            signs with a key held elsewhere. None (with no sign_fn) raises ValueError ("signer must
+            not be null"). With sign_fn, it must be None or "": both given raise ValueError.
         client_class: Generated ConnectRPC async client class (e.g. NetworkServiceClient).
         base_url: Base URL of the T-0 Network API. None means the default,
-            https://api.t-0.network; an empty or malformed value raises ValueError.
+            https://api.t-0.network; an empty or malformed value, or one with whitespace, raises
+            ValueError.
         timeout: Timeout of unary calls in seconds, 15 by default.
         stream_timeout: Timeout of client- and server-streaming calls in seconds, including the
             wait for the first request message, 300 by default.
         wire_format: WireFormat.BINARY (default) or WireFormat.JSON.
         protocol: Protocol.CONNECT (default) or Protocol.GRPC. gRPC on an http:// base URL uses
             HTTP/2 without TLS.
-        sign_fn: Signs each request in place of private_key, e.g. with a key held elsewhere.
+        sign_fn: A SignFn that signs each request in place of private_key; the same as passing it as
+            private_key.
 
-    Each timeout must be greater than zero. A call's own ``timeout_ms`` replaces the default,
-    whether shorter or longer.
+    A SignFn's output is checked before a request is sent: a signature of 64 or 65 bytes, sent as
+    it is, and a 65-byte uncompressed public key. A failed check, or an exception of the SignFn,
+    fails the call with INTERNAL "signing the request failed: <cause>".
+
+    Each timeout must be greater than zero and at most MAX_TIMEOUT (2147483647 ms); one under a
+    millisecond counts as one. A call's own ``timeout_ms`` replaces the default, whether shorter or
+    longer; a ``timeout_ms`` of 0 or less fails the call with DEADLINE_EXCEEDED before it is sent.
 
     Returns:
         An instance of client_class configured with signing transport.
@@ -78,7 +98,7 @@ def new_service_client(
     base_url = _checked_base_url(base_url)
     unary_ms, stream_ms = _default_timeouts_ms(timeout, stream_timeout)
     transport = _transport(base_url, protocol, sync=False)
-    signing_client = SigningClient(sign_fn or new_signer_from_hex(private_key), transport=transport)
+    signing_client = SigningClient(_signer(private_key, sign_fn), transport=transport)
     client = client_class(base_url, http_client=signing_client, **_client_kwargs(wire_format, protocol))  # type: ignore[call-arg]
     _set_default_timeouts(client, unary_ms, stream_ms)
     _reject_bidi_streams(client)
@@ -86,7 +106,7 @@ def new_service_client(
 
 
 def new_service_client_sync(
-    private_key: str,
+    private_key: str | SignFn | None,
     client_class: type[T],
     *,
     base_url: str | None = DEFAULT_BASE_URL,
@@ -101,15 +121,14 @@ def new_service_client_sync(
     Signing, timeouts and the rejection of bidirectional streams work as in new_service_client.
 
     Args:
-        private_key: Hex-encoded secp256k1 private key: 64 hex digits, optionally after 0x or 0X.
-            Ignored when sign_fn is given.
+        private_key: The signer: a hex-encoded private key or a SignFn; see new_service_client.
         client_class: Generated ConnectRPC sync client class (e.g. NetworkServiceClientSync).
         base_url: Base URL of the T-0 Network API; see new_service_client.
         timeout: Timeout of unary calls in seconds, 15 by default.
         stream_timeout: Timeout of client- and server-streaming calls in seconds, 300 by default.
         wire_format: WireFormat.BINARY (default) or WireFormat.JSON.
         protocol: Protocol.CONNECT (default) or Protocol.GRPC.
-        sign_fn: Signs each request in place of private_key.
+        sign_fn: A SignFn that signs each request in place of private_key.
 
     Returns:
         An instance of client_class configured with signing transport.
@@ -117,25 +136,42 @@ def new_service_client_sync(
     base_url = _checked_base_url(base_url)
     unary_ms, stream_ms = _default_timeouts_ms(timeout, stream_timeout)
     transport = _transport(base_url, protocol, sync=True)
-    signing_client = SigningSyncClient(sign_fn or new_signer_from_hex(private_key), transport=transport)
+    signing_client = SigningSyncClient(_signer(private_key, sign_fn), transport=transport)
     client = client_class(base_url, http_client=signing_client, **_client_kwargs(wire_format, protocol))  # type: ignore[call-arg]
     _set_default_timeouts(client, unary_ms, stream_ms)
     _reject_bidi_streams(client)
     return client
 
 
+def _signer(private_key: str | SignFn | None, sign_fn: SignFn | None) -> SignFn:
+    """The signer of a client: sign_fn, else private_key, which is a hex key or a SignFn."""
+    if sign_fn is not None:
+        # A key is never silently dropped for the sign_fn given with it.
+        if private_key is not None and private_key != "":
+            raise ValueError(KEY_AND_SIGNER)
+        return sign_fn
+    if private_key is None:
+        raise ValueError(SIGNER_NULL)
+    if isinstance(private_key, str):
+        return new_signer_from_hex(private_key)
+    return private_key
+
+
 def _checked_base_url(base_url: str | None) -> str:
     if base_url is None:
         return DEFAULT_BASE_URL
     if base_url == "":
-        raise ValueError("base URL is not set")
+        raise ValueError(BASE_URL_NOT_SET)
+    # Never trimmed; and urlsplit would drop a tab or newline anywhere, and leading spaces.
+    if any(c.isspace() for c in base_url):
+        raise ValueError(BASE_URL_NOT_VALID)
     if "://" not in base_url:  # a value without a scheme is read as https
         base_url = "https://" + base_url
     try:
         parts = urlsplit(base_url)
         port = parts.port  # ValueError outside 0..65535
     except ValueError:
-        raise ValueError("base URL is not valid") from None
+        raise ValueError(BASE_URL_NOT_VALID) from None
     # urlsplit drops an empty "?" or "#", so look for the characters.
     if (
         parts.scheme not in ("http", "https")
@@ -145,7 +181,7 @@ def _checked_base_url(base_url: str | None) -> str:
         or "?" in base_url
         or "#" in base_url
     ):
-        raise ValueError("base URL is not valid")
+        raise ValueError(BASE_URL_NOT_VALID)
     # A path prefixes every call. connectrpc appends "/<service>/<method>", so a trailing "/" would
     # double the slash.
     return base_url.removesuffix("/")
@@ -173,14 +209,16 @@ def _transport(base_url: str, protocol: Protocol, *, sync: bool) -> Any | None:
 
 
 def _default_timeouts_ms(timeout: float, stream_timeout: float) -> tuple[int, int]:
-    return _timeout_ms("timeout", timeout), _timeout_ms("stream_timeout", stream_timeout)
+    return _timeout_ms(timeout, TIMEOUT_NOT_VALID), _timeout_ms(stream_timeout, STREAM_TIMEOUT_NOT_VALID)
 
 
-def _timeout_ms(name: str, seconds: float) -> int:
-    if not seconds > 0:
-        raise ValueError(f"{name} must be a positive duration")
-    # Whole milliseconds: connectrpc writes the value into the timeout header as it is.
-    return round(seconds * 1000)
+def _timeout_ms(seconds: float, message: str) -> int:
+    # Not a bool (True would be 1 s); NaN fails the comparison.
+    if isinstance(seconds, bool) or not 0 < seconds <= MAX_TIMEOUT:
+        raise ValueError(message)
+    # Whole milliseconds, as connectrpc writes the value into the timeout header; at least one, since
+    # 0 would mean no deadline.
+    return max(1, round(seconds * 1000))
 
 
 def _set_default_timeouts(client: object, unary_ms: int, stream_ms: int) -> None:
@@ -199,12 +237,19 @@ def _reject_bidi_streams(client: object) -> None:
 
 def _bidi_stream_unsupported(*args: Any, **kwargs: Any) -> NoReturn:
     # Raised at the call for the async client too: its execute_bidi_stream is a plain def.
-    raise ConnectError(Code.UNIMPLEMENTED, "bidirectional streams are not supported")
+    raise ConnectError(Code.UNIMPLEMENTED, BIDI_NOT_SUPPORTED)
 
 
 def _with_default_timeout(execute: Callable[..., Any], default_ms: int) -> Callable[..., Any]:
     @functools.wraps(execute)
     def execute_with_default_timeout(*args: Any, timeout_ms: int | None = None, **kwargs: Any) -> Any:
+        if timeout_ms is not None and timeout_ms <= 0:
+            # A deadline that has already passed: connectrpc would take 0 as no deadline at all.
+            _deadline_passed()
         return execute(*args, timeout_ms=default_ms if timeout_ms is None else timeout_ms, **kwargs)
 
     return execute_with_default_timeout
+
+
+def _deadline_passed() -> NoReturn:
+    raise ConnectError(Code.DEADLINE_EXCEEDED, CALL_DEADLINE_PASSED)

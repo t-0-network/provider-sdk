@@ -23,6 +23,7 @@ import completeManualAmlCheck from "./complete_manual_aml_check";
 import CreatePayInProviderService from "./payment_intent_pay_in_service";
 import CreateBeneficiaryService from "./payment_intent_beneficiary_service";
 import publishPaymentIntentQuotes from "./publish_payment_intent_quotes";
+import {quotePublishingInterval as parseQuotePublishingInterval} from "./lib";
 import getPaymentIntentQuote from "./get_payment_intent_quote";
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import createPaymentIntent from "./create_payment_intent";
@@ -30,16 +31,12 @@ import createPaymentIntent from "./create_payment_intent";
 dotenv.config();
 
 const privateKeyHex = process.env.PROVIDER_PRIVATE_KEY;
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 8080;
 const endpoint = process.env.TZERO_ENDPOINT || "https://api-sandbox.t-0.network";
-const quotePublishingInterval = Number(process.env.QUOTE_PUBLISHING_INTERVAL || "5000");
+const quotePublishingInterval = parseQuotePublishingInterval(process.env.QUOTE_PUBLISHING_INTERVAL);
 const networkPublicKeyHex = process.env.NETWORK_PUBLIC_KEY;
 
 invariant(privateKeyHex, 'Private key not set');
-invariant(
-  Number.isSafeInteger(quotePublishingInterval) && quotePublishingInterval > 0 && quotePublishingInterval <= 2_147_483_647,
-  'Interval must be a positive integer no greater than 2147483647',
-);
 invariant(networkPublicKeyHex, 'Network public key is not set');
 
 async function main() {

@@ -10,8 +10,8 @@ The C# SDK provides tools for building T-0 Network payment providers on ASP.NET 
 csharp/
 ├── sdk/T0.ProviderSdk/              # Core SDK library
 │   ├── Crypto/                       # Signing, verification, hashing
-│   │   ├── ISigner.cs                # Interface for ECDSA signing
-│   │   ├── Signer.cs                 # secp256k1 ECDSA implementation
+│   │   ├── SignFn.cs                 # Custom signer delegate: digest → (signature, public key)
+│   │   ├── Signer.cs                 # secp256k1 ECDSA implementation (converts to SignFn)
 │   │   ├── ISignatureVerifier.cs     # Interface for verification
 │   │   ├── DefaultSignatureVerifier.cs
 │   │   ├── SignatureVerifier.cs      # Static verification methods
@@ -28,21 +28,21 @@ csharp/
 │   │   ├── ValidationInterceptor.cs  # Validates responses against buf.validate annotations
 │   │   ├── HealthServiceImpl.cs      # grpc.health.v1 service
 │   │   └── ProviderServerOptions.cs
-│   ├── Hosting/
-│   │   └── QuotePublisherService.cs  # Abstract BackgroundService for quotes
 │   ├── Common/
 │   │   ├── Headers.cs                # Header constants + timestamp encoding
 │   │   ├── HexUtils.cs               # Hex encoding/decoding
+│   │   ├── Messages.cs               # Every SDK-raised error text (checked against cross_test/test_vectors.json)
 │   │   └── ValidationUtils.cs        # Formats buf.validate violations
 │   ├── Api/                          # Generated protobuf + gRPC code
 │   │   ├── Tzero/V1/Payment/         # Payment service definitions
 │   │   ├── Tzero/V1/PaymentIntent/   # PaymentIntent service definitions
 │   │   ├── Tzero/V1/Common/          # Shared types
 │   │   └── Ivms101/V1/              # IVMS-101 compliance types
-│   ├── T0Config.cs                   # Typed configuration
+│   ├── T0Config.cs                   # Typed configuration (the starter's Config.FromEnvironment fills it)
 │   └── T0ProviderServer.cs           # Server builder
 ├── sdk/T0.ProviderSdk.Tests/         # Unit tests
-└── starter/template/                 # Starter template (scaffolded by the unified CLI)
+└── starter/template/                 # Starter template (scaffolded by the unified CLI): Config.cs reads the
+                                      # environment; Services/QuotePublisherService.cs publishes quotes
 ```
 
 ## Key Design Decisions
@@ -56,7 +56,7 @@ csharp/
 
 ### Deadlines
 
-Timeouts are gRPC call deadlines: a call without its own deadline gets `NetworkClientOptions.Timeout` (unary, 15 s) or `StreamTimeout` (client and server streams, 5 min), and the caller's own deadline replaces the default. Every `NetworkClient` factory applies both through an interceptor, which also refuses bidirectional streams; `HttpClient.Timeout` is infinite. All clients share one transport (connection pool), so a client is cheap to create and needs no disposing; the transport sends HTTP/2 keepalive pings every 5 min (10 s timeout) while a call is open and does not follow redirects, which would re-send the signed request to another server. The client does not validate requests; the network does. See [STREAMING.md](../STREAMING.md#stream-timeout).
+Timeouts are gRPC call deadlines: a call without its own deadline gets `NetworkClientOptions.Timeout` (unary, 15 s) or `StreamTimeout` (client and server streams, 5 min), and the caller's own deadline replaces the default. Every `NetworkClient` factory applies both through an interceptor, which also refuses bidirectional streams; `HttpClient.Timeout` is infinite. All clients share one transport (connection pool), so a client is cheap to create and needs no disposing; the transport sends no keepalive pings, keeps no cookies and does not follow redirects, which would re-send the signed request to another server. The client does not validate requests; the network does. See [STREAMING.md](../STREAMING.md#stream-timeout).
 
 ### Two-Phase Server Architecture
 
@@ -76,17 +76,19 @@ Uses a two-phase build pattern because ASP.NET Core requires service registratio
 1. **Configuration phase**: Constructor + `MapPaymentService()` / `MapPaymentIntentService()` / `AddHostedService()` register services on `WebApplicationBuilder`
 2. **Run phase**: `RunAsync()` calls `Build()`, wires middleware, maps endpoints, and starts the server
 
-### Interface-Based Crypto
+### Pluggable Crypto
 
-`ISigner` and `ISignatureVerifier` enable mocking in tests without touching real crypto:
+The client takes a `SignFn` delegate, digest → (signature, 65-byte uncompressed public key), so a test or an external key store needs no real key. `Signer` converts to it, and `ISignatureVerifier` can be replaced for server tests:
 
 ```csharp
 // Production
-ISigner signer = Signer.FromHex(privateKey);
+SignFn signer = Signer.FromHex(privateKey);
 
-// Test
-ISigner signer = new FakeSigner(); // Your mock
+// Test or external key store
+SignFn signer = digest => (fakeSignature, fakePublicKey);
 ```
+
+Before a request is sent, the client checks the output: the signature is 64 or 65 bytes, then the key is 65 bytes uncompressed. A failure, or a signer that throws, fails the call with Internal "signing the request failed: <cause>", and nothing is sent ([rule S7](../CROSS_SDK_RULES.md#signing)).
 
 ## Signature Protocol
 

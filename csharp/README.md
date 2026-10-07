@@ -42,7 +42,26 @@ var client = NetworkClient.CreateNetworkServiceClient(options, signer);
 await client.UpdateQuoteAsync(request, deadline: DateTime.UtcNow.AddMinutes(1));
 ```
 
-A client or server stream is signed over its first message and sent as soon as that message is written; bidirectional streams are refused. A timeout must be greater than zero. The streaming rules shared by all SDKs: [`docs/STREAMING.md`](../docs/STREAMING.md).
+## Custom signer
+
+A client signs each request with a `SignFn`: it takes the 32-byte digest and returns the signature
+and the 65-byte uncompressed public key it verifies against. `Signer.FromHex(privateKeyHex)`
+converts to one, as above. To sign elsewhere, such as in an HSM or a KMS, pass your own:
+
+```csharp
+SignFn sign = digest =>
+{
+    byte[] signature = hsm.Sign(digest);   // 64 bytes r‖s, or 65 bytes r‖s‖v
+    return (signature, hsm.PublicKey);     // 65 bytes, uncompressed (0x04 ‖ x ‖ y)
+};
+var client = NetworkClient.CreateNetworkServiceClient(options, sign);
+```
+
+The client checks the output before it sends anything. A signature that is not 64 or 65 bytes, a
+public key that is not 65 bytes uncompressed, or an exception from the signer fails the call with
+Internal `signing the request failed: <message>`.
+
+A client or server stream is signed over its first message and sent as soon as that message is written; bidirectional streams are refused. A timeout must be greater than zero and at most 2147483647 ms (`NetworkClientOptions.MaxTimeout`). The streaming rules shared by all SDKs: [`docs/STREAMING.md`](../docs/STREAMING.md).
 
 ## Available Commands
 
@@ -63,7 +82,7 @@ docker run -p 8080:8080 --env-file .env my-provider
 
 | Issue | Solution |
 |-------|----------|
-| `PROVIDER_PRIVATE_KEY is required` | `.env` is generated with a fresh key next to the `.csproj`; run from that directory. To generate a new key, run `t0-init keygen` and set `PROVIDER_PRIVATE_KEY` to the private key it prints (see [`cli/README.md`](../cli/README.md)) |
+| `PROVIDER_PRIVATE_KEY is not set. Check your .env file.` | `.env` is generated with a fresh key next to the `.csproj`; run from that directory. To generate a new key, run `t0-init keygen` and set `PROVIDER_PRIVATE_KEY` to the private key it prints (see [`cli/README.md`](../cli/README.md)) |
 | Signature verification failures | Ensure system clock is synchronized (NTP); timestamps outside the allowed window are rejected ([rules](../docs/CROSS_SDK_RULES.md)) |
 | gRPC connection refused | Verify `TZERO_ENDPOINT` is correct and reachable |
 | Port already in use | Change `PORT` in `.env` or stop the conflicting process |

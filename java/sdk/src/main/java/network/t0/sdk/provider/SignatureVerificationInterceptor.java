@@ -1,5 +1,6 @@
 package network.t0.sdk.provider;
 
+import network.t0.sdk.common.Messages;
 import io.grpc.*;
 import network.t0.sdk.common.Headers;
 import network.t0.sdk.common.HexUtils;
@@ -87,7 +88,7 @@ public final class SignatureVerificationInterceptor implements ServerInterceptor
     public SignatureVerificationInterceptor(String networkPublicKeyHex, Clock clock) {
         byte[] networkPublicKey = parseNetworkPublicKey(networkPublicKeyHex);
         if (clock == null) {
-            throw new IllegalArgumentException("clock must not be null");
+            throw new IllegalArgumentException(String.format(Messages.ARGUMENT_NULL, "clock"));
         }
         this.expectedNetworkPublicKey = networkPublicKey;
         this.clock = clock;
@@ -104,12 +105,12 @@ public final class SignatureVerificationInterceptor implements ServerInterceptor
     static byte[] parseNetworkPublicKey(String networkPublicKeyHex) {
         String key = networkPublicKeyHex == null ? "" : networkPublicKeyHex.strip();
         if (key.isEmpty()) {
-            throw new IllegalArgumentException("network public key is not set");
+            throw new IllegalArgumentException(Messages.NETWORK_PUBLIC_KEY_NOT_SET);
         }
         try {
             return parsePublicKey(key);
         } catch (IllegalArgumentException e) {
-            throw new IllegalArgumentException("invalid network public key: " + e.getMessage(), e);
+            throw new IllegalArgumentException(String.format(Messages.NETWORK_PUBLIC_KEY_INVALID, e.getMessage()), e);
         }
     }
 
@@ -138,11 +139,15 @@ public final class SignatureVerificationInterceptor implements ServerInterceptor
         for (int i = 0; i < timestamp.length(); i++) {
             char c = timestamp.charAt(i);
             if (c < '0' || c > '9') {
-                throw new NumberFormatException("not ASCII digits 0-9");
+                throw new NumberFormatException(Messages.TIMESTAMP_NOT_DECIMAL);
             }
         }
-        // Throws for an empty value and for one above Long.MAX_VALUE.
-        return Long.parseLong(timestamp);
+        try {
+            return Long.parseLong(timestamp);
+        } catch (NumberFormatException e) {
+            // Only a value above Long.MAX_VALUE gets here: the digits were checked above.
+            throw new NumberFormatException(Messages.TIMESTAMP_OUT_OF_RANGE);
+        }
     }
 
     @Override
@@ -178,17 +183,26 @@ public final class SignatureVerificationInterceptor implements ServerInterceptor
 
         // Verify public key matches expected network public key, compressed or uncompressed.
         if (!isNetworkPublicKey(publicKeyHex)) {
-            log.warn("Request signed with unknown public key");
-            return rejectCall(call, Status.UNAUTHENTICATED, "request signed with unknown public key");
+            return rejectCall(call, Status.UNAUTHENTICATED, Messages.UNKNOWN_PUBLIC_KEY);
+        }
+        // The last check the headers alone decide: a signature of the wrong length cannot verify.
+        if (signature.length != 64 && signature.length != 65) {
+            return rejectCall(call, Status.UNAUTHENTICATED, Messages.SIGNATURE_VERIFICATION_FAILED);
         }
 
         // Return a listener that will verify the message when received
         return new ForwardingServerCallListener.SimpleForwardingServerCallListener<ReqT>(
                 next.startCall(call, headers)) {
+            // Set once the call is refused: nothing more reaches the handler, which would otherwise
+            // try to answer a call that is already closed.
+            private boolean closed;
 
             @Override
             @SuppressWarnings("unchecked")
             public void onMessage(ReqT message) {
+                if (closed) {
+                    return;
+                }
                 // When using useInputStreamMessages, message is an InputStream
                 if (message instanceof InputStream inputStream) {
                     try {
@@ -197,8 +211,7 @@ public final class SignatureVerificationInterceptor implements ServerInterceptor
 
                         // Verify signature
                         if (!verifySignature(expectedNetworkPublicKey, bodyBytes, timestampMs, signature)) {
-                            log.warn("Signature verification failed");
-                            call.close(Status.UNAUTHENTICATED.withDescription("signature verification failed"), new Metadata());
+                            close(Status.UNAUTHENTICATED, Messages.SIGNATURE_VERIFICATION_FAILED);
                             return;
                         }
 
@@ -207,16 +220,33 @@ public final class SignatureVerificationInterceptor implements ServerInterceptor
                         super.onMessage(reconstructed);
 
                     } catch (IOException e) {
-                        log.error("Error reading request body", e);
-                        call.close(Status.INTERNAL.withDescription("error reading request body"), new Metadata());
+                        close(Status.UNAUTHENTICATED, String.format(Messages.REQUEST_BODY_READ_FAILED, e.getMessage()));
                     }
                 } else {
                     // CRITICAL: Cannot verify signature without raw bytes.
                     // Server MUST use ServerInterceptors.useInputStreamMessages().
                     log.error("SignatureVerificationInterceptor requires useInputStreamMessages() configuration");
-                    call.close(Status.INTERNAL.withDescription(
-                            "server misconfiguration: signature verification requires raw bytes"), new Metadata());
+                    close(Status.INTERNAL, Messages.NO_SIGNATURE_RESULT);
                 }
+            }
+
+            @Override
+            public void onHalfClose() {
+                if (!closed) {
+                    super.onHalfClose();
+                }
+            }
+
+            @Override
+            public void onReady() {
+                if (!closed) {
+                    super.onReady();
+                }
+            }
+
+            private void close(Status status, String message) {
+                closed = true;
+                call.close(status.withDescription(message), new Metadata());
             }
         };
     }
@@ -313,7 +343,7 @@ public final class SignatureVerificationInterceptor implements ServerInterceptor
     private ValidationResult validatePublicKeyHeader(String publicKeyHex) {
         if (publicKeyHex == null || publicKeyHex.isEmpty()) {
             return new ValidationResult.Invalid(Status.INVALID_ARGUMENT,
-                    "missing required header: " + Headers.PUBLIC_KEY);
+                    String.format(Messages.MISSING_HEADER, Headers.PUBLIC_KEY));
         }
         // What it holds is checked in interceptCall, by isNetworkPublicKey.
         return new ValidationResult.Valid();
@@ -335,44 +365,42 @@ public final class SignatureVerificationInterceptor implements ServerInterceptor
     private ValidationResult validateSignatureHeader(String signatureHex) {
         if (signatureHex == null || signatureHex.isEmpty()) {
             return new ValidationResult.Invalid(Status.INVALID_ARGUMENT,
-                    "missing required header: " + Headers.SIGNATURE);
-        }
-
-        if (signatureHex.length() < 2) {
-            return new ValidationResult.Invalid(Status.INVALID_ARGUMENT,
-                    "invalid header encoding: " + Headers.SIGNATURE);
+                    String.format(Messages.MISSING_HEADER, Headers.SIGNATURE));
         }
 
         try {
             String hex = HexUtils.stripHexPrefix(signatureHex);
             byte[] signature = HexUtils.hexToBytes(hex);
+            if (signature.length == 0) {
+                // A prefix and no digits.
+                throw new IllegalArgumentException("no hex digits");
+            }
             return new ValidationResult.ValidBytes(signature);
         } catch (IllegalArgumentException e) {
             return new ValidationResult.Invalid(Status.INVALID_ARGUMENT,
-                    "invalid header encoding: " + Headers.SIGNATURE);
+                    String.format(Messages.INVALID_HEADER_ENCODING, Headers.SIGNATURE));
         }
     }
 
     private ValidationResult validateTimestampHeader(String timestampStr) {
         if (timestampStr == null || timestampStr.isEmpty()) {
             return new ValidationResult.Invalid(Status.INVALID_ARGUMENT,
-                    "missing required header: " + Headers.SIGNATURE_TIMESTAMP);
+                    String.format(Messages.MISSING_HEADER, Headers.SIGNATURE_TIMESTAMP));
         }
 
         long timestampMs;
         try {
             timestampMs = parseTimestamp(timestampStr);
         } catch (NumberFormatException e) {
-            return new ValidationResult.Invalid(Status.INVALID_ARGUMENT,
-                    "invalid timestamp header: " + e.getMessage());
+            return new ValidationResult.Invalid(Status.INVALID_ARGUMENT, e.getMessage());
         }
 
         // Validate timestamp is within the allowed window
         long currentMs = clock.millis();
         long diff = Math.abs(currentMs - timestampMs);
-        if (diff > Headers.TIMESTAMP_VALIDITY_WINDOW_MS) {
+        if (diff > ProviderServer.TIMESTAMP_WINDOW.toMillis()) {
             return new ValidationResult.Invalid(Status.INVALID_ARGUMENT,
-                    "timestamp is outside the allowed time window");
+                    Messages.TIMESTAMP_OUTSIDE_WINDOW);
         }
 
         return new ValidationResult.ValidTimestamp(timestampMs);

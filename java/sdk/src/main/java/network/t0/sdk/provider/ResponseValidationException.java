@@ -1,5 +1,6 @@
 package network.t0.sdk.provider;
 
+import network.t0.sdk.common.Messages;
 /**
  * Thrown when a response message fails {@code protovalidate} checks.
  *
@@ -32,7 +33,7 @@ public final class ResponseValidationException extends RuntimeException {
      *                     {@link network.t0.sdk.common.ValidationUtils#formatViolations})
      */
     public ResponseValidationException(String responseType, String violations) {
-        super("response validation failed: " + violations);
+        super(String.format(Messages.RESPONSE_INVALID, violations));
         this.responseType = responseType;
         this.violations = violations;
     }
@@ -45,7 +46,7 @@ public final class ResponseValidationException extends RuntimeException {
      * @param cause        the underlying cause (e.g. a {@code ValidationException} from protovalidate)
      */
     public ResponseValidationException(String responseType, String violations, Throwable cause) {
-        super("response validation failed: " + violations, cause);
+        super(String.format(Messages.RESPONSE_INVALID, violations), cause);
         this.responseType = responseType;
         this.violations = violations;
     }

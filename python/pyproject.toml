@@ -32,4 +32,6 @@ dev = [
     "mypy>=2.4.0",
     "uvicorn>=0.54.0",
     "waitress>=3.0.2",
+    # Serves the ASGI app over h2c in the cross tests, so the shared server cases run over gRPC too.
+    "hypercorn>=0.18.0",
 ]

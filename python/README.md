@@ -76,7 +76,7 @@ The sync variant uses `payment_sync.py` -- implement the same RPC methods as reg
 
 ## Streaming and timeouts
 
-`new_service_client()` and `new_service_client_sync()` sign every request. A streaming call is signed over its first message and sent as soon as that message exists, so send a message (or close the stream) before waiting for a response. Unary calls time out after 15 seconds and streaming calls after 5 minutes; a call's own `timeout_ms` replaces either default.
+`new_service_client()` and `new_service_client_sync()` sign every request. A streaming call is signed over its first message and sent as soon as that message exists, so send a message (or close the stream) before waiting for a response. Unary calls time out after 15 seconds and streaming calls after 5 minutes; a call's own `timeout_ms` replaces either default, and a `timeout_ms` of 0 or less fails the call with `DEADLINE_EXCEEDED` before it is sent. A timeout option is at most `MAX_TIMEOUT` (2147483647 ms).
 
 ```python
 from provider.config import load_config
@@ -96,6 +96,18 @@ network_client = new_service_client(
 ```
 
 The streaming rules shared by every SDK: [`docs/STREAMING.md`](../docs/STREAMING.md).
+
+## Signer
+
+The first argument of `new_service_client()` and `new_service_client_sync()` is the signer: the hex private key, or a `SignFn`. A `SignFn` takes the 32-byte digest of a request and returns `(signature, public_key)`, for example by signing with a key held in a KMS; `new_signer_from_hex()` builds one from a hex key.
+
+```python
+from t0_provider_sdk.crypto import new_signer_from_hex
+
+network_client = new_service_client(new_signer_from_hex(config.provider_private_key), NetworkServiceClient)
+```
+
+Before a request is sent, the client checks what a `SignFn` returned: a signature of 64 or 65 bytes, sent as it is, then the 65-byte uncompressed public key. A failed check, or an exception of the function, fails the call with `INTERNAL` "signing the request failed: <cause>". The `sign_fn=` keyword still works, with `None` or `""` as the first argument; a key and a signer given together raise `ValueError`.
 
 ## Available Commands
 

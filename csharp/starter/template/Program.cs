@@ -2,8 +2,8 @@ using T0.ProviderSdk;
 using T0.ProviderSdk.Crypto;
 using T0.ProviderSdk.Network;
 
-DotNetEnv.Env.Load();
-var config = T0Config.FromEnvironment();
+DotNetEnv.Env.NoClobber().Load();
+var config = MyProvider.Config.FromEnvironment();
 var signer = Signer.FromHex(config.ProviderPrivateKey);
 Console.WriteLine($"Provider public key: {signer.GetPublicKeyHexPrefixed()}");
 

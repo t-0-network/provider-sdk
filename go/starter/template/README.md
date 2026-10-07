@@ -51,7 +51,9 @@ my-provider/
 | `NETWORK_PUBLIC_KEY` | Yes | Sandbox key | T-0 Network public key for signature verification |
 | `TZERO_ENDPOINT` | No | `https://api-sandbox.t-0.network` | T-0 Network API endpoint |
 | `PORT` | No | `8080` | Server port |
-| `QUOTE_PUBLISHING_INTERVAL` | No | `5000` | Quote publishing frequency in milliseconds |
+| `QUOTE_PUBLISHING_INTERVAL` | No | `5000` | Quote publishing frequency in milliseconds, 1 to 2147483647; any other value gives the default |
+
+The starter reads `.env` when it exists; without it, the values come from the environment (for example `docker run --env-file`).
 
 ## Getting Started
 

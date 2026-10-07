@@ -12,6 +12,8 @@ import protovalidate
 import pytest
 from connectrpc.code import Code
 from connectrpc.errors import ConnectError
+from connectrpc.method import IdempotencyLevel, MethodInfo
+from connectrpc.request import Headers, RequestContext
 from t0_provider_sdk._version import __version__
 from t0_provider_sdk.api.tzero.v1.common.common_pb2 import Decimal
 from t0_provider_sdk.api.tzero.v1.payment.provider_pb2 import (
@@ -215,6 +217,28 @@ class TestValidationInterceptorLogger:
         assert record.response_type == "tzero.v1.common.Decimal"
         assert "exponent" in record.violations.lower() or record.violations
         assert record.sdk_version == __version__
+
+    @pytest.mark.asyncio
+    async def test_rpc_method_comes_from_the_request_context(self, captured):
+        """connectrpc's RequestContext carries a MethodInfo: logged as <service>/<method>."""
+        logger, handler = captured
+        interceptor = ValidationInterceptor(logger=logger)
+        method = MethodInfo(
+            name="PayOut",
+            service_name="tzero.v1.payment.ProviderService",
+            input=Decimal,
+            output=Decimal,
+            idempotency_level=IdempotencyLevel.UNKNOWN,
+        )
+        ctx = RequestContext(method=method, http_method="POST", request_headers=Headers())
+
+        async def call_next(req, ctx):
+            return Decimal(exponent=100)
+
+        with pytest.raises(ConnectError):
+            await interceptor.intercept_unary(call_next, None, ctx)
+        [record] = handler.records
+        assert record.rpc_method == "tzero.v1.payment.ProviderService/PayOut"
 
     def test_sync_logs_one_error_record(self, captured):
         logger, handler = captured

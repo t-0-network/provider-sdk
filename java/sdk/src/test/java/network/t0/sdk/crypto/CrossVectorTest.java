@@ -209,6 +209,57 @@ class CrossVectorTest {
         }
     }
 
+    /** The signer-from-hex factory: 65 bytes r‖s‖v (low s, v 0 or 1) and the uncompressed key, for a 32-byte digest. */
+    @Test
+    void signerCases_shouldMatchAllVectors() {
+        JsonArray cases = vectors.getAsJsonArray("signer_cases");
+        assertThat(cases).isNotEmpty();
+
+        for (var element : cases) {
+            JsonObject vec = element.getAsJsonObject();
+            String name = vec.get("name").getAsString();
+            DigestSigner signer = Signer.fromHex(vec.get("private_key").getAsString());
+            byte[] digest = HexUtils.hexToBytes(vec.get("digest").getAsString());
+
+            if (vec.has("error") && !vec.get("error").getAsString().isEmpty()) {
+                assertThatThrownBy(() -> signer.sign(digest))
+                        .as(name)
+                        .isInstanceOf(IllegalArgumentException.class)
+                        .hasMessage(vec.get("error").getAsString());
+            } else {
+                SignResult result = signer.sign(digest);
+                assertThat(HexUtils.bytesToHex(result.getSignature())).as(name)
+                        .isEqualTo(vec.get("signature").getAsString());
+                assertThat(HexUtils.bytesToHex(result.getPublicKey())).as(name)
+                        .isEqualTo(vec.get("public_key").getAsString());
+            }
+        }
+    }
+
+    /** {@code publicKeyFromPrivateKey}: the private-key rule (S5), and the key as {@code 0x} lowercase hex. */
+    @Test
+    void publicKeyFromPrivateKey_shouldMatchAllVectors() {
+        JsonArray cases = vectors.getAsJsonArray("private_key_parsing");
+        assertThat(cases).hasSize(17);
+
+        for (var element : cases) {
+            JsonObject vec = element.getAsJsonObject();
+            String name = vec.get("name").getAsString();
+            String input = vec.get("input").getAsString();
+
+            if (vec.get("valid").getAsBoolean()) {
+                assertThat(Signer.publicKeyFromPrivateKey(input))
+                        .as(name)
+                        .isEqualTo("0x" + vec.get("public_key").getAsString().toLowerCase());
+            } else {
+                assertThatThrownBy(() -> Signer.publicKeyFromPrivateKey(input))
+                        .as(name)
+                        .isInstanceOf(IllegalArgumentException.class)
+                        .hasMessage(vec.get("error").getAsString());
+            }
+        }
+    }
+
     /** What a provider hashes: the raw body with the little-endian timestamp appended. */
     private static byte[] requestDigest(JsonObject vec) {
         byte[] body = HexUtils.hexToBytes(vec.get("body_hex").getAsString());

@@ -24,6 +24,42 @@ public class SignatureVerificationMiddlewareTests
         new(new T0Config { ProviderPrivateKey = TestPrivateKey, NetworkPublicKey = key, Port = 0 }, Signer.FromHex(TestPrivateKey));
 
     [Theory]
+    [InlineData(-1)]
+    [InlineData(65536)]
+    public void PortOutOfRange_IsRefused(int port)
+    {
+        var config = new T0Config { ProviderPrivateKey = TestPrivateKey, NetworkPublicKey = _signer.GetPublicKeyHexPrefixed(), Port = port };
+
+        var ex = Assert.Throws<ArgumentException>(() => new T0ProviderServer(config, _signer));
+        Assert.Equal("port must be between 0 and 65535", ex.Message);
+    }
+
+    [Theory]
+    [InlineData(0L)]
+    [InlineData(-1L)]
+    public void BodyLimitNotPositive_KeepsTheDefault(long limit)
+    {
+        Assert.Equal(ProviderServerOptions.DefaultMaxBodySize,
+            NewServer(_signer.GetPublicKeyHexPrefixed()).WithMaxBodySize(limit).MaxBodySize);
+
+        var options = CreateOptions();
+        options.MaxBodySize = limit;
+        Assert.Equal(ProviderServerOptions.DefaultMaxBodySize,
+            new SignatureVerificationMiddleware(_ => Task.CompletedTask, options).MaxBodySize);
+    }
+
+    [Fact]
+    public void ServerNullArguments_AreRefused_WithoutAParameterSuffix()
+    {
+        var config = new T0Config { ProviderPrivateKey = TestPrivateKey, NetworkPublicKey = _signer.GetPublicKeyHexPrefixed() };
+
+        Assert.Equal("config must not be null",
+            Assert.Throws<ArgumentNullException>(() => new T0ProviderServer(null!, _signer)).Message);
+        Assert.Equal("signer must not be null",
+            Assert.Throws<ArgumentNullException>(() => new T0ProviderServer(config, null!)).Message);
+    }
+
+    [Theory]
     [InlineData(null)]
     [InlineData("")]
     [InlineData("  \n")]
@@ -103,7 +139,7 @@ public class SignatureVerificationMiddlewareTests
         var (handlerCalled, context) = await InvokeSignedAsync(publicKeyHeader);
         Assert.False(handlerCalled);
         Assert.Equal("3", context.Response.Headers["grpc-status"].ToString()); // InvalidArgument = 3
-        Assert.Equal($"missing or invalid header: {Headers.PublicKey}", context.Response.Headers["grpc-message"].ToString());
+        Assert.Equal($"missing required header: {Headers.PublicKey}", context.Response.Headers["grpc-message"].ToString());
     }
 
     public static TheoryData<string> NonKeyPublicKeyHeaders()
@@ -131,7 +167,7 @@ public class SignatureVerificationMiddlewareTests
         var (handlerCalled, context) = await InvokeSignedAsync(publicKeyHeader);
         Assert.False(handlerCalled);
         Assert.Equal("16", context.Response.Headers["grpc-status"].ToString()); // Unauthenticated = 16
-        Assert.Equal("unknown public key", context.Response.Headers["grpc-message"].ToString());
+        Assert.Equal("request signed with unknown public key", context.Response.Headers["grpc-message"].ToString());
     }
 
     [Theory]
@@ -144,7 +180,7 @@ public class SignatureVerificationMiddlewareTests
             "0x" + (compressed ? CompressedPublicKeyHex(other) : HexUtils.BytesToHex(other)));
         Assert.False(handlerCalled);
         Assert.Equal("16", context.Response.Headers["grpc-status"].ToString());
-        Assert.Equal("unknown public key", context.Response.Headers["grpc-message"].ToString());
+        Assert.Equal("request signed with unknown public key", context.Response.Headers["grpc-message"].ToString());
     }
 
     [Fact]

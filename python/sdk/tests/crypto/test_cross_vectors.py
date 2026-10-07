@@ -17,12 +17,13 @@ from t0_provider_sdk.crypto.keys import (
     private_key_from_hex,
     public_key_from_bytes,
     public_key_from_hex,
+    public_key_from_private_key,
 )
 from t0_provider_sdk.crypto.signer import new_signer_from_hex
 from t0_provider_sdk.crypto.verifier import verify_signature
 from t0_provider_sdk.network import signing
 from t0_provider_sdk.network.signing import SigningClient, SigningSyncClient
-from t0_provider_sdk.provider.errors import InvalidHeaderEncodingError, MissingRequiredHeaderError
+from t0_provider_sdk.provider.errors import SignatureVerificationError
 from t0_provider_sdk.provider.middleware import _parse_timestamp
 
 VECTORS_PATH = Path(__file__).resolve().parents[4] / "cross_test" / "test_vectors.json"
@@ -175,11 +176,8 @@ class TestCrossVectorsTimestampParsing:
         headers = {SIGNATURE_TIMESTAMP_HEADER.lower(): vec["input"]}
         if vec["valid"]:
             assert _parse_timestamp(headers) == (int(vec["value"]), struct.pack("<Q", int(vec["value"])))
-        elif vec["input"]:
-            with pytest.raises(InvalidHeaderEncodingError):
-                _parse_timestamp(headers)
         else:
-            with pytest.raises(MissingRequiredHeaderError):
+            with pytest.raises(SignatureVerificationError, match=f"^{re.escape(vec['error'])}$"):
                 _parse_timestamp(headers)
 
 
@@ -290,3 +288,34 @@ class TestCrossVectorsStreamSigningCases:
                 pass
 
             _assert_signed_like_vector(vec, recorder)
+
+
+class TestCrossVectorsPublicKeyFromPrivateKey:
+    """public_key_from_private_key over every private_key_parsing row: "0x" and the lowercase
+    uncompressed key, or the private-key parser's error."""
+
+    @pytest.mark.parametrize("vec", VECTORS["private_key_parsing"], ids=lambda vec: vec["name"])
+    def test_case(self, vec):
+        if vec["valid"]:
+            assert public_key_from_private_key(vec["input"]) == "0x" + vec["public_key"].lower()
+            assert public_key_from_private_key(private_key_hex=vec["input"]) == "0x" + vec["public_key"].lower()
+        else:
+            with pytest.raises(ValueError, match=f"^{re.escape(vec['error'])}$"):
+                public_key_from_private_key(vec["input"])
+
+
+class TestCrossVectorsSignerCases:
+    """new_signer_from_hex's signer over fixed digests: 65 bytes r || s || v and the 65-byte
+    uncompressed key, or the error for a digest that is not 32 bytes (signer_cases)."""
+
+    @pytest.mark.parametrize("vec", VECTORS["signer_cases"], ids=lambda vec: vec["name"])
+    def test_case(self, vec):
+        sign = new_signer_from_hex(vec["private_key"])
+        digest = bytes.fromhex(vec["digest"])
+        if "error" in vec:
+            with pytest.raises(ValueError, match=f"^{re.escape(vec['error'])}$"):
+                sign(digest)
+        else:
+            signature, public_key = sign(digest)
+            assert signature.hex() == vec["signature"]
+            assert public_key.hex() == vec["public_key"]

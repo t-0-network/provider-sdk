@@ -1,5 +1,9 @@
 """Tests for ECDSA signing."""
 
+import re
+
+import pytest
+from t0_provider_sdk._messages import DIGEST_LENGTH
 from t0_provider_sdk.crypto.hash import legacy_keccak256
 from t0_provider_sdk.crypto.keys import private_key_from_hex
 from t0_provider_sdk.crypto.signer import new_signer, new_signer_from_hex
@@ -56,6 +60,13 @@ class TestNewSigner:
         sig1, _ = sign_fn(digest1)
         sig2, _ = sign_fn(digest2)
         assert sig1 != sig2
+
+    @pytest.mark.parametrize("length", [0, 31, 33, 64])
+    def test_digest_of_another_length_is_refused(self, length):
+        """Checked before the curve library, with the message of every SDK."""
+        sign = new_signer_from_hex("0x6b30303de7b26bfb1222b317a52113357f8bb06de00160b4261a2fef9c8b9bd8")
+        with pytest.raises(ValueError, match=f"^{re.escape(DIGEST_LENGTH)}$"):
+            sign(b"\x01" * length)
 
     def test_new_signer_from_hex(self):
         sign_fn = new_signer_from_hex(PRIVATE_KEY_HEX)

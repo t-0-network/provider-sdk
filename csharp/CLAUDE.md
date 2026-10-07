@@ -27,23 +27,24 @@ cd csharp/sdk/T0.ProviderSdk.Tests && dotnet test       # Run tests
 ```
 csharp/
 ├── sdk/T0.ProviderSdk/          # Core SDK library (NuGet: T0.ProviderSdk)
-│   ├── Crypto/                   # ISigner, Signer, ISignatureVerifier, Keccak256
+│   ├── Crypto/                   # SignFn, Signer, ISignatureVerifier, Keccak256
 │   ├── Network/                  # NetworkClient, SigningDelegatingHandler
 │   ├── Provider/                 # SignatureVerificationMiddleware
-│   ├── Hosting/                  # QuotePublisherService (abstract BackgroundService)
 │   ├── Common/                   # Headers, HexUtils
 │   ├── Api/                      # Generated protobuf + gRPC code (committed)
-│   ├── T0Config.cs               # Typed config with FromEnvironment()
+│   ├── T0Config.cs               # Typed config the server is built from
 │   └── T0ProviderServer.cs       # Server builder (wraps ASP.NET Core)
 ├── sdk/T0.ProviderSdk.Tests/     # Unit tests (xUnit)
-└── starter/template/             # Starter template (scaffolded by the unified CLI)
+└── starter/template/             # Starter template (scaffolded by the unified CLI); reads the
+                                  # environment (Config.cs) and publishes quotes (QuotePublisherService)
 ```
 
 ## Key Classes
 
-- `T0Config.FromEnvironment()` — Loads config from env vars with fail-fast validation
+- `T0Config` — Keys, endpoint and port the server is built from; the SDK reads no environment variables
 - `T0ProviderServer` — Builder that wraps WebApplication + gRPC + signature middleware
-- `Signer` (implements `ISigner`) — secp256k1 ECDSA signing with RFC 6979
+- `Signer` — secp256k1 ECDSA signing with RFC 6979; converts implicitly to `SignFn`
+- `SignFn` — the signer a client takes: digest → (signature, 65-byte uncompressed public key); a custom signer is one
 - `SignatureVerifier` / `DefaultSignatureVerifier` (implements `ISignatureVerifier`) — Verification
 - `Keccak256` — Legacy Keccak-256 hashing (NOT NIST SHA-3)
 - `NetworkClient.CreateNetworkServiceClient()` — Auto-signing Payment gRPC client
@@ -51,8 +52,7 @@ csharp/
 - `SignatureVerificationMiddleware` — ASP.NET Core middleware, verifies incoming requests
 - `SigningDelegatingHandler` — HttpClient handler, signs outgoing requests
 - `NetworkClient.Create(options, signer, invoker => new XClient(invoker))` — Auto-signing client for any generated gRPC client
-- `NetworkClientOptions` — `BaseUrl`, `Timeout` (unary, 15 s), `StreamTimeout` (streams, 5 min)
-- `QuotePublisherService` — Abstract BackgroundService for periodic quote publishing
+- `NetworkClientOptions` — `BaseUrl`, `Timeout` (unary, 15 s), `StreamTimeout` (streams, 5 min); each timeout is at most `MaxTimeout` (2147483647 ms)
 
 ## Architecture Notes
 
@@ -61,10 +61,9 @@ csharp/
 - **DelegatingHandler pattern**: `SigningDelegatingHandler` wraps HttpClient to auto-sign outgoing requests
 - **First-envelope signing**: for `application/grpc`, `application/grpc+*` and `application/connect+*` the handler signs only the first envelope as sent and pipes the rest unbuffered (`FirstFrameThenPipeContent`); a client stream goes out once its first message is written
 - **Deadlines, not HttpClient.Timeout**: every `NetworkClient` factory installs the internal `DefaultDeadlineInterceptor`, which gives a call without its own deadline the default for its kind and refuses bidirectional streams
-- **Transport**: one process-wide `SocketsHttpHandler` shared by every client (each client has its own `SigningDelegatingHandler` on top), with HTTP/2 keepalive pings every 5 min (10 s timeout) while a call is open and no redirect following (a redirect would re-send the signed request elsewhere); clients need no disposing; no client-side request validation
+- **Transport**: one process-wide `SocketsHttpHandler` shared by every client (each client has its own `SigningDelegatingHandler` on top), with no HTTP/2 keepalive pings, no cookies kept and no redirect following (a redirect would re-send the signed request elsewhere); clients need no disposing; no client-side request validation
 - Streaming rules: [`docs/STREAMING.md`](../docs/STREAMING.md)
-- **Interfaces for testability**: `ISigner` and `ISignatureVerifier` enable mocking without real crypto
-- **BackgroundService pattern**: `QuotePublisherService` provides periodic timer with error handling
+- **Custom signers**: a client takes a `SignFn` delegate, so a test or an HSM signer is a lambda
 
 ## Signature Protocol
 
@@ -75,8 +74,8 @@ headers = { X-Public-Key: "0x...", X-Signature: "0x...", X-Signature-Timestamp: 
 
 - `body_bytes`: for enveloped content the first envelope only, prefix included (for a unary or server-streaming gRPC call that is the whole body); otherwise the whole body
 - Server (`SignatureVerificationMiddleware`): the key, timestamp, ±60 s window, gRPC framing, body limit and error codes follow [`docs/CROSS_SDK_RULES.md`](../docs/CROSS_SDK_RULES.md), the same in every SDK
-- Signatures: 65 bytes (r[32] + s[32] + v[1]), verification accepts 64 bytes too
-- Canonical signatures: s ≤ n/2 enforced
+- Signatures: `Signer` makes 65 bytes (r[32] + s[32] + v[1]); a custom signer may return 64 or 65 bytes, and a failing one fails the call with Internal "signing the request failed: <cause>"; verification accepts 64 and 65 bytes
+- Signing produces a low s (s ≤ n/2); verification accepts a high s and refuses an r or s of n or more
 
 ## Dependencies
 

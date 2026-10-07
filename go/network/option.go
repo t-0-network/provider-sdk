@@ -9,26 +9,31 @@ import (
 	"time"
 
 	"github.com/t-0-network/provider-sdk/go/crypto"
+	"github.com/t-0-network/provider-sdk/go/internal/contract"
 )
 
+// What a client uses when it is given no base URL, unary timeout or stream timeout, and the
+// largest timeout and stream timeout it accepts. The same values in every SDK.
 const (
-	defaultBaseURL       = "https://api.t-0.network"
-	defaultTimeout       = 15 * time.Second
-	defaultStreamTimeout = 5 * time.Minute
+	DefaultBaseURL       = "https://api.t-0.network"
+	DefaultTimeout       = 15 * time.Second
+	DefaultStreamTimeout = 5 * time.Minute
+	MaxTimeout           = 2147483647 * time.Millisecond
 )
 
 var (
-	ErrEmptyBaseURL    = errors.New("base URL is not set")
-	ErrInvalidBaseURL  = errors.New("base URL is not valid")
-	ErrEmptyPrivateKey = errors.New("private key must not be null or empty")
-	ErrInvalidTimeOut  = errors.New("WithTimeout must be a positive duration")
+	ErrEmptyBaseURL    = errors.New(contract.BaseURLNotSet)
+	ErrInvalidBaseURL  = errors.New(contract.BaseURLNotValid)
+	ErrEmptyPrivateKey = errors.New(contract.PrivateKeyEmpty)
+	ErrInvalidTimeOut  = errors.New(contract.TimeoutNotValid)
 
-	ErrInvalidStreamTimeout = errors.New("WithStreamTimeout must be a positive duration")
+	ErrInvalidStreamTimeout = errors.New(contract.StreamTimeoutNotValid)
 )
 
 type clientOptions struct {
 	baseURL       string
 	signFn        crypto.SignFn
+	signFnGiven   bool
 	timeout       time.Duration
 	streamTimeout time.Duration
 	wireFormat    WireFormat
@@ -48,11 +53,11 @@ func (c *clientOptions) validate() error {
 		return ErrInvalidBaseURL
 	}
 
-	if c.timeout <= 0 {
+	if c.timeout <= 0 || c.timeout > MaxTimeout {
 		return ErrInvalidTimeOut
 	}
 
-	if c.streamTimeout <= 0 {
+	if c.streamTimeout <= 0 || c.streamTimeout > MaxTimeout {
 		return ErrInvalidStreamTimeout
 	}
 
@@ -75,10 +80,10 @@ func validBaseURL(raw string) bool {
 }
 
 var defaultClientOptions = clientOptions{
-	baseURL:       defaultBaseURL,
+	baseURL:       DefaultBaseURL,
 	signFn:        nil,
-	timeout:       defaultTimeout,
-	streamTimeout: defaultStreamTimeout,
+	timeout:       DefaultTimeout,
+	streamTimeout: DefaultStreamTimeout,
 }
 
 type ClientOption func(*clientOptions)
@@ -89,17 +94,21 @@ func WithBaseURL(url string) ClientOption {
 	}
 }
 
+// WithSignatureFunction makes fn the client's signer, in place of a private key: NewServiceClient
+// then takes an empty key, and refuses a non-empty one. fn is a custom signer, or the signer
+// crypto.NewSignerFromHex or crypto.NewSigner builds. It must not be nil.
 func WithSignatureFunction(fn crypto.SignFn) ClientOption {
 	return func(c *clientOptions) {
 		c.signFn = fn
+		c.signFnGiven = true
 	}
 }
 
 // WithTimeout sets the deadline of each unary call whose context has none; streams use
 // WithStreamTimeout. A deadline on the call's context replaces it, shorter or longer.
-// It must be positive.
+// It must be positive and at most MaxTimeout (2147483647 ms).
 //
-// Default: 15 seconds.
+// Default: DefaultTimeout (15 seconds).
 func WithTimeout(t time.Duration) ClientOption {
 	return func(c *clientOptions) {
 		c.timeout = t
@@ -108,9 +117,9 @@ func WithTimeout(t time.Duration) ClientOption {
 
 // WithStreamTimeout sets the deadline of each client- and server-streaming call whose context has
 // none, including the wait for its first message. A deadline on the call's context replaces it,
-// shorter or longer. It must be positive.
+// shorter or longer. It must be positive and at most MaxTimeout (2147483647 ms).
 //
-// Default: 5 minutes.
+// Default: DefaultStreamTimeout (5 minutes).
 func WithStreamTimeout(t time.Duration) ClientOption {
 	return func(c *clientOptions) {
 		c.streamTimeout = t

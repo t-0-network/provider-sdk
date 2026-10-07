@@ -11,7 +11,8 @@ from collections.abc import Callable, Iterable
 from dataclasses import dataclass, field
 from typing import Any, TypeVar
 
-from t0_provider_sdk.provider.errors import NetworkPublicKeyRequiredError
+from t0_provider_sdk._messages import SERVICE_NULL
+from t0_provider_sdk.provider.errors import NetworkPublicKeyRequiredError  # noqa: F401  (importable here since 1.2.0)
 from t0_provider_sdk.provider.health import (
     HEALTH_SERVICE_FQN,
     HealthASGIApplication,
@@ -24,6 +25,7 @@ from t0_provider_sdk.provider.middleware import (
     DEFAULT_MAX_BODY_SIZE,
     ASGIApp,
     VerifySignatureFn,
+    _body_limit,
     new_verify_signature,
     signature_verification_middleware,
 )
@@ -68,7 +70,12 @@ def handler(
 
     Returns:
         A BuildHandler that creates (path, asgi_app) when called with options.
+
+    Raises:
+        ValueError: service_impl is None ("service must not be null").
     """
+    if service_impl is None:
+        raise ValueError(SERVICE_NULL)
 
     def build(default_options: _HandlerOptions) -> tuple[str, ASGIApp]:
         opts = _HandlerOptions(
@@ -78,8 +85,12 @@ def handler(
         for opt in options:
             opt(opts)
 
+        # The body limit of the middleware is the RPC library's message limit too, so a body the
+        # middleware accepted is never refused by the library for its size.
         app = asgi_app_factory(
-            service_impl, interceptors=_signature_check_first(opts.interceptors, SignatureErrorInterceptor)
+            service_impl,
+            interceptors=_signature_check_first(opts.interceptors, SignatureErrorInterceptor),
+            read_max_bytes=default_options.max_body_size,
         )
         return app.path, app
 
@@ -98,13 +109,7 @@ def _signature_check_first(interceptors: list[Any], signature_interceptor: type[
 def _network_verify_fn(network_public_key: str) -> VerifySignatureFn:
     """Parse the network public key at startup, so a missing or mistyped key fails
     here rather than on every request."""
-    key = (network_public_key or "").strip()
-    if not key:
-        raise NetworkPublicKeyRequiredError()
-    try:
-        return new_verify_signature(key)
-    except ValueError as e:
-        raise ValueError(f"invalid network public key: {e}") from e
+    return new_verify_signature(network_public_key)
 
 
 def new_asgi_app(
@@ -112,6 +117,7 @@ def new_asgi_app(
     *build_handlers: BuildHandler,
     logger: logging.Logger | None = None,
     version: str | None = None,
+    max_body_size: int = DEFAULT_MAX_BODY_SIZE,
 ) -> ASGIApp:
     """Create a composite ASGI app with signature verification.
 
@@ -123,8 +129,12 @@ def new_asgi_app(
             it catches an invalid response. Defaults to
             ``logging.getLogger("t0_provider_sdk")``.
         version: Optional SDK version override. Wrapping SDKs pass their own
-            version so health probes report it instead of provider-sdk's
-            built-in version. Defaults to ``None`` (use built-in version).
+            version so health probes and the response-validation log report it
+            instead of provider-sdk's built-in version. Defaults to ``None``; a
+            blank value is ignored too (use built-in version).
+        max_body_size: The largest request body accepted, in bytes: the whole HTTP body of a
+            unary call, gRPC prefix included. Defaults to DEFAULT_MAX_BODY_SIZE (10 MiB), which 0 or
+            less keeps too.
 
     Returns:
         An ASGI application with signature verification middleware.
@@ -134,8 +144,10 @@ def new_asgi_app(
         ValueError: The key is malformed ("invalid network public key: ...").
     """
     verify_fn = _network_verify_fn(network_public_key)
+    max_body_size = _body_limit(max_body_size)
     default_options = _HandlerOptions(
-        interceptors=[SignatureErrorInterceptor(), ValidationInterceptor(logger=logger)],
+        interceptors=[SignatureErrorInterceptor(), ValidationInterceptor(logger=logger, version=version)],
+        max_body_size=max_body_size,
     )
 
     # Build all service handlers
@@ -152,6 +164,7 @@ def new_asgi_app(
     health_app = HealthASGIApplication(
         HealthImpl(service_names, version=version),
         interceptors=list(default_options.interceptors),
+        read_max_bytes=max_body_size,
     )
     routes[health_app.path] = health_app
 
@@ -178,7 +191,12 @@ def handler_sync(
 
     Returns:
         A BuildHandlerSync that creates (path, wsgi_app) when called with options.
+
+    Raises:
+        ValueError: service_impl is None ("service must not be null").
     """
+    if service_impl is None:
+        raise ValueError(SERVICE_NULL)
 
     def build(default_options: _HandlerOptions) -> tuple[str, WSGIApp]:
         opts = _HandlerOptions(
@@ -189,7 +207,9 @@ def handler_sync(
             opt(opts)
 
         app = wsgi_app_factory(
-            service_impl, interceptors=_signature_check_first(opts.interceptors, SignatureErrorInterceptorSync)
+            service_impl,
+            interceptors=_signature_check_first(opts.interceptors, SignatureErrorInterceptorSync),
+            read_max_bytes=default_options.max_body_size,
         )
         return app.path, app
 
@@ -201,6 +221,7 @@ def new_wsgi_app(
     *build_handlers: BuildHandlerSync,
     logger: logging.Logger | None = None,
     version: str | None = None,
+    max_body_size: int = DEFAULT_MAX_BODY_SIZE,
 ) -> WSGIApp:
     """Create a composite WSGI app with signature verification.
 
@@ -214,8 +235,12 @@ def new_wsgi_app(
             it catches an invalid response. Defaults to
             ``logging.getLogger("t0_provider_sdk")``.
         version: Optional SDK version override. Wrapping SDKs pass their own
-            version so health probes report it instead of provider-sdk's
-            built-in version. Defaults to ``None`` (use built-in version).
+            version so health probes and the response-validation log report it
+            instead of provider-sdk's built-in version. Defaults to ``None``; a
+            blank value is ignored too (use built-in version).
+        max_body_size: The largest request body accepted, in bytes: the whole HTTP body of a
+            unary call, gRPC prefix included. Defaults to DEFAULT_MAX_BODY_SIZE (10 MiB), which 0 or
+            less keeps too.
 
     Returns:
         A WSGI application with signature verification middleware.
@@ -225,8 +250,10 @@ def new_wsgi_app(
         ValueError: The key is malformed ("invalid network public key: ...").
     """
     verify_fn = _network_verify_fn(network_public_key)
+    max_body_size = _body_limit(max_body_size)
     default_options = _HandlerOptions(
-        interceptors=[SignatureErrorInterceptorSync(), ValidationInterceptorSync(logger=logger)],
+        interceptors=[SignatureErrorInterceptorSync(), ValidationInterceptorSync(logger=logger, version=version)],
+        max_body_size=max_body_size,
     )
 
     # Build all service handlers
@@ -243,6 +270,7 @@ def new_wsgi_app(
     health_app = HealthWSGIApplication(
         HealthImplSync(service_names, version=version),
         interceptors=list(default_options.interceptors),
+        read_max_bytes=max_body_size,
     )
     routes[health_app.path] = health_app
 

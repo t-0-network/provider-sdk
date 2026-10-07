@@ -81,7 +81,7 @@ class TestEndToEndSignatureVerificationWSGI:
         body = b"payment request data"
         received_body, error = _send_signed_request_through_wsgi_middleware(body, OTHER_PRIVATE_KEY, PUBLIC_KEY)
         assert error is not None
-        assert "unknown public key" in str(error)
+        assert str(error) == "request signed with unknown public key"
 
     def test_empty_body_succeeds(self):
         """Empty body signed request -> success."""

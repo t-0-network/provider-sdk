@@ -17,10 +17,12 @@ my-provider/
 ├── Services/
 │   ├── PaymentHandler.cs        # ProviderService implementation (modify this)
 │   ├── QuotePublisher.cs        # Quote publishing logic (modify this)
+│   ├── QuotePublisherService.cs # Periodic timer that calls QuotePublisher
 │   ├── GetQuote.cs              # Quote fetching utility
 │   ├── SubmitPayment.cs         # Payment submission utility
 │   └── CompleteManualAmlCheck.cs # Manual AML check completion utility
 ├── Program.cs                   # Entry point
+├── Config.cs                    # Reads the environment variables below
 ├── my-provider.csproj           # Build configuration
 ├── appsettings.json             # ASP.NET Core configuration
 ├── .env                         # Your configuration (git-ignored)
@@ -82,7 +84,7 @@ docker run -p 8080:8080 --env-file .env my-provider
 
 | Issue | Solution |
 |-------|----------|
-| `PROVIDER_PRIVATE_KEY is required` | `.env` is generated with a fresh key next to the `.csproj`; run from that directory. To generate a new key, run `t0-init keygen` and set `PROVIDER_PRIVATE_KEY` to the private key it prints. |
+| `PROVIDER_PRIVATE_KEY is not set. Check your .env file.` | `.env` is generated with a fresh key next to the `.csproj`; run from that directory. To generate a new key, run `t0-init keygen` and set `PROVIDER_PRIVATE_KEY` to the private key it prints. |
 | Signature verification failures | Ensure system clock is synchronized (NTP). Tolerance is +/- 60 seconds. |
 | gRPC connection refused | Verify `TZERO_ENDPOINT` is correct and reachable. |
 | Port already in use | Change `PORT` in `.env` or stop the conflicting process. |

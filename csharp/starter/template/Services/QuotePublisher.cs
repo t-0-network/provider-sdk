@@ -2,7 +2,6 @@ using System.Globalization;
 using Google.Protobuf.WellKnownTypes;
 using T0.ProviderSdk.Api.Tzero.V1.Common;
 using T0.ProviderSdk.Api.Tzero.V1.Payment;
-using T0.ProviderSdk.Hosting;
 using Decimal = T0.ProviderSdk.Api.Tzero.V1.Common.Decimal;
 
 namespace MyProvider.Services;

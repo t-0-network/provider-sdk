@@ -15,6 +15,8 @@ test('root and crypto package exports work from ESM and CommonJS builds', async 
   for (const entrypoint of [esmRoot, esmCrypto, cjsRoot, cjsCrypto]) {
     assert.equal(typeof entrypoint.publicKeyFromPrivateKey, 'function');
     assert.equal(entrypoint.publicKeyFromPrivateKey(privateKey), publicKey);
+    assert.equal(typeof entrypoint.newSignerFromHex, 'function');
+    assert.equal('0x' + (await entrypoint.newSignerFromHex(privateKey)(Buffer.alloc(32, 1))).publicKey.toString('hex'), publicKey);
     // The server's own key and timestamp parsers are not public API.
     assert.equal(entrypoint.parsePublicKeyPoint, undefined);
     assert.equal(entrypoint.parseTimestamp, undefined);

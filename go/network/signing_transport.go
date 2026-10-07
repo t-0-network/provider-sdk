@@ -15,6 +15,7 @@ import (
 	"connectrpc.com/connect"
 	"github.com/t-0-network/provider-sdk/go/common"
 	"github.com/t-0-network/provider-sdk/go/crypto"
+	"github.com/t-0-network/provider-sdk/go/internal/contract"
 	"github.com/t-0-network/provider-sdk/go/internal/envelope"
 )
 
@@ -57,7 +58,7 @@ func (t *SigningTransport) RoundTrip(req *http.Request) (*http.Response, error) 
 	// A GET request carries its message in the URL, which the signature does not cover.
 	if req.Method == http.MethodGet || req.Method == "" {
 		closeRequestBody(req)
-		return nil, connect.NewError(connect.CodeUnimplemented, errors.New("GET requests are not supported"))
+		return nil, connect.NewError(connect.CodeUnimplemented, errors.New(contract.GetNotSupported))
 	}
 	if envelope.IsEnveloped(req.Header.Get("Content-Type")) {
 		return t.signFirstEnvelope(req)
@@ -73,7 +74,7 @@ func (t *SigningTransport) signWholeBody(req *http.Request) (*http.Response, err
 		body, err = io.ReadAll(req.Body)
 		closeRequestBody(req)
 		if err != nil {
-			return nil, fmt.Errorf("reading request body: %w", err)
+			return nil, fmt.Errorf(contract.RequestBodyReadFailed, err)
 		}
 	}
 
@@ -133,6 +134,8 @@ func (a abortWhenDone) Read(p []byte) (int, error) {
 }
 
 // setSignatureHeaders signs Keccak256(signed || uint64le(now_ms)) and sets the signature headers.
+// A signer that fails, or whose output no server would accept, fails the call with CodeInternal:
+// retrying cannot help.
 func (t *SigningTransport) setSignatureHeaders(header http.Header, signed []byte) error {
 	timestamp := t.timeNow().UnixMilli()
 
@@ -142,13 +145,28 @@ func (t *SigningTransport) setSignatureHeaders(header http.Header, signed []byte
 	digest := crypto.LegacyKeccak256Concat(signed, timestampBytes[:])
 
 	signature, pubKeyBytes, err := t.sign(digest)
+	if err == nil {
+		err = checkSignerOutput(signature, pubKeyBytes)
+	}
 	if err != nil {
-		return fmt.Errorf("signing request body: %w", err)
+		return connect.NewError(connect.CodeInternal, fmt.Errorf(contract.SigningFailed, err))
 	}
 
 	header.Set(common.PublicKeyHeader, "0x"+hex.EncodeToString(pubKeyBytes))
 	header.Set(common.SignatureHeader, "0x"+hex.EncodeToString(signature))
 	header.Set(common.SignatureTimestampHeader, strconv.FormatInt(timestamp, 10))
+	return nil
+}
+
+// checkSignerOutput refuses what a signer returned unless every server reads it: a signature of 64
+// or 65 bytes, sent as it is, and a 65-byte uncompressed public key.
+func checkSignerOutput(signature, publicKey []byte) error {
+	if len(signature) != 64 && len(signature) != 65 {
+		return errors.New(contract.SignerSignatureInvalid)
+	}
+	if len(publicKey) != 65 || publicKey[0] != 0x04 {
+		return errors.New(contract.SignerPublicKeyInvalid)
+	}
 	return nil
 }
 
@@ -186,14 +204,20 @@ func readEnvelope(r io.Reader) ([]byte, error) {
 }
 
 // firstMessageError reports a first message cut short as the caller's error (CodeInvalidArgument),
-// not as a failure worth retrying. It must not wrap io.EOF, or the code is lost.
+// not as a failure worth retrying. It must not wrap io.EOF, or the code is lost. Any other read
+// failure is CodeInternal, except an error that already has a code and a context's error, which
+// connect-go maps itself.
 func firstMessageError(err error) error {
 	if errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF) {
 		return connect.NewError(connect.CodeInvalidArgument,
-			errors.New("streaming request ends inside its first message"))
+			errors.New(contract.FirstMessageIncomplete))
 	}
-	// Keep the code of an error that already has one.
-	return fmt.Errorf("reading first request message: %w", err)
+	wrapped := fmt.Errorf(contract.FirstMessageReadFailed, err)
+	if _, ok := errors.AsType[*connect.Error](err); ok ||
+		errors.Is(err, context.Canceled) || errors.Is(err, context.DeadlineExceeded) {
+		return wrapped
+	}
+	return connect.NewError(connect.CodeInternal, wrapped)
 }
 
 func closeRequestBody(req *http.Request) {
@@ -261,7 +285,7 @@ type unsupportedConn struct {
 }
 
 func errBidiUnsupported() error {
-	return connect.NewError(connect.CodeUnimplemented, errors.New("bidirectional streams are not supported"))
+	return connect.NewError(connect.CodeUnimplemented, errors.New(contract.BidiNotSupported))
 }
 
 func (c *unsupportedConn) Spec() connect.Spec           { return c.spec }
