@@ -20,6 +20,8 @@ npm install @t-0/provider-sdk
 
 Requires Node.js 20.19 or newer.
 
+The starter template uses TypeScript 7. Your project does not have to: the SDK also works with TypeScript 5.9.
+
 ## Usage
 
 ### Provider Service

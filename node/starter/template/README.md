@@ -97,7 +97,7 @@ If you only play one role, delete the files for the other role and remove the co
 ## Available Commands
 
 ```bash
-npm run dev        # Run in development mode with ts-node
+npm run dev        # Run src/index.ts with tsx (no type check; use npm run build for that)
 npm run build      # Compile TypeScript to dist/
 npm start          # Run compiled production build
 npm test           # Build, then run dist/lib.test.js with node --test
