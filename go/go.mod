@@ -7,7 +7,7 @@ require (
 	buf.build/go/protovalidate v1.4.0
 	connectrpc.com/connect v1.20.0
 	connectrpc.com/grpchealth v1.5.0
-	connectrpc.com/validate v0.6.0
+	connectrpc.com/validate v0.7.0
 	github.com/btcsuite/btcd/btcec/v2 v2.5.0
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.1
 	github.com/stretchr/testify v1.12.1

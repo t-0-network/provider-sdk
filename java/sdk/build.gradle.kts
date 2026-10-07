@@ -8,7 +8,7 @@ plugins {
 }
 
 val grpcVersion = "1.84.0"
-val protobufVersion = "4.36.1"
+val protobufVersion = "4.36.2"
 val bouncyCastleVersion = "1.85.2"
 
 dependencies {
@@ -31,7 +31,7 @@ dependencies {
     implementation("org.bouncycastle:bcprov-jdk18on:$bouncyCastleVersion")
 
     // Logging
-    implementation("org.slf4j:slf4j-api:2.0.18")
+    implementation("org.slf4j:slf4j-api:2.0.20")
 
     // javax.annotation for generated code
     compileOnly("javax.annotation:javax.annotation-api:1.3.2")
@@ -42,7 +42,7 @@ dependencies {
     testImplementation("org.assertj:assertj-core:3.27.7")
     testImplementation("io.grpc:grpc-testing:$grpcVersion")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
-    testImplementation("ch.qos.logback:logback-classic:1.6.3")
+    testImplementation("ch.qos.logback:logback-classic:1.6.5")
 }
 
 // Disable buf format and lint checks - proto files are synced from backend and should not be modified

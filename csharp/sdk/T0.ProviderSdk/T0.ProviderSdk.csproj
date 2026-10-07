@@ -25,10 +25,10 @@
 
   <ItemGroup>
     <PackageReference Include="BouncyCastle.Cryptography" Version="2.7.0" />
-    <PackageReference Include="Google.Protobuf" Version="3.36.1" />
-    <PackageReference Include="Grpc.AspNetCore" Version="2.83.0" />
-    <PackageReference Include="Grpc.HealthCheck" Version="2.83.0" />
-    <PackageReference Include="Grpc.Net.Client" Version="2.83.0" />
+    <PackageReference Include="Google.Protobuf" Version="3.36.2" />
+    <PackageReference Include="Grpc.AspNetCore" Version="2.84.0" />
+    <PackageReference Include="Grpc.HealthCheck" Version="2.84.0" />
+    <PackageReference Include="Grpc.Net.Client" Version="2.84.0" />
     <PackageReference Include="ProtoValidate" Version="1.0.1" />
   </ItemGroup>
 
