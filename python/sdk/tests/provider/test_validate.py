@@ -22,6 +22,9 @@ from t0_provider_sdk.api.tzero.v1.payment.provider_pb2 import PayoutResponse
 from t0_provider_sdk.provider import validate as provider_validate
 from t0_provider_sdk.provider.validate import validate
 
+from .unevaluable_rule import UnevaluableRule
+from .unevaluable_rule import cause as unevaluable_cause
+
 
 class TestValidateHelper:
     def test_returns_same_instance_on_valid(self) -> None:
@@ -66,6 +69,14 @@ class TestValidateHelper:
         violations = exc_info.value.message.removeprefix("response validation failed: ").split("; ")
         assert "pay_out[0].bands[0].client_quote_id: must be at least 1 characters" in violations
         assert all(re.fullmatch(r"[a-z_]+(\[\d+\])?(\.[a-z_]+(\[\d+\])?)*: .+", v) for v in violations), violations
+
+    def test_rule_that_cannot_be_evaluated_is_internal(self) -> None:
+        """A rule protovalidate cannot evaluate is "response validation error: <cause>", Internal, the
+        same text in every SDK (messages.response_validation_error in cross_test/test_vectors.json)."""
+        with pytest.raises(ConnectError) as exc_info:
+            validate(UnevaluableRule())
+        assert exc_info.value.code == Code.INTERNAL
+        assert exc_info.value.message == f"response validation error: {unevaluable_cause()}"
 
     def test_reexported_from_package(self) -> None:
         assert top_level_validate is validate

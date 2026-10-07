@@ -17,9 +17,22 @@ from connectrpc.code import Code
 from connectrpc.errors import ConnectError
 from google.protobuf.message import Message
 
-from t0_provider_sdk._messages import RESPONSE_INVALID
+from t0_provider_sdk._messages import RESPONSE_INVALID, RESPONSE_VALIDATION_ERROR
 
 T = TypeVar("T", bound=Message)
+
+# What protovalidate raises for a rule it cannot compile or evaluate, as opposed to a message that
+# breaks its rules (ValidationError): CompilationError in every version; EvaluationError from 2.0;
+# before 2.0, cel-python's CELEvalError for a rule that fails while it is evaluated.
+_RULE_ERRORS: tuple[type[Exception], ...] = (protovalidate.CompilationError,)
+if hasattr(protovalidate, "EvaluationError"):
+    _RULE_ERRORS += (protovalidate.EvaluationError,)
+try:
+    from celpy import CELEvalError
+except ImportError:  # protovalidate 2.x does not use cel-python
+    pass
+else:
+    _RULE_ERRORS += (CELEvalError,)
 
 # Module-level validator instance, reused by both the helper and the
 # response-validation interceptor. ``protovalidate.Validator`` is safe to
@@ -39,6 +52,15 @@ def _violations(error: protovalidate.ValidationError) -> str:
     """Each violation as ``<field path>: <message>``, joined by ``; `` (the {violations} of
     RESPONSE_INVALID)."""
     return "; ".join(f"{_field_path(v.proto.field)}: {v.proto.message}" for v in error.violations)
+
+
+def _cause(error: Exception) -> str:
+    """The message of an error in _RULE_ERRORS, with no type name in front (the {cause} of
+    RESPONSE_VALIDATION_ERROR). cel-python's CELEvalError carries the message first, then the
+    Python exception it stands for."""
+    if len(error.args) > 1 and isinstance(error.args[0], str):
+        return error.args[0]
+    return str(error)
 
 
 def _field_path(path: Any) -> str:
@@ -83,12 +105,15 @@ def validate(msg: T) -> T:
     Raises:
         ConnectError: ``Code.INTERNAL`` with message
             ``"response validation failed: <field>: <message>[; ...]"`` when
-            ``msg`` violates its proto rules. This matches the SDK response-validation
-            interceptor so propagating the error keeps wire behavior
-            identical.
+            ``msg`` violates its proto rules, or ``"response validation error: <cause>"``
+            when protovalidate cannot compile or evaluate one of them. This matches the
+            SDK response-validation interceptor so propagating the error keeps wire
+            behavior identical.
     """
     try:
         _get_validator().validate(msg)
     except protovalidate.ValidationError as e:
         raise ConnectError(Code.INTERNAL, RESPONSE_INVALID.format(violations=_violations(e))) from e
+    except _RULE_ERRORS as e:
+        raise ConnectError(Code.INTERNAL, RESPONSE_VALIDATION_ERROR.format(cause=_cause(e))) from e
     return msg

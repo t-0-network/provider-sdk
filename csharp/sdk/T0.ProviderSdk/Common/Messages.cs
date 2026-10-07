@@ -49,4 +49,5 @@ internal static class Messages
     internal static string BodyTooLarge(long limit) => $"max payload size of {limit} bytes exceeded";
     internal static string UnknownService(string service) => $"unknown service '{service}'";
     internal static string ResponseInvalid(string violations) => $"response validation failed: {violations}";
+    internal static string ResponseValidationError(string cause) => $"response validation error: {cause}";
 }

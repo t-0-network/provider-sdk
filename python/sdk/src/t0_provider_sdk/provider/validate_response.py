@@ -1,7 +1,8 @@
 """ConnectRPC interceptor that validates provider responses against buf.validate rules.
 
 Invalid responses are rejected with Code.INTERNAL since they indicate
-a provider implementation bug, not a client error.
+a provider implementation bug, not a client error. So is a response with a rule
+protovalidate cannot compile or evaluate ("response validation error: <cause>").
 
 The interceptor also emits one ``error``-level log line before re-raising so
 providers see the failure in their own logs even when they don't wrap their
@@ -21,9 +22,9 @@ from connectrpc.code import Code
 from connectrpc.errors import ConnectError
 from connectrpc.request import RequestContext
 
-from t0_provider_sdk._messages import RESPONSE_INVALID
+from t0_provider_sdk._messages import RESPONSE_INVALID, RESPONSE_VALIDATION_ERROR
 from t0_provider_sdk.provider._sdk_version import _reported_version
-from t0_provider_sdk.provider.validate import _get_validator, _violations
+from t0_provider_sdk.provider.validate import _RULE_ERRORS, _cause, _get_validator, _violations
 
 DEFAULT_LOGGER_NAME = "t0_provider_sdk"
 
@@ -38,6 +39,10 @@ def _rpc_method_from_ctx(ctx: Any) -> str:
     return f"{service_name}/{name}" if service_name and name else ""
 
 
+def _response_type(response: Any) -> str:
+    return type(response).DESCRIPTOR.full_name if hasattr(type(response), "DESCRIPTOR") else type(response).__name__
+
+
 def _log_validation_failure(
     logger: logging.Logger,
     response: Any,
@@ -46,16 +51,34 @@ def _log_validation_failure(
     sdk_version: str,
 ) -> None:
     """Emit one error-level line with structured fields for a validation failure."""
-    response_type = (
-        type(response).DESCRIPTOR.full_name if hasattr(type(response), "DESCRIPTOR") else type(response).__name__
-    )
     logger.error(
         "response validation failed: %s",
         violations,
         extra={
             "rpc_method": _rpc_method_from_ctx(ctx),
-            "response_type": response_type,
+            "response_type": _response_type(response),
             "violations": violations,
+            "sdk_version": sdk_version,
+        },
+    )
+
+
+def _log_validation_error(
+    logger: logging.Logger,
+    response: Any,
+    ctx: Any,
+    cause: str,
+    sdk_version: str,
+) -> None:
+    """Emit one error-level line with structured fields for a rule protovalidate could not
+    evaluate."""
+    logger.error(
+        "response validation error: %s",
+        cause,
+        extra={
+            "rpc_method": _rpc_method_from_ctx(ctx),
+            "response_type": _response_type(response),
+            "error": cause,
             "sdk_version": sdk_version,
         },
     )
@@ -86,6 +109,10 @@ class ValidationInterceptor:
             violations = _violations(e)
             _log_validation_failure(self._logger, response, ctx, violations, self._version)
             raise ConnectError(Code.INTERNAL, RESPONSE_INVALID.format(violations=violations)) from e
+        except _RULE_ERRORS as e:
+            cause = _cause(e)
+            _log_validation_error(self._logger, response, ctx, cause, self._version)
+            raise ConnectError(Code.INTERNAL, RESPONSE_VALIDATION_ERROR.format(cause=cause)) from e
         return response
 
 
@@ -113,6 +140,10 @@ class ValidationInterceptorSync:
             violations = _violations(e)
             _log_validation_failure(self._logger, response, ctx, violations, self._version)
             raise ConnectError(Code.INTERNAL, RESPONSE_INVALID.format(violations=violations)) from e
+        except _RULE_ERRORS as e:
+            cause = _cause(e)
+            _log_validation_error(self._logger, response, ctx, cause, self._version)
+            raise ConnectError(Code.INTERNAL, RESPONSE_VALIDATION_ERROR.format(cause=cause)) from e
         return response
 
 

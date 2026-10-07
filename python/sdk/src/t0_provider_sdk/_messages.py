@@ -48,3 +48,4 @@ NO_SIGNATURE_RESULT = "no signature result in context"
 # Server: services
 UNKNOWN_SERVICE = "unknown service '{service}'"
 RESPONSE_INVALID = "response validation failed: {violations}"
+RESPONSE_VALIDATION_ERROR = "response validation error: {cause}"

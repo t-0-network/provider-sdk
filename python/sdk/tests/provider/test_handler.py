@@ -29,6 +29,10 @@ from t0_provider_sdk.provider.middleware import DEFAULT_MAX_BODY_SIZE
 from tzero.v1.payment import provider_pb2 as payment_pb2
 from tzero.v1.payment.provider_connect import ProviderServiceASGIApplication, ProviderServiceWSGIApplication
 
+from .unevaluable_rule import TYPE_NAME as UNEVALUABLE_TYPE_NAME
+from .unevaluable_rule import UnevaluableRule
+from .unevaluable_rule import cause as unevaluable_cause
+
 PRIVATE_KEY = "0x6b30303de7b26bfb1222b317a52113357f8bb06de00160b4261a2fef9c8b9bd8"
 PUBLIC_KEY = "0x044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0"
 COMPRESSED_PUBLIC_KEY = "0x" + private_key_from_hex(PRIVATE_KEY).public_key.format(compressed=True).hex()
@@ -489,6 +493,53 @@ def _report_of(transport: str, version: str | None) -> tuple[str, str]:
 def test_version_override_reaches_health_headers_and_validation_log(transport, version, reported):
     """One server reports one version: the override when it is not blank, else the SDK's."""
     assert _report_of(transport, version) == (reported, reported)
+
+
+class _UnevaluableProviderService(_StubProviderService):
+    async def pay_out(self, request, ctx):
+        return UnevaluableRule()
+
+
+class _UnevaluableProviderServiceSync(_StubProviderServiceSync):
+    def pay_out(self, request, ctx):
+        return UnevaluableRule()
+
+
+@pytest.mark.parametrize("transport", TRANSPORTS)
+def test_response_rule_that_cannot_be_evaluated_is_internal(transport):
+    """A response whose rule protovalidate cannot evaluate is Internal "response validation error:
+    <cause>" (V12), logged once like an invalid one."""
+    logger = logging.getLogger(f"t0_provider_sdk.tests.unevaluable.{transport}")
+    logger.propagate = False
+    records = _Records()
+    logger.addHandler(records)
+    try:
+        if transport == "asgi":
+            app = new_asgi_app(
+                PUBLIC_KEY,
+                handler(ProviderServiceASGIApplication, _UnevaluableProviderService()),
+                logger=logger,
+                version="9.9.9-test",
+            )
+            answer = asyncio.run(_call_asgi(app, PAY_OUT_PATH, _signed_headers()))
+        else:
+            app = new_wsgi_app(
+                PUBLIC_KEY,
+                handler_sync(ProviderServiceWSGIApplication, _UnevaluableProviderServiceSync()),
+                logger=logger,
+                version="9.9.9-test",
+            )
+            answer = _call_wsgi(app, PAY_OUT_PATH, _signed_headers())
+    finally:
+        logger.removeHandler(records)
+    assert answer == ("internal", f"response validation error: {unevaluable_cause()}")
+    [record] = records.records
+    assert record.levelno == logging.ERROR
+    assert record.getMessage() == f"response validation error: {unevaluable_cause()}"
+    assert record.rpc_method == "tzero.v1.payment.ProviderService/PayOut"
+    assert record.response_type == UNEVALUABLE_TYPE_NAME
+    assert record.error == unevaluable_cause()
+    assert record.sdk_version == "9.9.9-test"
 
 
 def _status(transport: str, method: str, path: str, query: str = "", content_type: str = "application/proto") -> int:

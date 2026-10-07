@@ -64,6 +64,34 @@ public class ValidationLogTests
         }
     }
 
+    /// <summary>
+    /// A response whose rule ProtoValidate cannot evaluate is Internal "response validation error:
+    /// &lt;cause&gt;" (V12), logged once like an invalid one.
+    /// </summary>
+    [Fact]
+    public async Task UnevaluableRule_IsInternalResponseValidationError_AndLoggedOnce()
+    {
+        var logs = new CapturingLoggerProvider();
+        var interceptor = new ValidationInterceptor(
+            logs.CreateLogger(typeof(ValidationInterceptor).FullName!), "9.9.9-test");
+        var cause = UnevaluableRule.Cause();
+
+        var ex = await Assert.ThrowsAsync<RpcException>(() => interceptor.UnaryServerHandler(
+            new PayoutRequest(),
+            new CallContext("/tzero.v1.payment.ProviderService/PayOut"),
+            (PayoutRequest _, ServerCallContext _) => Task.FromResult(new UnevaluableRule())));
+
+        Assert.Equal(StatusCode.Internal, ex.StatusCode);
+        Assert.Equal($"response validation error: {cause}", ex.Status.Detail);
+        var entry = Assert.Single(logs.Entries);
+        Assert.Equal(LogLevel.Error, entry.Level);
+        Assert.Equal("tzero.v1.payment.ProviderService/PayOut", entry.Fields["rpc_method"]);
+        Assert.Equal(UnevaluableRule.TypeName, entry.Fields["response_type"]);
+        Assert.Equal(cause, entry.Fields["error"]);
+        Assert.Equal("9.9.9-test", entry.Fields["sdk_version"]);
+        Assert.StartsWith("response validation error ", entry.Message);
+    }
+
     private sealed record Entry(string Category, LogLevel Level, string Message, Dictionary<string, object?> Fields);
 
     private sealed class CapturingLoggerProvider : ILoggerProvider
@@ -89,5 +117,21 @@ public class ValidationLogTests
                 entries.Enqueue(new Entry(category, logLevel, formatter(state, exception), fields));
             }
         }
+    }
+
+    private sealed class CallContext(string method) : ServerCallContext
+    {
+        protected override Task WriteResponseHeadersAsyncCore(Metadata responseHeaders) => Task.CompletedTask;
+        protected override ContextPropagationToken CreatePropagationTokenCore(ContextPropagationOptions? options) => null!;
+        protected override string MethodCore => method;
+        protected override string HostCore => "localhost";
+        protected override string PeerCore => "test-peer";
+        protected override DateTime DeadlineCore => DateTime.MaxValue;
+        protected override Metadata RequestHeadersCore => new();
+        protected override CancellationToken CancellationTokenCore => CancellationToken.None;
+        protected override Metadata ResponseTrailersCore => new();
+        protected override Status StatusCore { get; set; }
+        protected override WriteOptions? WriteOptionsCore { get; set; }
+        protected override AuthContext AuthContextCore => null!;
     }
 }
