@@ -15,6 +15,7 @@ Architecture:
 
 from __future__ import annotations
 
+import asyncio
 import contextvars
 import struct
 import time
@@ -142,7 +143,8 @@ def signature_verification_middleware(
     bytes) and verifies the signature over it, all before the app reads anything. An accepted
     request goes on with its body; a rejected one goes on with an empty request message in place of
     its body, so the RPC library decodes nothing the caller sent, and the interceptor answers it
-    with the rejection's code and message (signature_error_var).
+    with the rejection's code and message (signature_error_var). That answer is sent at once, without
+    waiting for the rest of the body.
 
     verify_fn is the one new_verify_signature builds, or a CustomVerifyFn, which then decides the
     key and the signature after the body is read. A max_body_size of 0 or less keeps
@@ -166,10 +168,10 @@ def signature_verification_middleware(
             error = e
             body = _rejection_body(headers)
             scope = _rejection_scope(scope, len(body))
-            # Read what the caller is still sending, so that it reads the answer instead of
-            # finding the connection reset under its upload. Bounded: past the bound the server
-            # may close the connection.
-            await reader.drain(_DRAIN_LIMIT_FACTOR * max_body_size)
+            if not reader.done:
+                # The answer goes out at once, never after the rest of the body; what the caller
+                # is still sending is read after it (_AnswerThenDrain).
+                send = _AnswerThenDrain(scope, send, reader, _DRAIN_LIMIT_FACTOR * max_body_size)
 
         # The result is reset when the request ends, so a server that serves another request in
         # this context never finds it there.
@@ -332,8 +334,10 @@ def _declared_length(headers: dict[str, str]) -> int | None:
     return int(value) if value.isascii() and value.isdigit() else None
 
 
-# How much of a rejected request's body is read and discarded, as a multiple of the body limit.
+# How much of a rejected request's body is read and discarded after the answer: at most this
+# multiple of the body limit, for at most this many seconds.
 _DRAIN_LIMIT_FACTOR = 4
+_DRAIN_TIMEOUT_SECONDS = 1.0
 
 
 class _BodyReader:
@@ -342,6 +346,11 @@ class _BodyReader:
     def __init__(self, receive: ASGIReceive) -> None:
         self._receive = receive
         self._done = False
+
+    @property
+    def done(self) -> bool:
+        """Whether the body has ended, or the client has gone."""
+        return self._done
 
     async def _next(self) -> bytes:
         message = await self._receive()
@@ -363,10 +372,67 @@ class _BodyReader:
         return bytes(body)
 
     async def drain(self, limit: int) -> None:
-        """Reads and discards what is left of the body, up to limit bytes."""
+        """Reads and discards what is left of the body, up to limit bytes and for at most
+        _DRAIN_TIMEOUT_SECONDS."""
         read = 0
-        while not self._done and read <= limit:
-            read += len(await self._next())
+        try:
+            async with asyncio.timeout(_DRAIN_TIMEOUT_SECONDS):
+                while not self._done and read <= limit:
+                    read += len(await self._next())
+        except TimeoutError:
+            pass
+
+
+class _AnswerThenDrain:
+    """The send of a rejected request whose body may still be arriving.
+
+    The answer goes out at once, all of it. Only the message that ends the response waits until
+    what is left of the body is drained: an ASGI server stops reading the body when the response
+    ends, and then an HTTP/1.1 client may find the connection reset under its upload before it
+    reads the answer, and hypercorn fails the whole HTTP/2 connection on the stream's late data.
+
+    A gRPC answer is its trailers, sent at once with more_trailers. An answer without trailers is
+    held over HTTP/1.x only, and given a Content-Length, so that the client knows where it ends
+    before the response ends. An HTTP/2 client waits for the end of the stream, so there the
+    response ends at once and nothing is drained.
+    """
+
+    def __init__(self, scope: Scope, send: ASGISend, reader: _BodyReader, limit: int) -> None:
+        self._send = send
+        self._reader = reader
+        self._limit = limit
+        self._hold_body = scope.get("http_version", "1.1") in ("1.0", "1.1")
+        self._start: dict[str, Any] | None = None
+        self._body = bytearray()
+
+    async def __call__(self, message: dict[str, Any]) -> None:
+        kind = message.get("type")
+        if kind == "http.response.start" and self._hold_body and not message.get("trailers", False):
+            self._start = message  # sent with the whole body, to give it a Content-Length
+            return
+        if kind == "http.response.body" and self._start is not None:
+            self._body.extend(message.get("body", b""))
+            if message.get("more_body", False):
+                return
+            await self._send(_with_content_length(self._start, len(self._body)))
+            await self._send({"type": "http.response.body", "body": bytes(self._body), "more_body": True})
+            await self._reader.drain(self._limit)
+            await self._send({"type": "http.response.body", "body": b"", "more_body": False})
+            return
+        if kind == "http.response.trailers" and not message.get("more_trailers", False):
+            await self._send({**message, "more_trailers": True})
+            await self._reader.drain(self._limit)
+            await self._send({"type": "http.response.trailers", "headers": [], "more_trailers": False})
+            return
+        await self._send(message)
+
+
+def _with_content_length(start: dict[str, Any], length: int) -> dict[str, Any]:
+    headers = [
+        (k, v) for k, v in start.get("headers", []) if k.lower() not in (b"content-length", b"transfer-encoding")
+    ]
+    headers.append((b"content-length", str(length).encode("latin-1")))
+    return {**start, "headers": headers}
 
 
 def _replay_receive(body: bytes) -> ASGIReceive:

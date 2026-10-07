@@ -9,6 +9,7 @@ import asyncio
 import io
 import json
 import logging
+from urllib.parse import unquote
 
 import pytest
 from t0_provider_sdk._version import __version__
@@ -280,6 +281,110 @@ def test_body_over_the_limit_is_resource_exhausted_over_grpc():
     sent = asyncio.run(_send_asgi(app, CHECK_PATH, _signed_headers(), body, "application/grpc"))
     statuses = [v for m in sent for k, v in m.get("headers", []) if k == b"grpc-status"]
     assert statuses == [b"8"]  # RESOURCE_EXHAUSTED
+
+
+# A client that sends one byte over this limit and then nothing, without ending the body.
+OPEN_BODY_LIMIT = 16
+# How soon the answer to such a client must be out.
+ANSWER_TIMEOUT = 1.0
+
+
+def _start_open_body_call(protocol: str, headers: dict[str, str]):
+    """Calls a new_asgi_app limited to OPEN_BODY_LIMIT bytes from a client that sends one byte over
+    the limit and then stalls. Returns the call's task, the messages it has sent, and the event that
+    ends the body."""
+    app = new_asgi_app(PUBLIC_KEY, max_body_size=OPEN_BODY_LIMIT)
+    grpc = protocol == "grpc"
+    scope = {
+        "type": "http",
+        "http_version": "2" if grpc else "1.1",
+        "method": "POST",
+        "path": CHECK_PATH,
+        "root_path": "",
+        "query_string": b"",
+        "headers": [(b"content-type", b"application/grpc" if grpc else b"application/proto")]
+        + [(k.encode(), v.encode()) for k, v in headers.items()],
+        "extensions": {"http.response.trailers": {}} if grpc else {},
+    }
+    first = [{"type": "http.request", "body": b"\x00" * (OPEN_BODY_LIMIT + 1), "more_body": True}]
+    body_ended = asyncio.Event()
+    sent: list[dict] = []
+
+    async def receive():
+        if first:
+            return first.pop()
+        await body_ended.wait()
+        return {"type": "http.request", "body": b"", "more_body": False}
+
+    async def send(message):
+        sent.append(message)
+
+    return asyncio.create_task(app(scope, receive, send)), sent, body_ended
+
+
+async def _wait_for_answer(protocol: str, sent: list[dict]) -> tuple[str, str]:
+    """The code and message of the answer, once all of it is sent; fails after ANSWER_TIMEOUT."""
+    deadline = asyncio.get_running_loop().time() + ANSWER_TIMEOUT
+    while asyncio.get_running_loop().time() < deadline:
+        if protocol == "grpc":
+            trailers = {k: v for m in sent if m["type"] == "http.response.trailers" for k, v in m["headers"]}
+            if b"grpc-status" in trailers:
+                return trailers[b"grpc-status"].decode(), unquote(trailers[b"grpc-message"].decode())
+        else:
+            body = b"".join(m.get("body", b"") for m in sent if m["type"] == "http.response.body")
+            if body:
+                start = next(m for m in sent if m["type"] == "http.response.start")
+                # The client knows where the answer ends without waiting for the end of the response.
+                assert dict(start["headers"])[b"content-length"] == str(len(body)).encode()
+                return _answer(start["status"], body)
+        await asyncio.sleep(0.01)
+    pytest.fail(f"no answer within {ANSWER_TIMEOUT}s while the body is still arriving; sent: {sent}")
+
+
+_OVER_THE_LIMIT = ("resource_exhausted", f"max payload size of {OPEN_BODY_LIMIT} bytes exceeded")
+_HEADER_REFUSED = ("invalid_argument", "missing required header: X-Signature")
+_GRPC_CODES = {"resource_exhausted": "8", "invalid_argument": "3"}
+
+
+@pytest.mark.parametrize("protocol", ["connect", "grpc"])
+@pytest.mark.parametrize("case", ["body over the limit", "declared length over the limit", "header refusal"])
+async def test_refusal_is_answered_while_the_body_is_still_arriving(protocol, case):
+    """Rule V7: a refused request is answered at once, not after the rest of its body. The answer goes
+    out while the client is still sending, and the response ends once the body has ended."""
+    # Signed here, not at collection, so the timestamp is inside the window.
+    headers = _signed_headers()
+    expected = _OVER_THE_LIMIT
+    if case == "declared length over the limit":
+        headers["content-length"] = "1000"
+    elif case == "header refusal":
+        del headers["x-signature"]
+        expected = _HEADER_REFUSED
+    task, sent, body_ended = _start_open_body_call(protocol, headers)
+    try:
+        code, message = await _wait_for_answer(protocol, sent)
+        expected_code, expected_message = expected
+        assert (code, message) == (
+            (_GRPC_CODES[expected_code] if protocol == "grpc" else expected_code),
+            expected_message,
+        )
+        body_ended.set()
+        await asyncio.wait_for(task, timeout=ANSWER_TIMEOUT)
+    finally:
+        task.cancel()
+    last = sent[-1]
+    assert not last.get("more_body", False) and not last.get("more_trailers", False)
+
+
+async def test_refused_body_that_never_ends_is_read_for_a_bounded_time():
+    """After the answer, what is left of a refused body is read for a bounded time only: a client that
+    stalls without ending its body does not hold the call."""
+    task, sent, _ = _start_open_body_call("connect", _signed_headers())
+    try:
+        assert await _wait_for_answer("connect", sent) == _OVER_THE_LIMIT
+        await asyncio.wait_for(task, timeout=5.0)
+    finally:
+        task.cancel()
+    assert sent[-1] == {"type": "http.response.body", "body": b"", "more_body": False}
 
 
 @pytest.mark.parametrize("transport", TRANSPORTS)
