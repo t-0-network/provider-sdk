@@ -66,6 +66,8 @@ cd csharp && dotnet test                               # C# ↔ Go (included in 
 cd java && ./gradlew test --tests "*.CrossServerTests" # Java ↔ Go
 ```
 
+Build `go_helper` before these tests. The binary is not in git. A cross-language suite that skips because it is missing has not run. Build the helper and run that suite. Do not report the skip as a pass.
+
 The helper serves `test.v1.StreamTest` behind the Go SDK's own signature verification (`provider.Handler`), so the streaming cross tests run against the SDK's server path. A refused request fails with the code from `docs/CROSS_SDK_RULES.md` and the reason as its message, and every reply to a verified request starts with the framing it was verified over (`envelope:` or `payload:`); the streaming cross tests check both from the call itself. It also logs its verdict to stderr before the handler reads past the first message (`<path> verified over the first envelope|payload` or `<path> rejected: <reason>`); the tests read that log only to check that a request went out right after its first message (the caller's stream produces message 2 only once the line is there) and that a call cancelled before its first message sent nothing. The verifier itself is tested in `go/provider`; the helper's wiring, with the Go client against it, in `cross_test/go_helper` (`go test ./...`).
 
 **When adding a new SDK**, add cross-language server-to-server tests that use `cross_test/go_helper/`:
