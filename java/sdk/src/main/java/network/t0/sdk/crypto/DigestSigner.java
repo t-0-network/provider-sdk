@@ -12,8 +12,9 @@ import network.t0.sdk.common.HexUtils;
  * {@link Signer#fromHex(String)} gives one for a private key held in memory.
  *
  * <p>{@link SignResult} refuses a signature that is not 64 or 65 bytes, then a public key that is not
- * 65 bytes uncompressed, so a client checks the output before it sends anything; a signer that throws
- * fails the call with INTERNAL "signing the request failed: &lt;message&gt;", and nothing is sent.
+ * 65 bytes uncompressed, so a client checks the output before it sends anything; a null result fails the
+ * signature check. A signer that throws or returns null fails the call with INTERNAL "signing the request
+ * failed: &lt;message&gt;", and nothing is sent.
  * {@link #sign(byte[])} runs while the call's lock is held, so a signer of your own must return quickly
  * and must not block on network I/O. It must be thread-safe: calls on one client may sign at the same time.
  */

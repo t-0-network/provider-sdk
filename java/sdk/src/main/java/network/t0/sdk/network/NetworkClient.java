@@ -595,6 +595,10 @@ public abstract class NetworkClient implements Closeable {
                     byte[] timestampBytes = Headers.encodeTimestamp(timestampMs);
                     byte[] digest = Keccak256.hash(messageBytes, timestampBytes);
                     SignResult signResult = signer.sign(digest);
+                    if (signResult == null) {
+                        // No signature: it fails the signature check, as in every SDK.
+                        throw new IllegalArgumentException(Messages.SIGNER_SIGNATURE_INVALID);
+                    }
 
                     // Metadata.put appends: replace, so each header has exactly one value.
                     headers.discardAll(SIGNATURE_KEY);

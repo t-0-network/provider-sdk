@@ -1,6 +1,7 @@
 """The Python column of the shared client behavior: every case of client_cases in
 cross_test/test_vectors.json, called by new_service_client and new_service_client_sync, over Connect
-and gRPC, against `go_helper client-probe`, which checks each request it gets.
+and gRPC, against `go_helper client-probe`, which checks each request it gets. Also a custom signer
+whose result fails the output check, called where the probe has no case, so any request it gets fails.
 
 Requires the Go helper binary to be built:
     cd cross_test/go_helper && go build -o go_helper .
@@ -16,6 +17,7 @@ from collections.abc import Iterator
 from pathlib import Path
 
 import pytest
+from connectrpc.code import Code
 from connectrpc.errors import ConnectError
 from grpc_health.v1 import health_pb2
 from t0_provider_sdk.crypto.signer import SignFn, new_signer_from_hex
@@ -157,3 +159,73 @@ def _fail_lines(text: str, name: str | None = None) -> list[str]:
     """The FAIL lines of case `name` ("FAIL <name>: <reason>"), or every FAIL line without a name."""
     prefix = "FAIL " if name is None else f"FAIL {name}:"
     return [line for line in text.splitlines() if line.startswith(prefix)]
+
+
+# No client case has this name: the probe logs a FAIL line for any request it gets here.
+NOT_SENT = "custom-signer-bad-result"
+SIGNATURE_INVALID = "signing the request failed: signature must be 64 or 65 bytes"
+PUBLIC_KEY_INVALID = "signing the request failed: public key must be 65 bytes, uncompressed"
+# What the custom signer returns, and how the call ends: Internal with this message, and nothing sent.
+# A result that is not two items fails the signature check, as a signer that returns nothing does in
+# every SDK.
+BAD_RESULTS = [
+    pytest.param("none", SIGNATURE_INVALID, id="none"),
+    pytest.param("signature only", SIGNATURE_INVALID, id="signature only"),
+    pytest.param("one item", SIGNATURE_INVALID, id="one item"),
+    pytest.param("three items", SIGNATURE_INVALID, id="three items"),
+    pytest.param("none signature", SIGNATURE_INVALID, id="none signature"),
+    pytest.param("none public key", PUBLIC_KEY_INVALID, id="none public key"),
+    pytest.param("none both", SIGNATURE_INVALID, id="none both"),
+]
+
+
+def _bad_result_signer(result: str) -> SignFn:
+    sign = new_signer_from_hex(IMPOSTOR_PRIVATE_KEY)
+
+    def custom_signer(digest: bytes):
+        signature, public_key = sign(digest)
+        return {
+            "none": None,
+            "signature only": signature,
+            "one item": (signature,),
+            "three items": (signature, public_key, public_key),
+            "none signature": (None, public_key),
+            "none public key": (signature, None),
+            "none both": (None, None),
+        }[result]
+
+    return custom_signer
+
+
+def _check_not_sent(error: ConnectError, message: str, log: Path, logged: int) -> None:
+    assert error.code == Code.INTERNAL
+    assert error.message == message
+    assert NOT_SENT not in log.read_bytes()[logged:].decode(errors="replace"), "the call was sent"
+
+
+@pytest.mark.parametrize("protocol", PROTOCOLS)
+@pytest.mark.parametrize(("result", "message"), BAD_RESULTS)
+async def test_async_client_bad_signer_result(
+    probe: tuple[str, Path], result: str, message: str, protocol: Protocol
+) -> None:
+    base_url, log = probe
+    logged = log.stat().st_size
+    client = new_service_client(
+        _bad_result_signer(result), HealthClient, base_url=f"{base_url}/{NOT_SENT}", protocol=protocol
+    )
+    with pytest.raises(ConnectError) as exc_info:
+        await client.check(health_pb2.HealthCheckRequest())
+    _check_not_sent(exc_info.value, message, log, logged)
+
+
+@pytest.mark.parametrize("protocol", PROTOCOLS)
+@pytest.mark.parametrize(("result", "message"), BAD_RESULTS)
+def test_sync_client_bad_signer_result(probe: tuple[str, Path], result: str, message: str, protocol: Protocol) -> None:
+    base_url, log = probe
+    logged = log.stat().st_size
+    client = new_service_client_sync(
+        _bad_result_signer(result), HealthClientSync, base_url=f"{base_url}/{NOT_SENT}", protocol=protocol
+    )
+    with pytest.raises(ConnectError) as exc_info:
+        client.check(health_pb2.HealthCheckRequest())
+    _check_not_sent(exc_info.value, message, log, logged)

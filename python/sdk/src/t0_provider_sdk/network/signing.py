@@ -72,8 +72,7 @@ def _sign_request(
     timestamp_bytes = struct.pack("<Q", timestamp_ms)
     digest = legacy_keccak256(body + timestamp_bytes)
     try:
-        signature, pub_key = sign_fn(digest)
-        _check_signer_output(signature, pub_key)
+        signature, pub_key = _check_signer_output(sign_fn(digest))
     except Exception as e:
         # Internal, not the Unavailable connectrpc gives an exception of the transport: a failing
         # signer is not a transient fault, and callers retry Unavailable.
@@ -87,13 +86,18 @@ def _sign_request(
     return headers
 
 
-def _check_signer_output(signature: bytes, public_key: bytes) -> None:
+def _check_signer_output(result: object) -> tuple[bytes, bytes]:
     """What a SignFn returns, checked before anything is sent: a signature of 64 or 65 bytes (its
-    last byte is not checked, and it is sent as it is), then a 65-byte uncompressed public key."""
+    last byte is not checked, and it is sent as it is), then a 65-byte uncompressed public key.
+    A result that is not two items, None included, has no signature and fails the first check."""
+    if not isinstance(result, tuple | list) or len(result) != 2:
+        raise ValueError(SIGNER_SIGNATURE_INVALID)
+    signature, public_key = result
     if not isinstance(signature, bytes | bytearray) or len(signature) not in (64, 65):
         raise ValueError(SIGNER_SIGNATURE_INVALID)
     if not isinstance(public_key, bytes | bytearray) or len(public_key) != 65 or public_key[0] != 0x04:
         raise ValueError(SIGNER_PUBLIC_KEY_INVALID)
+    return signature, public_key
 
 
 def _broken_first_message() -> ConnectError:
