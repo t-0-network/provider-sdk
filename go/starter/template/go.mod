@@ -3,7 +3,7 @@ module github.com/t-0-network/provider-sdk/go/starter/template
 go 1.27.0
 
 require (
-	connectrpc.com/connect v1.20.0
+	connectrpc.com/connect v1.21.0
 	github.com/google/uuid v1.6.0
 	github.com/joho/godotenv v1.5.1
 	github.com/t-0-network/provider-sdk/go v1.2.0
