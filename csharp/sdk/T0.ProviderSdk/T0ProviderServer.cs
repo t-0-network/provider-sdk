@@ -59,6 +59,9 @@ public sealed class T0ProviderServer
         _builder.Services.Configure<Grpc.AspNetCore.Server.GrpcServiceOptions>(
             options => options.MaxReceiveMessageSize = (int)Math.Min(int.MaxValue, _maxBodySize));
         _builder.Services.AddSingleton(signer);
+#pragma warning disable CS0618 // Handlers written against v1.2 inject the signer as ISigner.
+        _builder.Services.AddSingleton<ISigner>(signer);
+#pragma warning restore CS0618
     }
 
     // For tests: the services the server is built with.

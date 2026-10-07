@@ -61,6 +61,10 @@ The client checks the output before it sends anything. A signature that is not 6
 public key that is not 65 bytes uncompressed, or an exception from the signer fails the call with
 Internal `signing the request failed: <message>`.
 
+`ISigner`, the signer interface of v1.2, is obsolete but still works: `Signer` implements it, the
+server registers its signer as it, and every client factory and `SigningDelegatingHandler` take one
+through obsolete overloads that sign with the same checks. New code passes a `SignFn` or a `Signer`.
+
 A client or server stream is signed over its first message and sent as soon as that message is written; bidirectional streams are refused. A timeout must be greater than zero and at most 2147483647 ms (`NetworkClientOptions.MaxTimeout`). The streaming rules shared by all SDKs: [`docs/STREAMING.md`](../docs/STREAMING.md).
 
 ## Available Commands

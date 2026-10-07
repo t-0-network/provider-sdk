@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Grpc.Core;
 using T0.ProviderSdk.Common;
 using T0.ProviderSdk.Crypto;
@@ -25,6 +26,17 @@ public sealed class SigningDelegatingHandler : DelegatingHandler
     {
         _signer = signer ?? throw new ArgumentNullException(null, Messages.SignerNull);
         _timeProvider = timeProvider ?? TimeProvider.System;
+    }
+
+    /// <summary>
+    /// Signs with <paramref name="signer"/> through a <see cref="SignFn"/> made from
+    /// <see cref="ISigner.Sign"/>, with the same checks and errors.
+    /// </summary>
+    [Obsolete(SignerAdapter.ObsoleteMessage)]
+    [OverloadResolutionPriority(-1)]
+    public SigningDelegatingHandler(ISigner signer, TimeProvider? timeProvider = null)
+        : this(SignerAdapter.ToSignFn(signer)!, timeProvider)
+    {
     }
 
     /// <summary>

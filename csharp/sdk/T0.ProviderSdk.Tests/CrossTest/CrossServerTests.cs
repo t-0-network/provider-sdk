@@ -12,6 +12,7 @@ using T0.ProviderSdk.Api.Tzero.V1.Payment;
 using T0.ProviderSdk.Crypto;
 using T0.ProviderSdk.Network;
 using T0.ProviderSdk.Provider;
+using T0.ProviderSdk.Tests.Crypto;
 using T0.ProviderSdk.Tests.Network;
 using StringValue = Google.Protobuf.WellKnownTypes.StringValue;
 
@@ -250,6 +251,36 @@ public class CrossServerTests
             }
             proc.Dispose();
         }
+    }
+
+    /// <summary>
+    /// A custom signer written against v1.2's obsolete ISigner, returning r‖s without v, signs a
+    /// request the Go server accepts.
+    /// </summary>
+    [Fact]
+    public async Task CSharpClient_GoServer_CustomISigner()
+    {
+        if (GoHelperPath is null)
+        {
+            if (Environment.GetEnvironmentVariable("CI") != null)
+                Assert.Fail("Go helper binary required in CI but not found");
+            return;
+        }
+
+        await using var server = await GoStreamServer.StartAsync(GoHelperPath);
+        var signer = new CustomSigner(Signer.FromHex(PrivateKey));
+#pragma warning disable CS0618 // The v1.2 ISigner overload, kept obsolete.
+        var healthClient = NetworkClient.Create(
+            new NetworkClientOptions { BaseUrl = server.BaseUrl },
+            (ISigner)signer,
+            invoker => new Grpc.Health.V1.Health.HealthClient(invoker));
+#pragma warning restore CS0618
+
+        var response = await healthClient.CheckAsync(
+            new Grpc.Health.V1.HealthCheckRequest { Service = Grpc.Health.V1.Health.Descriptor.FullName });
+
+        Assert.Equal(Grpc.Health.V1.HealthCheckResponse.Types.ServingStatus.Serving, response.Status);
+        Assert.Equal(1, signer.Calls);
     }
 
     // test.v1.StreamTest (cross_test/stream_test.proto), built by hand on StringValue.

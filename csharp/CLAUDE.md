@@ -27,7 +27,7 @@ cd csharp/sdk/T0.ProviderSdk.Tests && dotnet test       # Run tests
 ```
 csharp/
 ├── sdk/T0.ProviderSdk/          # Core SDK library (NuGet: T0.ProviderSdk)
-│   ├── Crypto/                   # SignFn, Signer, ISignatureVerifier, Keccak256
+│   ├── Crypto/                   # SignFn, Signer, ISigner (obsolete), ISignatureVerifier, Keccak256
 │   ├── Network/                  # NetworkClient, SigningDelegatingHandler
 │   ├── Provider/                 # SignatureVerificationMiddleware
 │   ├── Common/                   # Headers, HexUtils
@@ -45,6 +45,7 @@ csharp/
 - `T0ProviderServer` — Builder that wraps WebApplication + gRPC + signature middleware
 - `Signer` — secp256k1 ECDSA signing with RFC 6979; converts implicitly to `SignFn`
 - `SignFn` — the signer a client takes: digest → (signature, 65-byte uncompressed public key); a custom signer is one
+- `ISigner` — v1.2's signer interface, `[Obsolete]`: `Signer` implements it, the server registers it in DI, and each client factory and the `SigningDelegatingHandler` constructor has an obsolete overload taking it (`[OverloadResolutionPriority(-1)]`, so a `Signer` picks the `SignFn` one) that signs through a `SignFn` made from it
 - `SignatureVerifier` / `DefaultSignatureVerifier` (implements `ISignatureVerifier`) — Verification
 - `Keccak256` — Legacy Keccak-256 hashing (NOT NIST SHA-3)
 - `NetworkClient.CreateNetworkServiceClient()` — Auto-signing Payment gRPC client

@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Grpc.Core;
 using Grpc.Core.Interceptors;
 using Grpc.Net.Client;
@@ -62,6 +63,19 @@ public static class NetworkClient
         }
     }
 
+    /// <summary>
+    /// Creates a client that signs with <paramref name="signer"/> through a <see cref="SignFn"/> made
+    /// from <see cref="ISigner.Sign"/>, with the same checks and errors; see
+    /// <see cref="Create{TClient}(NetworkClientOptions, SignFn, Func{CallInvoker, TClient})"/>.
+    /// </summary>
+    [Obsolete(SignerAdapter.ObsoleteMessage)]
+    [OverloadResolutionPriority(-1)]
+    public static TClient Create<TClient>(
+        NetworkClientOptions options,
+        ISigner signer,
+        Func<CallInvoker, TClient> newClient) =>
+        Create(options, SignerAdapter.ToSignFn(signer)!, newClient);
+
     // One connection pool for the process: a client created per request would otherwise leave a
     // pool of open connections behind it, since nothing disposes a client.
     internal static readonly SocketsHttpHandler SharedTransport = CreateTransport();
@@ -90,7 +104,8 @@ public static class NetworkClient
     };
 
     /// <summary>
-    /// Creates a Payment NetworkService client; see <see cref="Create{TClient}"/>.
+    /// Creates a Payment NetworkService client; see
+    /// <see cref="Create{TClient}(NetworkClientOptions, SignFn, Func{CallInvoker, TClient})"/>.
     /// </summary>
     public static PaymentApi.NetworkService.NetworkServiceClient CreateNetworkServiceClient(
         NetworkClientOptions options,
@@ -107,7 +122,8 @@ public static class NetworkClient
         CreateNetworkServiceClient(new NetworkClientOptions { BaseUrl = baseUrl }, signer);
 
     /// <summary>
-    /// Creates a PaymentIntent NetworkService client; see <see cref="Create{TClient}"/>.
+    /// Creates a PaymentIntent NetworkService client; see
+    /// <see cref="Create{TClient}(NetworkClientOptions, SignFn, Func{CallInvoker, TClient})"/>.
     /// </summary>
     public static PaymentIntentApi.NetworkService.NetworkServiceClient CreatePaymentIntentNetworkServiceClient(
         NetworkClientOptions options,
@@ -122,4 +138,50 @@ public static class NetworkClient
         string baseUrl,
         SignFn signer) =>
         CreatePaymentIntentNetworkServiceClient(new NetworkClientOptions { BaseUrl = baseUrl }, signer);
+
+    /// <summary>
+    /// Creates a Payment NetworkService client that signs with an <see cref="ISigner"/>; see
+    /// <see cref="Create{TClient}(NetworkClientOptions, ISigner, Func{CallInvoker, TClient})"/>.
+    /// </summary>
+    [Obsolete(SignerAdapter.ObsoleteMessage)]
+    [OverloadResolutionPriority(-1)]
+    public static PaymentApi.NetworkService.NetworkServiceClient CreateNetworkServiceClient(
+        NetworkClientOptions options,
+        ISigner signer) =>
+        CreateNetworkServiceClient(options, SignerAdapter.ToSignFn(signer)!);
+
+    /// <summary>
+    /// Creates a Payment NetworkService client for <paramref name="baseUrl"/> that signs with an
+    /// <see cref="ISigner"/>; see
+    /// <see cref="Create{TClient}(NetworkClientOptions, ISigner, Func{CallInvoker, TClient})"/>.
+    /// </summary>
+    [Obsolete(SignerAdapter.ObsoleteMessage)]
+    [OverloadResolutionPriority(-1)]
+    public static PaymentApi.NetworkService.NetworkServiceClient CreateNetworkServiceClient(
+        string baseUrl,
+        ISigner signer) =>
+        CreateNetworkServiceClient(baseUrl, SignerAdapter.ToSignFn(signer)!);
+
+    /// <summary>
+    /// Creates a PaymentIntent NetworkService client that signs with an <see cref="ISigner"/>; see
+    /// <see cref="Create{TClient}(NetworkClientOptions, ISigner, Func{CallInvoker, TClient})"/>.
+    /// </summary>
+    [Obsolete(SignerAdapter.ObsoleteMessage)]
+    [OverloadResolutionPriority(-1)]
+    public static PaymentIntentApi.NetworkService.NetworkServiceClient CreatePaymentIntentNetworkServiceClient(
+        NetworkClientOptions options,
+        ISigner signer) =>
+        CreatePaymentIntentNetworkServiceClient(options, SignerAdapter.ToSignFn(signer)!);
+
+    /// <summary>
+    /// Creates a PaymentIntent NetworkService client for <paramref name="baseUrl"/> that signs with
+    /// an <see cref="ISigner"/>; see
+    /// <see cref="Create{TClient}(NetworkClientOptions, ISigner, Func{CallInvoker, TClient})"/>.
+    /// </summary>
+    [Obsolete(SignerAdapter.ObsoleteMessage)]
+    [OverloadResolutionPriority(-1)]
+    public static PaymentIntentApi.NetworkService.NetworkServiceClient CreatePaymentIntentNetworkServiceClient(
+        string baseUrl,
+        ISigner signer) =>
+        CreatePaymentIntentNetworkServiceClient(baseUrl, SignerAdapter.ToSignFn(signer)!);
 }

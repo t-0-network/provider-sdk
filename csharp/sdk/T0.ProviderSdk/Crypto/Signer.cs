@@ -16,9 +16,12 @@ namespace T0.ProviderSdk.Crypto;
 /// ECDSA signer using secp256k1 curve, producing Ethereum-style signatures.
 /// Signature format: 65 bytes = r[32] + s[32] + v[1] (recovery ID).
 /// Uses RFC 6979 deterministic nonce generation with HMAC-SHA256.
-/// Thread-safe.
+/// Thread-safe. It converts to <see cref="SignFn"/>, and still implements the obsolete
+/// <c>ISigner</c> for code written against v1.2.
 /// </summary>
-public sealed class Signer
+#pragma warning disable CS0618 // ISigner is obsolete; Signer keeps implementing it for v1.2 code.
+public sealed class Signer : ISigner
+#pragma warning restore CS0618
 {
     private static readonly X9ECParameters CurveParams = CustomNamedCurves.GetByName("secp256k1");
     private static readonly ECDomainParameters DomainParams = new(

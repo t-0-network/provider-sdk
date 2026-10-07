@@ -5,6 +5,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
+    <!-- A Signer or a SignFn passed to a client must not pick the obsolete ISigner overloads; the
+         tests of those overloads turn this off where they use them. -->
+    <WarningsAsErrors>$(WarningsAsErrors);CS0618</WarningsAsErrors>
   </PropertyGroup>
 
   <ItemGroup>
