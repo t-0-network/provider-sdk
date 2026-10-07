@@ -40,12 +40,16 @@ public sealed class T0ProviderServer
 
         _config = config;
         _builder = WebApplication.CreateBuilder(args ?? []);
-        // Set in code, so the server speaks gRPC whatever configuration files are present: HTTP/2
-        // without TLS on every interface. The body limit is the SDK's (SignatureVerificationMiddleware),
-        // so Kestrel's own is off.
+        // config.Port on every interface: "*" binds IPv6 and IPv4 (IPv4 alone where there is no
+        // IPv6). It is an address, not a Kestrel endpoint, so an application's Kestrel:Endpoints
+        // configuration replaces it instead of being bound next to it.
+        _builder.WebHost.UseUrls($"http://*:{config.Port}");
+        // Every endpoint speaks HTTP/2, the SDK's address (without TLS) and configured ones alike,
+        // unless an endpoint sets its own Kestrel:Endpoints:<name>:Protocols. The body limit is the
+        // SDK's (SignatureVerificationMiddleware), so Kestrel's own is off.
         _builder.WebHost.ConfigureKestrel(kestrel =>
         {
-            kestrel.ListenAnyIP(config.Port, listen => listen.Protocols = HttpProtocols.Http2);
+            kestrel.ConfigureEndpointDefaults(listen => listen.Protocols = HttpProtocols.Http2);
             kestrel.Limits.MaxRequestBodySize = null;
         });
         _builder.Services.AddGrpc(options =>
