@@ -19,11 +19,15 @@ import org.slf4j.LoggerFactory;
  * <p>This class is thread-safe. The {@link Validator} instance is shared
  * with {@link Validate#check(Message)} via {@link Validators#shared()}.
  *
+ * <p>A rule that {@code protovalidate} cannot evaluate is rejected with
+ * {@link Status#INTERNAL} {@code "response validation error: <cause>"}.
+ *
  * <p>The interceptor also handles {@link ResponseValidationException} that
  * propagates out of a handler (e.g. when the developer calls
  * {@link Validate#check(Message)} but does not catch the failure): the wire
- * shape stays {@code Status.INTERNAL} with description
- * {@code "response validation failed: <details>"}.
+ * shape stays {@code Status.INTERNAL} with the exception's message as the
+ * description, {@code "response validation failed: <details>"} or
+ * {@code "response validation error: <cause>"}.
  */
 public final class ResponseValidationInterceptor implements ServerInterceptor {
 

@@ -1,5 +1,7 @@
 package network.t0.sdk.provider;
 
+import build.buf.protovalidate.exceptions.ValidationException;
+import com.google.protobuf.Message;
 import network.t0.sdk.proto.tzero.v1.common.Decimal;
 import network.t0.sdk.proto.tzero.v1.payment.PayoutResponse;
 import org.junit.jupiter.api.DisplayName;
@@ -51,6 +53,22 @@ class ValidateTest {
         assertThat(ex.getViolations()).doesNotStartWith("response validation failed");
         assertThat(ex.getMessage()).isEqualTo("response validation failed: " + ex.getViolations());
         assertThat(ex.getResponseType()).isEqualTo("tzero.v1.common.Decimal");
+    }
+
+    @Test
+    @DisplayName("A rule protovalidate cannot evaluate throws 'response validation error: <cause>'")
+    void unevaluableRuleIsAValidationError() {
+        Message msg = UnevaluableRuleMessage.message();
+        String cause = UnevaluableRuleMessage.cause();
+        assertThat(cause).contains("divisor_divides");
+
+        assertThatThrownBy(() -> Validate.check(msg))
+                .isInstanceOfSatisfying(ResponseValidationException.class, e -> {
+                    assertThat(e.getMessage()).isEqualTo("response validation error: " + cause);
+                    assertThat(e.getViolations()).isEqualTo(cause);
+                    assertThat(e.getResponseType()).isEqualTo(UnevaluableRuleMessage.TYPE_NAME);
+                    assertThat(e.getCause()).isInstanceOf(ValidationException.class).hasMessage(cause);
+                });
     }
 
     @Test

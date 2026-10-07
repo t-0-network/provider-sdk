@@ -11,6 +11,7 @@ import io.grpc.stub.StreamObserver;
 import network.t0.sdk.crypto.Signer;
 import network.t0.sdk.network.BlockingNetworkClient;
 import network.t0.sdk.provider.ProviderServer;
+import network.t0.sdk.provider.UnevaluableRuleMessage;
 import network.t0.sdk.provider.Validate;
 import network.t0.sdk.proto.tzero.v1.payment.PayoutRequest;
 import network.t0.sdk.proto.tzero.v1.payment.PayoutResponse;
@@ -31,6 +32,8 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 /**
  * Every response a {@link ProviderServer} sends is validated: an invalid one reaches the caller as
  * INTERNAL "response validation failed: <field path>: <message>[; …]", with one ERROR log line.
+ * A rule protovalidate cannot evaluate, met by {@link Validate#check} in the handler, reaches the
+ * caller as INTERNAL "response validation error: <cause>".
  */
 class ResponseValidationIntegrationTest {
 
@@ -39,6 +42,7 @@ class ResponseValidationIntegrationTest {
 
     private final AtomicReference<PayoutResponse> nextResponse = new AtomicReference<>();
     private volatile boolean checkInHandler;
+    private volatile boolean checkUnevaluableInHandler;
     private final AtomicReference<RuntimeException> handlerFailure = new AtomicReference<>();
     private final ListAppender<ILoggingEvent> appender = new ListAppender<>();
     private final ch.qos.logback.classic.Logger logger =
@@ -53,6 +57,10 @@ class ResponseValidationIntegrationTest {
                 .withService(new ProviderServiceGrpc.ProviderServiceImplBase() {
                     @Override
                     public void payOut(PayoutRequest request, StreamObserver<PayoutResponse> observer) {
+                        if (checkUnevaluableInHandler) {
+                            // Thrown out of the handler before it responds.
+                            Validate.check(UnevaluableRuleMessage.message());
+                        }
                         // The handler goes on as usual after a refused response.
                         if (checkInHandler) {
                             // Thrown out of the handler: the SDK maps it to the same reply.
@@ -109,6 +117,18 @@ class ResponseValidationIntegrationTest {
     }
 
     @Test
+    @DisplayName("Validate.check in the handler reports a rule it cannot evaluate as a validation error")
+    void validateCheckInHandler_unevaluableRule_isValidationError() throws Exception {
+        checkUnevaluableInHandler = true;
+        nextResponse.set(PayoutResponse.newBuilder()
+                .setAccepted(PayoutResponse.Accepted.getDefaultInstance())
+                .build());
+        String cause = UnevaluableRuleMessage.cause();
+
+        assertRefused("response validation error: " + cause, UnevaluableRuleMessage.TYPE_NAME, cause);
+    }
+
+    @Test
     @DisplayName("A valid response is sent")
     void validResponse_isSent() throws Exception {
         PayoutResponse valid = PayoutResponse.newBuilder()
@@ -136,12 +156,15 @@ class ResponseValidationIntegrationTest {
     }
 
     private void assertRefused(String violations) throws Exception {
+        assertRefused("response validation failed: " + violations, "tzero.v1.payment.PayoutResponse", violations);
+    }
+
+    private void assertRefused(String description, String responseType, String violations) throws Exception {
         try (var client = providerClient()) {
             assertThatThrownBy(() -> client.stub().payOut(PayoutRequest.getDefaultInstance()))
                     .isInstanceOfSatisfying(StatusRuntimeException.class, e -> {
                         assertThat(e.getStatus().getCode()).isEqualTo(Status.Code.INTERNAL);
-                        assertThat(e.getStatus().getDescription())
-                                .isEqualTo("response validation failed: " + violations);
+                        assertThat(e.getStatus().getDescription()).isEqualTo(description);
                     });
         }
         assertThat(handlerFailure.get()).isNull();
@@ -153,7 +176,7 @@ class ResponseValidationIntegrationTest {
         Map<String, String> kv = event.getKeyValuePairs().stream()
                 .collect(Collectors.toMap(p -> p.key, p -> String.valueOf(p.value)));
         assertThat(kv).containsEntry("rpc_method", "tzero.v1.payment.ProviderService/PayOut")
-                .containsEntry("response_type", "tzero.v1.payment.PayoutResponse")
+                .containsEntry("response_type", responseType)
                 .containsEntry("violations", violations)
                 .containsEntry("sdk_version", "9.9.9-test");
     }
