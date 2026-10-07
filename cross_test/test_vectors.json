@@ -977,13 +977,6 @@
     "streaming_not_supported": [
       "node"
     ],
-    "response_validation_error": [
-      "go",
-      "node",
-      "python",
-      "java",
-      "csharp"
-    ],
     "no_service": [
       "java"
     ],
