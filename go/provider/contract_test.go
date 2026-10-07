@@ -8,10 +8,14 @@ import (
 	"regexp"
 	"slices"
 	"sort"
+	"strconv"
 	"strings"
 	"testing"
 
+	"buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/proto"
+
 	"github.com/t-0-network/provider-sdk/go/common"
 	"github.com/t-0-network/provider-sdk/go/internal/contract"
 	"github.com/t-0-network/provider-sdk/go/network"
@@ -167,6 +171,56 @@ func TestContract_MaxBodySizeCases(t *testing.T) {
 			require.NoError(t, err)
 			WithMaxBodySize(c.Input)(&opts)
 			require.Equal(t, c.Limit, opts.verifySignatureMaxBodySize)
+		})
+	}
+}
+
+// The field path of a violation, as the server and Validate write it, against field_path_cases.
+func TestContract_FieldPathCases(t *testing.T) {
+	data, err := os.ReadFile("../../cross_test/test_vectors.json")
+	require.NoError(t, err)
+	var v struct {
+		Cases []struct {
+			Name string `json:"name"`
+			Path []struct {
+				FieldName string  `json:"field_name"`
+				Index     *uint64 `json:"index"`
+				BoolKey   *bool   `json:"bool_key"`
+				IntKey    *string `json:"int_key"`
+				UintKey   *string `json:"uint_key"`
+				StringKey *string `json:"string_key"`
+			} `json:"path"`
+			Expected string `json:"expected"`
+		} `json:"field_path_cases"`
+	}
+	require.NoError(t, json.Unmarshal(data, &v))
+	require.NotEmpty(t, v.Cases)
+
+	for _, c := range v.Cases {
+		t.Run(c.Name, func(t *testing.T) {
+			elements := make([]*validate.FieldPathElement, 0, len(c.Path))
+			for _, e := range c.Path {
+				b := validate.FieldPathElement_builder{FieldName: proto.String(e.FieldName)}
+				switch {
+				case e.Index != nil:
+					b.Index = e.Index
+				case e.BoolKey != nil:
+					b.BoolKey = e.BoolKey
+				case e.IntKey != nil:
+					n, err := strconv.ParseInt(*e.IntKey, 10, 64)
+					require.NoError(t, err)
+					b.IntKey = &n
+				case e.UintKey != nil:
+					n, err := strconv.ParseUint(*e.UintKey, 10, 64)
+					require.NoError(t, err)
+					b.UintKey = &n
+				case e.StringKey != nil:
+					b.StringKey = e.StringKey
+				}
+				elements = append(elements, b.Build())
+			}
+			path := validate.FieldPath_builder{Elements: elements}.Build()
+			require.Equal(t, c.Expected, fieldPathString(path))
 		})
 	}
 }

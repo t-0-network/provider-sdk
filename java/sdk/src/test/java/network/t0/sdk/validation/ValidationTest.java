@@ -165,7 +165,7 @@ class ValidationTest {
         }
     }
 
-    /** The field is named by its full path, as protovalidate writes it (Node's pathToString gives the same). */
+    /** The field is named by its full path, as every SDK writes it (field_path_cases in cross_test/test_vectors.json). */
     @Nested
     @DisplayName("Violation format")
     class ViolationFormat {

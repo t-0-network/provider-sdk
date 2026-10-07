@@ -113,19 +113,3 @@ class TestHandlerPropagation:
             handler()
         assert exc_info.value.code == Code.INTERNAL
         assert "response validation failed" in str(exc_info.value)
-
-
-def test_field_path_keeps_non_ascii_map_keys() -> None:
-    """A map key is quoted as Go and Node quote it: non-ASCII characters are not escaped."""
-    from types import SimpleNamespace
-
-    from t0_provider_sdk.provider.validate import _field_path
-
-    def element(name: str, field: str | None = None, value: object = None) -> SimpleNamespace:
-        subscript = None if field is None else SimpleNamespace(field=field, value=value)
-        return SimpleNamespace(field_name=name, subscript=subscript)
-
-    path = SimpleNamespace(elements=[element("labels", "string_key", "é"), element("value")])
-    assert _field_path(path) == 'labels["é"].value'
-    path = SimpleNamespace(elements=[element("labels", "string_key", 'a"b')])
-    assert _field_path(path) == 'labels["a\\"b"]'

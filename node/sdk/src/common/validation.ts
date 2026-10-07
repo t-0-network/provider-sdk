@@ -3,7 +3,7 @@ import type { Interceptor } from "@connectrpc/connect";
 import { createValidator } from "@bufbuild/protovalidate";
 import { createValidateInterceptor } from "@connectrpc/validate";
 import type { DescMessage, MessageShape, Registry } from "@bufbuild/protobuf";
-import { pathToString } from "@bufbuild/protobuf/reflect";
+import { fieldPathString } from "./field-path.js";
 import type { Logger } from "./logger.js";
 import { defaultLogger } from "./logger.js";
 import { reportedVersion } from "../version.js";
@@ -45,7 +45,7 @@ export function createValidationInterceptor(loggerOrOptions?: Logger | Validatio
     const result = validator.validate(schema, msg);
     if (result.kind === "invalid") {
       const violations = result.violations.map((v) => ({
-        field: pathToString(v.field),
+        field: fieldPathString(v.field),
         message: v.message,
         ruleId: v.ruleId,
       }));

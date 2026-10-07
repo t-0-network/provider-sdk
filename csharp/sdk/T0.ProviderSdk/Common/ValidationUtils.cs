@@ -1,3 +1,6 @@
+using System.Globalization;
+using System.Text;
+using Buf.Validate;
 using Google.Protobuf;
 using Grpc.Core;
 using ProtoValidate;
@@ -35,7 +38,74 @@ internal static class ValidationUtils
 
     // Each violation as "<field path>: <message>", joined by "; ", as every SDK formats them.
     internal static string FormatViolations(ValidationResult result) =>
-        string.Join("; ", result.Violations.Select(v => $"{(v.Field is null ? "" : v.Field.GetPath())}: {v.Message}"));
+        string.Join("; ", result.Violations.Select(v => $"{FieldPathString(v.Field)}: {v.Message}"));
+
+    /// <summary>
+    /// The field path of a violation as every SDK writes it (field_path_cases in
+    /// cross_test/test_vectors.json): field names joined by ".", each list index or map key in
+    /// brackets after its field name, and a string key in double quotes with JSON string escaping.
+    /// An empty path is "".
+    /// </summary>
+    internal static string FieldPathString(FieldPath? path)
+    {
+        if (path is null)
+            return "";
+        var sb = new StringBuilder();
+        for (var i = 0; i < path.Elements.Count; i++)
+        {
+            var element = path.Elements[i];
+            if (i > 0)
+                sb.Append('.');
+            sb.Append(element.FieldName);
+            switch (element.SubscriptCase)
+            {
+                case FieldPathElement.SubscriptOneofCase.Index:
+                    sb.Append('[').Append(element.Index.ToString(CultureInfo.InvariantCulture)).Append(']');
+                    break;
+                case FieldPathElement.SubscriptOneofCase.BoolKey:
+                    sb.Append(element.BoolKey ? "[true]" : "[false]");
+                    break;
+                case FieldPathElement.SubscriptOneofCase.IntKey:
+                    sb.Append('[').Append(element.IntKey.ToString(CultureInfo.InvariantCulture)).Append(']');
+                    break;
+                case FieldPathElement.SubscriptOneofCase.UintKey:
+                    sb.Append('[').Append(element.UintKey.ToString(CultureInfo.InvariantCulture)).Append(']');
+                    break;
+                case FieldPathElement.SubscriptOneofCase.StringKey:
+                    AppendJsonString(sb.Append('['), element.StringKey).Append(']');
+                    break;
+            }
+        }
+        return sb.ToString();
+    }
+
+    // s in double quotes with JSON string escaping (RFC 8259): \" and \\, \b, \f, \n, \r and \t,
+    // every other character below U+0020 as \u00xx, and every other character as it is (DEL and all
+    // non-ASCII included).
+    private static StringBuilder AppendJsonString(StringBuilder sb, string s)
+    {
+        sb.Append('"');
+        foreach (var c in s)
+        {
+            switch (c)
+            {
+                case '"': sb.Append("\\\""); break;
+                case '\\': sb.Append("\\\\"); break;
+                case '\b': sb.Append("\\b"); break;
+                case '\f': sb.Append("\\f"); break;
+                case '\n': sb.Append("\\n"); break;
+                case '\r': sb.Append("\\r"); break;
+                case '\t': sb.Append("\\t"); break;
+                default:
+                    if (c < 0x20)
+                        sb.Append("\\u").Append(((int)c).ToString("x4", CultureInfo.InvariantCulture));
+                    else
+                        sb.Append(c);
+                    break;
+            }
+        }
+        return sb.Append('"');
+    }
 }
 
 /// <summary>

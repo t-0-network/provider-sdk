@@ -1,7 +1,7 @@
 import type { DescMessage, MessageShape, Registry } from '@bufbuild/protobuf';
 import { fromJsonString, fromBinary, toJsonString, toBinary } from '@bufbuild/protobuf';
-import { pathToString } from '@bufbuild/protobuf/reflect';
 import { createValidator } from '@bufbuild/protovalidate';
+import { fieldPathString } from '../field-path.js';
 import { createRequestVerifier, rejectRequest } from './request.js';
 import type { CreateVerifierOptions, RejectedRequest } from './request.js';
 import NetworkHeaders from '../headers.js';
@@ -146,7 +146,7 @@ export function createRequestDecoder(opts: CreateDecoderOptions): RequestDecoder
     const valResult = validator.validate(schema, message);
     if (valResult.kind === 'invalid') {
       const violations: Violation[] = valResult.violations.map(v => ({
-        field: pathToString(v.field),
+        field: fieldPathString(v.field),
         message: v.message,
         ruleId: v.ruleId,
       }));
@@ -169,7 +169,7 @@ export function createRequestDecoder(opts: CreateDecoderOptions): RequestDecoder
       const respVal = validator.validate(respSchema, resp);
       if (respVal.kind === 'invalid') {
         const violations: Violation[] = respVal.violations.map(v => ({
-          field: pathToString(v.field),
+          field: fieldPathString(v.field),
           message: v.message,
           ruleId: v.ruleId,
         }));

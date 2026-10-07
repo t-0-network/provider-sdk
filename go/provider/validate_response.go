@@ -138,7 +138,7 @@ type responseValidationError struct {
 func (e *responseValidationError) Error() string {
 	details := make([]string, 0, len(e.ve.Violations))
 	for _, v := range e.ve.Violations {
-		details = append(details, protovalidate.FieldPathString(v.Proto.GetField())+": "+v.Proto.GetMessage())
+		details = append(details, fieldPathString(v.Proto.GetField())+": "+v.Proto.GetMessage())
 	}
 	return fmt.Sprintf(contract.ResponseInvalid, strings.Join(details, "; "))
 }
@@ -173,7 +173,26 @@ func formatViolations(ve *protovalidate.ValidationError) []string {
 	}
 	out := make([]string, 0, len(ve.Violations))
 	for _, v := range ve.Violations {
-		out = append(out, v.String())
+		out = append(out, violationString(v))
 	}
 	return out
+}
+
+// violationString is v.String() with the field path written by fieldPathString, as the error
+// writes it.
+func violationString(v *protovalidate.Violation) string {
+	var b strings.Builder
+	if path := fieldPathString(v.Proto.GetField()); path != "" {
+		b.WriteString(path)
+		b.WriteString(": ")
+	}
+	switch {
+	case v.Proto.GetMessage() != "":
+		b.WriteString(v.Proto.GetMessage())
+	case v.Proto.GetRuleId() != "":
+		b.WriteString("[" + v.Proto.GetRuleId() + "]")
+	default:
+		b.WriteString("[unknown]")
+	}
+	return b.String()
 }

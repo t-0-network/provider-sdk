@@ -3,13 +3,17 @@ cross_test/test_vectors.json, the file every SDK compares its constants with."""
 
 import asyncio
 import json
+from collections.abc import Callable
 from pathlib import Path
+from types import SimpleNamespace
+from typing import Any
 
 import pytest
 from t0_provider_sdk import _messages
 from t0_provider_sdk.common import PUBLIC_KEY_HEADER, SIGNATURE_HEADER, SIGNATURE_TIMESTAMP_HEADER
 from t0_provider_sdk.network import DEFAULT_BASE_URL, DEFAULT_STREAM_TIMEOUT, DEFAULT_TIMEOUT, MAX_TIMEOUT
 from t0_provider_sdk.provider import DEFAULT_MAX_BODY_SIZE, TIMESTAMP_WINDOW_MS, new_asgi_app, new_wsgi_app
+from t0_provider_sdk.provider.validate import _field_path
 
 from ..provider.test_handler import PUBLIC_KEY, _call_asgi, _call_wsgi, _sign_request, new_signer_from_hex
 
@@ -95,3 +99,33 @@ def _call(transport: str, body: bytes, max_body_size: int) -> str:
     if transport == "asgi":
         return asyncio.run(_call_asgi(new_asgi_app(PUBLIC_KEY, max_body_size=max_body_size), path, headers, body))[0]
     return _call_wsgi(new_wsgi_app(PUBLIC_KEY, max_body_size=max_body_size), path, headers, body)[0]
+
+
+def _element(e: dict[str, Any]) -> dict[str, Any]:
+    """The fields of a field_path_cases element; int_key and uint_key are decimal strings there."""
+    return {k: int(v) if k in ("int_key", "uint_key") else v for k, v in e.items()}
+
+
+def _protobuf_path(elements: list[dict[str, Any]]) -> Any:
+    """A path as protovalidate before 2.0 gives it: a google.protobuf buf.validate.FieldPath."""
+    from buf.validate import validate_pb2  # importable once t0_provider_sdk is imported
+
+    return validate_pb2.FieldPath(elements=[validate_pb2.FieldPathElement(**_element(e)) for e in elements])
+
+
+def _protovalidate2_path(elements: list[dict[str, Any]]) -> Any:
+    """A path as protovalidate 2 gives it: an element's subscript is a (field, value) of its own."""
+    path = []
+    for e in elements:
+        fields = _element(e)
+        name = fields.pop("field_name")
+        subscript = next((SimpleNamespace(field=k, value=v) for k, v in fields.items()), None)
+        path.append(SimpleNamespace(field_name=name, subscript=subscript))
+    return SimpleNamespace(elements=path)
+
+
+@pytest.mark.parametrize("build", [_protobuf_path, _protovalidate2_path], ids=["protobuf", "protovalidate2"])
+@pytest.mark.parametrize("case", VECTORS["field_path_cases"], ids=lambda case: case["name"])
+def test_field_path_cases(build: Callable[[list[dict[str, Any]]], Any], case: dict[str, Any]) -> None:
+    """The field path of a violation, as the server and validate() write it, against field_path_cases."""
+    assert _field_path(build(case["path"])) == case["expected"]

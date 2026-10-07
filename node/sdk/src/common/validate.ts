@@ -1,7 +1,7 @@
 import { Code, ConnectError } from "@connectrpc/connect";
 import { createValidator, type Validator } from "@bufbuild/protovalidate";
 import type { DescMessage, MessageShape, Registry } from "@bufbuild/protobuf";
-import { pathToString } from "@bufbuild/protobuf/reflect";
+import { fieldPathString } from "./field-path.js";
 import { RESPONSE_INVALID, RESPONSE_VALIDATION_ERROR } from "./messages.js";
 
 /**
@@ -70,7 +70,7 @@ export function validate<Desc extends DescMessage>(
   const result = validatorFor(options?.registry).validate(schema, msg);
   if (result.kind === "invalid") {
     const details = result.violations
-      .map((v) => `${pathToString(v.field)}: ${v.message}`)
+      .map((v) => `${fieldPathString(v.field)}: ${v.message}`)
       .join("; ");
     throw new ConnectError(RESPONSE_INVALID(details), Code.Internal);
   }

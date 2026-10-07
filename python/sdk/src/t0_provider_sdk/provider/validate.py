@@ -64,7 +64,8 @@ def _cause(error: Exception) -> str:
 
 
 def _field_path(path: Any) -> str:
-    """A buf.validate.FieldPath as ``a.b[0].c["key"]``, as protovalidate-go writes it."""
+    """A buf.validate.FieldPath as ``a.b[0].c["key"]``, as every SDK writes it (field_path_cases in
+    cross_test/test_vectors.json). An empty path is ``""``."""
     if path is None:
         return ""
     parts = []
@@ -87,7 +88,8 @@ def _subscript(element: Any) -> str | None:
             return None
         kind, value = element.subscript.field, element.subscript.value
     if kind == "string_key":
-        # Quoted as protovalidate-go and protovalidate-es write it: printable non-ASCII stays as is.
+        # JSON string escaping (RFC 8259): \" and \\, \b \f \n \r \t, every other character below
+        # U+0020 as \u00xx, and every other character as it is (DEL and all non-ASCII included).
         return json.dumps(value, ensure_ascii=False)
     if kind == "bool_key":
         return "true" if value else "false"

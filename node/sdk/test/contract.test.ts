@@ -3,7 +3,9 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
 import { DEFAULT_MAX_BODY_SIZE, NetworkHeaders, TIMESTAMP_WINDOW_MS, createService, newSignerFromHex } from '../src/index.js';
+import type { PathItem } from '@bufbuild/protobuf/reflect';
 import * as messages from '../src/common/messages.js';
+import { fieldPathString } from '../src/common/field-path.js';
 import { DEFAULT_BASE_URL, DEFAULT_STREAM_TIMEOUT_MS, DEFAULT_TIMEOUT_MS, MAX_TIMEOUT_MS } from '../src/index.js';
 
 // The named constants of the SDK against `constants` in cross_test/test_vectors.json, the file
@@ -75,6 +77,33 @@ describe('shared signer cases', () => {
       const sig = await sign(digest);
       assert.equal(sig.signature.toString('hex'), c.signature);
       assert.equal(sig.publicKey.toString('hex'), c.public_key);
+    });
+  }
+});
+
+// The field path of a violation, as the server and validate() write it, against field_path_cases.
+// The formatter takes the path as protovalidate-es gives it: a field item, then a list_sub or
+// map_sub item for its subscript (a 64-bit map key is a bigint).
+describe('shared field path cases', () => {
+  type Element = { field_name: string; index?: number; bool_key?: boolean; int_key?: string; uint_key?: string; string_key?: string };
+  for (const c of vectors.field_path_cases as { name: string; path: Element[]; expected: string }[]) {
+    it(c.name, () => {
+      const path: PathItem[] = [];
+      for (const e of c.path) {
+        path.push({ kind: 'field', name: e.field_name } as unknown as PathItem);
+        if (e.index !== undefined) {
+          path.push({ kind: 'list_sub', index: e.index });
+        } else if (e.bool_key !== undefined) {
+          path.push({ kind: 'map_sub', key: e.bool_key });
+        } else if (e.int_key !== undefined) {
+          path.push({ kind: 'map_sub', key: BigInt(e.int_key) });
+        } else if (e.uint_key !== undefined) {
+          path.push({ kind: 'map_sub', key: BigInt(e.uint_key) });
+        } else if (e.string_key !== undefined) {
+          path.push({ kind: 'map_sub', key: e.string_key });
+        }
+      }
+      assert.equal(fieldPathString(path), c.expected);
     });
   }
 });

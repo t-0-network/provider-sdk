@@ -893,7 +893,7 @@
     "default_stream_timeout_ms": 300000,
     "max_timeout_ms": 2147483647
   },
-  "messages_note": "Every message an SDK raises itself (DECISIONS §1), by name. Each SDK holds each message as one named constant in its own casing, and its constants test compares them with this section the way it compares `constants`: it defines exactly the names that apply to it, which is every name except those whose `messages_scope` entry does not list the SDK. A `{placeholder}` is filled in when the message is raised: `{reason}` is public_key_not_hex or public_key_not_a_point; `{cause}` is the message of the error underneath (for signing_failed, the message the custom signer's error carries, or the failed output check's message), with no type name in front; `{header}` a header name; `{limit}` the body limit in bytes; `{service}` the service asked for; `{violations}` each violation as `<field path>: <message>`, joined by `; `, the field path as protovalidate renders it (field names joined by `.`, a list index in brackets, a map key in brackets and double quotes: `failed.details`, `limits[0].version`, `labels[\"key\"]`) and an empty path as nothing, so that such a violation reads `: <message>`; `{argument}` the parameter's name. For such a message the SDK holds the text around the placeholder as its constant (a format string or a function), and its test fills each placeholder with a sample value and compares the result. Setup messages are raised when a key, signer, client or server is built or given a bad value, as the language's argument error. The others are RPC errors: signing_failed is Internal, with a custom signer's error or a failed output check (signer_signature_invalid, signer_public_key_invalid) as its cause; get_not_supported, bidi_not_supported, compressed_not_supported and streaming_not_supported are Unimplemented; first_message_incomplete is InvalidArgument; call_deadline_passed is DeadlineExceeded (a per-call timeout of 0 or less, before anything is sent); stream_closed_early is Canceled; first_chunk_not_one_envelope, unary_body_not_one_chunk, first_message_read_failed, response_invalid, response_validation_error (protovalidate could not evaluate a rule) and no_signature_result are Internal; a server answers with the codes in server_cases and docs/CROSS_SDK_RULES.md, unknown_service with NotFound, and request_body_read_failed (the request body could not be read while it was verified) with Unauthenticated. The request decoder's texts (unsupported_content_type, malformed_request_body, request_invalid, request_validation_error) are Node-only (DECISIONS §8). Texts that the RPC library or the language runtime writes (for example .NET's \"Value cannot be null.\" or a FormatException's text) are not SDK messages (DECISIONS §1), and deprecation warnings are not messages.",
+  "messages_note": "Every message an SDK raises itself (DECISIONS §1), by name. Each SDK holds each message as one named constant in its own casing, and its constants test compares them with this section the way it compares `constants`: it defines exactly the names that apply to it, which is every name except those whose `messages_scope` entry does not list the SDK. A `{placeholder}` is filled in when the message is raised: `{reason}` is public_key_not_hex or public_key_not_a_point; `{cause}` is the message of the error underneath (for signing_failed, the message the custom signer's error carries, or the failed output check's message), with no type name in front; `{header}` a header name; `{limit}` the body limit in bytes; `{service}` the service asked for; `{violations}` each violation as `<field path>: <message>`, joined by `; `, the field path as field_path_cases writes it (field names joined by `.`, a list index in brackets, a map key in brackets and double quotes: `failed.details`, `limits[0].version`, `labels[\"key\"]`) and an empty path as nothing, so that such a violation reads `: <message>`; `{argument}` the parameter's name. For such a message the SDK holds the text around the placeholder as its constant (a format string or a function), and its test fills each placeholder with a sample value and compares the result. Setup messages are raised when a key, signer, client or server is built or given a bad value, as the language's argument error. The others are RPC errors: signing_failed is Internal, with a custom signer's error or a failed output check (signer_signature_invalid, signer_public_key_invalid) as its cause; get_not_supported, bidi_not_supported, compressed_not_supported and streaming_not_supported are Unimplemented; first_message_incomplete is InvalidArgument; call_deadline_passed is DeadlineExceeded (a per-call timeout of 0 or less, before anything is sent); stream_closed_early is Canceled; first_chunk_not_one_envelope, unary_body_not_one_chunk, first_message_read_failed, response_invalid, response_validation_error (protovalidate could not evaluate a rule) and no_signature_result are Internal; a server answers with the codes in server_cases and docs/CROSS_SDK_RULES.md, unknown_service with NotFound, and request_body_read_failed (the request body could not be read while it was verified) with Unauthenticated. The request decoder's texts (unsupported_content_type, malformed_request_body, request_invalid, request_validation_error) are Node-only (DECISIONS §8). Texts that the RPC library or the language runtime writes (for example .NET's \"Value cannot be null.\" or a FormatException's text) are not SDK messages (DECISIONS §1), and deprecation warnings are not messages.",
   "messages": {
     "private_key_empty": "private key must not be null or empty",
     "private_key_malformed": "private key must be 32 bytes (64 hex characters)",
@@ -1089,6 +1089,212 @@
       "java"
     ]
   },
+  "field_path_cases_note": "The `<field path>` of each violation in messages.response_invalid, as every SDK writes it. Each SDK has one formatter for it, which its server and its public validate helper both use, and its test feeds every case below to that formatter and compares the result exactly. `path` lists the elements of a buf.validate.FieldPath: a `field_name` and at most one subscript, which is `index` (a list index) or a map key: `bool_key`, `int_key`, `uint_key` (the two integer keys as decimal strings, so that every 64-bit value survives any JSON parser) or `string_key`. Node's formatter takes the path as protovalidate-es gives it, and its test builds that path from the same elements. The rendering: the field names joined by `.`; each subscript in brackets right after its field name; an index or an integer key in decimal; a bool key as `true` or `false`; a string key in double quotes with JSON string escaping (RFC 8259): `\\\"`, `\\\\`, `\\b`, `\\f`, `\\n`, `\\r` and `\\t`, every other character below U+0020 as `\\u00xx` in lowercase hex, and every other character as it is, DEL and all non-ASCII characters included. An empty path is written as nothing.",
+  "field_path_cases":[
+    {
+      "name": "empty",
+      "path": [],
+      "expected": ""
+    },
+    {
+      "name": "field",
+      "path": [
+        {
+          "field_name": "amount"
+        }
+      ],
+      "expected": "amount"
+    },
+    {
+      "name": "nested-fields",
+      "path": [
+        {
+          "field_name": "failed"
+        },
+        {
+          "field_name": "details"
+        }
+      ],
+      "expected": "failed.details"
+    },
+    {
+      "name": "index",
+      "path": [
+        {
+          "field_name": "limits",
+          "index": 0
+        },
+        {
+          "field_name": "version"
+        }
+      ],
+      "expected": "limits[0].version"
+    },
+    {
+      "name": "bool-keys",
+      "path": [
+        {
+          "field_name": "by_flag",
+          "bool_key": true
+        },
+        {
+          "field_name": "by_flag",
+          "bool_key": false
+        }
+      ],
+      "expected": "by_flag[true].by_flag[false]"
+    },
+    {
+      "name": "int-key",
+      "path": [
+        {
+          "field_name": "by_offset",
+          "int_key": "-9223372036854775808"
+        }
+      ],
+      "expected": "by_offset[-9223372036854775808]"
+    },
+    {
+      "name": "uint-key",
+      "path": [
+        {
+          "field_name": "by_id",
+          "uint_key": "18446744073709551615"
+        }
+      ],
+      "expected": "by_id[18446744073709551615]"
+    },
+    {
+      "name": "string-key",
+      "path": [
+        {
+          "field_name": "labels",
+          "string_key": "key"
+        },
+        {
+          "field_name": "value"
+        }
+      ],
+      "expected": "labels[\"key\"].value"
+    },
+    {
+      "name": "string-key-empty",
+      "path": [
+        {
+          "field_name": "labels",
+          "string_key": ""
+        }
+      ],
+      "expected": "labels[\"\"]"
+    },
+    {
+      "name": "string-key-quote",
+      "path": [
+        {
+          "field_name": "labels",
+          "string_key": "say \"hi\""
+        }
+      ],
+      "expected": "labels[\"say \\\"hi\\\"\"]"
+    },
+    {
+      "name": "string-key-backslash",
+      "path": [
+        {
+          "field_name": "labels",
+          "string_key": "C:\\dir"
+        }
+      ],
+      "expected": "labels[\"C:\\\\dir\"]"
+    },
+    {
+      "name": "string-key-newline",
+      "path": [
+        {
+          "field_name": "labels",
+          "string_key": "a\nb"
+        }
+      ],
+      "expected": "labels[\"a\\nb\"]"
+    },
+    {
+      "name": "string-key-tab",
+      "path": [
+        {
+          "field_name": "labels",
+          "string_key": "a\tb"
+        }
+      ],
+      "expected": "labels[\"a\\tb\"]"
+    },
+    {
+      "name": "string-key-backspace-form-feed-carriage-return",
+      "path": [
+        {
+          "field_name": "labels",
+          "string_key": "\b\f\r"
+        }
+      ],
+      "expected": "labels[\"\\b\\f\\r\"]"
+    },
+    {
+      "name": "string-key-other-control-characters",
+      "path": [
+        {
+          "field_name": "labels",
+          "string_key": "\u0000\u0001\u0007\u000b\u001b\u001f"
+        }
+      ],
+      "expected": "labels[\"\\u0000\\u0001\\u0007\\u000b\\u001b\\u001f\"]"
+    },
+    {
+      "name": "string-key-del",
+      "path": [
+        {
+          "field_name": "labels",
+          "string_key": "a\u007fb"
+        }
+      ],
+      "expected": "labels[\"a\u007fb\"]"
+    },
+    {
+      "name": "string-key-non-ascii",
+      "path": [
+        {
+          "field_name": "labels",
+          "string_key": "café \ud83d\ude00"
+        }
+      ],
+      "expected": "labels[\"café \ud83d\ude00\"]"
+    },
+    {
+      "name": "string-key-non-printable-unicode",
+      "path": [
+        {
+          "field_name": "labels",
+          "string_key": "\u0085\u00a0\u200b\u2028\ufeff"
+        }
+      ],
+      "expected": "labels[\"\u0085\u00a0\u200b\u2028\ufeff\"]"
+    },
+    {
+      "name": "mixed",
+      "path": [
+        {
+          "field_name": "items",
+          "index": 2
+        },
+        {
+          "field_name": "labels",
+          "string_key": "a\"b\\c\nd"
+        },
+        {
+          "field_name": "value"
+        }
+      ],
+      "expected": "items[2].labels[\"a\\\"b\\\\c\\nd\"].value"
+    }
+  ],
   "max_body_size_cases_note": "The body limit a server uses for the max body size it is given: 0 or less keeps constants.default_max_body_size, and a positive value is the limit. No SDK raises an error for it. Each SDK's constants test checks these rows against its max body size option. Node only: NaN also keeps the default; the other languages take an integer.",
   "max_body_size_cases": [
     {

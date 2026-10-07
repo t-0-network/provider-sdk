@@ -1,5 +1,7 @@
+using System.Globalization;
 using System.Reflection;
 using System.Text.Json;
+using Buf.Validate;
 using T0.ProviderSdk.Common;
 using T0.ProviderSdk.Network;
 using T0.ProviderSdk.Provider;
@@ -111,6 +113,44 @@ public class ContractConstantsTests
                 new ProviderServerOptions { NetworkPublicKeyHex = signer.GetPublicKeyHexPrefixed(), MaxBodySize = input });
             Assert.Equal($"{name}: {expected} {expected}", $"{name}: {server.MaxBodySize} {middleware.MaxBodySize}");
         }
+    }
+
+    /// <summary>
+    /// The field path of a violation, as the server and <c>Validate.Check</c> write it,
+    /// against <c>field_path_cases</c>. <c>int_key</c> and <c>uint_key</c> are decimal strings there.
+    /// </summary>
+    [Fact]
+    public void FieldPathCasesMatchTheSharedFile()
+    {
+        using var vectors = JsonDocument.Parse(File.ReadAllText(VectorsPath));
+        var cases = vectors.RootElement.GetProperty("field_path_cases");
+        Assert.NotEmpty(cases.EnumerateArray());
+
+        var expected = new List<string>();
+        var actual = new List<string>();
+        foreach (var c in cases.EnumerateArray())
+        {
+            var path = new FieldPath();
+            foreach (var e in c.GetProperty("path").EnumerateArray())
+            {
+                var element = new FieldPathElement { FieldName = e.GetProperty("field_name").GetString() };
+                if (e.TryGetProperty("index", out var index))
+                    element.Index = index.GetUInt64();
+                else if (e.TryGetProperty("bool_key", out var boolKey))
+                    element.BoolKey = boolKey.GetBoolean();
+                else if (e.TryGetProperty("int_key", out var intKey))
+                    element.IntKey = long.Parse(intKey.GetString()!, CultureInfo.InvariantCulture);
+                else if (e.TryGetProperty("uint_key", out var uintKey))
+                    element.UintKey = ulong.Parse(uintKey.GetString()!, CultureInfo.InvariantCulture);
+                else if (e.TryGetProperty("string_key", out var stringKey))
+                    element.StringKey = stringKey.GetString();
+                path.Elements.Add(element);
+            }
+            var name = c.GetProperty("name").GetString();
+            expected.Add($"{name}: {c.GetProperty("expected").GetString()}");
+            actual.Add($"{name}: {ValidationUtils.FieldPathString(path)}");
+        }
+        Assert.Equal(expected, actual);
     }
 
     private static string PascalCase(string snake) =>
