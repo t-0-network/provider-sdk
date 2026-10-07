@@ -59,8 +59,14 @@ export class BodyHashes {
   readonly payload = keccak_256.create();
   readonly prefix = Buffer.alloc(5);
   length = 0;
+  // Set before either digest(). The socket listener keeps feeding chunks, and a chunk after
+  // digest() throws "Hash instance has been destroyed" out of the HTTP parser.
+  private closed = false;
 
   update(chunk: Buffer) {
+    if (this.closed) {
+      return;
+    }
     this.body.update(chunk);
     const inPrefix = Math.min(Math.max(this.prefix.length - this.length, 0), chunk.length);
     if (inPrefix > 0) {
@@ -68,6 +74,10 @@ export class BodyHashes {
     }
     this.payload.update(chunk.subarray(inPrefix));
     this.length += chunk.length;
+  }
+
+  close() {
+    this.closed = true;
   }
 
   // One uncompressed gRPC frame: flag 0 and a length that is the rest of the body.
@@ -91,7 +101,14 @@ const createSignatureVerification: (networkPublicKey: Buffer) => Interceptor = (
 
   const signature = decodeHex(getHeader(req, NetworkHeaders.Signature))
 
+  // Unary calls only. Connect enters a streaming interceptor before the body is read, so digest()
+  // here would destroy the hasher while the socket still has chunks to deliver.
+  if (req.stream) {
+    throw new ConnectError("streaming calls are not supported", Code.Unimplemented);
+  }
+
   const body = req.contextValues.get(kBodyHashes)!;
+  body.close();
 
   const tsBuf = Buffer.alloc(8);
   tsBuf.writeBigUInt64LE(ts); // 64‑bit little‑endian timestamp

@@ -98,6 +98,43 @@ async function bootServer(
   };
 }
 
+// POST one body. Headers and body go out together; the server must answer, not drop the socket.
+function post(url: string, path: string, headers: Record<string, string>, body: Buffer) {
+  const u = new URL(url);
+  return new Promise<{ status: number; body: Buffer }>((resolve, reject) => {
+    const req = http.request(
+      {
+        hostname: u.hostname,
+        port: u.port,
+        method: 'POST',
+        path,
+        headers: { ...headers, 'content-length': String(body.length) },
+      },
+      (res) => {
+        const chunks: Buffer[] = [];
+        res.on('data', (chunk: Buffer) => chunks.push(chunk));
+        res.on('end', () => resolve({ status: res.statusCode ?? 0, body: Buffer.concat(chunks) }));
+      },
+    );
+    req.on('error', reject);
+    req.end(body);
+  });
+}
+
+// Connect stream error: flags || uint32be(length) || {"error":{"code":"..."}}.
+function endStreamErrorCode(body: Buffer): string {
+  assert.ok(body.length >= 5, `short response: ${body.toString('hex')}`);
+  assert.equal(body[0] & 0x02, 0x02, `not an end-stream: ${body.toString('hex')}`);
+  const len = body.readUInt32BE(1);
+  assert.equal(body.length, 5 + len, `truncated end-stream: ${body.toString('hex')}`);
+  const json = JSON.parse(body.subarray(5).toString('utf8')) as { error?: { code?: unknown } };
+  const code = json.error?.code;
+  if (typeof code !== 'string') {
+    assert.fail(body.subarray(5).toString('utf8'));
+  }
+  return code;
+}
+
 describe('createHandler', () => {
   it('signed health check returns SERVING', async () => {
     const { privateKeyHex, publicKeyHex } = newKeypair();
@@ -384,6 +421,39 @@ describe('createHandler', () => {
         },
       );
     } finally {
+      await close();
+    }
+  });
+
+  // Health/Watch is server-streaming and registered on every server. The body arrives after the
+  // interceptor; hashing it used to throw from the socket listener and exit the process.
+  it('rejects Health/Watch with unimplemented and stays up', async () => {
+    const crashes: unknown[] = [];
+    const onUncaught = (err: unknown) => {
+      crashes.push(err);
+    };
+    const onRejection = (reason: unknown) => {
+      crashes.push(reason);
+    };
+    const { publicKeyHex } = newKeypair();
+    const { url, close } = await bootServer(publicKeyHex);
+    process.on('uncaughtException', onUncaught);
+    process.on('unhandledRejection', onRejection);
+    try {
+      const res = await post(url, '/grpc.health.v1.Health/Watch', {
+        'content-type': 'application/connect+proto',
+        'connect-protocol-version': '1',
+        [NetworkHeaders.PublicKey]: publicKeyHex,
+        [NetworkHeaders.SignatureTimestamp]: String(Date.now()),
+        [NetworkHeaders.Signature]: '0x' + 'ab'.repeat(64),
+      }, Buffer.from('body'));
+      await new Promise<void>((resolve) => setImmediate(resolve));
+      assert.equal(res.status, 200);
+      assert.equal(endStreamErrorCode(res.body), 'unimplemented');
+      assert.deepEqual(crashes, []);
+    } finally {
+      process.off('uncaughtException', onUncaught);
+      process.off('unhandledRejection', onRejection);
       await close();
     }
   });
