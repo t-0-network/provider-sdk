@@ -81,22 +81,35 @@ class VerifySignatureFn:
     network_public_key: PublicKey
 
     def __call__(self, public_key_bytes: bytes, message: bytes, signature: bytes) -> None:
-        """Verify signature, raising appropriate errors on failure."""
-        if len(signature) < 64 or len(signature) > 65:
+        """Verify signature, raising appropriate errors on failure.
+
+        The checks of the server after the timestamp window, in its order (rule V10): the public
+        key is the network key (else UnknownPublicKeyError), the signature is 64 or 65 bytes, and it
+        verifies over Keccak-256(message) (else SignatureFailedError)."""
+        _check_signer(self.network_public_key, public_key_bytes, signature)
+        if not _verifies(self.network_public_key, message, signature):
             raise SignatureFailedError()
 
-        try:
-            signer_public_key = _public_key_from_bytes_strict(public_key_bytes)
-        except ValueError:
-            # Hex, but not a key: it cannot be the network's either.
-            raise UnknownPublicKeyError()
-        # Compared as points: the compressed and the uncompressed form of the network key both match.
-        if signer_public_key.format(compressed=False) != self.network_public_key.format(compressed=False):
-            raise UnknownPublicKeyError()
 
-        digest = legacy_keccak256(message)
-        if not verify_signature(signer_public_key, digest, signature[:64]):
-            raise SignatureFailedError()
+def _check_signer(network_public_key: PublicKey, public_key_bytes: bytes, signature: bytes) -> None:
+    """What the server checks between the timestamp window and the body (rule V10): that the X-Public-Key
+    bytes are the network key, then that the signature is 64 or 65 bytes. VerifySignatureFn runs the
+    same checks, so the two refuse a request alike."""
+    try:
+        signer_public_key = _public_key_from_bytes_strict(public_key_bytes)
+    except ValueError:
+        # Bytes that are not a key cannot be the network key either.
+        raise UnknownPublicKeyError()
+    # Compared as points: the compressed and the uncompressed form of the network key both match.
+    if signer_public_key.format(compressed=False) != network_public_key.format(compressed=False):
+        raise UnknownPublicKeyError()
+    if len(signature) not in (64, 65):
+        raise SignatureFailedError()
+
+
+def _verifies(network_public_key: PublicKey, message: bytes, signature: bytes) -> bool:
+    """Whether the signature, without its recovery byte, is the network key's over Keccak-256(message)."""
+    return verify_signature(network_public_key, legacy_keccak256(message), signature[:64])
 
 
 # A verify_fn of the caller's own, which the middlewares also take: called with the X-Public-Key bytes,
@@ -185,7 +198,7 @@ def signature_verification_middleware(
 
 
 # What the headers give the body check: the X-Signature bytes, the timestamp bytes, and the
-# X-Public-Key bytes (for a CustomVerifyFn only).
+# X-Public-Key bytes.
 _Signed = tuple[bytes, bytes, bytes]
 
 
@@ -206,25 +219,15 @@ def _check_headers(verify_fn: VerifySignatureFn | CustomVerifyFn, headers: dict[
     timestamp_ms, timestamp_bytes = _parse_timestamp(headers)
     if abs(int(time.time() * 1000) - timestamp_ms) > TIMESTAMP_WINDOW_MS:
         raise TimestampOutOfRangeError()
-    if not isinstance(verify_fn, VerifySignatureFn):
-        # A CustomVerifyFn decides the key and the length with the signature; hex that is not a key
-        # cannot be the network key.
-        try:
-            return signature, timestamp_bytes, _decode_hex_strict(public_key_value)
-        except ValueError:
-            raise UnknownPublicKeyError()
-    network_public_key = verify_fn.network_public_key
-    # A value that is not a key is not the network key either. Compared as points: the compressed
-    # and the uncompressed form of the network key both match.
+    # A value that is not hex is not the network key either.
     try:
-        signer_public_key = _parse_public_key(public_key_value)
+        public_key = _decode_hex_strict(public_key_value)
     except ValueError:
         raise UnknownPublicKeyError()
-    if signer_public_key.format(compressed=False) != network_public_key.format(compressed=False):
-        raise UnknownPublicKeyError()
-    if len(signature) not in (64, 65):
-        raise SignatureFailedError()
-    return signature, timestamp_bytes, b""
+    # A CustomVerifyFn decides the key and the length with the signature, after the body is read.
+    if isinstance(verify_fn, VerifySignatureFn):
+        _check_signer(verify_fn.network_public_key, public_key, signature)
+    return signature, timestamp_bytes, public_key
 
 
 def _parse_timestamp(headers: dict[str, str]) -> tuple[int, bytes]:
@@ -253,12 +256,10 @@ def _verify_body(
         return
     network_public_key = verify_fn.network_public_key
     signature, timestamp_bytes, _ = signed
-    if verify_signature(network_public_key, legacy_keccak256(body + timestamp_bytes), signature[:64]):
+    if _verifies(network_public_key, body + timestamp_bytes, signature):
         return
     payload = _grpc_frame_payload(headers, body)
-    if payload is not None and verify_signature(
-        network_public_key, legacy_keccak256(payload + timestamp_bytes), signature[:64]
-    ):
+    if payload is not None and _verifies(network_public_key, payload + timestamp_bytes, signature):
         return
     raise SignatureFailedError()
 

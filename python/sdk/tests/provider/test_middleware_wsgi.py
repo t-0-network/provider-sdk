@@ -15,6 +15,7 @@ from t0_provider_sdk.provider.errors import (
     InvalidTimestampError,
     SignatureFailedError,
     TimestampOutOfRangeError,
+    UnknownPublicKeyError,
 )
 from t0_provider_sdk.provider.middleware import (
     DEFAULT_MAX_BODY_SIZE,
@@ -36,6 +37,37 @@ MALFORMED_TIMESTAMPS = ["-1", str(2**63), str(2**64), " 1", "1 ", "+1", "1_0", "
 # A gRPC body: one uncompressed frame (flag 0, uint32be length, message).
 GRPC_MESSAGE = b"grpc message"
 GRPC_FRAME = b"\x00" + len(GRPC_MESSAGE).to_bytes(4, "big") + GRPC_MESSAGE
+
+UNKNOWN_PUBLIC_KEY = "request signed with unknown public key"
+SIGNATURE_VERIFICATION_FAILED = "signature verification failed"
+
+# Rule V10: X-Public-Key is checked against the network key before the signature length, by the
+# server and by the verifier new_verify_signature builds alike. (X-Public-Key, X-Signature, the rejection.)
+KEY_BEFORE_LENGTH_CASES = [
+    pytest.param(
+        OTHER_PUBLIC_KEY, "0x11", UnknownPublicKeyError, UNKNOWN_PUBLIC_KEY, id="unknown key, 1-byte signature"
+    ),
+    pytest.param(
+        OTHER_PUBLIC_KEY,
+        "0x" + "11" * 66,
+        UnknownPublicKeyError,
+        UNKNOWN_PUBLIC_KEY,
+        id="unknown key, 66-byte signature",
+    ),
+    pytest.param(
+        "0x05" + "11" * 64, "0x11", UnknownPublicKeyError, UNKNOWN_PUBLIC_KEY, id="not a key, 1-byte signature"
+    ),
+    pytest.param(
+        PUBLIC_KEY, "0x11", SignatureFailedError, SIGNATURE_VERIFICATION_FAILED, id="network key, 1-byte signature"
+    ),
+    pytest.param(
+        PUBLIC_KEY,
+        "0x" + "11" * 66,
+        SignatureFailedError,
+        SIGNATURE_VERIFICATION_FAILED,
+        id="network key, 66-byte signature",
+    ),
+]
 
 
 def _make_signed_environ(
@@ -225,6 +257,13 @@ class TestSignatureVerificationMiddlewareWSGI:
         assert error is not None
         assert str(error) == "request signed with unknown public key"
 
+    @pytest.mark.parametrize(("public_key", "signature", "error_type", "message"), KEY_BEFORE_LENGTH_CASES)
+    def test_key_is_checked_before_signature_length(self, public_key, signature, error_type, message):
+        environ = _make_signed_environ(override_headers={"x-public-key": public_key, "x-signature": signature})
+        error, _ = _run_middleware(environ)
+        assert type(error) is error_type
+        assert str(error) == message
+
     def test_invalid_signature(self):
         """Tampered signature -> error."""
         environ = _make_signed_environ()
@@ -314,3 +353,14 @@ class TestCustomVerifyFnWSGI:
 
         error, _ = _run_middleware(_make_signed_environ(), verify_fn=verify_fn)
         assert isinstance(error, SignatureFailedError)
+
+    @pytest.mark.parametrize(("public_key", "signature", "error_type", "message"), KEY_BEFORE_LENGTH_CASES)
+    def test_network_verifier_as_a_plain_callable_checks_the_key_first(
+        self, public_key, signature, error_type, message
+    ):
+        """The verifier new_verify_signature builds, wrapped in a plain callable, refuses as the server does."""
+        network_verify_fn = new_verify_signature(PUBLIC_KEY)
+        environ = _make_signed_environ(override_headers={"x-public-key": public_key, "x-signature": signature})
+        error, _ = _run_middleware(environ, verify_fn=lambda key, message, sig: network_verify_fn(key, message, sig))
+        assert type(error) is error_type
+        assert str(error) == message

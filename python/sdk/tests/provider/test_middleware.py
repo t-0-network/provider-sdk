@@ -7,6 +7,7 @@ import struct
 import time
 
 import pytest
+from coincurve import PublicKey
 from t0_provider_sdk._messages import TIMESTAMP_NOT_DECIMAL
 from t0_provider_sdk.crypto.hash import legacy_keccak256
 from t0_provider_sdk.crypto.keys import private_key_from_hex
@@ -39,6 +40,37 @@ MALFORMED_TIMESTAMPS = ["-1", str(2**63), str(2**64), " 1", "1 ", "+1", "1_0", "
 # A gRPC body: one uncompressed frame (flag 0, uint32be length, message).
 GRPC_MESSAGE = b"grpc message"
 GRPC_FRAME = b"\x00" + len(GRPC_MESSAGE).to_bytes(4, "big") + GRPC_MESSAGE
+
+UNKNOWN_PUBLIC_KEY = "request signed with unknown public key"
+SIGNATURE_VERIFICATION_FAILED = "signature verification failed"
+
+# Rule V10: X-Public-Key is checked against the network key before the signature length, by the
+# server and by the verifier new_verify_signature builds alike. (X-Public-Key, X-Signature, the rejection.)
+KEY_BEFORE_LENGTH_CASES = [
+    pytest.param(
+        OTHER_PUBLIC_KEY, "0x11", UnknownPublicKeyError, UNKNOWN_PUBLIC_KEY, id="unknown key, 1-byte signature"
+    ),
+    pytest.param(
+        OTHER_PUBLIC_KEY,
+        "0x" + "11" * 66,
+        UnknownPublicKeyError,
+        UNKNOWN_PUBLIC_KEY,
+        id="unknown key, 66-byte signature",
+    ),
+    pytest.param(
+        "0x05" + "11" * 64, "0x11", UnknownPublicKeyError, UNKNOWN_PUBLIC_KEY, id="not a key, 1-byte signature"
+    ),
+    pytest.param(
+        PUBLIC_KEY, "0x11", SignatureFailedError, SIGNATURE_VERIFICATION_FAILED, id="network key, 1-byte signature"
+    ),
+    pytest.param(
+        PUBLIC_KEY,
+        "0x" + "11" * 66,
+        SignatureFailedError,
+        SIGNATURE_VERIFICATION_FAILED,
+        id="network key, 66-byte signature",
+    ),
+]
 
 
 def _make_signed_request(
@@ -205,6 +237,13 @@ class TestSignatureVerificationMiddleware:
         assert error is not None
         assert str(error) == "request signed with unknown public key"
 
+    @pytest.mark.parametrize(("public_key", "signature", "error_type", "message"), KEY_BEFORE_LENGTH_CASES)
+    async def test_key_is_checked_before_signature_length(self, public_key, signature, error_type, message):
+        scope, body = _make_signed_request(override_headers={"x-public-key": public_key, "x-signature": signature})
+        error = await _run_middleware(scope, body)
+        assert type(error) is error_type
+        assert str(error) == message
+
     async def test_invalid_signature(self):
         """Tampered signature → error."""
         scope, body = _make_signed_request()
@@ -325,6 +364,66 @@ class TestCustomVerifyFn:
         verify_fn = _RecordingVerifyFn()
         assert isinstance(await _run_middleware(scope, body, verify_fn=verify_fn), UnknownPublicKeyError)
         assert verify_fn.calls == []
+
+    @pytest.mark.parametrize(("public_key", "signature", "error_type", "message"), KEY_BEFORE_LENGTH_CASES)
+    async def test_network_verifier_as_a_plain_callable_checks_the_key_first(
+        self, public_key, signature, error_type, message
+    ):
+        """The verifier new_verify_signature builds, wrapped in a plain callable, refuses as the server does."""
+        network_verify_fn = new_verify_signature(PUBLIC_KEY)
+        scope, body = _make_signed_request(override_headers={"x-public-key": public_key, "x-signature": signature})
+        error = await _run_middleware(
+            scope, body, verify_fn=lambda key, message, sig: network_verify_fn(key, message, sig)
+        )
+        assert type(error) is error_type
+        assert str(error) == message
+
+
+def _sign(message: bytes, private_key: str = PRIVATE_KEY) -> tuple[bytes, bytes]:
+    """The 65-byte signature over Keccak-256(message), and the signer's uncompressed public key."""
+    return new_signer(private_key_from_hex(private_key))(legacy_keccak256(message))
+
+
+class TestNewVerifySignature:
+    """The network verifier new_verify_signature builds, called with the X-Public-Key bytes, the signed
+    message and the X-Signature bytes: the server's checks after the timestamp window, in its order."""
+
+    MESSAGE = b"test body" + struct.pack("<Q", 1_700_000_000_000)
+
+    @pytest.mark.parametrize(("public_key", "signature", "error_type", "message"), KEY_BEFORE_LENGTH_CASES)
+    def test_key_is_checked_before_signature_length(self, public_key, signature, error_type, message):
+        verify_fn = new_verify_signature(PUBLIC_KEY)
+        with pytest.raises(error_type) as exc_info:
+            verify_fn(bytes.fromhex(public_key[2:]), self.MESSAGE, bytes.fromhex(signature[2:]))
+        assert type(exc_info.value) is error_type
+        assert str(exc_info.value) == message
+
+    @pytest.mark.parametrize("length", [64, 65])
+    def test_valid_signature(self, length):
+        signature, public_key = _sign(self.MESSAGE)
+        assert new_verify_signature(PUBLIC_KEY)(public_key, self.MESSAGE, signature[:length]) is None
+
+    def test_either_form_of_the_network_key(self):
+        signature, public_key = _sign(self.MESSAGE)
+        compressed = PublicKey(public_key).format(compressed=True)
+        assert new_verify_signature(PUBLIC_KEY)(compressed, self.MESSAGE, signature) is None
+        assert new_verify_signature(f"0x{compressed.hex()}")(public_key, self.MESSAGE, signature) is None
+
+    def test_signature_by_another_key(self):
+        signature, public_key = _sign(self.MESSAGE)
+        with pytest.raises(UnknownPublicKeyError, match=f"^{UNKNOWN_PUBLIC_KEY}$"):
+            new_verify_signature(OTHER_PUBLIC_KEY)(public_key, self.MESSAGE, signature)
+
+    def test_tampered_signature(self):
+        signature, public_key = _sign(self.MESSAGE)
+        tampered = bytes([signature[0] ^ 0xFF]) + signature[1:]
+        with pytest.raises(SignatureFailedError, match=f"^{SIGNATURE_VERIFICATION_FAILED}$"):
+            new_verify_signature(PUBLIC_KEY)(public_key, self.MESSAGE, tampered)
+
+    def test_other_message(self):
+        signature, public_key = _sign(self.MESSAGE)
+        with pytest.raises(SignatureFailedError, match=f"^{SIGNATURE_VERIFICATION_FAILED}$"):
+            new_verify_signature(PUBLIC_KEY)(public_key, self.MESSAGE + b"x", signature)
 
 
 def test_invalid_timestamp_is_an_invalid_header_encoding():
