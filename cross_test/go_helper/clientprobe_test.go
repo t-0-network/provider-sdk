@@ -15,6 +15,7 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -46,7 +47,8 @@ func TestClientProbe_GoClient(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	server := newClientProbeServer(v, "go", io.Discard)
+	log := new(probeLog)
+	server := newClientProbeServer(v, "go", log)
 	go func() { _ = server.Serve(listener) }()
 	t.Cleanup(func() { _ = server.Close() })
 	baseURL := "http://" + listener.Addr().String()
@@ -58,7 +60,11 @@ func TestClientProbe_GoClient(t *testing.T) {
 				name = c.Name + "/grpc"
 			}
 			t.Run(name, func(t *testing.T) {
+				logged := len(log.lines())
 				code, err := goClientCall(v, baseURL, c, protocol)
+				if fails := failLines(log.lines()[logged:], c.Name); len(fails) > 0 {
+					t.Errorf("client-probe logged:\n%s", strings.Join(fails, "\n"))
+				}
 				if code != c.Expect.Code {
 					t.Fatalf("got %s (%v), want %s", code, err, c.Expect.Code)
 				}
@@ -70,6 +76,55 @@ func TestClientProbe_GoClient(t *testing.T) {
 			})
 		}
 	}
+
+	// A call that ends on its own deadline can end before the probe logs its request, so the whole
+	// log is checked again once the server has finished every request it got.
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	if err := server.Shutdown(ctx); err != nil {
+		t.Errorf("shutting down client-probe: %v", err)
+	}
+	if fails := failLines(log.lines(), ""); len(fails) > 0 {
+		t.Errorf("client-probe logged FAIL lines:\n%s", strings.Join(fails, "\n"))
+	}
+}
+
+// probeLog keeps the PASS and FAIL lines of an in-process probe. Its handler writes them from many
+// goroutines, one line per Write.
+type probeLog struct {
+	mu  sync.Mutex
+	buf bytes.Buffer
+}
+
+func (l *probeLog) Write(p []byte) (int, error) {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	return l.buf.Write(p)
+}
+
+func (l *probeLog) lines() []string {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.buf.Len() == 0 {
+		return nil
+	}
+	return strings.Split(strings.TrimSuffix(l.buf.String(), "\n"), "\n")
+}
+
+// failLines returns the FAIL lines of case name ("FAIL <name>: <reason>"), or every FAIL line when
+// name is empty.
+func failLines(lines []string, name string) []string {
+	prefix := "FAIL "
+	if name != "" {
+		prefix += name + ":"
+	}
+	var fails []string
+	for _, line := range lines {
+		if strings.HasPrefix(line, prefix) {
+			fails = append(fails, line)
+		}
+	}
+	return fails
 }
 
 // The command SDK tests start: its READY line gives a base URL that serves the cases.

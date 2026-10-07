@@ -197,9 +197,13 @@ against its own server (the probe tests are listed in
 [`docs/CROSS_SDK_RULES.md`](../docs/CROSS_SDK_RULES.md#receiving-calls-from-the-network-provider-servers)).
 
 `client-probe` listens on a free port of 127.0.0.1 (Connect over HTTP/1.1, gRPC over h2c), prints
-`READY <base_url>` as its first line on stdout and runs until it is killed. It logs one `PASS` or
-`FAIL` line per request on stderr. The Go column of the client cases is `clientprobe_test.go` here,
-with the Go SDK's own client.
+`READY <base_url>` as its first line on stdout and runs until it is killed. It logs one line per
+request on stderr: `PASS <case>`, or `FAIL <case>: <reason>`, `<case>` being the first segment of the
+request's path. Every SDK test fails on a `FAIL` line and shows it. After each call it looks for a
+`FAIL` line of that case. Once the probe has stopped, it looks for any `FAIL` line of the run, because
+a call that ends on its own deadline (such as a per-call timeout of 0 sent anyway) can end before the
+probe logs its request. The Go column of the client cases is `clientprobe_test.go` here, with the Go
+SDK's own client.
 
 ### Cross-language server tests
 

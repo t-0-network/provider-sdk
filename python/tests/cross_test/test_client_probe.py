@@ -40,7 +40,8 @@ PROTOCOLS = [pytest.param(Protocol.CONNECT, id="connect"), pytest.param(Protocol
 
 @pytest.fixture(scope="module")
 def probe() -> Iterator[tuple[str, Path]]:
-    """The probe's base URL, and the file its PASS and FAIL lines go to."""
+    """The probe's base URL, and the file its PASS and FAIL lines go to ("PASS <case>" or
+    "FAIL <case>: <reason>")."""
     with tempfile.TemporaryDirectory() as tmp:
         log = Path(tmp) / "client-probe.log"
         with log.open("w") as stderr:
@@ -58,6 +59,11 @@ def probe() -> Iterator[tuple[str, Path]]:
         finally:
             process.kill()
             process.wait()
+        # A call that ends on its own deadline can end before the probe logs its request, so the
+        # whole log is checked again once the probe has stopped, after every async and sync case.
+        fails = _fail_lines(log.read_text())
+        if fails:
+            pytest.fail("client-probe logged:\n" + "\n".join(fails))
 
 
 def _signer(case: dict) -> str | SignFn:
@@ -124,19 +130,30 @@ def _call_sync(base_url: str, case: dict, protocol: Protocol) -> tuple[str, str]
 @pytest.mark.parametrize("case", CASES, ids=lambda case: case["name"])
 async def test_async_client(probe: tuple[str, Path], case: dict, protocol: Protocol) -> None:
     base_url, log = probe
-    _check(case, await _call_async(f"{base_url}/{case['name']}", case, protocol), log)
+    logged = log.stat().st_size
+    _check(case, await _call_async(f"{base_url}/{case['name']}", case, protocol), log, logged)
 
 
 @pytest.mark.parametrize("protocol", PROTOCOLS)
 @pytest.mark.parametrize("case", CASES, ids=lambda case: case["name"])
 def test_sync_client(probe: tuple[str, Path], case: dict, protocol: Protocol) -> None:
     base_url, log = probe
-    _check(case, _call_sync(f"{base_url}/{case['name']}", case, protocol), log)
+    logged = log.stat().st_size
+    _check(case, _call_sync(f"{base_url}/{case['name']}", case, protocol), log, logged)
 
 
-def _check(case: dict, outcome: tuple[str, str], log: Path) -> None:
-    """The code, and the message where the case names one (an SDK-raised message)."""
+def _check(case: dict, outcome: tuple[str, str], log: Path, logged: int) -> None:
+    """The code, the message where the case names one (an SDK-raised message), and no FAIL line for
+    the case among the lines the probe logged after the first `logged` bytes."""
     code, message = outcome
     assert code == case["expect"]["code"], f"{message}\n{log.read_text()}"
     if "message" in case["expect"]:
         assert message == case["expect"]["message"]
+    fails = _fail_lines(log.read_bytes()[logged:].decode(errors="replace"), case["name"])
+    assert not fails, "client-probe logged:\n" + "\n".join(fails)
+
+
+def _fail_lines(text: str, name: str | None = None) -> list[str]:
+    """The FAIL lines of case `name` ("FAIL <name>: <reason>"), or every FAIL line without a name."""
+    prefix = "FAIL " if name is None else f"FAIL {name}:"
+    return [line for line in text.splitlines() if line.startswith(prefix)]

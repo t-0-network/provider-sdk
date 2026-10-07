@@ -41,7 +41,17 @@ public class ClientProbeTests
             RedirectStandardOutput = true,
             RedirectStandardError = true,
         })!;
-        var probeLog = probe.StandardError.ReadToEndAsync();
+        // Its PASS and FAIL lines: "PASS <case>" or "FAIL <case>: <reason>".
+        var log = new List<string>();
+        var logReader = Task.Run(async () =>
+        {
+            while (await probe.StandardError.ReadLineAsync() is { } line)
+                lock (log) log.Add(line);
+        });
+        string[] Logged()
+        {
+            lock (log) return [.. log];
+        }
         var failures = new List<string>();
         try
         {
@@ -67,6 +77,7 @@ public class ClientProbeTests
                 SignFn sign = c.TryGetProperty("custom_signer", out var custom) ? CustomSigner(impostor, custom) : signer;
                 var client = NetworkClient.Create(options, sign, invoker => new Health.HealthClient(invoker));
 
+                var logged = Logged().Length;
                 string code, detail;
                 try
                 {
@@ -81,6 +92,9 @@ public class ClientProbeTests
                 }
                 if (code != expected || expectedMessage is not null && detail != expectedMessage)
                     failures.Add($"{name}: expected {expected} \"{expectedMessage}\", got {code} \"{detail}\"");
+                var caseFails = FailLines(Logged()[logged..], name);
+                if (caseFails.Length > 0)
+                    failures.Add($"{name}: client-probe logged:\n{string.Join("\n", caseFails)}");
             }
         }
         finally
@@ -88,7 +102,21 @@ public class ClientProbeTests
             probe.Kill();
             await probe.WaitForExitAsync();
         }
-        Assert.True(failures.Count == 0, string.Join("\n", failures) + "\n" + await probeLog);
+        await logReader;
+        // A call that ends on its own deadline can end before the probe logs its request, so the whole log is
+        // checked again once the probe has stopped.
+        var fails = FailLines(Logged(), null);
+        if (fails.Length > 0)
+            failures.Add($"client-probe logged:\n{string.Join("\n", fails)}");
+        Assert.True(failures.Count == 0,
+            string.Join("\n", failures) + "\nclient-probe log:\n" + string.Join("\n", Logged()));
+    }
+
+    // The FAIL lines of case name ("FAIL <name>: <reason>"), or every FAIL line when name is null.
+    private static string[] FailLines(IEnumerable<string> lines, string? name)
+    {
+        var prefix = name is null ? "FAIL " : $"FAIL {name}:";
+        return lines.Where(line => line.StartsWith(prefix, StringComparison.Ordinal)).ToArray();
     }
 
     // Signs with the impostor key's Signer, then changes its output as the case says.

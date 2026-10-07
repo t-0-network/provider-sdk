@@ -64,11 +64,20 @@ function signerOf(c: ClientCase): string | SignerFunction {
 // client_cases in cross_test/test_vectors.json, over Connect, the one protocol the Node client speaks.
 describe('shared client cases', { skip: goAvailable ? undefined : `Go helper not found at ${GO_HELPER}` }, () => {
   let probe: ChildProcess;
+  let closed: Promise<unknown>;
   let baseUrl = '';
+  // Its PASS and FAIL lines: "PASS <case>" or "FAIL <case>: <reason>".
   let log = '';
+
+  // Stops the probe; once it has closed its stderr, log holds every line it wrote.
+  async function stopProbe(): Promise<void> {
+    probe.kill();
+    await closed;
+  }
 
   before(async () => {
     probe = spawn(GO_HELPER, ['client-probe', '--sdk', 'node', '--vectors', VECTORS], { stdio: ['ignore', 'pipe', 'pipe'] });
+    closed = once(probe, 'close');
     probe.stderr!.on('data', (chunk: Buffer) => {
       log += chunk.toString();
     });
@@ -84,15 +93,14 @@ describe('shared client cases', { skip: goAvailable ? undefined : `Go helper not
   });
 
   after(async () => {
-    if (probe.exitCode === null && probe.signalCode === null) {
-      const exited = once(probe, 'exit');
-      probe.kill();
-      await exited;
+    if (probe !== undefined) {
+      await stopProbe();
     }
   });
 
   for (const c of vectors.client_cases as ClientCase[]) {
     it(c.name, async () => {
+      const logged = log.length;
       const options = c.client_timeout_ms === undefined ? undefined : { timeoutMs: c.client_timeout_ms };
       const client = createClient(signerOf(c), `${baseUrl}/${c.name}`, Health, options);
       const callOptions = c.call_timeout_ms === undefined ? undefined : { timeoutMs: c.call_timeout_ms };
@@ -110,6 +118,22 @@ describe('shared client cases', { skip: goAvailable ? undefined : `Go helper not
       if (c.expect.message !== undefined) {
         assert.equal(message, c.expect.message);
       }
+      const fails = failLines(log.slice(logged), c.name);
+      assert.equal(fails.length, 0, `client-probe logged:\n${fails.join('\n')}`);
     });
   }
+
+  // A call that ends on its own deadline can end before the probe logs its request, so the whole log
+  // is checked again once the probe has stopped.
+  it('client-probe logged no FAIL line', async () => {
+    await stopProbe();
+    const fails = failLines(log);
+    assert.equal(fails.length, 0, `client-probe logged:\n${fails.join('\n')}`);
+  });
 });
+
+// The FAIL lines of the case name ("FAIL <name>: <reason>"), or every FAIL line without a name.
+function failLines(text: string, name?: string): string[] {
+  const prefix = name === undefined ? 'FAIL ' : `FAIL ${name}:`;
+  return text.split('\n').filter((line) => line.startsWith(prefix));
+}

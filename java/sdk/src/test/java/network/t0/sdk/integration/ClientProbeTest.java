@@ -28,6 +28,7 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.time.Duration;
 import java.util.Arrays;
+import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
@@ -71,7 +72,7 @@ class ClientProbeTest {
         Process probe = new ProcessBuilder(GO_HELPER.getCanonicalPath(), "client-probe", "--sdk", "java",
                 "--vectors", VECTORS.getCanonicalPath())
                 .start();
-        // Its PASS and FAIL lines, shown when a case fails.
+        // Its PASS and FAIL lines: "PASS <case>" or "FAIL <case>: <reason>".
         StringBuffer log = new StringBuffer();
         Thread logReader = new Thread(() -> {
             try (var reader = new BufferedReader(new InputStreamReader(probe.getErrorStream(), StandardCharsets.UTF_8))) {
@@ -81,13 +82,13 @@ class ClientProbeTest {
             }
         });
         logReader.start();
+        SoftAssertions softly = new SoftAssertions();
         try {
             String ready = new BufferedReader(new InputStreamReader(probe.getInputStream(), StandardCharsets.UTF_8))
                     .readLine();
             assertThat(ready).as("first line of client-probe").startsWith("READY ");
             String baseUrl = ready.substring("READY ".length()).strip();
 
-            SoftAssertions softly = new SoftAssertions();
             for (JsonElement element : vectors.getAsJsonArray("client_cases")) {
                 JsonObject c = element.getAsJsonObject();
                 String name = c.get("name").getAsString();
@@ -95,6 +96,7 @@ class ClientProbeTest {
                 DigestSigner caseSigner = c.has("custom_signer")
                         ? customSigner(impostor, c.getAsJsonObject("custom_signer"))
                         : signer;
+                int logged = log.length();
                 Outcome got = client.call(baseUrl + "/" + name, caseSigner, c);
                 softly.assertThat(got.code()).as("%s with %s: %s%nclient-probe log:%n%s", name, client, got.detail(), log)
                         .isEqualTo(expect.get("code").getAsString());
@@ -102,13 +104,25 @@ class ClientProbeTest {
                     softly.assertThat(got.detail()).as("%s with %s: message", name, client)
                             .isEqualTo(expect.get("message").getAsString());
                 }
+                softly.assertThat(failLines(log.substring(logged), name))
+                        .as("%s with %s: client-probe logged", name, client)
+                        .isEmpty();
             }
-            softly.assertAll();
         } finally {
             probe.destroy();
             probe.waitFor(10, TimeUnit.SECONDS);
             logReader.join(10_000);
         }
+        // A call that ends on its own deadline can end before the probe logs its request, so the whole log is
+        // checked again once the probe has stopped.
+        softly.assertThat(failLines(log.toString(), null)).as("%s: client-probe logged", client).isEmpty();
+        softly.assertAll();
+    }
+
+    /** The FAIL lines of case name ("FAIL <name>: <reason>"), or every FAIL line when name is null. */
+    private static List<String> failLines(String log, String name) {
+        String prefix = name == null ? "FAIL " : "FAIL " + name + ":";
+        return log.lines().filter(line -> line.startsWith(prefix)).toList();
     }
 
     /** How a call ended: "ok" for a SERVING reply, else the error code; and its message. */
