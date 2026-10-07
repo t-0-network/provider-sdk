@@ -18,7 +18,9 @@ All flags and the install-only form: [cli/README.md](../../cli/README.md). What 
 npm install @t-0/provider-sdk
 ```
 
-Requires Node.js 20.19 or newer.
+Requires Node.js 20.19 or a later 20.x release, or Node.js 22.12 or newer.
+
+The starter template uses TypeScript 7. Your project does not have to: the SDK also works with TypeScript 5.9.
 
 ## Usage
 

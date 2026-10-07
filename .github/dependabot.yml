@@ -77,7 +77,6 @@ updates:
       - "@types/*"
       - "typescript"
       - "tsx"
-      - "ts-node"
       - "dotenv"
       - "tiny-invariant"
 
