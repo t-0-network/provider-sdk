@@ -1,8 +1,9 @@
 """Signature verification using secp256k1 public key recovery.
 
-Uses the recovery-based approach: recover the public key from the signature
-and compare it to the expected key. This uses only public coincurve API
-and handles both 64-byte (r+s) and 65-byte (r+s+v) signatures.
+Uses the recovery-based approach: recover the public key from r and s with each
+recovery id and compare it to the expected key. This uses only public coincurve API
+and, unlike libsecp256k1's verify, accepts a high s as every SDK does. A 65-byte
+signature (r+s+v) is verified as its first 64 bytes: v is ignored, as in every SDK.
 """
 
 from coincurve import PublicKey
@@ -14,7 +15,8 @@ def verify_signature(public_key: PublicKey, digest: bytes, signature: bytes) -> 
     Args:
         public_key: Expected signer's public key.
         digest: 32-byte pre-hashed message digest.
-        signature: 64 bytes (r+s) or 65 bytes (r+s+v) signature.
+        signature: 64 bytes (r+s) or 65 bytes (r+s+v) signature. The recovery byte v
+            is ignored: only r and s are checked.
 
     Returns:
         True if the signature is valid and was produced by the given public key.
@@ -25,17 +27,10 @@ def verify_signature(public_key: PublicKey, digest: bytes, signature: bytes) -> 
         return False
 
     expected = public_key.format(compressed=False)
+    rs = signature[:64]
 
-    if len(signature) == 65:
-        # Full recoverable signature with v byte
-        return _verify_recoverable(expected, digest, signature)
-
-    # 64-byte signature without recovery id — try both possible values
-    for v in (0, 1):
-        recoverable_sig = signature + bytes([v])
-        if _verify_recoverable(expected, digest, recoverable_sig):
-            return True
-    return False
+    # Try both recovery ids: the one in a 65-byte signature is not trusted.
+    return any(_verify_recoverable(expected, digest, rs + bytes([v])) for v in (0, 1))
 
 
 def _verify_recoverable(expected_uncompressed: bytes, digest: bytes, sig_65: bytes) -> bool:

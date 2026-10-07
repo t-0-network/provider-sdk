@@ -86,7 +86,25 @@
       "public_key": "044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0",
       "signature": "dc7cede55d344fb59f10fa71b4915968a9d5c3f811faf7ddd834feb3cdce106539cd605b5a2d5fe35c21f27af92d01a68a06d6e813a613dac40e90a7a7a8918101",
       "valid": true,
-      "note": "The same signature with recovery byte v=0x01 appended. Wire verifiers ignore v. Python's verify_signature helper recovers from it, so this fixture carries the v that recovers the trusted key."
+      "note": "The same signature with recovery byte v=0x01 appended, the v that recovers the trusted key. A verifier ignores v (V5)."
+    },
+    {
+      "name": "v-plus-27",
+      "body_hex": "74657374207265717565737420626f6479",
+      "timestamp_ms": 1706000000000,
+      "public_key": "044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0",
+      "signature": "dc7cede55d344fb59f10fa71b4915968a9d5c3f811faf7ddd834feb3cdce106539cd605b5a2d5fe35c21f27af92d01a68a06d6e813a613dac40e90a7a7a891811c",
+      "valid": true,
+      "note": "The valid signature with v=0x1c (27 + 1, the Ethereum form) appended. A verifier ignores v (V5); one that recovers the key from v refuses this one."
+    },
+    {
+      "name": "wrong-recovery-id",
+      "body_hex": "74657374207265717565737420626f6479",
+      "timestamp_ms": 1706000000000,
+      "public_key": "044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0",
+      "signature": "dc7cede55d344fb59f10fa71b4915968a9d5c3f811faf7ddd834feb3cdce106539cd605b5a2d5fe35c21f27af92d01a68a06d6e813a613dac40e90a7a7a8918100",
+      "valid": true,
+      "note": "The valid signature with v=0x00 appended, the recovery id that does not recover the trusted key. A verifier ignores v (V5); one that recovers the key from v refuses this one."
     },
     {
       "name": "wrong-key",
