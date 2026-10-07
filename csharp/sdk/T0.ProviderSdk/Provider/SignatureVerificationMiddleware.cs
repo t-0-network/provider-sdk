@@ -68,7 +68,17 @@ public sealed class SignatureVerificationMiddleware
     internal static byte[] ParsePublicKey(string value)
     {
         var encoded = ParseHex(value) ?? throw new FormatException(Messages.PublicKeyNotHex);
-        // Rule V2: a compressed (33 bytes, 02 or 03) or uncompressed (65 bytes, 04) point.
+        return ParsePublicKeyBytes(encoded);
+    }
+
+    /// <summary>
+    /// The bytes of a public key, by rule V2: a compressed (33 bytes, 02 or 03) or uncompressed
+    /// (65 bytes, 04) point on secp256k1. Returns the 65-byte uncompressed encoding. The public
+    /// <see cref="SignatureVerifier.Verify"/> parses its key with this too.
+    /// </summary>
+    /// <exception cref="ArgumentException">The bytes are not a point on the curve.</exception>
+    internal static byte[] ParsePublicKeyBytes(byte[] encoded)
+    {
         // DecodePoint also accepts the hybrid forms (06, 07) and the point at infinity (00).
         var compressed = encoded.Length == 33 && (encoded[0] == 0x02 || encoded[0] == 0x03);
         var uncompressed = encoded.Length == 65 && encoded[0] == 0x04;

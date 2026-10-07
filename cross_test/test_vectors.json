@@ -159,6 +159,24 @@
       "signature": "fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd036414239cd605b5a2d5fe35c21f27af92d01a68a06d6e813a613dac40e90a7a7a89181",
       "valid": false,
       "note": "r = n + 1, outside [1, n-1]. A verifier that reduces r mod n reads it as r = 1."
+    },
+    {
+      "name": "compressed-key",
+      "body_hex": "74657374207265717565737420626f6479",
+      "timestamp_ms": 1706000000000,
+      "public_key": "024fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567",
+      "signature": "dc7cede55d344fb59f10fa71b4915968a9d5c3f811faf7ddd834feb3cdce106539cd605b5a2d5fe35c21f27af92d01a68a06d6e813a613dac40e90a7a7a89181",
+      "valid": true,
+      "note": "The valid signature checked against the 33-byte compressed form (02) of the trusted key. A key is a compressed or an uncompressed point (V2); a verifier that takes only 65-byte keys refuses this one."
+    },
+    {
+      "name": "hybrid-key",
+      "body_hex": "74657374207265717565737420626f6479",
+      "timestamp_ms": 1706000000000,
+      "public_key": "064fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0",
+      "signature": "dc7cede55d344fb59f10fa71b4915968a9d5c3f811faf7ddd834feb3cdce106539cd605b5a2d5fe35c21f27af92d01a68a06d6e813a613dac40e90a7a7a89181",
+      "valid": false,
+      "note": "The valid signature checked against the hybrid form (06, y is even) of the trusted key. V2 refuses the hybrid forms, so the key is refused before the signature is checked; a verifier that decodes it with a library that accepts hybrid keys takes this one."
     }
   ],
   "stream_signing_cases": [

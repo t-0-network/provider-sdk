@@ -224,7 +224,13 @@ class TestCrossVectorsSignatureVerification:
         assert cases
 
         for vec in cases:
-            public_key = _public_key_from_bytes_strict(bytes.fromhex(vec["public_key"]))
+            # verify_signature takes a parsed key, so a key that rule V2 refuses (hybrid-key) fails
+            # here, as it fails the helper of every other SDK.
+            try:
+                public_key = _public_key_from_bytes_strict(bytes.fromhex(vec["public_key"]))
+            except ValueError:
+                assert not vec["valid"], f"{vec['name']}: the key of a case that verifies parses"
+                continue
             signature = bytes.fromhex(vec["signature"])
             result = verify_signature(public_key, _request_digest(vec), signature)
             assert result == vec["valid"], f"{vec['name']}: {vec['note']}"

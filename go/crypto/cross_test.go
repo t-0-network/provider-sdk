@@ -185,8 +185,13 @@ func TestCrossVectors_SignatureVerification(t *testing.T) {
 		t.Run(tc.Name, func(t *testing.T) {
 			pubKeyBytes, err := hex.DecodeString(tc.PublicKey)
 			require.NoError(t, err)
+			// VerifySignature takes a parsed key, so a key that rule V2 refuses (hybrid-key) fails
+			// here, as it fails the helper of every other SDK.
 			pubKey, err := crypto.GetPublicKeyFromBytes(pubKeyBytes)
-			require.NoError(t, err)
+			if err != nil {
+				require.False(t, tc.Valid, "the key of a case that verifies parses: %v", err)
+				return
+			}
 
 			signature, err := hex.DecodeString(tc.Signature)
 			require.NoError(t, err)
