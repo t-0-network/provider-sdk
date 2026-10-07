@@ -87,7 +87,8 @@ def _subscript(element: Any) -> str | None:
             return None
         kind, value = element.subscript.field, element.subscript.value
     if kind == "string_key":
-        return json.dumps(value)
+        # Quoted as protovalidate-go and protovalidate-es write it: printable non-ASCII stays as is.
+        return json.dumps(value, ensure_ascii=False)
     if kind == "bool_key":
         return "true" if value else "false"
     return str(value)
