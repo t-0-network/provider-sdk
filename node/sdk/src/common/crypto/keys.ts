@@ -11,7 +11,9 @@ import {
 } from '../messages.js';
 
 export function parsePrivateKey(privateKey: string | Buffer): Buffer {
-  if (privateKey === undefined || privateKey === null || privateKey.length === 0) {
+  // Key bytes of any length but 32, none included, are PRIVATE_KEY_BYTES_LENGTH below, as in Java
+  // Signer.fromBytes and C# Signer.FromBytes.
+  if (privateKey === undefined || privateKey === null || privateKey === '') {
     throw new Error(PRIVATE_KEY_EMPTY);
   }
   if (typeof privateKey === 'string') {

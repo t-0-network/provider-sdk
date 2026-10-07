@@ -165,7 +165,7 @@ describe('CreateSigner', () => {
   });
 
   it('rejects an empty private key', () => {
-    for (const key of ['', Buffer.alloc(0), null, undefined] as unknown as string[]) {
+    for (const key of ['', null, undefined] as unknown as string[]) {
       nodeAssert.throws(() => CreateSigner(key), { message: 'private key must not be null or empty' });
     }
   });
@@ -177,7 +177,8 @@ describe('CreateSigner', () => {
     ]) {
       nodeAssert.throws(() => CreateSigner(key), { message: 'private key must be 32 bytes (64 hex characters)' });
     }
-    for (const key of [Buffer.alloc(31, 1), Buffer.alloc(33, 1)]) {
+    // Key bytes of any other length, none included, as Java Signer.fromBytes and C# Signer.FromBytes.
+    for (const key of [Buffer.alloc(0), Buffer.alloc(31, 1), Buffer.alloc(33, 1)]) {
       nodeAssert.throws(() => CreateSigner(key), { message: 'private key must be 32 bytes' });
     }
   });
@@ -608,6 +609,14 @@ describe('crypto/publicKeyFromPrivateKey', () => {
       `0x${secp256k1Order}`,
     ]) {
       nodeAssert.throws(() => publicKeyFromPrivateKey(secret));
+    }
+  });
+
+  it('a missing or empty key is "private key must not be null or empty" in each helper that takes one', () => {
+    for (const [name, helper] of Object.entries({ newSignerFromHex: sdk.newSignerFromHex, publicKeyFromPrivateKey: sdk.publicKeyFromPrivateKey })) {
+      for (const key of ['', null, undefined] as unknown as string[]) {
+        nodeAssert.throws(() => helper(key), { message: vectors.messages.private_key_empty }, `${name}(${JSON.stringify(key)})`);
+      }
     }
   });
 

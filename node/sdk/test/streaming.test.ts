@@ -468,6 +468,20 @@ describe('createClient routes unary and streaming calls to their own transport',
     }
   });
 
+  it('a private key given as bytes of any length but 32, none included, is "private key must be 32 bytes", as in Java and C#', () => {
+    for (const key of [Buffer.alloc(0), Buffer.alloc(31, 1), Buffer.alloc(33, 1)]) {
+      assert.throws(() => createClient(key, 'http://127.0.0.1:9', StreamTest), { message: vectors.messages.private_key_bytes_length }, `${key.length} bytes`);
+    }
+  });
+
+  it('a private key given as 32 bytes signs a call that the server verifies', async () => {
+    await withServer(async (srv, key) => {
+      const client = createClient(Buffer.from(key.privateKeyHex.replace(/^0x/, ''), 'hex'), srv.url, StreamTest);
+      assert.equal((await client.unary({ value: 'u' })).value, 'u');
+      assert.deepEqual(srv.checks.map((c) => c.valid), [true]);
+    });
+  });
+
   it("a signer's failure or malformed output fails the call with internal, and nothing is sent", async () => {
     await withServer(async (srv, key) => {
       const sign = CreateSigner(key.privateKeyHex);
