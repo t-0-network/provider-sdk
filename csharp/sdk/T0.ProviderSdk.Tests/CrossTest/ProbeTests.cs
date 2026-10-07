@@ -16,22 +16,11 @@ namespace T0.ProviderSdk.Tests.CrossTest;
 /// </summary>
 public class ProbeTests
 {
-    // From the test output directory (bin/Debug/net10.0/) to the repository root.
-    private static readonly string CrossTest = Path.GetFullPath(
-        Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", "..", "cross_test"));
-    private static readonly string GoHelper = Path.Combine(CrossTest, "go_helper", "go_helper");
-    private static readonly string VectorsPath = Path.Combine(CrossTest, "test_vectors.json");
-
-    [Fact]
+    [GoHelperFact]
     public async Task SharedServerCases()
     {
-        if (!File.Exists(GoHelper))
-        {
-            if (Environment.GetEnvironmentVariable("CI") != null)
-                Assert.Fail($"Go helper binary required in CI but not found at {GoHelper}");
-            return;
-        }
-        using var vectors = JsonDocument.Parse(await File.ReadAllTextAsync(VectorsPath));
+        var goHelper = GoHelper.Require();
+        using var vectors = JsonDocument.Parse(await File.ReadAllTextAsync(GoHelper.VectorsPath));
         var networkPublicKey = "0x" + vectors.RootElement.GetProperty("keys").GetProperty("public_key").GetString();
 
         var port = TestPorts.FindFreePort();
@@ -46,11 +35,11 @@ public class ProbeTests
             await WaitForPort(port);
             using var probe = Process.Start(new ProcessStartInfo
             {
-                FileName = GoHelper,
+                FileName = goHelper,
                 ArgumentList =
                 {
                     "probe", $"http://127.0.0.1:{port}", "--sdk", "csharp", "--protocol", "grpc",
-                    "--vectors", VectorsPath,
+                    "--vectors", GoHelper.VectorsPath,
                 },
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,

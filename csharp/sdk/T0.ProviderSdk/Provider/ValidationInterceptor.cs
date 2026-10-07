@@ -3,7 +3,6 @@ using Grpc.Core.Interceptors;
 using Google.Protobuf;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
-using ProtoValidate;
 using T0.ProviderSdk.Common;
 
 namespace T0.ProviderSdk.Provider;
@@ -16,11 +15,11 @@ namespace T0.ProviderSdk.Provider;
 /// response with a rule ProtoValidate cannot compile or evaluate ("response validation error:
 /// &lt;cause&gt;"). On a <see cref="T0ProviderServer"/>, each one is also logged as a single error line
 /// with rpc_method, response_type, violations (or error) and sdk_version.
+///
+/// <see cref="Validate.Check"/> runs the same validation inside a handler, with the same error.
 /// </summary>
 public sealed class ValidationInterceptor : Interceptor
 {
-    private static readonly Validator _validator = new();
-
     private readonly ILogger _logger;
     private readonly string _sdkVersion;
 
@@ -44,30 +43,18 @@ public sealed class ValidationInterceptor : Interceptor
     {
         var response = await continuation(request, context);
 
-        if (response is IMessage responseMessage)
+        if (response is IMessage responseMessage
+            && ValidationUtils.ValidateResponse(responseMessage) is { } failure)
         {
-            ValidationResult result;
-            try
-            {
-                result = _validator.Validate(responseMessage, failFast: false);
-            }
-            catch (ProtoValidate.Exceptions.ValidationException e)
-            {
-                // A rule that could not be compiled (CompilationException) or evaluated
-                // (ExecutionException).
+            if (failure.Unevaluable)
                 _logger.LogError(
                     "response validation error rpc_method={rpc_method} response_type={response_type} error={error} sdk_version={sdk_version}",
-                    context.Method.TrimStart('/'), responseMessage.Descriptor.FullName, e.Message, _sdkVersion);
-                throw new RpcException(new Status(StatusCode.Internal, Messages.ResponseValidationError(e.Message)));
-            }
-            if (!result.IsSuccess)
-            {
-                var violations = ValidationUtils.FormatViolations(result);
+                    context.Method.TrimStart('/'), responseMessage.Descriptor.FullName, failure.Detail, _sdkVersion);
+            else
                 _logger.LogError(
                     "response validation failed rpc_method={rpc_method} response_type={response_type} violations={violations} sdk_version={sdk_version}",
-                    context.Method.TrimStart('/'), responseMessage.Descriptor.FullName, violations, _sdkVersion);
-                throw new RpcException(new Status(StatusCode.Internal, Messages.ResponseInvalid(violations)));
-            }
+                    context.Method.TrimStart('/'), responseMessage.Descriptor.FullName, failure.Detail, _sdkVersion);
+            throw failure.ToRpcException();
         }
 
         return response;

@@ -22,7 +22,8 @@ namespace T0.ProviderSdk.Tests.CrossTest;
 /// Cross-language integration tests between C# and Go.
 /// Tests real gRPC communication with signature signing/verification.
 ///
-/// Requires the Go helper binary to be built:
+/// Requires the Go helper binary to be built (<see cref="GoHelper"/>); without it the tests are
+/// skipped outside CI and fail in CI:
 ///     cd cross_test/go_helper &amp;&amp; go build -o go_helper .
 /// </summary>
 public class CrossServerTests
@@ -30,29 +31,13 @@ public class CrossServerTests
     private const string PrivateKey = "0x6b30303de7b26bfb1222b317a52113357f8bb06de00160b4261a2fef9c8b9bd8";
     private const string PublicKey = "0x044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0";
 
-    private static readonly string? GoHelperPath = FindGoHelper();
-
-    private static string? FindGoHelper()
-    {
-        // Path from test output directory (bin/Debug/net10.0/) to go_helper binary
-        var testDir = AppContext.BaseDirectory;
-        var repoRoot = Path.GetFullPath(Path.Combine(testDir, "..", "..", "..", "..", "..", ".."));
-        var path = Path.Combine(repoRoot, "cross_test", "go_helper", "go_helper");
-        return File.Exists(path) ? path : null;
-    }
-
     /// <summary>
     /// Go client signs a request → C# server verifies and handles it.
     /// </summary>
-    [Fact]
+    [GoHelperFact]
     public async Task GoClient_CSharpServer_PayOut()
     {
-        if (GoHelperPath is null)
-        {
-            if (Environment.GetEnvironmentVariable("CI") != null)
-                Assert.Fail("Go helper binary required in CI but not found");
-            return;
-        }
+        var goHelper = GoHelper.Require();
 
         var port = TestPorts.FindFreePort();
         var handler = new TestPaymentHandler();
@@ -84,7 +69,7 @@ public class CrossServerTests
             {
                 StartInfo = new ProcessStartInfo
                 {
-                    FileName = GoHelperPath,
+                    FileName = goHelper,
                     ArgumentList =
                     {
                         "call-pay-out",
@@ -123,15 +108,10 @@ public class CrossServerTests
     /// <summary>
     /// Go client calls health check on C# server via gRPC.
     /// </summary>
-    [Fact]
+    [GoHelperFact]
     public async Task GoClient_CSharpServer_HealthCheck()
     {
-        if (GoHelperPath is null)
-        {
-            if (Environment.GetEnvironmentVariable("CI") != null)
-                Assert.Fail("Go helper binary required in CI but not found");
-            return;
-        }
+        var goHelper = GoHelper.Require();
 
         var port = TestPorts.FindFreePort();
         var handler = new TestPaymentHandler();
@@ -169,7 +149,7 @@ public class CrossServerTests
             {
                 StartInfo = new ProcessStartInfo
                 {
-                    FileName = GoHelperPath,
+                    FileName = goHelper,
                     ArgumentList =
                     {
                         "call-health",
@@ -203,22 +183,17 @@ public class CrossServerTests
     /// <summary>
     /// C# client calls health check on Go server — proves C# signing is accepted by Go.
     /// </summary>
-    [Fact]
+    [GoHelperFact]
     public async Task CSharpClient_GoServer_HealthCheck()
     {
-        if (GoHelperPath is null)
-        {
-            if (Environment.GetEnvironmentVariable("CI") != null)
-                Assert.Fail("Go helper binary required in CI but not found");
-            return;
-        }
+        var goHelper = GoHelper.Require();
 
         var port = TestPorts.FindFreePort();
         var proc = new Process
         {
             StartInfo = new ProcessStartInfo
             {
-                FileName = GoHelperPath,
+                FileName = goHelper,
                 ArgumentList = { "serve", port.ToString(), PublicKey },
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
@@ -257,17 +232,12 @@ public class CrossServerTests
     /// A custom signer written against v1.2's obsolete ISigner, returning r‖s without v, signs a
     /// request the Go server accepts.
     /// </summary>
-    [Fact]
+    [GoHelperFact]
     public async Task CSharpClient_GoServer_CustomISigner()
     {
-        if (GoHelperPath is null)
-        {
-            if (Environment.GetEnvironmentVariable("CI") != null)
-                Assert.Fail("Go helper binary required in CI but not found");
-            return;
-        }
+        var goHelper = GoHelper.Require();
 
-        await using var server = await GoStreamServer.StartAsync(GoHelperPath);
+        await using var server = await GoStreamServer.StartAsync(goHelper);
         var signer = new CustomSigner(Signer.FromHex(PrivateKey));
 #pragma warning disable CS0618 // The v1.2 ISigner overload, kept obsolete.
         var healthClient = NetworkClient.Create(
@@ -295,17 +265,12 @@ public class CrossServerTests
 
     private static CallOptions StreamCallOptions() => new(deadline: DateTime.UtcNow.AddSeconds(30));
 
-    [Fact]
+    [GoHelperFact]
     public async Task CSharpClient_GoServer_ClientStream_VerifiedBeforeLaterMessagesAreWritten()
     {
-        if (GoHelperPath is null)
-        {
-            if (Environment.GetEnvironmentVariable("CI") != null)
-                Assert.Fail("Go helper binary required in CI but not found");
-            return;
-        }
+        var goHelper = GoHelper.Require();
 
-        await using var server = await GoStreamServer.StartAsync(GoHelperPath);
+        await using var server = await GoStreamServer.StartAsync(goHelper);
         var invoker = NetworkClient.Create(
             new NetworkClientOptions { BaseUrl = server.BaseUrl }, Signer.FromHex(PrivateKey), i => i);
 
@@ -322,17 +287,12 @@ public class CrossServerTests
         Assert.Equal("envelope:m1,m2,m3", (await call.ResponseAsync).Value);
     }
 
-    [Fact]
+    [GoHelperFact]
     public async Task CSharpClient_GoServer_ServerStream()
     {
-        if (GoHelperPath is null)
-        {
-            if (Environment.GetEnvironmentVariable("CI") != null)
-                Assert.Fail("Go helper binary required in CI but not found");
-            return;
-        }
+        var goHelper = GoHelper.Require();
 
-        await using var server = await GoStreamServer.StartAsync(GoHelperPath);
+        await using var server = await GoStreamServer.StartAsync(goHelper);
         var invoker = NetworkClient.Create(
             new NetworkClientOptions { BaseUrl = server.BaseUrl }, Signer.FromHex(PrivateKey), i => i);
 
@@ -346,17 +306,12 @@ public class CrossServerTests
         Assert.Equal(["envelope:hello", "envelope:hello", "envelope:hello"], received);
     }
 
-    [Fact]
+    [GoHelperFact]
     public async Task CSharpClient_GoServer_EmptyClientStream_IsRejected()
     {
-        if (GoHelperPath is null)
-        {
-            if (Environment.GetEnvironmentVariable("CI") != null)
-                Assert.Fail("Go helper binary required in CI but not found");
-            return;
-        }
+        var goHelper = GoHelper.Require();
 
-        await using var server = await GoStreamServer.StartAsync(GoHelperPath);
+        await using var server = await GoStreamServer.StartAsync(goHelper);
         var invoker = NetworkClient.Create(
             new NetworkClientOptions { BaseUrl = server.BaseUrl }, Signer.FromHex(PrivateKey), i => i);
 
@@ -368,17 +323,12 @@ public class CrossServerTests
         Assert.Contains("no first message", ex.Status.Detail);
     }
 
-    [Fact]
+    [GoHelperFact]
     public async Task CSharpClient_GoServer_ClientStream_LargeFirstMessage()
     {
-        if (GoHelperPath is null)
-        {
-            if (Environment.GetEnvironmentVariable("CI") != null)
-                Assert.Fail("Go helper binary required in CI but not found");
-            return;
-        }
+        var goHelper = GoHelper.Require();
 
-        await using var server = await GoStreamServer.StartAsync(GoHelperPath);
+        await using var server = await GoStreamServer.StartAsync(goHelper);
         var invoker = NetworkClient.Create(
             new NetworkClientOptions { BaseUrl = server.BaseUrl }, Signer.FromHex(PrivateKey), i => i);
         var large = Convert.ToBase64String(RandomNumberGenerator.GetBytes(192 * 1024)); // 256 KiB, over the pipe's pause threshold
@@ -391,17 +341,12 @@ public class CrossServerTests
         Assert.Equal($"envelope:{large},tail", (await call.ResponseAsync).Value);
     }
 
-    [Fact]
+    [GoHelperFact]
     public async Task CSharpClient_GoServer_ClientStream_GzipFirstMessage()
     {
-        if (GoHelperPath is null)
-        {
-            if (Environment.GetEnvironmentVariable("CI") != null)
-                Assert.Fail("Go helper binary required in CI but not found");
-            return;
-        }
+        var goHelper = GoHelper.Require();
 
-        await using var server = await GoStreamServer.StartAsync(GoHelperPath);
+        await using var server = await GoStreamServer.StartAsync(goHelper);
         // The SDK's signing handler and transport with a header recorder between them, so the test
         // can check that the first message went out compressed.
         var recorder = new HeaderRecorder { InnerHandler = NetworkClient.CreateTransport() };
@@ -423,17 +368,12 @@ public class CrossServerTests
         Assert.Equal("gzip", Assert.Single(recorder.Sent!.GetValues("grpc-encoding")));
     }
 
-    [Fact]
+    [GoHelperFact]
     public async Task CSharpClient_GoServer_ClientStream_StaleTimestamp_IsRejected()
     {
-        if (GoHelperPath is null)
-        {
-            if (Environment.GetEnvironmentVariable("CI") != null)
-                Assert.Fail("Go helper binary required in CI but not found");
-            return;
-        }
+        var goHelper = GoHelper.Require();
 
-        await using var server = await GoStreamServer.StartAsync(GoHelperPath);
+        await using var server = await GoStreamServer.StartAsync(goHelper);
         // The factories take no clock, so the signing handler is built here with one two minutes behind.
         var signer = new SigningDelegatingHandler(
             Signer.FromHex(PrivateKey), new FixedTimeProvider(DateTimeOffset.UtcNow.AddMinutes(-2)))

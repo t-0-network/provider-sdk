@@ -51,6 +51,8 @@ csharp/
 - `NetworkClient.CreateNetworkServiceClient()` — Auto-signing Payment gRPC client
 - `NetworkClient.CreatePaymentIntentNetworkServiceClient()` — Auto-signing PaymentIntent gRPC client
 - `SignatureVerificationMiddleware` — ASP.NET Core middleware, verifies incoming requests
+- `ValidationInterceptor` — validates every response the server sends (rule V12)
+- `Validate.Check(message)` — the same validation inside a handler (Go `provider.Validate`, Node and Python `validate`, Java `Validate.check`): returns the message when it is valid, else throws the interceptor's `RpcException`, Internal "response validation failed: …" or "response validation error: …"
 - `SigningDelegatingHandler` — HttpClient handler, signs outgoing requests
 - `NetworkClient.Create(options, signer, invoker => new XClient(invoker))` — Auto-signing client for any generated gRPC client
 - `NetworkClientOptions` — `BaseUrl`, `Timeout` (unary, 15 s), `StreamTimeout` (streams, 5 min); each timeout is at most `MaxTimeout` (2147483647 ms)
@@ -114,7 +116,7 @@ cd ../cross_test/go_helper && go build -o go_helper . && cd ../../csharp
 dotnet test --filter "CrossServerTests"
 ```
 
-CI builds the Go helper automatically. Tests fail (not skip) in CI if the helper is missing.
+CI builds the Go helper automatically. A test that needs it is marked `[GoHelperFact]` (`CrossTest/GoHelper.cs`): without the helper it is skipped, with the reason, outside CI, and fails in CI (`CI` set).
 
 ## Documentation
 

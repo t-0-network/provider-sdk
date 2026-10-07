@@ -1,6 +1,7 @@
 using Grpc.Core;
 using T0.ProviderSdk.Api.Tzero.V1.Common;
 using T0.ProviderSdk.Api.Tzero.V1.Payment;
+using T0.ProviderSdk.Provider;
 
 namespace MyProvider.Services;
 
@@ -47,7 +48,11 @@ public class PaymentHandler(
         });
 
         // optional: if your provider has multiple legal entities, set BeneficiaryProviderLegalEntityId
-        return new PayoutResponse { Accepted = new PayoutResponse.Types.Accepted() };
+        // Validate.Check(...) checks the response against its buf.validate rules here, in your own
+        // code, so you can catch a failure and turn it into a domain error (e.g. PayoutResponse.Failed).
+        // Uncaught, it reaches the network as the SDK's own check would: Internal "response validation
+        // failed: ...".
+        return Validate.Check(new PayoutResponse { Accepted = new PayoutResponse.Types.Accepted() });
     }
 
     // TODO: Optionally implement handling of limit update notifications
