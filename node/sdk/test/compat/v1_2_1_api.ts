@@ -1,7 +1,7 @@
 // Call forms of the v1.2.1 public API that must keep compiling (test/compat.test.ts runs tsc --strict
 // on this file). Never run.
 import * as http from 'node:http';
-import type * as http2 from 'node:http2';
+import * as http2 from 'node:http2';
 import type { ContextValues } from '@connectrpc/connect';
 import { createHandler, createService, nodeAdapter, signatureValidation, type NodeHandlerFn } from '../../src/index.js';
 
@@ -42,6 +42,24 @@ const parameter: NodeHandlerFn = null as unknown as Parameters<typeof signatureV
 const parameters: Parameters<typeof signatureValidation> = [null as unknown as NodeHandlerFn];
 void returned; void returnType; void parameter; void parameters;
 
+// createHandler's handler is a NodeHandlerFn: kept in a variable and replaced by a wrapped one, given to
+// http.createServer, or given to a middleware chain whose request extends node:http's.
+declare const withLogging: (handler: NodeHandlerFn) => NodeHandlerFn;
+let reassigned = createHandler(networkPublicKey, () => {});
+reassigned = withLogging(reassigned);
+void reassigned;
+http.createServer(createHandler(networkPublicKey, () => {}));
+use(createHandler(networkPublicKey, () => {}));
+
+// ReturnType and Parameters of createHandler are NodeHandlerFn and its arguments, as in 1.2.1.
+const handlerReturned: NodeHandlerFn = null as unknown as ReturnType<typeof createHandler>;
+const handlerReturnType: ReturnType<typeof createHandler> = null as unknown as NodeHandlerFn;
+const handlerParameters: Parameters<typeof createHandler> = [networkPublicKey, () => {}, { version: '1.2.1' }];
+void handlerReturned; void handlerReturnType; void handlerParameters;
+
 // The node:http2 forms.
 http2Server(signatureValidation(adapter));
 http2Server(createHandler(networkPublicKey, () => {}));
+http2.createServer(createHandler(networkPublicKey, () => {}));
+// Where node:http2's server takes options first, the handler's types are given.
+http2.createSecureServer({ allowHTTP1: true }, createHandler<http2.Http2ServerRequest, http2.Http2ServerResponse>(networkPublicKey, () => {}));

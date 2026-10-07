@@ -27,10 +27,13 @@ export function signatureValidation(next: NodeHandlerFn | Http2HandlerFn): NodeH
   return next;
 }
 
-/** A handler for node:http (Connect) and for node:http2 (gRPC, and Connect over HTTP/2). */
+/**
+ * A handler for node:http (Connect) and for node:http2 (gRPC, and Connect over HTTP/2). The public
+ * createHandler in service/node.ts gives it the types of the server it is given to.
+ */
 export const createHandler = (
   networkPublicKey: string | Buffer,
   registerRoutes: (router: Router) => void,
   options?: CreateServiceOptions,
-): NodeHandlerFn & Http2HandlerFn =>
-  connectNodeAdapter(createService(networkPublicKey, registerRoutes, options)) as NodeHandlerFn & Http2HandlerFn;
+): ReturnType<typeof connectNodeAdapter> =>
+  connectNodeAdapter(createService(networkPublicKey, registerRoutes, options));
