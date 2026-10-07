@@ -1,6 +1,6 @@
 // Call forms of the v1.2.1 public API that must keep compiling (test/compat.test.ts runs tsc --strict
 // on this file). Never run.
-import type * as http from 'node:http';
+import * as http from 'node:http';
 import type * as http2 from 'node:http2';
 import type { ContextValues } from '@connectrpc/connect';
 import { createHandler, createService, nodeAdapter, signatureValidation, type NodeHandlerFn } from '../../src/index.js';
@@ -25,6 +25,22 @@ http1Server(signatureValidation(adapter));
 http1Server(createHandler(networkPublicKey, () => {}));
 const handler: NodeHandlerFn = createHandler(networkPublicKey, () => {});
 void handler;
+
+// signatureValidation types an inline handler's request and response as node:http's: given to
+// http.createServer, kept in a variable, or given to a middleware chain whose request extends node:http's.
+http.createServer(signatureValidation((req, res) => { res.end(String(req.url)); }));
+const inline = signatureValidation((req, res) => { res.end(String(req.url)); });
+http1Server(inline);
+interface MiddlewareRequest extends http.IncomingMessage { body: unknown }
+declare const use: (...handlers: ((req: MiddlewareRequest, res: http.ServerResponse, next: () => void) => void)[]) => void;
+use(signatureValidation((req, res) => { res.end(String(req.url)); }));
+
+// ReturnType and Parameters of signatureValidation are NodeHandlerFn, as in 1.2.1.
+const returned: NodeHandlerFn = null as unknown as ReturnType<typeof signatureValidation>;
+const returnType: ReturnType<typeof signatureValidation> = null as unknown as NodeHandlerFn;
+const parameter: NodeHandlerFn = null as unknown as Parameters<typeof signatureValidation>[0];
+const parameters: Parameters<typeof signatureValidation> = [null as unknown as NodeHandlerFn];
+void returned; void returnType; void parameter; void parameters;
 
 // The node:http2 forms.
 http2Server(signatureValidation(adapter));
