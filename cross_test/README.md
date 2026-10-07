@@ -116,10 +116,9 @@ fixture.
 
 ### Adding a case
 
-Sign it with any one SDK and run the other four. On the wire every SDK ignores `v`.
-Python's `verify_signature` helper — which the Python cross-vector test calls — does
-not, so fixture 65-byte signatures must carry the recovery byte that recovers the
-trusted key.
+Sign it with any one SDK and run the other four. Every SDK ignores `v`, on the wire and in
+its public `verify_signature` helper, so a 65-byte fixture signature may carry any last byte
+(`v-plus-27` and `wrong-recovery-id` pin this).
 
 ## Go helper (`go_helper/`)
 

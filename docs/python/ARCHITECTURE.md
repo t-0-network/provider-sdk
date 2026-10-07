@@ -628,8 +628,8 @@ def verify_signature(public_key: PublicKey, digest: bytes, signature: bytes) -> 
     """Verify ECDSA signature. Accepts 64-byte (r+s) or 65-byte (r+s+v) signatures."""
 ```
 
-- For 65-byte signatures: recovers the public key directly using the recovery ID
-- For 64-byte signatures: tries both `v=0` and `v=1`, succeeds if either matches
+- Uses only r and s: a 65-byte signature is verified as its first 64 bytes, so its recovery byte is ignored (rule V5)
+- Tries both recovery ids, `v=0` and `v=1`, and succeeds if either recovers the expected key (this also accepts a high s)
 - Uses `PublicKey.from_signature_and_message(sig, digest, hasher=None)`
 - Compares recovered key to expected key in uncompressed format (65 bytes)
 - Returns `False` for any exception during recovery (invalid signature data)
