@@ -753,8 +753,8 @@ The most complex modules in the SDK. Implement Phase 1 of the [two-phase verific
 | `TIMESTAMP_WINDOW_MS` | `60_000` (60 seconds; fixed) |
 
 **`VerifySignatureFn`** is a frozen dataclass holding the network's public key. When called, it:
-1. Validates signature length (64-65 bytes)
-2. Parses the signer's public key (33-byte compressed or 65-byte uncompressed) and compares it to the network public key as a point (raises `UnknownPublicKeyError` for bytes that are not a key, or for another key)
+1. Parses the signer's public key (33-byte compressed or 65-byte uncompressed) and compares it to the network public key as a point (raises `UnknownPublicKeyError` for bytes that are not a key, or for another key)
+2. Validates signature length (64-65 bytes, else `SignatureFailedError`), in the same order as the server (rule V10; both use `_check_signer`)
 3. Computes `Keccak256(message)` and verifies the signature (raises `SignatureFailedError` on failure)
 
 **`signature_verification_middleware(app, verify_fn, max_body_size)`** returns an ASGI middleware that:
@@ -764,7 +764,7 @@ The most complex modules in the SDK. Implement Phase 1 of the [two-phase verific
 4. Stores the result (an error, or `None`) in `signature_error_var`; for an error, replaces the body with `_rejection_body()`. If the caller is still sending, the answer goes out at once and only the message that ends the response waits while the rest of the body is read (`_AnswerThenDrain`), at most 4× the body limit and 1 s, so an HTTP/1.1 client reads the answer instead of a reset under its upload. HTTP/2 without trailers ends at once, without a drain
 5. Forwards to the downstream ASGI app with a replayed `receive`, and resets `signature_error_var` when it returns
 
-`verify_fn` must be a `VerifySignatureFn` built by `new_verify_signature`; the middleware refuses anything else, so no function can turn the check off.
+`verify_fn` is the `VerifySignatureFn` built by `new_verify_signature`, or, as in 1.2.1, a `CustomVerifyFn` of the caller's own, called after the header checks and before the body is decoded; such a function decides the signature itself. `new_asgi_app` and `new_wsgi_app` always use the network key.
 
 **`signature_verification_middleware_wsgi(app, verify_fn, max_body_size)`** (in `middleware_wsgi.py`) does the same for WSGI, reading the body from `environ["wsgi.input"]` with `_read_wsgi_body()` and replaying it with a `BytesIO`.
 
