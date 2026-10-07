@@ -3,7 +3,11 @@
 import * as http from 'node:http';
 import * as http2 from 'node:http2';
 import type { ContextValues } from '@connectrpc/connect';
-import { createHandler, createService, nodeAdapter, signatureValidation, type NodeHandlerFn } from '../../src/index.js';
+import { create, type DescMessage, type MessageShape } from '@bufbuild/protobuf';
+import type { Validator } from '@bufbuild/protovalidate';
+import {
+  createHandler, createService, DecimalSchema, nodeAdapter, signatureValidation, validate, validator, type NodeHandlerFn,
+} from '../../src/index.js';
 
 declare const networkPublicKey: string;
 declare const http1Server: (listener: http.RequestListener) => void;
@@ -63,3 +67,11 @@ http2Server(createHandler(networkPublicKey, () => {}));
 http2.createServer(createHandler(networkPublicKey, () => {}));
 // Where node:http2's server takes options first, the handler's types are given.
 http2.createSecureServer({ allowHTTP1: true }, createHandler<http2.Http2ServerRequest, http2.Http2ServerResponse>(networkPublicKey, () => {}));
+
+// validate with a schema and a message, kept as a function of those two, and its shared validator.
+const decimal = validate(DecimalSchema, create(DecimalSchema, { unscaled: 1n, exponent: 0 }));
+const exponent: number = decimal.exponent;
+const twoArgs: <Desc extends DescMessage>(schema: Desc, msg: MessageShape<Desc>) => MessageShape<Desc> = validate;
+const validateParameters: Parameters<typeof validate> = [DecimalSchema, create(DecimalSchema)];
+const shared: Validator = validator;
+void exponent; void twoArgs; void validateParameters; void shared;
