@@ -761,7 +761,7 @@ The most complex modules in the SDK. Implement Phase 1 of the [two-phase verific
 1. Checks the headers with `_check_headers()`
 2. Reads the body with `_BodyReader.read()` (enforcing the size limit)
 3. Verifies the signature with `_verify_body()`
-4. Stores the result (an error, or `None`) in `signature_error_var`; for an error, replaces the body with `_rejection_body()` and drains what is left of the request
+4. Stores the result (an error, or `None`) in `signature_error_var`; for an error, replaces the body with `_rejection_body()`. If the caller is still sending, the answer goes out at once and only the message that ends the response waits while the rest of the body is read (`_AnswerThenDrain`), at most 4× the body limit and 1 s, so an HTTP/1.1 client reads the answer instead of a reset under its upload. HTTP/2 without trailers ends at once, without a drain
 5. Forwards to the downstream ASGI app with a replayed `receive`, and resets `signature_error_var` when it returns
 
 `verify_fn` must be a `VerifySignatureFn` built by `new_verify_signature`; the middleware refuses anything else, so no function can turn the check off.
@@ -776,7 +776,8 @@ The most complex modules in the SDK. Implement Phase 1 of the [two-phase verific
 | `_verify_body(network_public_key, headers, body, signed)` | Verifies over the whole body; failing that, for an `application/grpc*` body of exactly one uncompressed frame, over the message without its 5-byte prefix |
 | `_parse_scope_headers(scope)` | Extracts headers from ASGI scope as a dict |
 | `_parse_timestamp(headers)` | Parses the timestamp header (ASCII digits, below 2^63), returns `(ms_int, LE_8bytes)` |
-| `_BodyReader` | Reads the ASGI body with size enforcement, and drains a rejected one |
+| `_BodyReader` | Reads the ASGI body with size enforcement, and drains a rejected one after its answer |
+| `_AnswerThenDrain` | Wraps `send` for a rejected call: sends the answer at once, then reads the rest of the body (bounded by bytes and time) before ending the response |
 | `_rejection_body(headers)` | The empty request message replayed in place of a rejected body |
 | `_replay_receive(body)` | Returns a synthetic ASGI `receive` callable |
 
