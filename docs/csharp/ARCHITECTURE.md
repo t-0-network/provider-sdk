@@ -26,6 +26,7 @@ csharp/
 │   ├── Provider/                     # Server-side (incoming requests)
 │   │   ├── SignatureVerificationMiddleware.cs
 │   │   ├── ValidationInterceptor.cs  # Validates responses against buf.validate annotations
+│   │   ├── Validate.cs               # Validate.Check: a handler validates a response itself
 │   │   ├── HealthServiceImpl.cs      # grpc.health.v1 service
 │   │   └── ProviderServerOptions.cs
 │   ├── Common/
