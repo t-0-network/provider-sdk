@@ -9,7 +9,7 @@ npm install
 npm run dev
 ```
 
-Requires Node.js 20.19 or newer.
+Requires Node.js 20.19 or a later 20.x release, or Node.js 22.12 or newer.
 
 Share the provider public key (printed by the initializer; also on the comment line under `# Your provider's public key` in `.env`) with the T-0 team so t-0 can verify the requests you sign.
 

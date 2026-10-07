@@ -6,7 +6,7 @@ This repository holds the T-0 Network provider SDKs for Go, TypeScript, Python, 
 
 - [buf](https://buf.build/docs/installation/), for protobuf code generation
 - [Go](https://go.dev/dl/) 1.27+
-- [Node.js](https://nodejs.org/) 20.19+ with npm
+- [Node.js](https://nodejs.org/) 20.19+ (20.x) or 22.12+, with npm
 - [Python](https://www.python.org/downloads/) 3.13+ with [uv](https://docs.astral.sh/uv/)
 - [Java](https://adoptium.net/) 17+ (the Gradle wrapper is included)
 - [.NET](https://dotnet.microsoft.com/download) 10 SDK
