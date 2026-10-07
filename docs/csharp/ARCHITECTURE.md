@@ -88,6 +88,8 @@ SignFn signer = Signer.FromHex(privateKey);
 SignFn signer = digest => (fakeSignature, fakePublicKey);
 ```
 
+The v1.2 `ISigner` interface still works, as an obsolete compatibility path: `Signer` implements it, every factory has an `ISigner` overload, and the server registers it for dependency injection. New code uses `SignFn`.
+
 Before a request is sent, the client checks the output: the signature is 64 or 65 bytes, then the key is 65 bytes uncompressed. A failure, or a signer that throws, fails the call with Internal "signing the request failed: <cause>", and nothing is sent ([rule S7](../CROSS_SDK_RULES.md#signing)).
 
 ## Signature Protocol
