@@ -29,6 +29,7 @@ export const CALL_DEADLINE_PASSED = "the operation timed out";
 export const STREAM_CLOSED_EARLY = "the stream was closed before its end";
 
 export const SERVICE_NULL = "service must not be null";
+export const GET_NOT_SUPPORTED = "GET requests are not supported";
 export const MISSING_HEADER = (header: string) => `missing required header: ${header}`;
 export const INVALID_HEADER_ENCODING = (header: string) => `invalid header encoding: ${header}`;
 export const TIMESTAMP_NOT_DECIMAL = "invalid timestamp header: not a decimal number";

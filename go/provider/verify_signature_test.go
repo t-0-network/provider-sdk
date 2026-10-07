@@ -382,3 +382,81 @@ func TestWithVerifySignatureFn_HasNoEffect(t *testing.T) {
 	_, err = paymentconnect.NewProviderServiceClient(httpClient, srv.URL).UpdatePayment(context.Background(), connect.NewRequest(&payment.UpdatePaymentRequest{}))
 	require.Equal(t, connect.CodeUnauthenticated, connect.CodeOf(err), "error: %v", err)
 }
+
+// quoteService serves QuoteService/GetQuotes, a NO_SIDE_EFFECTS method, and counts its calls.
+type quoteService struct {
+	paymentconnect.UnimplementedQuoteServiceHandler
+	calls atomic.Int32
+}
+
+func (s *quoteService) GetQuotes(context.Context, *connect.Request[payment.GetQuotesRequest]) (*connect.Response[payment.GetQuotesResponse], error) {
+	s.calls.Add(1)
+	return connect.NewResponse(&payment.GetQuotesResponse{}), nil
+}
+
+// A provider server refuses a request whose method is not POST before everything else, the
+// signature headers included: a call's message must be in its signed body. Not even a method that
+// Connect serves over GET (NO_SIDE_EFFECTS) reaches its handler. The answer is a Connect unary
+// error, whatever the Content-Type.
+func TestNewHttpHandler_RefusesMethodsOtherThanPost(t *testing.T) {
+	networkKey, err := secp256k1.GeneratePrivateKey()
+	require.NoError(t, err)
+	svc := &quoteService{}
+	mux, err := NewHttpHandler(
+		NetworkPublicKeyHexed(crypto.HexPublicKey(networkKey.PubKey())),
+		Handler(paymentconnect.NewQuoteServiceHandler, paymentconnect.QuoteServiceHandler(svc)),
+	)
+	require.NoError(t, err)
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	query := "?" + url.Values{"connect": {"v1"}, "encoding": {"proto"}, "base64": {"1"}, "message": {""}}.Encode()
+	unaryBody := []byte{}
+	cases := []struct {
+		name        string
+		method      string
+		path        string
+		contentType string
+		headers     http.Header
+	}{
+		{name: "GET of a NO_SIDE_EFFECTS method", method: http.MethodGet, path: paymentconnect.QuoteServiceGetQuotesProcedure + query, headers: signedHeaders(t, networkKey, nil, time.Now())},
+		{name: "GET of the health service", method: http.MethodGet, path: "/" + grpchealth.HealthV1ServiceName + "/Check" + query, headers: signedHeaders(t, networkKey, nil, time.Now())},
+		{name: "GET without signature headers", method: http.MethodGet, path: paymentconnect.QuoteServiceGetQuotesProcedure + query, headers: http.Header{}},
+		{name: "GET with a gRPC content type", method: http.MethodGet, path: paymentconnect.QuoteServiceGetQuotesProcedure, contentType: "application/grpc", headers: signedHeaders(t, networkKey, nil, time.Now())},
+		{name: "PUT", method: http.MethodPut, path: paymentconnect.QuoteServiceGetQuotesProcedure, contentType: "application/proto", headers: signedHeaders(t, networkKey, unaryBody, time.Now())},
+		{name: "DELETE", method: http.MethodDelete, path: paymentconnect.QuoteServiceGetQuotesProcedure, contentType: "application/proto", headers: signedHeaders(t, networkKey, unaryBody, time.Now())},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			req, err := http.NewRequest(tc.method, srv.URL+tc.path, bytes.NewReader(unaryBody))
+			require.NoError(t, err)
+			req.Header = tc.headers.Clone()
+			if tc.contentType != "" {
+				req.Header.Set("Content-Type", tc.contentType)
+			}
+			resp, err := srv.Client().Do(req)
+			require.NoError(t, err)
+			defer resp.Body.Close()
+			body, err := io.ReadAll(resp.Body)
+			require.NoError(t, err)
+
+			require.Equal(t, http.StatusNotImplemented, resp.StatusCode, "body: %s", body)
+			require.Equal(t, "application/json", resp.Header.Get("Content-Type"))
+			var wire struct {
+				Code    string `json:"code"`
+				Message string `json:"message"`
+			}
+			require.NoError(t, json.Unmarshal(body, &wire), "body: %s", body)
+			require.Equal(t, "unimplemented", wire.Code)
+			require.Equal(t, "GET requests are not supported", wire.Message)
+			require.Zero(t, svc.calls.Load(), "the request reached its handler")
+		})
+	}
+
+	// The same call, signed and sent with POST, reaches the handler.
+	_, err = paymentconnect.NewQuoteServiceClient(
+		&http.Client{Transport: network.NewSigningTransport(crypto.NewSigner(networkKey), time.Now)}, srv.URL,
+	).GetQuotes(context.Background(), connect.NewRequest(&payment.GetQuotesRequest{}))
+	require.NoError(t, err)
+	require.Equal(t, int32(1), svc.calls.Load())
+}

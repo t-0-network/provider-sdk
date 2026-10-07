@@ -17,15 +17,18 @@ from __future__ import annotations
 
 import asyncio
 import contextvars
+import json
 import struct
 import time
 from collections.abc import Callable
 from dataclasses import dataclass
+from http import HTTPStatus
 from typing import Any
 
 from coincurve import PublicKey
 
 from t0_provider_sdk._messages import (
+    GET_NOT_SUPPORTED,
     NETWORK_PUBLIC_KEY_INVALID,
     TIMESTAMP_NOT_DECIMAL,
     TIMESTAMP_OUT_OF_RANGE,
@@ -144,6 +147,14 @@ ASGIReceive = Callable[..., Any]
 ASGISend = Callable[..., Any]
 Scope = dict[str, Any]
 
+# The answer to a request whose method is not POST: Unimplemented, as a Connect unary error (HTTP 501
+# and a JSON body), whatever its Content-Type, as in every SDK. A call's message must be in its
+# signed body.
+_METHOD_REFUSAL_STATUS = HTTPStatus.NOT_IMPLEMENTED
+_METHOD_REFUSAL_BODY = json.dumps(
+    {"code": "unimplemented", "message": GET_NOT_SUPPORTED}, separators=(",", ":")
+).encode()
+
 
 def signature_verification_middleware(
     app: ASGIApp,
@@ -159,6 +170,9 @@ def signature_verification_middleware(
     with the rejection's code and message (signature_error_var). That answer is sent at once, without
     waiting for the rest of the body.
 
+    A request whose method is not POST is refused first, before its headers are checked, and never
+    reaches the app: the middleware answers it itself, Unimplemented as a Connect unary error.
+
     verify_fn is the one new_verify_signature builds, or a CustomVerifyFn, which then decides the
     key and the signature after the body is read. A max_body_size of 0 or less keeps
     DEFAULT_MAX_BODY_SIZE.
@@ -168,6 +182,12 @@ def signature_verification_middleware(
     async def middleware(scope: Scope, receive: ASGIReceive, send: ASGISend) -> None:
         if scope["type"] != "http":
             await app(scope, receive, send)
+            return
+
+        if scope.get("method") != "POST":
+            # The answer goes out at once; what the caller is still sending is read after it.
+            reader = _BodyReader(receive)
+            await _refuse_method(_AnswerThenDrain(scope, send, reader, _DRAIN_LIMIT_FACTOR * max_body_size))
             return
 
         headers = _parse_scope_headers(scope)
@@ -195,6 +215,21 @@ def signature_verification_middleware(
             signature_error_var.reset(token)
 
     return middleware
+
+
+async def _refuse_method(send: ASGISend) -> None:
+    """Answers a request whose method is not POST (_METHOD_REFUSAL_BODY)."""
+    await send(
+        {
+            "type": "http.response.start",
+            "status": _METHOD_REFUSAL_STATUS.value,
+            "headers": [
+                (b"content-type", b"application/json"),
+                (b"content-length", str(len(_METHOD_REFUSAL_BODY)).encode("latin-1")),
+            ],
+        }
+    )
+    await send({"type": "http.response.body", "body": _METHOD_REFUSAL_BODY, "more_body": False})
 
 
 # What the headers give the body check: the X-Signature bytes, the timestamp bytes, and the

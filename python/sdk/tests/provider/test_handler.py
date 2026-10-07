@@ -27,7 +27,9 @@ from t0_provider_sdk.provider.health import HealthASGIApplication, HealthImpl, H
 from t0_provider_sdk.provider.interceptor import SignatureErrorInterceptor, SignatureErrorInterceptorSync
 from t0_provider_sdk.provider.middleware import DEFAULT_MAX_BODY_SIZE
 from tzero.v1.payment import provider_pb2 as payment_pb2
+from tzero.v1.payment import quote_pb2
 from tzero.v1.payment.provider_connect import ProviderServiceASGIApplication, ProviderServiceWSGIApplication
+from tzero.v1.payment.quote_connect import QuoteServiceASGIApplication, QuoteServiceWSGIApplication
 
 from .unevaluable_rule import TYPE_NAME as UNEVALUABLE_TYPE_NAME
 from .unevaluable_rule import UnevaluableRule
@@ -587,10 +589,129 @@ def _status(transport: str, method: str, path: str, query: str = "", content_typ
 
 @pytest.mark.parametrize("transport", TRANSPORTS)
 def test_health_check_is_post_only(transport):
-    """A Connect GET would carry the request in the query, outside the signed body: refused, as in
-    every SDK."""
+    """A provider server refuses GET, as in every SDK: HTTP 501, Unimplemented."""
     assert _status(transport, "POST", CHECK_PATH) == 200
-    assert _status(transport, "GET", CHECK_PATH, query="encoding=proto&message=") == 405
+    assert _status(transport, "GET", CHECK_PATH, query="encoding=proto&message=") == 501
+
+
+class _CountingQuoteService:
+    """QuoteService, whose GetQuotes is NO_SIDE_EFFECTS: Connect serves it over GET as well."""
+
+    def __init__(self) -> None:
+        self.calls = 0
+
+    async def get_quotes(self, request, ctx):
+        self.calls += 1
+        return quote_pb2.GetQuotesResponse()
+
+
+class _CountingQuoteServiceSync(_CountingQuoteService):
+    def get_quotes(self, request, ctx):  # type: ignore[override]
+        self.calls += 1
+        return quote_pb2.GetQuotesResponse()
+
+
+GET_QUOTES_PATH = "/tzero.v1.payment.QuoteService/GetQuotes"
+GET_QUERY = "connect=v1&encoding=proto&base64=1&message="
+
+
+def _request(
+    transport: str, app, method: str, path: str, query: str, headers: dict[str, str], content_type: str | None
+) -> tuple[int, dict[str, str], bytes]:
+    """Sends a request with an empty body to app; returns the status, the headers and the body."""
+    pairs = [(k.lower(), v) for k, v in headers.items()]
+    if content_type is not None:
+        pairs.append(("content-type", content_type))
+    if transport == "asgi":
+        scope = {
+            "type": "http",
+            "method": method,
+            "http_version": "1.1",
+            "path": path,
+            "root_path": "",
+            "query_string": query.encode(),
+            "headers": [(k.encode(), v.encode()) for k, v in pairs],
+            "extensions": {"http.response.trailers": {}},
+        }
+        sent = []
+
+        async def receive():
+            return {"type": "http.request", "body": b"", "more_body": False}
+
+        async def send(message):
+            sent.append(message)
+
+        asyncio.run(app(scope, receive, send))
+        start = sent[0]
+        answer_headers = {k.decode().lower(): v.decode() for k, v in start["headers"]}
+        return start["status"], answer_headers, b"".join(m.get("body", b"") for m in sent[1:])
+    environ = {
+        "REQUEST_METHOD": method,
+        "PATH_INFO": path,
+        "SCRIPT_NAME": "",
+        "QUERY_STRING": query,
+        "CONTENT_LENGTH": "0",
+        "wsgi.input": io.BytesIO(b""),
+        "wsgi.errors": io.StringIO(),
+    }
+    for name, value in pairs:
+        if name == "content-type":
+            environ["CONTENT_TYPE"] = value
+        else:
+            environ["HTTP_" + name.upper().replace("-", "_")] = value
+    started = []
+
+    def start_response(status, response_headers, exc_info=None):
+        started.append((int(status.split()[0]), {k.lower(): v for k, v in response_headers}))
+
+    body = b"".join(app(environ, start_response))
+    return started[0][0], started[0][1], body
+
+
+@pytest.mark.parametrize("transport", TRANSPORTS)
+@pytest.mark.parametrize(
+    ("method", "path", "query", "signed", "content_type"),
+    [
+        ("GET", GET_QUOTES_PATH, GET_QUERY, True, None),
+        ("GET", CHECK_PATH, GET_QUERY, True, None),
+        ("GET", GET_QUOTES_PATH, GET_QUERY, False, None),
+        ("GET", GET_QUOTES_PATH, "", True, "application/grpc"),
+        ("PUT", GET_QUOTES_PATH, "", True, "application/proto"),
+        ("DELETE", GET_QUOTES_PATH, "", True, "application/proto"),
+    ],
+    ids=[
+        "GET of a NO_SIDE_EFFECTS method",
+        "GET of the health service",
+        "GET without signature headers",
+        "GET with a gRPC content type",
+        "PUT",
+        "DELETE",
+    ],
+)
+def test_methods_other_than_post_are_refused_before_anything_else(transport, method, path, query, signed, content_type):
+    """A provider server refuses a request whose method is not POST before everything else, the
+    signature headers included: a call's message must be in its signed body. Not even a method that
+    Connect serves over GET (NO_SIDE_EFFECTS) reaches its handler. The answer is a Connect unary
+    error, whatever the Content-Type, as in every SDK."""
+    if transport == "asgi":
+        service = _CountingQuoteService()
+        app = new_asgi_app(PUBLIC_KEY, handler(QuoteServiceASGIApplication, service))
+    else:
+        service = _CountingQuoteServiceSync()
+        app = new_wsgi_app(PUBLIC_KEY, handler_sync(QuoteServiceWSGIApplication, service))
+    headers = _signed_headers() if signed else {}
+
+    status, answer_headers, body = _request(transport, app, method, path, query, headers, content_type)
+
+    assert status == 501, body
+    assert answer_headers["content-type"] == "application/json"
+    assert json.loads(body) == {"code": "unimplemented", "message": "GET requests are not supported"}
+    assert service.calls == 0, "the request reached its handler"
+
+    # The same call, signed and sent with POST, reaches the handler.
+    status, _, body = _request(transport, app, "POST", GET_QUOTES_PATH, "", _signed_headers(), "application/proto")
+    assert status == 200, body
+    assert service.calls == 1
 
 
 @pytest.mark.parametrize(

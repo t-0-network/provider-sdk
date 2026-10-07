@@ -103,6 +103,9 @@ const notForDecoder: Record<string, string> = {
   'order-headers-before-body-size': 'the application reads the whole body before the decoder sees the headers',
   'valid-grpc-signed-without-prefix': 'gRPC only; rejectRequest and the decoder answer over Connect',
   'health-unknown-service': 'the application answers Health/Check; the helpers mount no health service',
+  'get-request': 'the application chooses the HTTP methods it serves; the helpers get only the headers and the body',
+  'put-request': 'the application chooses the HTTP methods it serves; the helpers get only the headers and the body',
+  'order-method-before-headers': 'the application chooses the HTTP methods it serves; the helpers get only the headers and the body',
 };
 
 // The server cases that createRequestVerifier does not run: those, and one more.

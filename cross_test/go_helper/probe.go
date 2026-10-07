@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"crypto/tls"
+	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
@@ -61,6 +62,7 @@ type serverCase struct {
 	Before            string   `json:"before"`
 	Call              string   `json:"call"`
 	Service           string   `json:"service"`
+	HTTPMethod        string   `json:"http_method"`
 	Expect            struct {
 		Code           string   `json:"code"`
 		Message        string   `json:"message"`
@@ -291,6 +293,20 @@ func runCase(v *vectors, baseURL, protocol string, c serverCase) (outcome, error
 	if c.Service != "" {
 		body = frame(protocol, append([]byte{0x0a, byte(len(c.Service))}, c.Service...)) // HealthCheckRequest.service
 	}
+	method := http.MethodPost
+	if c.HTTPMethod != "" {
+		method = c.HTTPMethod
+	}
+	if method == http.MethodGet && protocol == "connect" {
+		// A Connect GET: the message in the query, and an empty body, which the signature covers.
+		path += "?" + url.Values{
+			"connect":  {"v1"},
+			"encoding": {"proto"},
+			"base64":   {"1"},
+			"message":  {base64.RawURLEncoding.EncodeToString(body)},
+		}.Encode()
+		body = nil
+	}
 
 	signer := v.Keys.PrivateKey
 	if c.SignedBy == "impostor" {
@@ -369,9 +385,9 @@ func runCase(v *vectors, baseURL, protocol string, c serverCase) (outcome, error
 	}
 
 	if protocol == "grpc" {
-		return sendGRPC(baseURL, path, header, body)
+		return sendGRPC(baseURL, method, path, header, body)
 	}
-	return sendConnect(baseURL, path, header, body)
+	return sendConnect(baseURL, method, path, header, body)
 }
 
 // serverStream sends a signed server-streaming call, Health/Watch, whose body arrives after its
@@ -463,13 +479,16 @@ var grpcClient = &http.Client{
 	},
 }
 
-func sendConnect(baseURL, path string, header http.Header, body []byte) (outcome, error) {
-	req, err := http.NewRequest(http.MethodPost, strings.TrimSuffix(baseURL, "/")+path, bytes.NewReader(body))
+// sendConnect sends a unary Connect request with method; a GET has no body and no Content-Type.
+func sendConnect(baseURL, method, path string, header http.Header, body []byte) (outcome, error) {
+	req, err := http.NewRequest(method, strings.TrimSuffix(baseURL, "/")+path, bytes.NewReader(body))
 	if err != nil {
 		return outcome{}, err
 	}
 	req.Header = header
-	req.Header.Set("Content-Type", "application/proto")
+	if method != http.MethodGet {
+		req.Header.Set("Content-Type", "application/proto")
+	}
 	if len(body) > expectContinueOver {
 		req.Header.Set("Expect", "100-continue")
 	}
@@ -497,8 +516,8 @@ func sendConnect(baseURL, path string, header http.Header, body []byte) (outcome
 	return outcome{code: connectErr.Code, message: connectErr.Message, header: resp.Header}, nil
 }
 
-func sendGRPC(baseURL, path string, header http.Header, body []byte) (outcome, error) {
-	req, err := http.NewRequest(http.MethodPost, strings.TrimSuffix(baseURL, "/")+path, bytes.NewReader(body))
+func sendGRPC(baseURL, method, path string, header http.Header, body []byte) (outcome, error) {
+	req, err := http.NewRequest(method, strings.TrimSuffix(baseURL, "/")+path, bytes.NewReader(body))
 	if err != nil {
 		return outcome{}, err
 	}

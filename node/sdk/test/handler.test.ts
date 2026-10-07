@@ -20,6 +20,7 @@ import {
   HealthCheckRequestSchema,
   HealthCheckResponse_ServingStatus,
 } from '../src/service/health_pb.js';
+import { GetQuotesResponseSchema, QuoteService } from '../src/common/gen/tzero/v1/payment/quote_pb.js';
 import {
   ConnectError,
   Code,
@@ -412,6 +413,53 @@ describe('createHandler', () => {
       );
     } finally {
       await close();
+    }
+  });
+
+  // A provider server refuses a request whose method is not POST before everything else, the
+  // signature headers included: a call's message must be in its signed body. Not even a method that
+  // Connect serves over GET (NO_SIDE_EFFECTS) reaches its handler. The answer is a Connect unary
+  // error, whatever the Content-Type.
+  it('refuses every method but POST before anything else, so a GET never reaches its handler', async () => {
+    const { privateKeyHex, publicKeyHex } = newKeypair();
+    let calls = 0;
+    const server = http.createServer(
+      createHandler(publicKeyHex, (router) =>
+        router.service(QuoteService, {
+          getQuotes: () => {
+            calls++;
+            return create(GetQuotesResponseSchema);
+          },
+        }),
+      ),
+    );
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+    const getQuotes = `/${QuoteService.typeName}/GetQuotes`;
+    const query = '?connect=v1&encoding=proto&base64=1&message=';
+    const signed = signatureHeaders(privateKeyHex, new Uint8Array());
+    const cases: { name: string; method: string; path: string; headers: Record<string, string>; body?: Uint8Array }[] = [
+      { name: 'GET of a NO_SIDE_EFFECTS method', method: 'GET', path: getQuotes + query, headers: signed },
+      { name: 'GET of the health service', method: 'GET', path: `/${Health.typeName}/Check` + query, headers: signed },
+      { name: 'GET without signature headers', method: 'GET', path: getQuotes + query, headers: {} },
+      { name: 'GET with a gRPC content type', method: 'GET', path: getQuotes, headers: { ...signed, 'content-type': 'application/grpc' } },
+      { name: 'PUT', method: 'PUT', path: getQuotes, headers: { ...signed, 'content-type': 'application/proto' }, body: new Uint8Array() },
+      { name: 'DELETE', method: 'DELETE', path: getQuotes, headers: { ...signed, 'content-type': 'application/proto' }, body: new Uint8Array() },
+    ];
+    try {
+      for (const c of cases) {
+        const resp = await fetch(url + c.path, { method: c.method, headers: c.headers, body: c.body });
+        assert.equal(resp.status, 501, c.name);
+        assert.equal(resp.headers.get('content-type'), 'application/json', c.name);
+        assert.deepEqual(await resp.json(), { code: 'unimplemented', message: 'GET requests are not supported' }, c.name);
+        assert.equal(calls, 0, `${c.name}: the request reached its handler`);
+      }
+      // The same call, signed and sent with POST, reaches the handler.
+      await createClient(privateKeyHex, url, QuoteService).getQuotes({});
+      assert.equal(calls, 1);
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
     }
   });
 

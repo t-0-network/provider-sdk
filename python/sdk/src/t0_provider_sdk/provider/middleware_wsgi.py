@@ -23,6 +23,8 @@ from typing import Any
 
 from t0_provider_sdk.provider.errors import BodyTooLargeError, SignatureVerificationError
 from t0_provider_sdk.provider.middleware import (
+    _METHOD_REFUSAL_BODY,
+    _METHOD_REFUSAL_STATUS,
     DEFAULT_MAX_BODY_SIZE,
     CustomVerifyFn,
     VerifySignatureFn,
@@ -49,12 +51,21 @@ def signature_verification_middleware_wsgi(
     The same rules as signature_verification_middleware (ASGI): the signature headers are checked,
     then the body is read (at most max_body_size bytes) and the signature verified over it, before
     the app reads anything. A rejected request goes on with an empty request message in place of
-    its body, and the interceptor answers it with the rejection's code and message. verify_fn is
-    taken as by signature_verification_middleware.
+    its body, and the interceptor answers it with the rejection's code and message. A request whose
+    method is not POST is refused first, before its headers are checked, and never reaches the app:
+    the middleware answers it itself, Unimplemented as a Connect unary error. verify_fn is taken as
+    by signature_verification_middleware.
     """
     max_body_size = _body_limit(max_body_size)
 
     def middleware(environ: WSGIEnviron, start_response: StartResponse) -> Iterable[bytes]:
+        if environ.get("REQUEST_METHOD") != "POST":
+            start_response(
+                f"{_METHOD_REFUSAL_STATUS.value} {_METHOD_REFUSAL_STATUS.phrase}",
+                [("Content-Type", "application/json"), ("Content-Length", str(len(_METHOD_REFUSAL_BODY)))],
+            )
+            return [_METHOD_REFUSAL_BODY]
+
         headers = _parse_wsgi_headers(environ)
 
         error: SignatureVerificationError | None = None

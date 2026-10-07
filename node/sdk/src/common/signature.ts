@@ -8,7 +8,7 @@ import { keccak_256 } from "@noble/hashes/sha3.js";
 import NetworkHeaders from "./headers.js";
 import { verifySignature } from "./crypto/verify.js";
 import { checkSignatureHeaders, rejectionCode } from "./crypto/request.js";
-import { BODY_TOO_LARGE, NO_SIGNATURE_RESULT, SIGNATURE_VERIFICATION_FAILED, STREAMING_NOT_SUPPORTED } from "./messages.js";
+import { BODY_TOO_LARGE, GET_NOT_SUPPORTED, NO_SIGNATURE_RESULT, SIGNATURE_VERIFICATION_FAILED, STREAMING_NOT_SUPPORTED } from "./messages.js";
 
 const kVerified = createContextKey<boolean>(false);
 
@@ -104,9 +104,16 @@ function errorResponse(contentType: string, error: ConnectError): UniversalServe
  * Wraps a handler of the router so that it verifies the signature of every request before the RPC
  * library reads or decodes anything, and answers a rejected request itself. Streaming calls are
  * refused: only unary calls are verified here (rule V9: the Go SDK alone verifies streams).
+ *
+ * A request whose method is not POST is refused first, before its headers are checked: a call's
+ * message must be in its signed body. It gets Unimplemented, as a Connect unary error.
  */
 export function verifiedHandler(handler: UniversalHandler, networkPublicKey: Buffer, maxBodySize: number): UniversalHandler {
   const verified = async (request: UniversalServerRequest): Promise<UniversalServerResponse> => {
+    if (request.method !== "POST") {
+      // A Connect unary error whatever the Content-Type, as the Go SDK answers it.
+      return errorResponse("", new ConnectError(GET_NOT_SUPPORTED, Code.Unimplemented));
+    }
     const contentType = request.header.get("Content-Type") ?? "";
     let body: Buffer;
     try {

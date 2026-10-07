@@ -76,10 +76,18 @@ func signatureError(code connect.Code, err error) *SignatureError {
 // goes on with the verdict in its context. Of the body, it reads only what the signature covers:
 // the whole body, or the first envelope of an enveloped one, so a stream reaches its handler as it
 // arrives.
+//
+// A request whose method is not POST is refused first, before its headers are checked: a call's
+// message must be in its signed body. It gets Unimplemented, as a Connect unary error.
 func newSignatureVerifierMiddleware(verifier *signatureVerifier, maxBodySize int64) middleware {
 	errorWriter := connect.NewErrorWriter()
 	return func(handler http.Handler) http.Handler {
 		return http.HandlerFunc(func(writer http.ResponseWriter, req *http.Request) {
+			if req.Method != http.MethodPost {
+				// connect.ErrorWriter writes a Connect unary error for any request that is not POST.
+				_ = errorWriter.Write(writer, req, connect.NewError(connect.CodeUnimplemented, errors.New(contract.GetNotSupported)))
+				return
+			}
 			body := req.Body
 			limited := http.MaxBytesReader(writer, body, maxBodySize)
 			v, read := verifier.verify(req, limited, maxBodySize)

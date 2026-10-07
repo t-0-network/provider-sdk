@@ -893,7 +893,7 @@
     "default_stream_timeout_ms": 300000,
     "max_timeout_ms": 2147483647
   },
-  "messages_note": "Every message an SDK raises itself (DECISIONS §1), by name. Each SDK holds each message as one named constant in its own casing, and its constants test compares them with this section the way it compares `constants`: it defines exactly the names that apply to it, which is every name except those whose `messages_scope` entry does not list the SDK. A `{placeholder}` is filled in when the message is raised: `{reason}` is public_key_not_hex or public_key_not_a_point; `{cause}` is the message of the error underneath (for signing_failed, the message the custom signer's error carries, or the failed output check's message), with no type name in front; `{header}` a header name; `{limit}` the body limit in bytes; `{service}` the service asked for; `{violations}` each violation as `<field path>: <message>`, joined by `; `, the field path as field_path_cases writes it (field names joined by `.`, a list index in brackets, a map key in brackets and double quotes: `failed.details`, `limits[0].version`, `labels[\"key\"]`) and an empty path as nothing, so that such a violation reads `: <message>`; `{argument}` the parameter's name. For such a message the SDK holds the text around the placeholder as its constant (a format string or a function), and its test fills each placeholder with a sample value and compares the result. Setup messages are raised when a key, signer, client or server is built or given a bad value, as the language's argument error. The others are RPC errors: signing_failed is Internal, with a custom signer's error or a failed output check (signer_signature_invalid, signer_public_key_invalid) as its cause; get_not_supported, bidi_not_supported, compressed_not_supported and streaming_not_supported are Unimplemented; first_message_incomplete is InvalidArgument; call_deadline_passed is DeadlineExceeded (a per-call timeout of 0 or less, before anything is sent); stream_closed_early is Canceled; first_chunk_not_one_envelope, unary_body_not_one_chunk, first_message_read_failed, response_invalid, response_validation_error (protovalidate could not evaluate a rule) and no_signature_result are Internal; a server answers with the codes in server_cases and docs/CROSS_SDK_RULES.md, unknown_service with NotFound, and request_body_read_failed (the request body could not be read while it was verified) with Unauthenticated. The request decoder's texts (unsupported_content_type, malformed_request_body, request_invalid, request_validation_error) are Node-only (DECISIONS §8). Texts that the RPC library or the language runtime writes (for example .NET's \"Value cannot be null.\" or a FormatException's text) are not SDK messages (DECISIONS §1), and deprecation warnings are not messages.",
+  "messages_note": "Every message an SDK raises itself (DECISIONS §1), by name. Each SDK holds each message as one named constant in its own casing, and its constants test compares them with this section the way it compares `constants`: it defines exactly the names that apply to it, which is every name except those whose `messages_scope` entry does not list the SDK. A `{placeholder}` is filled in when the message is raised: `{reason}` is public_key_not_hex or public_key_not_a_point; `{cause}` is the message of the error underneath (for signing_failed, the message the custom signer's error carries, or the failed output check's message), with no type name in front; `{header}` a header name; `{limit}` the body limit in bytes; `{service}` the service asked for; `{violations}` each violation as `<field path>: <message>`, joined by `; `, the field path as field_path_cases writes it (field names joined by `.`, a list index in brackets, a map key in brackets and double quotes: `failed.details`, `limits[0].version`, `labels[\"key\"]`) and an empty path as nothing, so that such a violation reads `: <message>`; `{argument}` the parameter's name. For such a message the SDK holds the text around the placeholder as its constant (a format string or a function), and its test fills each placeholder with a sample value and compares the result. Setup messages are raised when a key, signer, client or server is built or given a bad value, as the language's argument error. The others are RPC errors: signing_failed is Internal, with a custom signer's error or a failed output check (signer_signature_invalid, signer_public_key_invalid) as its cause; get_not_supported, bidi_not_supported, compressed_not_supported and streaming_not_supported are Unimplemented; first_message_incomplete is InvalidArgument; call_deadline_passed is DeadlineExceeded (a per-call timeout of 0 or less, before anything is sent); stream_closed_early is Canceled; first_chunk_not_one_envelope, unary_body_not_one_chunk, first_message_read_failed, response_invalid, response_validation_error (protovalidate could not evaluate a rule) and no_signature_result are Internal; a server answers with the codes in server_cases and docs/CROSS_SDK_RULES.md, unknown_service with NotFound, request_body_read_failed (the request body could not be read while it was verified) with Unauthenticated, and get_not_supported to a request whose HTTP method is not POST, before every other check (server_cases). The request decoder's texts (unsupported_content_type, malformed_request_body, request_invalid, request_validation_error) are Node-only (DECISIONS §8). Texts that the RPC library or the language runtime writes (for example .NET's \"Value cannot be null.\" or a FormatException's text) are not SDK messages (DECISIONS §1), and deprecation warnings are not messages.",
   "messages": {
     "private_key_empty": "private key must not be null or empty",
     "private_key_malformed": "private key must be 32 bytes (64 hex characters)",
@@ -967,6 +967,7 @@
     ],
     "get_not_supported": [
       "go",
+      "node",
       "python"
     ],
     "first_message_incomplete": [
@@ -1313,7 +1314,7 @@
       "limit": 1024
     }
   ],
-  "server_cases_note": "How every provider server answers a request to grpc.health.v1.Health/Check. `go_helper probe` sends each case to a running server, over Connect (application/proto, HTTP/1.1) and over gRPC (application/grpc, h2c) unless `protocols` names one, and checks the code and the message. The request is signed by keys.private_key over its whole body unless a field says otherwise; the server's network key is keys.public_key. Fields: `public_key` network (default), compressed, impostor, absent or a literal; `signature` valid (default), absent, a literal, or one of the named variants; `signed_by` impostor signs with impostor_keys.private_key; `timestamp` now (default), absent, a literal, or `timestamp_offset_ms`; `body_size` is the size of the whole HTTP body, gRPC prefix included (the request is padded with an unknown field); `body` garbage sends bytes that are not a HealthCheckRequest; `before` server_stream first sends a signed server-streaming Health/Watch whose body arrives after its headers, and ignores its answer (rule V9). `service` asks Check for that service instead of \"\". `call` sends a valid tzero.v1.payment.ProviderService request instead of Check: approve_payment_quotes an ApprovePaymentQuotes request, pay_out a PayOut request. The SDK's probe test mounts a ProviderService whose ApprovePaymentQuotes returns an empty ApprovePaymentQuoteResponse (its oneof `result` is required) and whose PayOut returns a PayoutResponse whose `failed.details` is 1025 characters (at most 1024): both fail response validation. `expect.code` ok means a SERVING reply. `expect.message_prefix` checks that the message starts with it; the rest is the validator's rule text, which differs between protovalidate versions (DECISIONS §1). A reply of the health service (a Check case that expects ok, or one with `service`) carries T0-Sdk-Ecosystem, the SDK's name as `--sdk` gives it, and a non-empty T0-Sdk-Version, as headers or, for a gRPC error, trailers. `expect.library_message` lists the SDKs whose message for this case comes from the RPC library underneath; their code is still checked.",
+  "server_cases_note": "How every provider server answers a request to grpc.health.v1.Health/Check. `go_helper probe` sends each case to a running server, over Connect (application/proto, HTTP/1.1) and over gRPC (application/grpc, h2c) unless `protocols` names one, and checks the code and the message. The request is signed by keys.private_key over its whole body unless a field says otherwise; the server's network key is keys.public_key. Fields: `public_key` network (default), compressed, impostor, absent or a literal; `signature` valid (default), absent, a literal, or one of the named variants; `signed_by` impostor signs with impostor_keys.private_key; `timestamp` now (default), absent, a literal, or `timestamp_offset_ms`; `body_size` is the size of the whole HTTP body, gRPC prefix included (the request is padded with an unknown field); `body` garbage sends bytes that are not a HealthCheckRequest; `before` server_stream first sends a signed server-streaming Health/Watch whose body arrives after its headers, and ignores its answer (rule V9). `service` asks Check for that service instead of \"\". `http_method` sends the request with that HTTP method instead of POST: GET as a Connect GET, with no Content-Type, the request message in the query (connect=v1, encoding=proto, base64=1, and message, the message in unpadded base64url) and an empty body, which the signature covers; any other method with its body as usual. `call` sends a valid tzero.v1.payment.ProviderService request instead of Check: approve_payment_quotes an ApprovePaymentQuotes request, pay_out a PayOut request. The SDK's probe test mounts a ProviderService whose ApprovePaymentQuotes returns an empty ApprovePaymentQuoteResponse (its oneof `result` is required) and whose PayOut returns a PayoutResponse whose `failed.details` is 1025 characters (at most 1024): both fail response validation. A provider server refuses a request whose HTTP method is not POST before everything else: before it checks the signature headers (rule V10) or reads the body, and before its RPC library decodes anything. It answers Unimplemented get_not_supported as a Connect unary error (JSON), whatever the Content-Type, so that a call's message is always the signed body. Go, Node and Python; Java and C# serve gRPC only, so the `http_method` cases are Connect cases. `expect.code` ok means a SERVING reply. `expect.message_prefix` checks that the message starts with it; the rest is the validator's rule text, which differs between protovalidate versions (DECISIONS §1). A reply of the health service (a Check case that expects ok, or one with `service`) carries T0-Sdk-Ecosystem, the SDK's name as `--sdk` gives it, and a non-empty T0-Sdk-Version, as headers or, for a gRPC error, trailers. `expect.library_message` lists the SDKs whose message for this case comes from the RPC library underneath; their code is still checked.",
   "server_cases": [
     {
       "name": "valid",
@@ -1385,6 +1386,28 @@
       "body_size": 10485760,
       "expect": {
         "code": "ok"
+      }
+    },
+    {
+      "name": "get-request",
+      "protocols": [
+        "connect"
+      ],
+      "http_method": "GET",
+      "expect": {
+        "code": "unimplemented",
+        "message": "GET requests are not supported"
+      }
+    },
+    {
+      "name": "put-request",
+      "protocols": [
+        "connect"
+      ],
+      "http_method": "PUT",
+      "expect": {
+        "code": "unimplemented",
+        "message": "GET requests are not supported"
       }
     },
     {
@@ -1570,6 +1593,18 @@
         "library_message": [
           "java"
         ]
+      }
+    },
+    {
+      "name": "order-method-before-headers",
+      "protocols": [
+        "connect"
+      ],
+      "http_method": "GET",
+      "public_key": "absent",
+      "expect": {
+        "code": "unimplemented",
+        "message": "GET requests are not supported"
       }
     },
     {
