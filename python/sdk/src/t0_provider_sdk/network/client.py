@@ -6,6 +6,7 @@ Proto-agnostic: works with ANY generated ConnectRPC client class.
 from __future__ import annotations
 
 import functools
+import re
 from typing import TYPE_CHECKING, Any, NoReturn, TypeVar
 from urllib.parse import urlsplit
 
@@ -73,8 +74,8 @@ def new_service_client(
             not be null"). With sign_fn, it must be None or "": both given raise ValueError.
         client_class: Generated ConnectRPC async client class (e.g. NetworkServiceClient).
         base_url: Base URL of the T-0 Network API. None means the default,
-            https://api.t-0.network; an empty or malformed value, or one with whitespace, raises
-            ValueError.
+            https://api.t-0.network; an empty or malformed value, or one with whitespace or a
+            control character anywhere, raises ValueError.
         timeout: Timeout of unary calls in seconds, 15 by default.
         stream_timeout: Timeout of client- and server-streaming calls in seconds, including the
             wait for the first request message, 300 by default.
@@ -157,16 +158,22 @@ def _signer(private_key: str | SignFn | None, sign_fn: SignFn | None) -> SignFn:
     return private_key
 
 
+# A whitespace or control character: U+0000..U+0020, U+007F, or another Unicode White_Space
+# character. The same set in every SDK.
+_SPACE_OR_CONTROL = re.compile(r"[\x00-\x20\x7f\x85\xa0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]")
+
+
 def _checked_base_url(base_url: str | None) -> str:
     if base_url is None:
         return DEFAULT_BASE_URL
     if base_url == "":
         raise ValueError(BASE_URL_NOT_SET)
-    # Never trimmed; and urlsplit would drop a tab or newline anywhere, and leading spaces.
-    if any(c.isspace() for c in base_url):
-        raise ValueError(BASE_URL_NOT_VALID)
     if "://" not in base_url:  # a value without a scheme is read as https
         base_url = "https://" + base_url
+    # Never trimmed; and urlsplit would drop a tab or newline anywhere, and leading spaces, and
+    # keep the others.
+    if _SPACE_OR_CONTROL.search(base_url):
+        raise ValueError(BASE_URL_NOT_VALID)
     try:
         parts = urlsplit(base_url)
         port = parts.port  # ValueError outside 0..65535

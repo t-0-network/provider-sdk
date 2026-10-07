@@ -287,7 +287,8 @@ public abstract class NetworkClient implements Closeable {
      * Parses and checks a base URL.
      *
      * @param endpoint an http or https URL with a host, an optional port from 1 to 65535 and an optional
-     *                 path, and no user info, query or fragment; without {@code ://} it is read as https
+     *                 path, and no whitespace or control character, user info, query or fragment; never
+     *                 trimmed; without {@code ://} it is read as https
      *                 ({@code "api.t-0.network:443"}); {@code null} for {@value #DEFAULT_BASE_URL}. The path
      *                 prefixes every call ({@code https://host/v1} calls {@code https://host/v1/<service>/<method>})
      * @throws IllegalArgumentException if the base URL is empty or not valid
@@ -301,6 +302,10 @@ public abstract class NetworkClient implements Closeable {
         }
         if (!endpoint.contains("://")) {
             endpoint = "https://" + endpoint;
+        }
+        // URI refuses these too; the check is here so that every SDK makes it, with the same set.
+        if (endpoint.chars().anyMatch(NetworkClient::isSpaceOrControl)) {
+            throw invalidBaseUrl();
         }
         URI uri;
         try {
@@ -323,6 +328,15 @@ public abstract class NetworkClient implements Closeable {
         int end = path.endsWith("/") ? path.length() - 1 : path.length();
         String pathPrefix = end > 0 ? path.substring(1, end) : "";
         return new BaseUrl(new EndpointInfo(uri.getHost(), port, usePlaintext), pathPrefix);
+    }
+
+    /**
+     * Whether {@code c} is a whitespace or control character: U+0000..U+0020, U+007F, or another Unicode
+     * White_Space character. The same set in every SDK.
+     */
+    private static boolean isSpaceOrControl(int c) {
+        return c <= 0x20 || c == 0x7f || c == 0x85 || c == 0xa0 || c == 0x1680 || (c >= 0x2000 && c <= 0x200a)
+                || c == 0x2028 || c == 0x2029 || c == 0x202f || c == 0x205f || c == 0x3000;
     }
 
     private static IllegalArgumentException invalidBaseUrl() {

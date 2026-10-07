@@ -30,7 +30,7 @@ public sealed class NetworkClientOptions
     /// </summary>
     /// <exception cref="ArgumentException">
     /// The value is empty ("base URL is not set") or not a valid base URL ("base URL is not valid"),
-    /// which includes a value with surrounding whitespace.
+    /// which includes a value with whitespace or a control character anywhere.
     /// </exception>
     [AllowNull]
     public string BaseUrl
@@ -72,11 +72,12 @@ public sealed class NetworkClientOptions
     {
         if (value.Length == 0)
             throw new ArgumentException(Messages.BaseUrlNotSet);
-        // Never trimmed: Uri would drop surrounding whitespace, the other SDKs refuse it.
-        if (char.IsWhiteSpace(value[0]) || char.IsWhiteSpace(value[^1]))
-            throw new ArgumentException(Messages.BaseUrlNotValid);
         // A value without a scheme is read as https.
         var url = value.Contains(Uri.SchemeDelimiter, StringComparison.Ordinal) ? value : "https://" + value;
+        // Never trimmed: Uri would drop surrounding whitespace, and take it, and control characters,
+        // in the path; every SDK refuses them all, anywhere.
+        if (url.Any(IsSpaceOrControl))
+            throw new ArgumentException(Messages.BaseUrlNotValid);
         return Uri.TryCreate(url, UriKind.Absolute, out var uri)
             && (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps)
             && uri.Host.Length > 0 && uri.UserInfo.Length == 0 && uri.Port > 0
@@ -84,6 +85,13 @@ public sealed class NetworkClientOptions
             ? (url, uri.AbsolutePath.TrimEnd('/'))
             : throw new ArgumentException(Messages.BaseUrlNotValid);
     }
+
+    // A whitespace or control character: U+0000..U+0020, U+007F, or another Unicode White_Space
+    // character. The same set in every SDK.
+    private static bool IsSpaceOrControl(char c) =>
+        c <= '\u0020' || c == '\u007f' || c == '\u0085' || c == '\u00a0' || c == '\u1680'
+        || (c >= '\u2000' && c <= '\u200a') || c == '\u2028' || c == '\u2029' || c == '\u202f'
+        || c == '\u205f' || c == '\u3000';
 
     private static TimeSpan Validate(TimeSpan value, string message) =>
         value > TimeSpan.Zero && value <= MaxTimeout

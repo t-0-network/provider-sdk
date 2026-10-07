@@ -17,6 +17,10 @@ export function createClient<T extends DescService>(signer: string | Buffer | ((
     return createClientCommon(signer, parseBaseUrl(baseUrl), svc, opts);
 }
 
+// A whitespace or control character: U+0000..U+0020, U+007F, or another Unicode White_Space
+// character. The same set in every SDK.
+const SPACE_OR_CONTROL = /[\x00-\x20\x7f\x85\xa0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]/;
+
 // The rule every SDK shares: docs/CROSS_SDK_RULES.md (C2). A path in the base URL prefixes every call.
 function parseBaseUrl(endpoint: string | undefined | null): string {
     if (endpoint === undefined || endpoint === null) {
@@ -25,13 +29,13 @@ function parseBaseUrl(endpoint: string | undefined | null): string {
     if (endpoint === "") {
         throw new Error(BASE_URL_NOT_SET);
     }
-    // The URL parser drops surrounding spaces and control characters, and tabs and line breaks
-    // anywhere; every SDK refuses them instead.
-    if (/^[\x00-\x20]|[\x00-\x20]$|[\t\n\r]/.test(endpoint)) {
-        throw new Error(BASE_URL_NOT_VALID);
-    }
     // A value without "://" is read as https.
     const url = endpoint.includes("://") ? endpoint : "https://" + endpoint;
+    // The URL parser drops surrounding spaces and control characters, and tabs and line breaks
+    // anywhere, and escapes the others in the path; every SDK refuses them all, anywhere.
+    if (SPACE_OR_CONTROL.test(url)) {
+        throw new Error(BASE_URL_NOT_VALID);
+    }
     const parsed = URL.canParse(url) ? new URL(url) : undefined;
     // "?" and "#" are checked on the value, as the parser leaves an empty query or fragment out of
     // search and hash. The parser refuses a port over 65535.

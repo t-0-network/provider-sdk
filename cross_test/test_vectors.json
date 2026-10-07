@@ -588,7 +588,7 @@
       "error": "missing required header: X-Signature-Timestamp"
     }
   ],
-  "base_url_parsing_note": "Every SDK client checks its base URL with this rule: empty is 'base URL is not set'; a value without '://' is read as 'https://' + value; then the language's standard URL parser, plus: scheme http or https, a host, no user info, no query, no fragment, a port (if any) in 1..65535. Anything else is 'base URL is not valid'. Surrounding whitespace is never trimmed: a value with it, or of whitespace only, is 'base URL is not valid'. A path prefixes every call. Inputs outside these rows may differ between SDKs, by their URL parsers.",
+  "base_url_parsing_note": "Every SDK client checks its base URL with this rule: empty is 'base URL is not set'; a value without '://' is read as 'https://' + value; then the language's standard URL parser, plus: no whitespace or control character anywhere, scheme http or https, a host, no user info, no query, no fragment, a port (if any) in 1..65535. Anything else is 'base URL is not valid'. A whitespace or control character is U+0000..U+0020, U+007F, or another Unicode White_Space character: U+0085, U+00A0, U+1680, U+2000..U+200A, U+2028, U+2029, U+202F, U+205F, U+3000. Nothing is trimmed, so a value with one of them anywhere, or of whitespace only, is 'base URL is not valid'. path-nbsp has U+00A0 (NO-BREAK SPACE) in its path, and path-del U+007F (DELETE). A path prefixes every call. Inputs outside these rows may differ between SDKs, by their URL parsers.",
   "base_url_parsing": [
     {
       "name": "plain",
@@ -725,6 +725,36 @@
     {
       "name": "whitespace-only",
       "input": " ",
+      "valid": false,
+      "error": "base URL is not valid"
+    },
+    {
+      "name": "path-space",
+      "input": "https://api.t-0.network/a b",
+      "valid": false,
+      "error": "base URL is not valid"
+    },
+    {
+      "name": "path-tab",
+      "input": "https://api.t-0.network/a\tb",
+      "valid": false,
+      "error": "base URL is not valid"
+    },
+    {
+      "name": "host-space",
+      "input": "https://api.t-0.net work",
+      "valid": false,
+      "error": "base URL is not valid"
+    },
+    {
+      "name": "path-nbsp",
+      "input": "https://api.t-0.network/a\u00a0b",
+      "valid": false,
+      "error": "base URL is not valid"
+    },
+    {
+      "name": "path-del",
+      "input": "https://api.t-0.network/a\u007fb",
       "valid": false,
       "error": "base URL is not valid"
     }

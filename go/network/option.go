@@ -64,9 +64,14 @@ func (c *clientOptions) validate() error {
 	return nil
 }
 
-// validBaseURL accepts an http or https URL with a host, without user info, query or fragment, and
-// with a port, if given, in 1..65535.
+// validBaseURL accepts an http or https URL with a host, without whitespace or control characters,
+// user info, query or fragment, and with a port, if given, in 1..65535.
 func validBaseURL(raw string) bool {
+	// url.Parse refuses ASCII controls but takes a space or a Unicode space in the path; every SDK
+	// refuses them all, anywhere.
+	if strings.ContainsFunc(raw, isSpaceOrControl) {
+		return false
+	}
 	u, err := url.Parse(raw)
 	if err != nil || (u.Scheme != "http" && u.Scheme != "https") || u.Hostname() == "" || u.User != nil ||
 		strings.ContainsAny(raw, "?#") { // url.Parse keeps no trace of an empty "#"
@@ -77,6 +82,17 @@ func validBaseURL(raw string) bool {
 		return err == nil && n > 0
 	}
 	return true
+}
+
+// isSpaceOrControl reports whether r is a whitespace or control character: U+0000..U+0020, U+007F,
+// or another Unicode White_Space character. The same set in every SDK.
+func isSpaceOrControl(r rune) bool {
+	switch {
+	case r <= 0x20, r == 0x7f, r == 0x85, r == 0xa0, r == 0x1680, r >= 0x2000 && r <= 0x200a,
+		r == 0x2028, r == 0x2029, r == 0x202f, r == 0x205f, r == 0x3000:
+		return true
+	}
+	return false
 }
 
 var defaultClientOptions = clientOptions{
