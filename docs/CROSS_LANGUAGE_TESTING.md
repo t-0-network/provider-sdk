@@ -60,6 +60,8 @@ Default protocol is Connect (HTTP/1.1). Pass `--grpc` for gRPC protocol over h2c
 | **Lang→Go streaming** | Client + server stream (async + sync) | Client + server stream | Client + server stream | Client + server stream |
 | **Go→Lang** | Health (ASGI+WSGI) | Health | Health + PayOut | Health + PayOut |
 
+Health checks set `service` to `grpc.health.v1.Health`, so the protobuf body is not empty (about 23 bytes). The signature hashes that body to 32 bytes, which is enough for interop coverage. PayOut calls in some SDKs are historical and are not required for that coverage.
+
 Streaming runs one way only: providers don't serve streaming RPCs, so there is no Go→Lang streaming test. The streaming cross tests check that each SDK's client signs the bytes the network verifies and sends the request with its first message; the verifier's own verdicts are pinned in the Go SDK (`go/provider`). The rules they test: [`docs/STREAMING.md`](STREAMING.md).
 
 ### Test files

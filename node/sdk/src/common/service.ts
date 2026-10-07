@@ -77,6 +77,11 @@ export class BodyHashes {
 }
 
 const createSignatureVerification: (networkPublicKey: Buffer) => Interceptor = (networkPublicKey: Buffer) => (next) => async (req) => {
+  // Streaming interceptors run before the body is read; only unary calls can verify its hash.
+  if (req.stream) {
+    throw new ConnectError("streaming calls are not supported", Code.Unimplemented);
+  }
+
   const ts = decodeTimestamp(getHeader(req, NetworkHeaders.SignatureTimestamp));
   // Number(ts) is exact for any timestamp inside the window.
   if (Math.abs(Date.now() - Number(ts)) > REQUEST_VALIDITY_MILLIS) {

@@ -2,9 +2,7 @@
 
 ## CRITICAL CRYPTOGRAPHIC REQUIREMENT
 
-**Signature verification and signing MUST use raw payload bytes.**
-
-Protobuf encoding is not canonical — re-encoding a deserialized message produces different bytes. Always verify/sign against the original wire bytes, never re-serialized output. This applies to ALL languages.
+Sign and verify the raw wire bytes, never a re-encoded protobuf message. Rule S2 in [`docs/CROSS_SDK_RULES.md`](docs/CROSS_SDK_RULES.md). All languages.
 
 ## Repository Layout
 
@@ -52,34 +50,13 @@ cd csharp && dotnet test                          # C#
 
 ## Cross-Language Testing
 
-All languages share `cross_test/test_vectors.json` for crypto compatibility (Keccak256, secp256k1 signing/verification). Full documentation: [`docs/CROSS_LANGUAGE_TESTING.md`](docs/CROSS_LANGUAGE_TESTING.md).
+Vectors, the Go helper, and the server-to-server matrix: [`docs/CROSS_LANGUAGE_TESTING.md`](docs/CROSS_LANGUAGE_TESTING.md). The shared behavior rules: [`docs/CROSS_SDK_RULES.md`](docs/CROSS_SDK_RULES.md).
 
-### Server-to-server cross-tests
-
-A shared Go helper at `cross_test/go_helper/` exercises bidirectional server-to-server communication (health check round-trips with non-empty body) between each SDK and Go. Every SDK's CI workflow builds the helper automatically. Health checks with `service="grpc.health.v1.Health"` produce a ~23-byte protobuf body, which is sufficient for signature-over-real-body testing — the signing scheme hashes the body into a fixed 32-byte Keccak-256 digest regardless of size. PayOut tests exist in some SDKs for historical reasons but are not required for crypto interop coverage.
-
-```bash
-cd cross_test/go_helper && go build -o go_helper .   # Build once
-cd python && uv run pytest tests/cross_test/ -v       # Python ↔ Go
-cd node/sdk && npm test                                # Node ↔ Go (included in suite)
-cd csharp && dotnet test                               # C# ↔ Go (included in suite)
-cd java && ./gradlew test --tests "*.CrossServerTests" # Java ↔ Go
-```
-
-The helper serves `test.v1.StreamTest` behind the Go SDK's own signature verification (`provider.Handler`), so the streaming cross tests run against the SDK's server path. A refused request fails with the code from `docs/CROSS_SDK_RULES.md` and the reason as its message, and every reply to a verified request starts with the framing it was verified over (`envelope:` or `payload:`); the streaming cross tests check both from the call itself. It also logs its verdict to stderr before the handler reads past the first message (`<path> verified over the first envelope|payload` or `<path> rejected: <reason>`); the tests read that log only to check that a request went out right after its first message (the caller's stream produces message 2 only once the line is there) and that a call cancelled before its first message sent nothing. The verifier itself is tested in `go/provider`; the helper's wiring, with the Go client against it, in `cross_test/go_helper` (`go test ./...`).
-
-**When adding a new SDK**, add cross-language server-to-server tests that use `cross_test/go_helper/`:
-1. Create test file(s) that start/call the Go helper for bidirectional health round-trips (with `service` field set for non-empty body)
-2. Add Go setup + helper build to the SDK's CI workflow (see `ci-python.yaml` for pattern)
-3. Add `go/**` and `cross_test/**` to the CI workflow's path triggers
-4. In CI, tests must **fail** (not skip) if the helper binary is missing
-5. Streaming against `go_helper serve`: a client stream of several messages and a server stream, each verified over the expected framing; no buffering (message 2 after the helper logged message 1 as verified); a large first message; and refusals of a stale timestamp and an empty stream
+Build the helper before these tests (`cd cross_test/go_helper && go build -o go_helper .`). The binary is not in the repository. A suite that skips because it is missing has not run. Build the helper and run that suite. Do not report the skip as a pass.
 
 ## Definition of Done
 
-A change to a rule in [`docs/CROSS_SDK_RULES.md`](docs/CROSS_SDK_RULES.md) updates that page, the shared vectors or tests that check the rule, and all five SDKs, in the same pull request.
-
-Before a change is considered complete, cross-language tests must pass:
+A rule change follows [`docs/CROSS_SDK_RULES.md`](docs/CROSS_SDK_RULES.md) ("How to change a rule"). Before a change is done, the cross-language tests must pass:
 
 ```bash
 cd cross_test/go_helper && go build -o go_helper .   # Rebuild helper
@@ -93,29 +70,11 @@ cd java && ./gradlew test --tests "*.CrossServerTests" # Java ↔ Go
 
 ## Signature Protocol
 
-```
-digest  = Keccak256(body_bytes || little_endian_uint64(timestamp_ms))
-headers = { X-Public-Key: "0x...", X-Signature: "0x...", X-Signature-Timestamp: "<ms>" }
-```
-
-- Signatures: 64 or 65 bytes (r + s + optional recovery id)
-- Hash: Keccak-256 (NOT NIST SHA-3)
+Every shared rule, and the vector or test that checks it: [`docs/CROSS_SDK_RULES.md`](docs/CROSS_SDK_RULES.md). Read that page before changing signing or verification in one SDK. Streaming: [`docs/STREAMING.md`](docs/STREAMING.md).
 
 **gRPC-Web is out of scope for good.** The network never speaks it and no SDK supports it. Do not add handling, tests, vectors or docs for `application/grpc-web*`, and do not raise it in reviews or plans.
 
-**Every rule the five SDKs share** (signing, client calls, how a provider server checks the network key, the timestamp, the body and the signature, and the error codes), with the shared vector or test that checks each one: [`docs/CROSS_SDK_RULES.md`](docs/CROSS_SDK_RULES.md). Read it before changing any of these in one SDK.
-
-### body_bytes framing — depends on signer position
-
-`body_bytes` is whichever bytes the signer covers at its own layer. For a unary Connect call (Go, Node and Python by default) there is no frame, so that is the **unframed protobuf** body. The Java SDK's `NetworkClient` signs above the gRPC framer, so it also covers **unframed protobuf**. Clients that sign the HTTP body of a gRPC call sit below the framer and sign the **gRPC-framed body**: C#'s `SigningDelegatingHandler`, and Go and Python with the gRPC protocol option — matching Go's primary verification path, not the fallback. The T-0 Network signs unframed bytes when calling a provider via Connect protocol, and signs the **gRPC-framed body** (5-byte prefix + protobuf) when calling via gRPC protocol — in that case the signer sits below the framer.
-
-Consequently every provider server accepts both framings of a gRPC body: it verifies over the frame, prefix included, and if that fails and the frame is uncompressed, over the message without its 5-byte prefix (the Java interceptor rebuilds the frame instead). Go applies the streaming rule below to every `application/grpc` and `application/grpc+*` request, unary included: connect-go accepts a unary gRPC body only as exactly one frame, so the first envelope is the whole body. **This dual-path is required, not defensive** — see [`docs/java/SIGNATURE_VERIFICATION.md`](docs/java/SIGNATURE_VERIFICATION.md) before touching it.
-
-### Streaming RPCs — only the first message is signed
-
-For client-streaming (upload) and server-streaming (download) RPCs, `body_bytes` is the **first request envelope exactly as sent**: `flags (1) || uint32be(length) || payload`. Later messages are sent unsigned. The server checks the timestamp when the headers arrive, before it reads the body, so a client signs as soon as it has the first message and sends the request at once — never buffer the stream to sign it. Over gRPC the network also accepts the first payload without its 5-byte prefix (the Java SDK signs above the framer, as for unary). A client that signs the HTTP body treats `application/connect+*`, `application/grpc` and `application/grpc+*` as enveloped and signs anything else whole.
-
-The streaming rules every SDK client follows (what is signed, when the request is sent, bidirectional streams, the stream timeout): [`docs/STREAMING.md`](docs/STREAMING.md). Vectors: `stream_signing_cases` in `cross_test/test_vectors.json`; test service: `cross_test/stream_test.proto`, served by `go_helper serve`.
+The gRPC dual path (the framed body, then the uncompressed message without its 5-byte prefix) is required, not defensive. See [`docs/java/SIGNATURE_VERIFICATION.md`](docs/java/SIGNATURE_VERIFICATION.md) before touching it.
 
 ## Releasing
 
@@ -134,5 +93,4 @@ When triaging a Dependabot PR or bumping a library, follow [`docs/DEPENDENCY_UPD
 
 ## Git Workflow
 
-- NEVER commit or push without explicit user request
 - Run builds/tests locally before suggesting commits

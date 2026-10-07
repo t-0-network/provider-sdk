@@ -387,4 +387,17 @@ describe('createHandler', () => {
       await close();
     }
   });
+
+  it('rejects Health/Watch with unimplemented and still serves unary calls', async () => {
+    const { privateKeyHex, publicKeyHex } = newKeypair();
+    const { url, close } = await bootServer(publicKeyHex);
+    try {
+      const client = createClient(privateKeyHex, url, Health);
+      await assertRejected(client.watch({ service: '' })[Symbol.asyncIterator]().next(), Code.Unimplemented);
+      const resp = await client.check({ service: '' });
+      assert.equal(resp.status, HealthCheckResponse_ServingStatus.SERVING);
+    } finally {
+      await close();
+    }
+  });
 });
