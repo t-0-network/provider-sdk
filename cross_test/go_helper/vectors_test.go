@@ -15,7 +15,7 @@ import (
 // Every message another section of the fixture expects is one of the named messages, so an SDK
 // that holds those as constants raises the same text.
 func TestVectors_MessagesNamed(t *testing.T) {
-	raw, err := os.ReadFile("../test_vectors.json")
+	raw, err := os.ReadFile(vectorsPath)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -92,7 +92,7 @@ func TestVectors_MessagesNamed(t *testing.T) {
 // Each signer case's signature is r‖s‖v with a low s and the v that recovers its public key from
 // its digest, and that key is its private key's.
 func TestVectors_SignerCases(t *testing.T) {
-	raw, err := os.ReadFile("../test_vectors.json")
+	raw, err := os.ReadFile(vectorsPath)
 	if err != nil {
 		t.Fatal(err)
 	}

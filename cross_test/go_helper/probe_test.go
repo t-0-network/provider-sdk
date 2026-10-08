@@ -16,10 +16,7 @@ import (
 // The Go column of the shared server behavior: every case of server_cases in
 // cross_test/test_vectors.json, over Connect and over gRPC, against the SDK's own server.
 func TestProbe_GoServer(t *testing.T) {
-	v, err := loadVectors("../test_vectors.json")
-	if err != nil {
-		t.Fatal(err)
-	}
+	v := testVectors(t)
 	handler, err := newServeHandler("0x" + v.Keys.PublicKey)
 	if err != nil {
 		t.Fatal(err)
@@ -41,6 +38,19 @@ func TestProbe_GoServer(t *testing.T) {
 	if failures > 0 {
 		t.Fatalf("%d case(s) failed", failures)
 	}
+}
+
+// vectorsPath is cross_test/test_vectors.json, from this package's directory, where go test runs.
+const vectorsPath = "../test_vectors.json"
+
+// testVectors loads the shared fixture, and fails the test if it cannot.
+func testVectors(t *testing.T) *vectors {
+	t.Helper()
+	v, err := loadVectors(vectorsPath)
+	if err != nil {
+		t.Fatal(err)
+	}
+	return v
 }
 
 func freePort(t *testing.T) int {

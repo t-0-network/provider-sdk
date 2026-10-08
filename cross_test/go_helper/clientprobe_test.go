@@ -15,7 +15,6 @@ import (
 	"os/exec"
 	"strconv"
 	"strings"
-	"sync"
 	"testing"
 	"time"
 
@@ -39,15 +38,12 @@ func TestMain(m *testing.M) {
 // The Go column of the shared client behavior: every case of client_cases in
 // cross_test/test_vectors.json, made by the SDK's own client over Connect and over gRPC.
 func TestClientProbe_GoClient(t *testing.T) {
-	v, err := loadVectors("../test_vectors.json")
-	if err != nil {
-		t.Fatal(err)
-	}
+	v := testVectors(t)
 	listener, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatal(err)
 	}
-	log := new(probeLog)
+	log := new(helperLog)
 	server := newClientProbeServer(v, "go", log)
 	go func() { _ = server.Serve(listener) }()
 	t.Cleanup(func() { _ = server.Close() })
@@ -89,28 +85,6 @@ func TestClientProbe_GoClient(t *testing.T) {
 	}
 }
 
-// probeLog keeps the PASS and FAIL lines of an in-process probe. Its handler writes them from many
-// goroutines, one line per Write.
-type probeLog struct {
-	mu  sync.Mutex
-	buf bytes.Buffer
-}
-
-func (l *probeLog) Write(p []byte) (int, error) {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	return l.buf.Write(p)
-}
-
-func (l *probeLog) lines() []string {
-	l.mu.Lock()
-	defer l.mu.Unlock()
-	if l.buf.Len() == 0 {
-		return nil
-	}
-	return strings.Split(strings.TrimSuffix(l.buf.String(), "\n"), "\n")
-}
-
 // failLines returns the FAIL lines of case name ("FAIL <name>: <reason>"), or every FAIL line when
 // name is empty.
 func failLines(lines []string, name string) []string {
@@ -138,11 +112,8 @@ func connectMessage(err error) string {
 
 // The command SDK tests start: its READY line gives a base URL that serves the cases.
 func TestClientProbe_Command(t *testing.T) {
-	v, err := loadVectors("../test_vectors.json")
-	if err != nil {
-		t.Fatal(err)
-	}
-	cmd := exec.Command(os.Args[0], "client-probe", "--sdk", "go", "--vectors", "../test_vectors.json")
+	v := testVectors(t)
+	cmd := exec.Command(os.Args[0], "client-probe", "--sdk", "go", "--vectors", vectorsPath)
 	cmd.Env = append(os.Environ(), "GO_HELPER_RUN_MAIN=1")
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
@@ -207,10 +178,7 @@ func goClientCall(v *vectors, baseURL string, c clientCase, protocol network.Pro
 
 // The probe's checks refuse what a client must not send.
 func TestClientProbe_Checks(t *testing.T) {
-	v, err := loadVectors("../test_vectors.json")
-	if err != nil {
-		t.Fatal(err)
-	}
+	v := testVectors(t)
 	body := healthRequest("grpc", 0, false)
 	now := time.Now()
 	signed := func(privateKey string, signedBytes []byte, mutate func(sig []byte) string) http.Header {
@@ -312,10 +280,7 @@ func TestClientProbe_Checks(t *testing.T) {
 // A client that follows the redirect case's 307 gets a SERVING reply, so it cannot end with the
 // unknown the case expects.
 func TestClientProbe_RedirectFollowerGetsOK(t *testing.T) {
-	v, err := loadVectors("../test_vectors.json")
-	if err != nil {
-		t.Fatal(err)
-	}
+	v := testVectors(t)
 	server := httptest.NewServer(newClientProbeHandler(v, "go", io.Discard))
 	t.Cleanup(server.Close)
 	timestamp := time.Now().UnixMilli()
