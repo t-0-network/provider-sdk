@@ -1,9 +1,7 @@
 import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
-import { randomBytes } from 'node:crypto';
 import type { AddressInfo } from 'node:net';
-import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { connectNodeAdapter, createConnectTransport } from '@connectrpc/connect-node';
 import { createClient } from '../src/client/client.js';
 import { createService } from '../src/service/service.js';
@@ -21,6 +19,7 @@ import {
   createClient as createConnectClient,
   type ServiceImpl,
 } from '@connectrpc/connect';
+import { newKeypair } from './stream_helpers.js';
 
 type RegisterRoutes = Parameters<typeof createService>[1];
 
@@ -42,15 +41,6 @@ const unimplementedProviderService: ServiceImpl<typeof ProviderService> = {
     throw new ConnectError('unimplemented', Code.Unimplemented);
   },
 };
-
-function newKeypair() {
-  const priv = Uint8Array.from(randomBytes(32));
-  const pub = secp256k1.getPublicKey(priv, false);
-  return {
-    privateKeyHex: '0x' + Buffer.from(priv).toString('hex'),
-    publicKeyHex: '0x' + Buffer.from(pub).toString('hex'),
-  };
-}
 
 async function bootServer(
   networkPublicKeyHex: string,
@@ -111,9 +101,6 @@ describe('health is mounted by the transport', () => {
     }
   });
 
-  // The probe is signed like every other call the Network makes. Without this
-  // the transport would be publishing an unauthenticated endpoint on a
-  // partner's port.
   // Every Check reply carries them, NotFound included. A blank version reports the SDK's own, as in
   // every SDK.
   for (const [version, reported] of [['9.9.9', '9.9.9'], ['', SDK_VERSION], ['  ', SDK_VERSION]]) {
@@ -139,6 +126,9 @@ describe('health is mounted by the transport', () => {
     });
   }
 
+  // The probe is signed like every other call the Network makes. Without this
+  // the transport would be publishing an unauthenticated endpoint on a
+  // partner's port.
   it('unsigned check is rejected with InvalidArgument', async () => {
     const { publicKeyHex } = newKeypair();
     const { url, close } = await bootServer(publicKeyHex);
