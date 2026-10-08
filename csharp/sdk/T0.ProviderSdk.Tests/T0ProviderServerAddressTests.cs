@@ -34,7 +34,7 @@ public class T0ProviderServerAddressTests
         // No Protocols for the endpoint: HTTP/2 comes from the SDK's endpoint defaults.
         var server = NewServer(sdkPort, $"--Kestrel:Endpoints:Http:Url=http://127.0.0.1:{configuredPort}");
 
-        await RunAsync(server, configuredPort, async () =>
+        await TestServer.RunAsync(server, configuredPort, async () =>
         {
             if (!samePort)
                 Assert.False(await AcceptsAsync(IPAddress.Loopback, sdkPort),
@@ -48,7 +48,7 @@ public class T0ProviderServerAddressTests
     private static async Task AnswersWithoutConfiguration(string host)
     {
         var port = TestPorts.FindFreePort();
-        await RunAsync(NewServer(port), port, () => AssertServingAsync($"http://{host}:{port}"));
+        await TestServer.RunAsync(NewServer(port), port, () => AssertServingAsync($"http://{host}:{port}"));
     }
 
     private static T0ProviderServer NewServer(int port, params string[] args)
@@ -61,27 +61,6 @@ public class T0ProviderServerAddressTests
             Port = port,
         };
         return new T0ProviderServer(config, signer, args);
-    }
-
-    // Runs the server until body is done. A server that fails to start fails the test with its own error.
-    private static async Task RunAsync(T0ProviderServer server, int readyPort, Func<Task> body)
-    {
-        using var stop = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-        var run = server.RunAsync(stop.Token);
-        try
-        {
-            var ready = TestPorts.WaitForPortAsync(readyPort, TimeSpan.FromSeconds(10));
-            if (await Task.WhenAny(ready, run) == run)
-                await run;
-            await ready;
-            await body();
-        }
-        finally
-        {
-            stop.Cancel();
-            try { await run; }
-            catch (OperationCanceledException) { }
-        }
     }
 
     // A signed health check, the probe the Network sends.

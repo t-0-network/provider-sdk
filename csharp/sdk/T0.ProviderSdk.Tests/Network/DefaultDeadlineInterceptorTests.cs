@@ -2,8 +2,6 @@ using Google.Protobuf;
 using Grpc.Core;
 using Grpc.Core.Interceptors;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Server.Kestrel.Core;
 using T0.ProviderSdk.Crypto;
 using T0.ProviderSdk.Network;
 using PaymentApi = T0.ProviderSdk.Api.Tzero.V1.Payment;
@@ -300,14 +298,8 @@ public class DefaultDeadlineInterceptorTests
     /// <summary>
     /// HTTP/2 server that records each request's grpc-timeout and answers UNIMPLEMENTED unread.
     /// </summary>
-    private static async Task<(WebApplication App, string BaseUrl)> StartTimeoutRecorderAsync(List<string?> timeouts)
-    {
-        var port = TestPorts.FindFreePort();
-        var builder = WebApplication.CreateBuilder();
-        builder.WebHost.ConfigureKestrel(options =>
-            options.ListenLocalhost(port, listenOptions => listenOptions.Protocols = HttpProtocols.Http2));
-        var app = builder.Build();
-        app.Run(context =>
+    private static Task<(WebApplication App, string BaseUrl)> StartTimeoutRecorderAsync(List<string?> timeouts) =>
+        TestServer.StartHttp2Async(context =>
         {
             lock (timeouts)
                 timeouts.Add(context.Request.Headers["grpc-timeout"].SingleOrDefault());
@@ -316,19 +308,6 @@ public class DefaultDeadlineInterceptorTests
             context.Response.Headers["grpc-status"] = "12";
             return Task.CompletedTask;
         });
-
-        try
-        {
-            await app.StartAsync();
-            await TestPorts.WaitForPortAsync(port, TimeSpan.FromSeconds(10));
-            return (app, $"http://127.0.0.1:{port}");
-        }
-        catch
-        {
-            await app.DisposeAsync();
-            throw;
-        }
-    }
 
     private static TimeSpan ParseGrpcTimeout(string? value)
     {

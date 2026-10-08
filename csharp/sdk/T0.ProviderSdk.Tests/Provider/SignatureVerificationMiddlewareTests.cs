@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http;
 using T0.ProviderSdk.Common;
 using T0.ProviderSdk.Crypto;
 using T0.ProviderSdk.Provider;
+using T0.ProviderSdk.Tests.Network;
 
 namespace T0.ProviderSdk.Tests.Provider;
 
@@ -188,7 +189,7 @@ public class SignatureVerificationMiddlewareTests
     {
         var body = "test body"u8.ToArray();
         var timestampMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        var timeProvider = new FakeTimeProvider(DateTimeOffset.FromUnixTimeMilliseconds(timestampMs));
+        var timeProvider = new FixedTimeProvider(DateTimeOffset.FromUnixTimeMilliseconds(timestampMs));
 
         var tsBytes = new byte[8];
         BinaryPrimitives.WriteUInt64LittleEndian(tsBytes, (ulong)timestampMs);
@@ -212,7 +213,7 @@ public class SignatureVerificationMiddlewareTests
     {
         var body = "test"u8.ToArray();
         var timestampMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        var timeProvider = new FakeTimeProvider(DateTimeOffset.FromUnixTimeMilliseconds(timestampMs));
+        var timeProvider = new FixedTimeProvider(DateTimeOffset.FromUnixTimeMilliseconds(timestampMs));
 
         var handlerCalled = false;
         var middleware = new SignatureVerificationMiddleware(
@@ -245,7 +246,7 @@ public class SignatureVerificationMiddlewareTests
         var body = "test"u8.ToArray();
         var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         var requestTimestamp = now + offsetMs;
-        var timeProvider = new FakeTimeProvider(DateTimeOffset.FromUnixTimeMilliseconds(now));
+        var timeProvider = new FixedTimeProvider(DateTimeOffset.FromUnixTimeMilliseconds(now));
 
         var tsBytes = new byte[8];
         BinaryPrimitives.WriteUInt64LittleEndian(tsBytes, (ulong)requestTimestamp);
@@ -273,7 +274,7 @@ public class SignatureVerificationMiddlewareTests
     {
         var body = "test"u8.ToArray();
         var timestampMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        var timeProvider = new FakeTimeProvider(DateTimeOffset.FromUnixTimeMilliseconds(timestampMs));
+        var timeProvider = new FixedTimeProvider(DateTimeOffset.FromUnixTimeMilliseconds(timestampMs));
 
         var tsBytes = new byte[8];
         BinaryPrimitives.WriteUInt64LittleEndian(tsBytes, (ulong)timestampMs);
@@ -300,7 +301,7 @@ public class SignatureVerificationMiddlewareTests
     {
         var body = "test"u8.ToArray();
         var timestampMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        var timeProvider = new FakeTimeProvider(DateTimeOffset.FromUnixTimeMilliseconds(timestampMs));
+        var timeProvider = new FixedTimeProvider(DateTimeOffset.FromUnixTimeMilliseconds(timestampMs));
 
         // Create valid headers but with a wrong signature (sign different data)
         var tsBytes = new byte[8];
@@ -329,7 +330,7 @@ public class SignatureVerificationMiddlewareTests
     [InlineData("application/grpc+proto", true)]
     public async Task GrpcFrame_SignedOverBodyOrPayload_ShouldPassThrough(string contentType, bool signPayload)
     {
-        var body = GrpcFrame(0, GrpcPayload);
+        var body = StreamingTestHelpers.Frame(GrpcPayload);
         var (handlerCalled, _) = await InvokeSignedAsync(
             _signer.GetPublicKeyHexPrefixed(), body, signPayload ? GrpcPayload : body, contentType);
         Assert.True(handlerCalled);
@@ -337,9 +338,9 @@ public class SignatureVerificationMiddlewareTests
 
     public static TheoryData<string, byte[]> NotOneUncompressedGrpcFrame() => new()
     {
-        { "application/proto", GrpcFrame(0, GrpcPayload) },
-        { "application/grpc", GrpcFrame(1, GrpcPayload) },
-        { "application/grpc", [.. GrpcFrame(0, GrpcPayload), .. GrpcFrame(0, GrpcPayload)] },
+        { "application/proto", StreamingTestHelpers.Frame(GrpcPayload) },
+        { "application/grpc", StreamingTestHelpers.Frame(GrpcPayload, flags: 1) },
+        { "application/grpc", [.. StreamingTestHelpers.Frame(GrpcPayload), .. StreamingTestHelpers.Frame(GrpcPayload)] },
     };
 
     [Theory]
@@ -374,24 +375,12 @@ public class SignatureVerificationMiddlewareTests
         var middleware = new SignatureVerificationMiddleware(
             _ => { handlerCalled = true; return Task.CompletedTask; },
             CreateOptions(),
-            new FakeTimeProvider(DateTimeOffset.FromUnixTimeMilliseconds(timestampMs)));
+            new FixedTimeProvider(DateTimeOffset.FromUnixTimeMilliseconds(timestampMs)));
 
         var context = CreateContext(body, result.SignatureHex, publicKeyHeader, timestampMs);
         context.Request.ContentType = contentType;
         await middleware.InvokeAsync(context);
         return (handlerCalled, context);
-    }
-
-    /// <summary>
-    /// A gRPC length-prefixed message: the flags byte, the payload length (big-endian uint32), the payload.
-    /// </summary>
-    private static byte[] GrpcFrame(byte flags, byte[] payload)
-    {
-        var frame = new byte[5 + payload.Length];
-        frame[0] = flags;
-        BinaryPrimitives.WriteUInt32BigEndian(frame.AsSpan(1, 4), (uint)payload.Length);
-        payload.CopyTo(frame, 5);
-        return frame;
     }
 
     /// <summary>
@@ -409,10 +398,5 @@ public class SignatureVerificationMiddlewareTests
         context.Request.Headers[Headers.PublicKey] = publicKey;
         context.Request.Headers[Headers.SignatureTimestamp] = timestampMs.ToString();
         return context;
-    }
-
-    private sealed class FakeTimeProvider(DateTimeOffset fixedTime) : TimeProvider
-    {
-        public override DateTimeOffset GetUtcNow() => fixedTime;
     }
 }

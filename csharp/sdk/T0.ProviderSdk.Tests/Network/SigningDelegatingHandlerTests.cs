@@ -15,7 +15,7 @@ public class SigningDelegatingHandlerTests
     {
         var signer = Signer.FromHex(TestPrivateKey);
         var fixedTime = new DateTimeOffset(2024, 1, 23, 10, 13, 20, TimeSpan.Zero);
-        var timeProvider = new FakeTimeProvider(fixedTime);
+        var timeProvider = new FixedTimeProvider(fixedTime);
 
         var capturedRequest = new TaskCompletionSource<HttpRequestMessage>();
         var innerHandler = new FakeHandler(capturedRequest);
@@ -92,10 +92,5 @@ public class SigningDelegatingHandlerTests
             tcs.SetResult(request);
             return Task.FromResult(new HttpResponseMessage(System.Net.HttpStatusCode.OK));
         }
-    }
-
-    private sealed class FakeTimeProvider(DateTimeOffset fixedTime) : TimeProvider
-    {
-        public override DateTimeOffset GetUtcNow() => fixedTime;
     }
 }
