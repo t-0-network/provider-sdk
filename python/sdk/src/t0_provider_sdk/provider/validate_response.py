@@ -84,6 +84,27 @@ def _log_validation_error(
     )
 
 
+def _check_response(
+    validator: protovalidate.Validator,
+    logger: logging.Logger,
+    sdk_version: str,
+    response: Any,
+    ctx: Any,
+) -> None:
+    """Validate response; on failure, log one error line and raise ConnectError INTERNAL
+    ("response validation failed: ..." or "response validation error: ...")."""
+    try:
+        validator.validate(response)
+    except protovalidate.ValidationError as e:
+        violations = _violations(e)
+        _log_validation_failure(logger, response, ctx, violations, sdk_version)
+        raise ConnectError(Code.INTERNAL, RESPONSE_INVALID.format(violations=violations)) from e
+    except _RULE_ERRORS as e:
+        cause = _cause(e)
+        _log_validation_error(logger, response, ctx, cause, sdk_version)
+        raise ConnectError(Code.INTERNAL, RESPONSE_VALIDATION_ERROR.format(cause=cause)) from e
+
+
 class ValidationInterceptor:
     """Async ConnectRPC unary interceptor that validates responses against proto rules.
 
@@ -103,16 +124,7 @@ class ValidationInterceptor:
         ctx: RequestContext,
     ) -> Any:
         response = await call_next(request, ctx)
-        try:
-            self._validator.validate(response)
-        except protovalidate.ValidationError as e:
-            violations = _violations(e)
-            _log_validation_failure(self._logger, response, ctx, violations, self._version)
-            raise ConnectError(Code.INTERNAL, RESPONSE_INVALID.format(violations=violations)) from e
-        except _RULE_ERRORS as e:
-            cause = _cause(e)
-            _log_validation_error(self._logger, response, ctx, cause, self._version)
-            raise ConnectError(Code.INTERNAL, RESPONSE_VALIDATION_ERROR.format(cause=cause)) from e
+        _check_response(self._validator, self._logger, self._version, response, ctx)
         return response
 
 
@@ -134,16 +146,7 @@ class ValidationInterceptorSync:
         ctx: RequestContext,
     ) -> Any:
         response = call_next(request, ctx)
-        try:
-            self._validator.validate(response)
-        except protovalidate.ValidationError as e:
-            violations = _violations(e)
-            _log_validation_failure(self._logger, response, ctx, violations, self._version)
-            raise ConnectError(Code.INTERNAL, RESPONSE_INVALID.format(violations=violations)) from e
-        except _RULE_ERRORS as e:
-            cause = _cause(e)
-            _log_validation_error(self._logger, response, ctx, cause, self._version)
-            raise ConnectError(Code.INTERNAL, RESPONSE_VALIDATION_ERROR.format(cause=cause)) from e
+        _check_response(self._validator, self._logger, self._version, response, ctx)
         return response
 
 
