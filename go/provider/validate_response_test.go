@@ -29,20 +29,12 @@ func TestValidationInterceptor(t *testing.T) {
 
 	t.Run("rejects invalid response with CodeInternal", func(t *testing.T) {
 		interceptor := newValidationInterceptor(nil, sdkversion.Version)
-		procedure := "/test.v1.TestService/GetDecimal"
-		handler := connect.NewUnaryHandler(
-			procedure,
+		client := serveDecimal(t, interceptor,
 			func(_ context.Context, _ *connect.Request[common.Decimal]) (*connect.Response[common.Decimal], error) {
 				return connect.NewResponse(&common.Decimal{Exponent: 100}), nil // invalid
 			},
-			connect.WithInterceptors(interceptor),
 		)
-		mux := http.NewServeMux()
-		mux.Handle(procedure, handler)
-		srv := httptest.NewServer(mux)
-		defer srv.Close()
 
-		client := connect.NewClient[common.Decimal, common.Decimal](srv.Client(), srv.URL+procedure)
 		_, err := client.CallUnary(context.Background(), connect.NewRequest(&common.Decimal{Exponent: 2}))
 		require.Error(t, err)
 		require.Equal(t, connect.CodeInternal, connect.CodeOf(err))
@@ -89,20 +81,12 @@ func TestValidationInterceptor(t *testing.T) {
 
 	t.Run("passes valid response through", func(t *testing.T) {
 		interceptor := newValidationInterceptor(nil, sdkversion.Version)
-		procedure := "/test.v1.TestService/GetDecimal"
-		handler := connect.NewUnaryHandler(
-			procedure,
+		client := serveDecimal(t, interceptor,
 			func(_ context.Context, _ *connect.Request[common.Decimal]) (*connect.Response[common.Decimal], error) {
 				return connect.NewResponse(&common.Decimal{Exponent: 2}), nil // valid
 			},
-			connect.WithInterceptors(interceptor),
 		)
-		mux := http.NewServeMux()
-		mux.Handle(procedure, handler)
-		srv := httptest.NewServer(mux)
-		defer srv.Close()
 
-		client := connect.NewClient[common.Decimal, common.Decimal](srv.Client(), srv.URL+procedure)
 		resp, err := client.CallUnary(context.Background(), connect.NewRequest(&common.Decimal{Exponent: 2}))
 		require.NoError(t, err)
 		require.Equal(t, int32(2), resp.Msg.Exponent)
@@ -110,22 +94,14 @@ func TestValidationInterceptor(t *testing.T) {
 
 	t.Run("rejects invalid request with CodeInvalidArgument", func(t *testing.T) {
 		interceptor := newValidationInterceptor(nil, sdkversion.Version)
-		procedure := "/test.v1.TestService/GetDecimal"
 		called := false
-		handler := connect.NewUnaryHandler(
-			procedure,
+		client := serveDecimal(t, interceptor,
 			func(_ context.Context, _ *connect.Request[common.Decimal]) (*connect.Response[common.Decimal], error) {
 				called = true
 				return connect.NewResponse(&common.Decimal{Exponent: 2}), nil
 			},
-			connect.WithInterceptors(interceptor),
 		)
-		mux := http.NewServeMux()
-		mux.Handle(procedure, handler)
-		srv := httptest.NewServer(mux)
-		defer srv.Close()
 
-		client := connect.NewClient[common.Decimal, common.Decimal](srv.Client(), srv.URL+procedure)
 		_, err := client.CallUnary(context.Background(), connect.NewRequest(&common.Decimal{Exponent: 100})) // invalid request
 		require.Error(t, err)
 		require.Equal(t, connect.CodeInvalidArgument, connect.CodeOf(err))
@@ -140,20 +116,12 @@ func TestValidationInterceptor(t *testing.T) {
 		logger := slog.New(slog.NewTextHandler(&buf, &slog.HandlerOptions{Level: slog.LevelError}))
 
 		interceptor := newValidationInterceptor(logger, sdkversion.Version)
-		procedure := "/test.v1.TestService/GetDecimal"
-		handler := connect.NewUnaryHandler(
-			procedure,
+		client := serveDecimal(t, interceptor,
 			func(_ context.Context, _ *connect.Request[common.Decimal]) (*connect.Response[common.Decimal], error) {
 				return connect.NewResponse(&common.Decimal{Exponent: 100}), nil // invalid response
 			},
-			connect.WithInterceptors(interceptor),
 		)
-		mux := http.NewServeMux()
-		mux.Handle(procedure, handler)
-		srv := httptest.NewServer(mux)
-		defer srv.Close()
 
-		client := connect.NewClient[common.Decimal, common.Decimal](srv.Client(), srv.URL+procedure)
 		_, err := client.CallUnary(context.Background(), connect.NewRequest(&common.Decimal{Exponent: 2}))
 
 		// Wire behaviour is unchanged.
@@ -165,7 +133,7 @@ func TestValidationInterceptor(t *testing.T) {
 		require.Equal(t, 1, strings.Count(out, "\n"), "expected exactly one slog record, got %q", out)
 		require.Contains(t, out, `level=ERROR`)
 		require.Contains(t, out, `msg="response validation failed"`)
-		require.Contains(t, out, `rpc_method=`+procedure)
+		require.Contains(t, out, `rpc_method=`+decimalProcedure)
 		require.Contains(t, out, `response_type=tzero.v1.common.Decimal`)
 		require.Contains(t, out, "violations=")
 		require.Contains(t, out, `sdk_version=`+sdkversion.Version)
@@ -203,9 +171,7 @@ func TestValidationInterceptor(t *testing.T) {
 		// The validation interceptor is included so the path matches the
 		// production handler stack.
 		interceptor := newValidationInterceptor(nil, sdkversion.Version)
-		procedure := "/test.v1.TestService/GetDecimal"
-		handler := connect.NewUnaryHandler(
-			procedure,
+		client := serveDecimal(t, interceptor,
 			func(_ context.Context, _ *connect.Request[common.Decimal]) (*connect.Response[common.Decimal], error) {
 				resp, err := Validate(&common.Decimal{Exponent: 100}) // invalid
 				if err != nil {
@@ -213,14 +179,8 @@ func TestValidationInterceptor(t *testing.T) {
 				}
 				return connect.NewResponse(resp), nil
 			},
-			connect.WithInterceptors(interceptor),
 		)
-		mux := http.NewServeMux()
-		mux.Handle(procedure, handler)
-		srv := httptest.NewServer(mux)
-		defer srv.Close()
 
-		client := connect.NewClient[common.Decimal, common.Decimal](srv.Client(), srv.URL+procedure)
 		_, err := client.CallUnary(context.Background(), connect.NewRequest(&common.Decimal{Exponent: 2}))
 		require.Error(t, err)
 		require.Equal(t, connect.CodeInternal, connect.CodeOf(err),
@@ -405,6 +365,24 @@ func TestProtovalidateRequests(t *testing.T) {
 		err := protovalidate.Validate(msg)
 		require.Error(t, err)
 	})
+}
+
+// decimalProcedure is the unary method serveDecimal serves.
+const decimalProcedure = "/test.v1.TestService/GetDecimal"
+
+// serveDecimal serves handle as decimalProcedure, behind interceptor, until the test ends, and
+// returns a client for it.
+func serveDecimal(
+	t *testing.T,
+	interceptor connect.Interceptor,
+	handle func(context.Context, *connect.Request[common.Decimal]) (*connect.Response[common.Decimal], error),
+) *connect.Client[common.Decimal, common.Decimal] {
+	t.Helper()
+	mux := http.NewServeMux()
+	mux.Handle(decimalProcedure, connect.NewUnaryHandler(decimalProcedure, handle, connect.WithInterceptors(interceptor)))
+	srv := httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+	return connect.NewClient[common.Decimal, common.Decimal](srv.Client(), srv.URL+decimalProcedure)
 }
 
 // The message of the error for common.Decimal{Exponent: 100}, in every SDK's format.

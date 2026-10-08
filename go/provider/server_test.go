@@ -19,6 +19,11 @@ import (
 	"golang.org/x/net/http2"
 )
 
+// okHandler answers every request with 200 OK and an empty body.
+var okHandler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusOK)
+})
+
 func TestStartServer_Success(t *testing.T) {
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
@@ -38,12 +43,8 @@ func TestStartServer_Success(t *testing.T) {
 }
 
 func TestStartServer_InvalidAddress(t *testing.T) {
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	})
-
 	// Try to bind to an invalid address
-	shutdownFn, err := StartServer(handler, WithAddr("invalid:address"))
+	shutdownFn, err := StartServer(okHandler, WithAddr("invalid:address"))
 	assert.Error(t, err)
 	assert.Nil(t, shutdownFn)
 	var opErr *net.OpError
@@ -182,12 +183,8 @@ func TestCreateServer_HTTP2ConfigNotChanged(t *testing.T) {
 }
 
 func TestStartServer_PortAlreadyInUse(t *testing.T) {
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	})
-
 	// Start first server
-	shutdownFn1, err := StartServer(handler, WithAddr(":0"))
+	shutdownFn1, err := StartServer(okHandler, WithAddr(":0"))
 	require.NoError(t, err)
 	require.NotNil(t, shutdownFn1)
 	defer func() {
@@ -197,7 +194,7 @@ func TestStartServer_PortAlreadyInUse(t *testing.T) {
 	}()
 
 	// Try to start second server on same port (this should work with port 0)
-	shutdownFn2, err := StartServer(handler, WithAddr(":0"))
+	shutdownFn2, err := StartServer(okHandler, WithAddr(":0"))
 	require.NoError(t, err)
 	require.NotNil(t, shutdownFn2)
 	defer func() {
@@ -208,12 +205,8 @@ func TestStartServer_PortAlreadyInUse(t *testing.T) {
 }
 
 func TestStartServer_WithOptions(t *testing.T) {
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	})
-
 	shutdownFn, err := StartServer(
-		handler,
+		okHandler,
 		WithAddr(":0"),
 		WithReadTimeout(5*time.Second),
 		WithWriteTimeout(5*time.Second),
@@ -231,12 +224,8 @@ func TestStartServer_WithOptions(t *testing.T) {
 }
 
 func TestStartServer_ShutdownTimeout(t *testing.T) {
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	})
-
 	shutdownFn, err := StartServer(
-		handler,
+		okHandler,
 		WithAddr(":0"),
 		WithShutdownTimeout(100*time.Millisecond), // Very short timeout
 	)
@@ -259,11 +248,7 @@ func TestStartServer_ShutdownTimeout(t *testing.T) {
 }
 
 func TestStartServer_ConcurrentShutdown(t *testing.T) {
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	})
-
-	shutdownFn, err := StartServer(handler, WithAddr(":0"))
+	shutdownFn, err := StartServer(okHandler, WithAddr(":0"))
 	require.NoError(t, err)
 	require.NotNil(t, shutdownFn)
 
@@ -294,16 +279,12 @@ func TestStartServer_ConcurrentShutdown(t *testing.T) {
 }
 
 func TestNewServer_WithTLSConfig(t *testing.T) {
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	})
-
 	tlsConfig := &tls.Config{
 		InsecureSkipVerify: true,
 	}
 
 	server := NewServer(
-		handler,
+		okHandler,
 		WithAddr(":8080"),
 		WithTLSConfig(tlsConfig),
 		WithReadTimeout(5*time.Second),
@@ -316,11 +297,7 @@ func TestNewServer_WithTLSConfig(t *testing.T) {
 }
 
 func TestServerOptions_Defaults(t *testing.T) {
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	})
-
-	server := NewServer(handler)
+	server := NewServer(okHandler)
 
 	assert.Equal(t, ":8080", server.Addr)
 	assert.Equal(t, 10*time.Second, server.ReadTimeout)
@@ -329,8 +306,6 @@ func TestServerOptions_Defaults(t *testing.T) {
 	assert.Nil(t, server.TLSConfig)
 	assert.NotNil(t, server.Handler)
 }
-
-// Additional comprehensive tests from server_improved_test.go
 
 func TestServerConstants(t *testing.T) {
 	// Test that all constants have reasonable values
@@ -483,11 +458,7 @@ func TestNewServerWithCustomOptions(t *testing.T) {
 	customTLS := &tls.Config{InsecureSkipVerify: true}
 	customHTTP2 := &http2.Server{MaxConcurrentStreams: 50}
 
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	})
-
-	server := NewServer(handler,
+	server := NewServer(okHandler,
 		WithAddr(":9090"),
 		WithReadTimeout(20*time.Second),
 		WithWriteTimeout(25*time.Second),
@@ -512,11 +483,7 @@ func TestStartServerNilHandler(t *testing.T) {
 }
 
 func TestStartServerCancelledContextShutdown(t *testing.T) {
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	})
-
-	shutdownFn, err := StartServer(handler, WithAddr(":0"))
+	shutdownFn, err := StartServer(okHandler, WithAddr(":0"))
 	require.NoError(t, err)
 	require.NotNil(t, shutdownFn)
 
@@ -536,12 +503,8 @@ func TestStartServerCancelledContextShutdown(t *testing.T) {
 }
 
 func TestStartServerShutdownRespectsCaller_Context(t *testing.T) {
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	})
-
 	// Start server with long shutdown timeout
-	shutdownFn, err := StartServer(handler,
+	shutdownFn, err := StartServer(okHandler,
 		WithAddr(":0"),
 		WithShutdownTimeout(30*time.Second), // Long server timeout
 	)
@@ -561,11 +524,7 @@ func TestStartServerShutdownRespectsCaller_Context(t *testing.T) {
 }
 
 func TestStartServerMultipleShutdownCallsSafeAndIdempotent(t *testing.T) {
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	})
-
-	shutdownFn, err := StartServer(handler, WithAddr(":0"))
+	shutdownFn, err := StartServer(okHandler, WithAddr(":0"))
 	require.NoError(t, err)
 	require.NotNil(t, shutdownFn)
 
@@ -583,10 +542,6 @@ func TestStartServerMultipleShutdownCallsSafeAndIdempotent(t *testing.T) {
 }
 
 func TestCreateServerHelperFunction(t *testing.T) {
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	})
-
 	customHTTP2 := &http2.Server{MaxConcurrentStreams: 200}
 	tlsConfig := &tls.Config{InsecureSkipVerify: true}
 
@@ -601,7 +556,7 @@ func TestCreateServerHelperFunction(t *testing.T) {
 		WithHTTP2Config(customHTTP2),
 	}
 
-	server, opts := createServer(handler, options)
+	server, opts := createServer(okHandler, options)
 
 	assert.Equal(t, ":8888", server.Addr)
 	assert.Equal(t, 1*time.Second, server.ReadTimeout)
@@ -634,25 +589,19 @@ func TestDefaultServerOptionsIntegrity(t *testing.T) {
 
 // Benchmark the server creation to ensure no performance regression
 func BenchmarkNewServer(b *testing.B) {
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	})
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		server := NewServer(handler)
+		server := NewServer(okHandler)
 		_ = server // Prevent optimization
 	}
 }
 
 func BenchmarkStartServer(b *testing.B) {
-	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.WriteHeader(http.StatusOK)
-	})
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
-		shutdownFn, err := StartServer(handler, WithAddr(":0"))
+		shutdownFn, err := StartServer(okHandler, WithAddr(":0"))
 		if err != nil {
 			b.Fatal(err)
 		}
