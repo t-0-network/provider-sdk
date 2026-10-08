@@ -44,13 +44,12 @@ public final class Signer implements DigestSigner {
     );
 
     private static final int PRIVATE_KEY_LENGTH = 32;
+    private static final int DIGEST_LENGTH = 32;
 
-    private final BigInteger privateKey;
     private final byte[] publicKey;
     private final ECPrivateKeyParameters privateKeyParams;
 
     private Signer(BigInteger privateKey, byte[] publicKey) {
-        this.privateKey = privateKey;
         this.publicKey = publicKey;
         this.privateKeyParams = new ECPrivateKeyParameters(privateKey, DOMAIN_PARAMS);
     }
@@ -125,7 +124,7 @@ public final class Signer implements DigestSigner {
      */
     @Override
     public SignResult sign(byte[] digest) {
-        if (digest == null || digest.length != PRIVATE_KEY_LENGTH) {
+        if (digest == null || digest.length != DIGEST_LENGTH) {
             throw new IllegalArgumentException(Messages.DIGEST_LENGTH);
         }
 
