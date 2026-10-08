@@ -1,6 +1,7 @@
 import type { DescMessage, MessageShape, Registry } from '@bufbuild/protobuf';
 import { fromJsonString, fromBinary, toJsonString, toBinary } from '@bufbuild/protobuf';
 import { createValidator } from '@bufbuild/protovalidate';
+import type { Violation as RuleViolation } from '@bufbuild/protovalidate';
 import { fieldPathString } from '../field-path.js';
 import { createRequestVerifier, rejectRequest } from './request.js';
 import type { CreateVerifierOptions, RejectedRequest } from './request.js';
@@ -106,6 +107,15 @@ function failResponse(status: number, code: string, message: string, error: Deco
   };
 }
 
+// The violations of a protovalidate result, as the wire body and the log carry them.
+function toViolations(violations: readonly RuleViolation[]): Violation[] {
+  return violations.map(v => ({
+    field: fieldPathString(v.field),
+    message: v.message,
+    ruleId: v.ruleId,
+  }));
+}
+
 export function createRequestDecoder(opts: CreateDecoderOptions): RequestDecoder {
   const verify = createRequestVerifier(opts);
   const validator = createValidator(opts.registry ? { registry: opts.registry } : undefined);
@@ -145,11 +155,7 @@ export function createRequestDecoder(opts: CreateDecoderOptions): RequestDecoder
 
     const valResult = validator.validate(schema, message);
     if (valResult.kind === 'invalid') {
-      const violations: Violation[] = valResult.violations.map(v => ({
-        field: fieldPathString(v.field),
-        message: v.message,
-        ruleId: v.ruleId,
-      }));
+      const violations = toViolations(valResult.violations);
       return {
         ok: false,
         error: failResponse(400, 'invalid_argument', REQUEST_INVALID, 'invalid_request', violations),
@@ -168,11 +174,7 @@ export function createRequestDecoder(opts: CreateDecoderOptions): RequestDecoder
     const encodeResponse = <R extends DescMessage>(respSchema: R, resp: MessageShape<R>): WireResponse => {
       const respVal = validator.validate(respSchema, resp);
       if (respVal.kind === 'invalid') {
-        const violations: Violation[] = respVal.violations.map(v => ({
-          field: fieldPathString(v.field),
-          message: v.message,
-          ruleId: v.ruleId,
-        }));
+        const violations = toViolations(respVal.violations);
         const details = violations.map(v => `${v.field}: ${v.message}`).join('; ');
         const fields: Record<string, unknown> = {
           response_type: respSchema.typeName,

@@ -22,15 +22,15 @@ export function createClient<T extends DescService>(signer: string | Buffer | ((
 const SPACE_OR_CONTROL = /[\x00-\x20\x7f\x85\xa0\u1680\u2000-\u200a\u2028\u2029\u202f\u205f\u3000]/;
 
 // The rule every SDK shares: docs/CROSS_SDK_RULES.md (C2). A path in the base URL prefixes every call.
-function parseBaseUrl(endpoint: string | undefined | null): string {
-    if (endpoint === undefined || endpoint === null) {
+function parseBaseUrl(baseUrl: string | undefined | null): string {
+    if (baseUrl === undefined || baseUrl === null) {
         return DEFAULT_BASE_URL;
     }
-    if (endpoint === "") {
+    if (baseUrl === "") {
         throw new Error(BASE_URL_NOT_SET);
     }
     // A value without "://" is read as https.
-    const url = endpoint.includes("://") ? endpoint : "https://" + endpoint;
+    const url = baseUrl.includes("://") ? baseUrl : "https://" + baseUrl;
     // The URL parser drops surrounding spaces and control characters, and tabs and line breaks
     // anywhere, and escapes the others in the path; every SDK refuses them all, anywhere.
     if (SPACE_OR_CONTROL.test(url)) {
