@@ -4,7 +4,7 @@ This middleware intercepts the raw request body BEFORE ConnectRPC deserializes i
 verifies the cryptographic signature, and stores any errors in contextvars for the
 ConnectRPC interceptor to convert into proper error responses.
 
-Parallel to middleware.py (ASGI). Reuses _verify_request() and related helpers.
+Parallel to middleware.py (ASGI). Reuses _check_headers(), _verify_body() and related helpers.
 
 Architecture:
     WSGI Request -> SignatureVerificationMiddleware -> ConnectRPC WSGI App

@@ -1,6 +1,6 @@
 """ConnectRPC interceptor that converts signature errors to proper ConnectError responses.
 
-Reads the error stored by the ASGI middleware via contextvars and raises
+Reads the error stored by the ASGI or WSGI middleware via contextvars and raises
 ConnectError with the appropriate code before the RPC handler executes.
 """
 

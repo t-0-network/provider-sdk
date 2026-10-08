@@ -87,9 +87,10 @@ class TestHandlerPropagation:
     """Regression: a handler that calls ``validate(invalid)`` and lets the
     error propagate produces the same on-wire shape (``Code.INTERNAL`` with
     the ``"response validation failed: ..."`` wording) that the safety-net
-    interceptor would have produced. Mirrors ``test_validation.py`` lines
-    61-70 but exercises the propagation path through the helper instead of
-    through the interceptor.
+    interceptor would have produced. Mirrors
+    ``TestResponseValidation.test_invalid_response_returns_internal`` in
+    ``test_validation.py`` but exercises the propagation path through the
+    helper instead of through the interceptor.
     """
 
     @pytest.mark.asyncio
