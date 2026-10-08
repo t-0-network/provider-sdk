@@ -2,7 +2,6 @@ package provider
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"log/slog"
 	"strings"
@@ -94,8 +93,8 @@ func (i *loggingValidationInterceptor) validateResponse(spec connect.Spec, msg a
 	if err == nil {
 		return nil
 	}
-	var ve *protovalidate.ValidationError
-	if !errors.As(err, &ve) {
+	ve := asValidationError(err)
+	if ve == nil {
 		// A rule that could not be evaluated.
 		return connect.NewError(connect.CodeInternal, fmt.Errorf(contract.ResponseValidationError, err))
 	}

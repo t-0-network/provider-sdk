@@ -222,19 +222,8 @@ func StartServer(handler http.Handler, serverOptions ...ServerOption) (ServerShu
 
 		// Ensure shutdown only happens once
 		shutdownOnce.Do(func() {
-			// Determine appropriate timeout context
-			var timeoutCtx context.Context
-			var cancel context.CancelFunc
-
-			// Respect both the caller's context and our shutdown timeout
-			deadline, hasDeadline := ctx.Deadline()
-			shutdownDeadline := time.Now().Add(opts.shutdownTimeout)
-
-			if hasDeadline && deadline.Before(shutdownDeadline) {
-				timeoutCtx, cancel = context.WithDeadline(ctx, deadline)
-			} else {
-				timeoutCtx, cancel = context.WithTimeout(ctx, opts.shutdownTimeout)
-			}
+			// The shutdown timeout, or the caller's deadline if that comes first.
+			timeoutCtx, cancel := context.WithTimeout(ctx, opts.shutdownTimeout)
 			defer cancel()
 
 			// Shutdown the server gracefully
@@ -243,9 +232,7 @@ func StartServer(handler http.Handler, serverOptions ...ServerOption) (ServerShu
 			}
 
 			// Always ensure listener is closed
-			if listener != nil {
-				listener.Close()
-			}
+			listener.Close()
 
 			// Wait for the server goroutine to finish with timeout
 			done := make(chan struct{})
