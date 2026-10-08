@@ -117,11 +117,7 @@ class HealthServiceIntegrationTest {
     void checkResponse_carriesSdkIdentityHeaders() throws Exception {
         AtomicReference<Metadata> captured = new AtomicReference<>();
 
-        try (var client = BlockingNetworkClient.create(
-                "http://localhost:" + server.getPort(),
-                Signer.fromHex(NETWORK_PRIVATE_KEY),
-                channel -> HealthGrpc.newBlockingStub(
-                        ClientInterceptors.intercept(channel, capturingInterceptor(captured))))) {
+        try (var client = capturingClient(server.getPort(), captured)) {
 
             client.stub().check(HealthCheckRequest.getDefaultInstance());
         }
@@ -137,11 +133,7 @@ class HealthServiceIntegrationTest {
     void notFoundReply_carriesSdkIdentityHeaders() throws Exception {
         AtomicReference<Metadata> captured = new AtomicReference<>();
 
-        try (var client = BlockingNetworkClient.create(
-                "http://localhost:" + server.getPort(),
-                Signer.fromHex(NETWORK_PRIVATE_KEY),
-                channel -> HealthGrpc.newBlockingStub(
-                        ClientInterceptors.intercept(channel, capturingInterceptor(captured))))) {
+        try (var client = capturingClient(server.getPort(), captured)) {
 
             assertThatThrownBy(() -> client.stub().check(HealthCheckRequest.newBuilder()
                     .setService("example.v1.NotRegistered")
@@ -169,11 +161,7 @@ class HealthServiceIntegrationTest {
 
             AtomicReference<Metadata> captured = new AtomicReference<>();
 
-            try (var client = BlockingNetworkClient.create(
-                    "http://localhost:" + overrideServer.getPort(),
-                    Signer.fromHex(NETWORK_PRIVATE_KEY),
-                    channel -> HealthGrpc.newBlockingStub(
-                            ClientInterceptors.intercept(channel, capturingInterceptor(captured))))) {
+            try (var client = capturingClient(overrideServer.getPort(), captured)) {
 
                 client.stub().check(HealthCheckRequest.getDefaultInstance());
             }
@@ -208,11 +196,7 @@ class HealthServiceIntegrationTest {
     void watch_isUnimplementedWithoutSdkIdentity() throws Exception {
         AtomicReference<Metadata> captured = new AtomicReference<>();
 
-        try (var client = BlockingNetworkClient.create(
-                "http://localhost:" + server.getPort(),
-                Signer.fromHex(NETWORK_PRIVATE_KEY),
-                channel -> HealthGrpc.newBlockingStub(
-                        ClientInterceptors.intercept(channel, capturingInterceptor(captured))))) {
+        try (var client = capturingClient(server.getPort(), captured)) {
 
             assertThatThrownBy(() -> client.stub().watch(HealthCheckRequest.getDefaultInstance()).hasNext())
                     .isInstanceOfSatisfying(StatusRuntimeException.class, e ->
@@ -237,11 +221,7 @@ class HealthServiceIntegrationTest {
                     .start()) {
                 AtomicReference<Metadata> captured = new AtomicReference<>();
 
-                try (var client = BlockingNetworkClient.create(
-                        "http://localhost:" + overrideServer.getPort(),
-                        Signer.fromHex(NETWORK_PRIVATE_KEY),
-                        channel -> HealthGrpc.newBlockingStub(
-                                ClientInterceptors.intercept(channel, capturingInterceptor(captured))))) {
+                try (var client = capturingClient(overrideServer.getPort(), captured)) {
                     client.stub().check(HealthCheckRequest.getDefaultInstance());
                 }
 
@@ -254,11 +234,7 @@ class HealthServiceIntegrationTest {
                 .start()) {
             AtomicReference<Metadata> captured = new AtomicReference<>();
 
-            try (var client = BlockingNetworkClient.create(
-                    "http://localhost:" + defaultServer.getPort(),
-                    Signer.fromHex(NETWORK_PRIVATE_KEY),
-                    channel -> HealthGrpc.newBlockingStub(
-                            ClientInterceptors.intercept(channel, capturingInterceptor(captured))))) {
+            try (var client = capturingClient(defaultServer.getPort(), captured)) {
                 client.stub().check(HealthCheckRequest.getDefaultInstance());
             }
 
@@ -290,6 +266,17 @@ class HealthServiceIntegrationTest {
             channel.shutdown();
             channel.awaitTermination(2, TimeUnit.SECONDS);
         }
+    }
+
+    /**
+     * A client of the health service on port, signed with the network key, that puts the
+     * headers of each reply in sink.
+     */
+    private static BlockingNetworkClient<HealthGrpc.HealthBlockingStub> capturingClient(int port, AtomicReference<Metadata> sink) {
+        return BlockingNetworkClient.create(
+                "http://localhost:" + port,
+                Signer.fromHex(NETWORK_PRIVATE_KEY),
+                channel -> HealthGrpc.newBlockingStub(ClientInterceptors.intercept(channel, capturingInterceptor(sink))));
     }
 
     private static ClientInterceptor capturingInterceptor(AtomicReference<Metadata> sink) {

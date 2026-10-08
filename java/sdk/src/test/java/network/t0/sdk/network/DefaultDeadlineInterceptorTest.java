@@ -251,22 +251,7 @@ class DefaultDeadlineInterceptorTest {
                     return next.startCall(call, headers);
                 }
             };
-            Server server = NettyServerBuilder.forPort(0)
-                    .addService(ServerInterceptors.intercept(new HealthGrpc.HealthImplBase() {
-                        @Override
-                        public void check(HealthCheckRequest request, StreamObserver<HealthCheckResponse> observer) {
-                            observer.onNext(HealthCheckResponse.getDefaultInstance());
-                            observer.onCompleted();
-                        }
-
-                        @Override
-                        public void watch(HealthCheckRequest request, StreamObserver<HealthCheckResponse> observer) {
-                            observer.onNext(HealthCheckResponse.getDefaultInstance());
-                            observer.onCompleted();
-                        }
-                    }, recorder))
-                    .build()
-                    .start();
+            Server server = answeringHealthServer(recorder);
             try (var client = BlockingNetworkClient.create("http://localhost:" + server.getPort(),
                     Signer.fromHex(PRIVATE_KEY_HEX), HealthGrpc::newBlockingStub)) {
                 withContextDeadline(Duration.ofSeconds(60), () -> tagged(client.stub(), "unary-longer")
@@ -311,6 +296,11 @@ class DefaultDeadlineInterceptorTest {
                     return next.startCall(call, headers);
                 }
             };
+            return answeringHealthServer(recorder);
+        }
+
+        /** Health service, behind interceptor, whose Check and Watch each answer one default response. */
+        private Server answeringHealthServer(ServerInterceptor interceptor) throws Exception {
             return NettyServerBuilder.forPort(0)
                     .addService(ServerInterceptors.intercept(new HealthGrpc.HealthImplBase() {
                         @Override
@@ -324,7 +314,7 @@ class DefaultDeadlineInterceptorTest {
                             observer.onNext(HealthCheckResponse.getDefaultInstance());
                             observer.onCompleted();
                         }
-                    }, recorder))
+                    }, interceptor))
                     .build()
                     .start();
         }
