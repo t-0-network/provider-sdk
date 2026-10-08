@@ -1,0 +1,15 @@
+// A predefined rule of the application's own, as a provider declares one in its proto package.
+syntax = "proto2";
+
+package t0.sdk.test;
+
+import "buf/validate/validate.proto";
+
+option csharp_namespace = "T0.ProviderSdk.Tests.Proto";
+
+extend buf.validate.StringRules {
+  optional bool valid_address = 100001 [(buf.validate.predefined).cel = {
+    id: "string.valid_address"
+    expression: "this.startsWith('0x') ? '' : 'must start with 0x'"
+  }];
+}

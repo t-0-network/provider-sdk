@@ -1,0 +1,15 @@
+// A response with the predefined rule of predefined_rule.proto on one field and a standard rule on
+// the other.
+syntax = "proto3";
+
+package t0.sdk.test;
+
+import "buf/validate/validate.proto";
+import "t0/sdk/test/predefined_rule.proto";
+
+option csharp_namespace = "T0.ProviderSdk.Tests.Proto";
+
+message PredefinedRuleReply {
+  string to = 1 [(buf.validate.field).string.(t0.sdk.test.valid_address) = true];
+  string ctrl = 2 [(buf.validate.field).string.min_len = 3];
+}

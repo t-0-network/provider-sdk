@@ -16,9 +16,17 @@
 
   <ItemGroup>
     <PackageReference Include="coverlet.collector" Version="10.1.0" />
+    <PackageReference Include="Grpc.Tools" Version="2.84.0" PrivateAssets="all" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.10.1" />
+    <!-- The SDK's version. Referenced here for its build targets, which put
+         buf/validate/validate.proto on the import path of the test protos. -->
+    <PackageReference Include="ProtoValidate" Version="1.0.1" />
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="4.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Protobuf Include="Protos/**/*.proto" ProtoRoot="Protos" GrpcServices="None" />
   </ItemGroup>
 
   <ItemGroup>

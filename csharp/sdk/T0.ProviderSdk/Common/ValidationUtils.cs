@@ -1,7 +1,9 @@
+using System.Collections.Concurrent;
 using System.Globalization;
 using System.Text;
 using Buf.Validate;
 using Google.Protobuf;
+using Google.Protobuf.Reflection;
 using Grpc.Core;
 using ProtoValidate;
 
@@ -16,6 +18,39 @@ internal static class ValidationUtils
     // One validator for both: ProtoValidate compiles the rules of each message type once per validator.
     private static readonly Validator Validator = new();
 
+    // ProtoValidate applies a predefined rule (an extension of a buf.validate *Rules message, such
+    // as one an application declares in its own protos) only when the file declaring it is in
+    // ValidatorOptions.FileDescriptors. So a message whose file or imports declare one gets a
+    // validator given those files, one per message file; every other message gets the one above.
+    private static readonly ConcurrentDictionary<FileDescriptor, Validator> Validators = new();
+
+    private static Validator ValidatorFor(FileDescriptor file) => Validators.GetOrAdd(file, f =>
+    {
+        var imports = new List<FileDescriptor>();
+        AddImports(f, imports);
+        // Only the *Rules messages of validate.proto can be extended.
+        var ruleFiles = imports.Where(i => i.Extensions.UnorderedExtensions
+            .Any(e => e.ExtendeeType.File == ValidateReflection.Descriptor)).ToList();
+        // As in the validator above, the rules of a message type compile when it is first validated,
+        // so a rule of another message in these files that cannot compile does not fail this one.
+        return ruleFiles.Count == 0 ? Validator : new Validator(new ValidatorOptions
+        {
+            FileDescriptors = ruleFiles,
+            DisableLazy = false,
+            PreLoadDescriptors = false,
+        });
+    });
+
+    // file and every file it imports, directly or not.
+    private static void AddImports(FileDescriptor file, List<FileDescriptor> files)
+    {
+        if (files.Contains(file))
+            return;
+        files.Add(file);
+        foreach (var dependency in file.Dependencies)
+            AddImports(dependency, files);
+    }
+
     /// <summary>
     /// Validates <paramref name="message"/> against every one of its rules. Returns null when it
     /// passes.
@@ -25,7 +60,7 @@ internal static class ValidationUtils
         ValidationResult result;
         try
         {
-            result = Validator.Validate(message, failFast: false);
+            result = ValidatorFor(message.Descriptor.File).Validate(message, failFast: false);
         }
         catch (ProtoValidate.Exceptions.ValidationException e)
         {
