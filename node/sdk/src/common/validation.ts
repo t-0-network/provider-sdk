@@ -3,8 +3,11 @@ import type { Interceptor } from "@connectrpc/connect";
 import { createValidator } from "@bufbuild/protovalidate";
 import { createValidateInterceptor } from "@connectrpc/validate";
 import type { DescMessage, MessageShape, Registry } from "@bufbuild/protobuf";
+import { fieldPathString } from "./field-path.js";
 import type { Logger } from "./logger.js";
 import { defaultLogger } from "./logger.js";
+import { reportedVersion } from "../version.js";
+import { RESPONSE_INVALID, RESPONSE_VALIDATION_ERROR } from "./messages.js";
 
 export type { Logger } from "./logger.js";
 
@@ -30,6 +33,7 @@ export function createValidationInterceptor(loggerOrOptions?: Logger | Validatio
       ? { logger: loggerOrOptions as Logger }
       : (loggerOrOptions as ValidationInterceptorOptions | undefined) ?? {};
   const logger = opts.logger ?? defaultLogger;
+  const version = reportedVersion(opts.version);
   const validator = createValidator(opts.registry ? { registry: opts.registry } : undefined);
   const requestInterceptor = createValidateInterceptor({ validator });
 
@@ -41,7 +45,7 @@ export function createValidationInterceptor(loggerOrOptions?: Logger | Validatio
     const result = validator.validate(schema, msg);
     if (result.kind === "invalid") {
       const violations = result.violations.map((v) => ({
-        field: v.field?.toString() ?? "",
+        field: fieldPathString(v.field),
         message: v.message,
         ruleId: v.ruleId,
       }));
@@ -51,9 +55,9 @@ export function createValidationInterceptor(loggerOrOptions?: Logger | Validatio
         response_type: schema.typeName,
         violations,
       };
-      if (opts.version) fields.sdk_version = opts.version;
+      fields.sdk_version = version;
       logger.error("response validation failed", fields);
-      throw new ConnectError(`response validation failed: ${details}`, Code.Internal);
+      throw new ConnectError(RESPONSE_INVALID(details), Code.Internal);
     }
     if (result.kind === "error") {
       const fields: Record<string, unknown> = {
@@ -61,9 +65,9 @@ export function createValidationInterceptor(loggerOrOptions?: Logger | Validatio
         response_type: schema.typeName,
         error: result.error.message,
       };
-      if (opts.version) fields.sdk_version = opts.version;
+      fields.sdk_version = version;
       logger.error("response validation error", fields);
-      throw new ConnectError(`response validation error: ${result.error.message}`, Code.Internal);
+      throw new ConnectError(RESPONSE_VALIDATION_ERROR(result.error.message), Code.Internal);
     }
 
     return resp;

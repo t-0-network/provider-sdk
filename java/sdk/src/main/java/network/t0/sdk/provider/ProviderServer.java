@@ -1,5 +1,6 @@
 package network.t0.sdk.provider;
 
+import network.t0.sdk.common.Messages;
 import io.grpc.BindableService;
 import io.grpc.Server;
 import io.grpc.ServerInterceptors;
@@ -10,6 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Closeable;
+import java.time.Duration;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -38,6 +40,20 @@ import java.util.concurrent.TimeUnit;
  *
  */
 public final class ProviderServer implements Closeable {
+
+    /**
+     * The largest request body a provider server accepts unless {@link Builder#withMaxBodySize}
+     * sets another: the whole HTTP body of a unary call, its gRPC prefix included.
+     */
+    public static final int DEFAULT_MAX_BODY_SIZE = 10 * 1024 * 1024; // 10 MiB
+
+    /**
+     * How far {@code X-Signature-Timestamp} may be from the server's clock, either way. Fixed: no
+     * option changes it.
+     */
+    public static final Duration TIMESTAMP_WINDOW = Duration.ofSeconds(60);
+
+    private static final int GRPC_PREFIX_SIZE = 5;
 
     private static final Logger log = LoggerFactory.getLogger(ProviderServer.class);
 
@@ -173,7 +189,7 @@ public final class ProviderServer implements Closeable {
         private final int port;
         private final String networkPublicKey;
         private final List<BindableService> services = new ArrayList<>();
-        private int maxInboundMessageSize = 10 * 1024 * 1024; // 10 MiB default
+        private int maxBodySize = DEFAULT_MAX_BODY_SIZE;
         private int maxInboundMetadataSize = 8192; // 8KB default
         private long handshakeTimeout = 120;
         private TimeUnit handshakeTimeoutUnit = TimeUnit.SECONDS;
@@ -182,7 +198,7 @@ public final class ProviderServer implements Closeable {
 
         private Builder(int port, String networkPublicKey) {
             if (port < 0 || port > 65535) {
-                throw new IllegalArgumentException("port must be between 0 and 65535");
+                throw new IllegalArgumentException(Messages.PORT_NOT_VALID);
             }
             // Fails here, at create(), for a missing or malformed key.
             SignatureVerificationInterceptor.parseNetworkPublicKey(networkPublicKey);
@@ -201,25 +217,41 @@ public final class ProviderServer implements Closeable {
          */
         public Builder withService(BindableService service) {
             if (service == null) {
-                throw new IllegalArgumentException("service must not be null");
+                throw new IllegalArgumentException(Messages.SERVICE_NULL);
             }
             this.services.add(service);
             return this;
         }
 
         /**
-         * Sets the maximum inbound message size in bytes.
+         * Sets the largest request body accepted, in bytes: the whole HTTP body of a unary call,
+         * its 5-byte gRPC prefix included. {@link #DEFAULT_MAX_BODY_SIZE} unless set; a value of 0
+         * or less keeps it. A larger body is refused with RESOURCE_EXHAUSTED.
          *
          * @param bytes the maximum size in bytes
          * @return this builder
-         * @throws IllegalArgumentException if bytes is not positive
          */
-        public Builder withMaxInboundMessageSize(int bytes) {
-            if (bytes <= 0) {
-                throw new IllegalArgumentException("maxInboundMessageSize must be positive");
-            }
-            this.maxInboundMessageSize = bytes;
+        public Builder withMaxBodySize(int bytes) {
+            this.maxBodySize = bytes > 0 ? bytes : DEFAULT_MAX_BODY_SIZE;
             return this;
+        }
+
+        /** The body limit the server will use. */
+        int maxBodySize() {
+            return maxBodySize;
+        }
+
+        /**
+         * Sets the largest request body accepted, in bytes; the same as {@link #withMaxBodySize(int)}.
+         * The limit now counts the 5-byte gRPC prefix, so a message may be up to {@code bytes - 5} bytes.
+         *
+         * @param bytes the maximum size in bytes
+         * @return this builder
+         * @deprecated Use {@link #withMaxBodySize(int)}.
+         */
+        @Deprecated
+        public Builder withMaxInboundMessageSize(int bytes) {
+            return withMaxBodySize(bytes);
         }
 
         /**
@@ -231,7 +263,7 @@ public final class ProviderServer implements Closeable {
          */
         public Builder withMaxInboundMetadataSize(int bytes) {
             if (bytes <= 0) {
-                throw new IllegalArgumentException("maxInboundMetadataSize must be positive");
+                throw new IllegalArgumentException(Messages.MAX_INBOUND_METADATA_SIZE_NOT_VALID);
             }
             this.maxInboundMetadataSize = bytes;
             return this;
@@ -251,7 +283,7 @@ public final class ProviderServer implements Closeable {
          */
         public Builder withLogger(Logger logger) {
             if (logger == null) {
-                throw new IllegalArgumentException("logger must not be null");
+                throw new IllegalArgumentException(String.format(Messages.ARGUMENT_NULL, "logger"));
             }
             this.sdkLogger = logger;
             return this;
@@ -260,18 +292,17 @@ public final class ProviderServer implements Closeable {
         /**
          * Overrides the SDK version reported in health-check response headers.
          *
-         * <p>When set, the {@code t0-sdk-version} header carries this value instead
-         * of the version baked into the SDK jar.
+         * <p>When set, the {@code t0-sdk-version} header and the response-validation log carry
+         * this value instead of the version baked into the SDK jar. A null or blank value is
+         * ignored: the SDK's own version is reported.
          *
-         * @param version the version string to report; must not be null or blank
+         * @param version the version string to report
          * @return this builder
-         * @throws IllegalArgumentException if version is null or blank
          */
         public Builder withSdkVersion(String version) {
-            if (version == null || version.isBlank()) {
-                throw new IllegalArgumentException("version must not be null or blank");
+            if (version != null && !version.isBlank()) {
+                this.sdkVersion = version;
             }
-            this.sdkVersion = version;
             return this;
         }
 
@@ -285,10 +316,10 @@ public final class ProviderServer implements Closeable {
          */
         public Builder withHandshakeTimeout(long timeout, TimeUnit unit) {
             if (timeout <= 0) {
-                throw new IllegalArgumentException("timeout must be positive");
+                throw new IllegalArgumentException(Messages.HANDSHAKE_TIMEOUT_NOT_VALID);
             }
             if (unit == null) {
-                throw new IllegalArgumentException("unit must not be null");
+                throw new IllegalArgumentException(String.format(Messages.ARGUMENT_NULL, "unit"));
             }
             this.handshakeTimeout = timeout;
             this.handshakeTimeoutUnit = unit;
@@ -303,7 +334,7 @@ public final class ProviderServer implements Closeable {
          */
         public ProviderServer build() {
             if (services.isEmpty()) {
-                throw new IllegalStateException("at least one service must be added with withService()");
+                throw new IllegalStateException(Messages.NO_SERVICE);
             }
             return new ProviderServer(buildGrpcServer());
         }
@@ -327,22 +358,24 @@ public final class ProviderServer implements Closeable {
         private Server buildGrpcServer() {
             SignatureVerificationInterceptor verificationInterceptor =
                     new SignatureVerificationInterceptor(networkPublicKey);
-            ResponseValidationInterceptor validationInterceptor =
-                    new ResponseValidationInterceptor(sdkLogger);
+            ResponseValidationInterceptor validationInterceptor = new ResponseValidationInterceptor(
+                    sdkLogger, sdkVersion != null ? sdkVersion : HealthServiceImpl.SDK_VERSION);
 
             NettyServerBuilder builder = NettyServerBuilder.forPort(port)
-                    .maxInboundMessageSize(maxInboundMessageSize)
+                    // grpc-java limits the message, which the 5-byte gRPC prefix precedes in the body.
+                    .maxInboundMessageSize(Math.max(0, maxBodySize - GRPC_PREFIX_SIZE))
                     .maxInboundMetadataSize(maxInboundMetadataSize)
                     .handshakeTimeout(handshakeTimeout, handshakeTimeoutUnit);
 
+            // Validation goes on the typed definition, where it sees the response messages; the
+            // signature check goes outside useInputStreamMessages, where it sees the request bytes.
             List<String> registeredFqns = new ArrayList<>(services.size() + 1);
             for (BindableService service : services) {
                 ServerServiceDefinition originalDefinition = service.bindService();
                 registeredFqns.add(originalDefinition.getServiceDescriptor().getName());
-                ServerServiceDefinition withInputStream = ServerInterceptors.useInputStreamMessages(originalDefinition);
-                ServerServiceDefinition interceptedDefinition =
-                        ServerInterceptors.intercept(withInputStream, verificationInterceptor, validationInterceptor);
-                builder.addService(interceptedDefinition);
+                ServerServiceDefinition withInputStream = ServerInterceptors.useInputStreamMessages(
+                        ServerInterceptors.intercept(originalDefinition, validationInterceptor));
+                builder.addService(ServerInterceptors.intercept(withInputStream, verificationInterceptor));
             }
 
             // Health is the only service this transport mounts on its own — see
@@ -356,9 +389,10 @@ public final class ProviderServer implements Closeable {
             // customer who forgot to register their own.
             registeredFqns.add(HealthGrpc.SERVICE_NAME);
             BindableService healthSvc = new HealthServiceImpl(new HashSet<>(registeredFqns));
-            ServerServiceDefinition healthDef = ServerInterceptors.useInputStreamMessages(healthSvc.bindService());
+            ServerServiceDefinition healthDef = ServerInterceptors.useInputStreamMessages(
+                    ServerInterceptors.intercept(healthSvc.bindService(), validationInterceptor));
             builder.addService(ServerInterceptors.intercept(healthDef,
-                    HealthServiceImpl.sdkIdentityInterceptor(sdkVersion), verificationInterceptor, validationInterceptor));
+                    HealthServiceImpl.sdkIdentityInterceptor(sdkVersion), verificationInterceptor));
 
             return builder.build();
         }

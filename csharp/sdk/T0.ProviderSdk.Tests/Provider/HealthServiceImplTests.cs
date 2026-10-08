@@ -25,8 +25,8 @@ public class HealthServiceImplTests
 
     /// <summary>
     /// Starts a server with the customer's PaymentService mapped and nothing else
-    /// named. Uses args to enable HTTP/2 cleartext, mirroring the starter's
-    /// appsettings.json which sets Kestrel:EndpointDefaults:Protocols=Http2.
+    /// named. The args mirror the starter's appsettings.json
+    /// (Kestrel:EndpointDefaults:Protocols=Http2); the server sets HTTP/2 itself.
     /// </summary>
     private static (T0ProviderServer Server, int Port) NewServer()
     {
@@ -59,12 +59,8 @@ public class HealthServiceImplTests
     public async Task SignedCheck_AnswersForRegisteredServicesAndRefusesTheRest()
     {
         var (server, port) = NewServer();
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-        var serverTask = server.RunAsync(cts.Token);
-
-        try
+        await TestServer.RunAsync(server, port, async () =>
         {
-            await TestPorts.WaitForPortAsync(port, TimeSpan.FromSeconds(10));
             var client = NewSignedClient(port);
 
             // The customer's own service, health itself, and the whole-process query.
@@ -77,13 +73,7 @@ public class HealthServiceImplTests
             var ex = await Assert.ThrowsAsync<RpcException>(() =>
                 client.CheckAsync(new HealthCheckRequest { Service = "example.v1.NotRegistered" }).ResponseAsync);
             Assert.Equal(StatusCode.NotFound, ex.StatusCode);
-        }
-        finally
-        {
-            cts.Cancel();
-            try { await serverTask; }
-            catch (OperationCanceledException) { }
-        }
+        });
     }
 
     /// <summary>
@@ -95,26 +85,15 @@ public class HealthServiceImplTests
     public async Task CheckResponse_CarriesSdkIdentityHeaders()
     {
         var (server, port) = NewServer();
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-        var serverTask = server.RunAsync(cts.Token);
-
-        try
+        await TestServer.RunAsync(server, port, async () =>
         {
-            await TestPorts.WaitForPortAsync(port, TimeSpan.FromSeconds(10));
-
             using var call = NewSignedClient(port).CheckAsync(new HealthCheckRequest());
             await call.ResponseAsync;
             var headers = await call.ResponseHeadersAsync;
 
             Assert.Equal("csharp", headers.GetValue(HealthServiceImpl.SdkEcosystemHeader));
             Assert.Equal(HealthServiceImpl.LoadSdkVersion(), headers.GetValue(HealthServiceImpl.SdkVersionHeader));
-        }
-        finally
-        {
-            cts.Cancel();
-            try { await serverTask; }
-            catch (OperationCanceledException) { }
-        }
+        });
     }
 
     [Fact]
@@ -122,25 +101,32 @@ public class HealthServiceImplTests
     {
         var (server, port) = NewServer();
         server.WithSdkVersion("9.9.9-test");
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-        var serverTask = server.RunAsync(cts.Token);
-
-        try
+        await TestServer.RunAsync(server, port, async () =>
         {
-            await TestPorts.WaitForPortAsync(port, TimeSpan.FromSeconds(10));
-
             using var call = NewSignedClient(port).CheckAsync(new HealthCheckRequest());
             await call.ResponseAsync;
             var headers = await call.ResponseHeadersAsync;
 
             Assert.Equal("9.9.9-test", headers.GetValue(HealthServiceImpl.SdkVersionHeader));
-        }
-        finally
+        });
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("  ")]
+    public async Task BlankSdkVersion_IsIgnored(string? version)
+    {
+        var (server, port) = NewServer();
+        server.WithSdkVersion("9.9.9-test").WithSdkVersion(version!);
+        await TestServer.RunAsync(server, port, async () =>
         {
-            cts.Cancel();
-            try { await serverTask; }
-            catch (OperationCanceledException) { }
-        }
+            using var call = NewSignedClient(port).CheckAsync(new HealthCheckRequest());
+            await call.ResponseAsync;
+            var headers = await call.ResponseHeadersAsync;
+
+            Assert.Equal("9.9.9-test", headers.GetValue(HealthServiceImpl.SdkVersionHeader));
+        });
     }
 
     /// <summary>
@@ -152,13 +138,8 @@ public class HealthServiceImplTests
     public async Task UnsignedCheck_IsRejected()
     {
         var (server, port) = NewServer();
-        using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-        var serverTask = server.RunAsync(cts.Token);
-
-        try
+        await TestServer.RunAsync(server, port, async () =>
         {
-            await TestPorts.WaitForPortAsync(port, TimeSpan.FromSeconds(10));
-
             // Plain channel — no signing handler.
             using var channel = GrpcChannel.ForAddress($"http://127.0.0.1:{port}");
             var client = new Health.HealthClient(channel);
@@ -166,12 +147,6 @@ public class HealthServiceImplTests
             var ex = await Assert.ThrowsAsync<RpcException>(() =>
                 client.CheckAsync(new HealthCheckRequest()).ResponseAsync);
             Assert.Equal(StatusCode.InvalidArgument, ex.StatusCode);
-        }
-        finally
-        {
-            cts.Cancel();
-            try { await serverTask; }
-            catch (OperationCanceledException) { }
-        }
+        });
     }
 }

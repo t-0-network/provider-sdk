@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {create} from "@bufbuild/protobuf";
 import {Decimal, DecimalSchema} from "@t-0/provider-sdk";
-import {decimalFromString, decimalToString} from "./lib";
+import {decimalFromString, decimalToString, quotePublishingInterval} from "./lib";
 
 const MIN_INT64 = -(1n << 63n);
 const MAX_INT64 = (1n << 63n) - 1n;
@@ -100,5 +100,15 @@ test("decimalToString validates incoming Decimal values", () => {
     {unscaled: "1", exponent: 0} as unknown as Decimal,
   ]) {
     assert.throws(() => decimalToString(value));
+  }
+});
+
+test("the quote publishing interval is an integer from 1 to 2147483647, else 5000", () => {
+  for (const [value, ms] of [
+    ["1", 1], ["30000", 30000], ["2147483647", 2147483647], ["+5", 5],
+    [undefined, 5000], ["", 5000], ["0", 5000], ["-1", 5000], ["2147483648", 5000],
+    ["1.5", 5000], ["0x10", 5000], ["abc", 5000], [" 10", 5000],
+  ] as const) {
+    assert.equal(quotePublishingInterval(value), ms, String(value));
   }
 });

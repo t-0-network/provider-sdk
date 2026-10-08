@@ -73,3 +73,9 @@ export const decimalToString = (value: Decimal): string => {
 
   return `${sign}0.${"0".repeat(-decimalPoint)}${digits}`;
 };
+
+// The quote publishing interval in ms: an integer from 1 to 2147483647, else 5000, as in every starter.
+export const quotePublishingInterval = (value: string | undefined): number => {
+  const ms = /^[+-]?[0-9]+$/.test(value ?? "") ? Number(value) : NaN;
+  return ms >= 1 && ms <= 2_147_483_647 ? ms : 5000;
+};

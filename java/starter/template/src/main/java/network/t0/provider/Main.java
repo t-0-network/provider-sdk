@@ -104,25 +104,56 @@ public class Main {
                 .ignoreIfMissing()
                 .load();
 
-        String privateKey = dotenv.get("PROVIDER_PRIVATE_KEY");
-        String networkPublicKey = dotenv.get("NETWORK_PUBLIC_KEY");
-        String endpoint = dotenv.get("TZERO_ENDPOINT", "https://api-sandbox.t-0.network");
-        int port = Integer.parseInt(dotenv.get("PORT", "8080"));
-        long quoteInterval = Long.parseLong(dotenv.get("QUOTE_PUBLISHING_INTERVAL", "5000"));
+        // An empty value counts as unset; the keys are trimmed.
+        String privateKey = dotenv.get("PROVIDER_PRIVATE_KEY", "").strip();
+        String networkPublicKey = dotenv.get("NETWORK_PUBLIC_KEY", "").strip();
+        String endpoint = orDefault(dotenv.get("TZERO_ENDPOINT"), "https://api-sandbox.t-0.network");
+        int port = parsePort(orDefault(dotenv.get("PORT"), "8080"));
+        long quoteInterval = parseQuoteInterval(dotenv.get("QUOTE_PUBLISHING_INTERVAL"));
 
-        if (privateKey == null || privateKey.isEmpty()) {
+        if (privateKey.isEmpty()) {
             throw new ConfigurationException(
                     "PROVIDER_PRIVATE_KEY not set in .env file",
                     "Generate a keypair with: t0-init keygen");
         }
 
-        if (networkPublicKey == null || networkPublicKey.isBlank()) {
+        if (networkPublicKey.isEmpty()) {
             throw new ConfigurationException(
                     "NETWORK_PUBLIC_KEY not set in .env file",
                     "Contact T-0 team to get the network public key");
         }
 
         return new Config(privateKey, networkPublicKey, endpoint, port, quoteInterval);
+    }
+
+    private static String orDefault(String value, String defaultValue) {
+        return value == null || value.isEmpty() ? defaultValue : value;
+    }
+
+    // Decimal digits only, 1 to 65535.
+    private static int parsePort(String value) {
+        if (value.matches("[0-9]{1,5}")) {
+            int port = Integer.parseInt(value);
+            if (port >= 1 && port <= 65535) {
+                return port;
+            }
+        }
+        throw new ConfigurationException(
+                "PORT must be an integer from 1 to 65535 (got \"" + value + "\")",
+                "Set PORT in .env to a port number, or remove it to use 8080");
+    }
+
+    // In milliseconds; anything but an integer from 1 to 2147483647 gives 5000.
+    private static long parseQuoteInterval(String value) {
+        try {
+            long interval = Long.parseLong(value);
+            if (interval >= 1 && interval <= Integer.MAX_VALUE) {
+                return interval;
+            }
+        } catch (NumberFormatException e) {
+            // falls back below
+        }
+        return 5000;
     }
 
     private static ProviderServer startProviderServer(

@@ -17,6 +17,7 @@ import io.grpc.health.v1.HealthCheckResponse;
 import io.grpc.health.v1.HealthGrpc;
 import io.grpc.netty.shaded.io.grpc.netty.NettyChannelBuilder;
 import io.grpc.stub.StreamObserver;
+import network.t0.sdk.crypto.DigestSigner;
 import network.t0.sdk.crypto.Signer;
 import network.t0.sdk.network.BlockingNetworkClient;
 import network.t0.sdk.provider.ProviderServer;
@@ -41,6 +42,7 @@ import java.io.InputStream;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -115,13 +117,32 @@ class HealthServiceIntegrationTest {
     void checkResponse_carriesSdkIdentityHeaders() throws Exception {
         AtomicReference<Metadata> captured = new AtomicReference<>();
 
-        try (var client = BlockingNetworkClient.create(
-                "http://localhost:" + server.getPort(),
-                Signer.fromHex(NETWORK_PRIVATE_KEY),
-                channel -> HealthGrpc.newBlockingStub(
-                        ClientInterceptors.intercept(channel, capturingInterceptor(captured))))) {
+        try (var client = capturingClient(server.getPort(), captured)) {
 
             client.stub().check(HealthCheckRequest.getDefaultInstance());
+        }
+
+        Metadata headers = captured.get();
+        assertThat(headers).isNotNull();
+        assertThat(headers.get(SDK_ECOSYSTEM_HEADER)).isEqualTo("java");
+        assertThat(headers.get(SDK_VERSION_HEADER)).isEqualTo(loadExpectedSdkVersion());
+    }
+
+    @Test
+    @DisplayName("NOT_FOUND reply carries the SDK identity headers too")
+    void notFoundReply_carriesSdkIdentityHeaders() throws Exception {
+        AtomicReference<Metadata> captured = new AtomicReference<>();
+
+        try (var client = capturingClient(server.getPort(), captured)) {
+
+            assertThatThrownBy(() -> client.stub().check(HealthCheckRequest.newBuilder()
+                    .setService("example.v1.NotRegistered")
+                    .build()))
+                    .isInstanceOfSatisfying(StatusRuntimeException.class, e -> {
+                        assertThat(e.getStatus().getCode()).isEqualTo(Status.Code.NOT_FOUND);
+                        assertThat(e.getStatus().getDescription())
+                                .isEqualTo("unknown service 'example.v1.NotRegistered'");
+                    });
         }
 
         Metadata headers = captured.get();
@@ -140,11 +161,7 @@ class HealthServiceIntegrationTest {
 
             AtomicReference<Metadata> captured = new AtomicReference<>();
 
-            try (var client = BlockingNetworkClient.create(
-                    "http://localhost:" + overrideServer.getPort(),
-                    Signer.fromHex(NETWORK_PRIVATE_KEY),
-                    channel -> HealthGrpc.newBlockingStub(
-                            ClientInterceptors.intercept(channel, capturingInterceptor(captured))))) {
+            try (var client = capturingClient(overrideServer.getPort(), captured)) {
 
                 client.stub().check(HealthCheckRequest.getDefaultInstance());
             }
@@ -152,6 +169,76 @@ class HealthServiceIntegrationTest {
             Metadata headers = captured.get();
             assertThat(headers).isNotNull();
             assertThat(headers.get(SDK_VERSION_HEADER)).isEqualTo("9.9.9-test");
+        }
+    }
+
+    @Test
+    @DisplayName("A lambda signer works end to end, and its getPublicKey is never called")
+    void lambdaSigner_worksEndToEnd() throws Exception {
+        Signer key = Signer.fromHex(NETWORK_PRIVATE_KEY);
+        AtomicInteger signed = new AtomicInteger();
+        // A lambda: getPublicKey() is the interface's default, which throws if anything calls it.
+        DigestSigner lambda = digest -> {
+            signed.incrementAndGet();
+            return key.sign(digest);
+        };
+
+        try (var client = BlockingNetworkClient.create(
+                "http://localhost:" + server.getPort(), lambda, HealthGrpc::newBlockingStub)) {
+            assertThat(client.stub().check(HealthCheckRequest.getDefaultInstance()).getStatus())
+                    .isEqualTo(HealthCheckResponse.ServingStatus.SERVING);
+        }
+        assertThat(signed).hasValue(1);
+    }
+
+    @Test
+    @DisplayName("Watch is UNIMPLEMENTED and carries no SDK identity: only Check replies do")
+    void watch_isUnimplementedWithoutSdkIdentity() throws Exception {
+        AtomicReference<Metadata> captured = new AtomicReference<>();
+
+        try (var client = capturingClient(server.getPort(), captured)) {
+
+            assertThatThrownBy(() -> client.stub().watch(HealthCheckRequest.getDefaultInstance()).hasNext())
+                    .isInstanceOfSatisfying(StatusRuntimeException.class, e ->
+                            assertThat(e.getStatus().getCode()).isEqualTo(Status.Code.UNIMPLEMENTED));
+        }
+
+        Metadata headers = captured.get();
+        if (headers != null) {
+            assertThat(headers.get(SDK_ECOSYSTEM_HEADER)).isNull();
+            assertThat(headers.get(SDK_VERSION_HEADER)).isNull();
+        }
+    }
+
+    @Test
+    @DisplayName("A blank or null withSdkVersion is ignored and the SDK's own version reported")
+    void blankSdkVersion_isIgnored() throws Exception {
+        for (String version : new String[] {null, "", "  "}) {
+            try (ProviderServer overrideServer = ProviderServer.create(0, NETWORK_PUBLIC_KEY_HEX)
+                    .withSdkVersion("9.9.9-test")
+                    .withSdkVersion(version)
+                    .withService(new TestProviderServiceImpl())
+                    .start()) {
+                AtomicReference<Metadata> captured = new AtomicReference<>();
+
+                try (var client = capturingClient(overrideServer.getPort(), captured)) {
+                    client.stub().check(HealthCheckRequest.getDefaultInstance());
+                }
+
+                assertThat(captured.get().get(SDK_VERSION_HEADER)).as("version %s", version).isEqualTo("9.9.9-test");
+            }
+        }
+        try (ProviderServer defaultServer = ProviderServer.create(0, NETWORK_PUBLIC_KEY_HEX)
+                .withSdkVersion(" ")
+                .withService(new TestProviderServiceImpl())
+                .start()) {
+            AtomicReference<Metadata> captured = new AtomicReference<>();
+
+            try (var client = capturingClient(defaultServer.getPort(), captured)) {
+                client.stub().check(HealthCheckRequest.getDefaultInstance());
+            }
+
+            assertThat(captured.get().get(SDK_VERSION_HEADER)).isEqualTo(loadExpectedSdkVersion());
         }
     }
 
@@ -179,6 +266,17 @@ class HealthServiceIntegrationTest {
             channel.shutdown();
             channel.awaitTermination(2, TimeUnit.SECONDS);
         }
+    }
+
+    /**
+     * A client of the health service on port, signed with the network key, that puts the
+     * headers of each reply in sink.
+     */
+    private static BlockingNetworkClient<HealthGrpc.HealthBlockingStub> capturingClient(int port, AtomicReference<Metadata> sink) {
+        return BlockingNetworkClient.create(
+                "http://localhost:" + port,
+                Signer.fromHex(NETWORK_PRIVATE_KEY),
+                channel -> HealthGrpc.newBlockingStub(ClientInterceptors.intercept(channel, capturingInterceptor(sink))));
     }
 
     private static ClientInterceptor capturingInterceptor(AtomicReference<Metadata> sink) {

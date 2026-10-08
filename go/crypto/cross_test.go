@@ -49,6 +49,14 @@ type testVectors struct {
 		Valid        bool   `json:"valid"`
 		Uncompressed string `json:"uncompressed"`
 	} `json:"public_key_parsing"`
+	SignerCases []struct {
+		Name       string `json:"name"`
+		PrivateKey string `json:"private_key"`
+		Digest     string `json:"digest"`
+		Signature  string `json:"signature"`
+		PublicKey  string `json:"public_key"`
+		Error      string `json:"error"`
+	} `json:"signer_cases"`
 	PrivateKeyParsing []struct {
 		Name      string `json:"name"`
 		Input     string `json:"input"`
@@ -177,8 +185,13 @@ func TestCrossVectors_SignatureVerification(t *testing.T) {
 		t.Run(tc.Name, func(t *testing.T) {
 			pubKeyBytes, err := hex.DecodeString(tc.PublicKey)
 			require.NoError(t, err)
+			// VerifySignature takes a parsed key, so a key that rule V2 refuses (hybrid-key) fails
+			// here, as it fails the helper of every other SDK.
 			pubKey, err := crypto.GetPublicKeyFromBytes(pubKeyBytes)
-			require.NoError(t, err)
+			if err != nil {
+				require.False(t, tc.Valid, "the key of a case that verifies parses: %v", err)
+				return
+			}
 
 			signature, err := hex.DecodeString(tc.Signature)
 			require.NoError(t, err)
@@ -194,7 +207,7 @@ func TestCrossVectors_SignatureVerification(t *testing.T) {
 // hex with an optional 0x or 0X prefix.
 func TestCrossVectors_PublicKeyParsing(t *testing.T) {
 	v := loadVectors(t)
-	require.Len(t, v.PublicKeyParsing, 17)
+	require.Len(t, v.PublicKeyParsing, 20)
 
 	for _, tc := range v.PublicKeyParsing {
 		t.Run(tc.Name, func(t *testing.T) {
@@ -238,6 +251,49 @@ func TestCrossVectors_PrivateKeyParsing(t *testing.T) {
 			}
 			require.NoError(t, err)
 			require.Equal(t, tc.PublicKey, hex.EncodeToString(crypto.GetPublicKeyBytes(privateKey.PubKey())))
+		})
+	}
+}
+
+func TestCrossVectors_PublicKeyFromPrivateKey(t *testing.T) {
+	v := loadVectors(t)
+	require.Len(t, v.PrivateKeyParsing, 17)
+
+	for _, tc := range v.PrivateKeyParsing {
+		t.Run(tc.Name, func(t *testing.T) {
+			publicKey, err := crypto.PublicKeyFromPrivateKey(tc.Input)
+			if !tc.Valid {
+				require.EqualError(t, err, tc.Error)
+				require.Empty(t, publicKey)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, "0x"+tc.PublicKey, publicKey)
+		})
+	}
+}
+
+// What the signer of NewSignerFromHex gives for a fixed digest: the same bytes in every SDK, or
+// "digest must be 32 bytes" for a digest of another length.
+func TestCrossVectors_SignerCases(t *testing.T) {
+	v := loadVectors(t)
+	require.NotEmpty(t, v.SignerCases)
+
+	for _, tc := range v.SignerCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			sign, err := crypto.NewSignerFromHex(tc.PrivateKey)
+			require.NoError(t, err)
+			digest, err := hex.DecodeString(tc.Digest)
+			require.NoError(t, err)
+
+			signature, publicKey, err := sign(digest)
+			if tc.Error != "" {
+				require.EqualError(t, err, tc.Error)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.Signature, hex.EncodeToString(signature))
+			require.Equal(t, tc.PublicKey, hex.EncodeToString(publicKey))
 		})
 	}
 }

@@ -2,8 +2,6 @@ using Google.Protobuf;
 using Grpc.Core;
 using Grpc.Core.Interceptors;
 using Microsoft.AspNetCore.Builder;
-using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Server.Kestrel.Core;
 using T0.ProviderSdk.Crypto;
 using T0.ProviderSdk.Network;
 using PaymentApi = T0.ProviderSdk.Api.Tzero.V1.Payment;
@@ -136,18 +134,30 @@ public class DefaultDeadlineInterceptorTests
     [Theory]
     [InlineData(0L)]
     [InlineData(-10_000L)] // Timeout.InfiniteTimeSpan
-    public void TimeoutsThatAreNotPositive_AreRefusedWhenSet(long ticks)
+    [InlineData(2147483647L * TimeSpan.TicksPerMillisecond + 1)] // 1 tick over 2147483647 ms
+    [InlineData(long.MaxValue)] // TimeSpan.MaxValue
+    public void TimeoutsOutOfRange_AreRefusedWhenSet(long ticks)
     {
         var timeout = TimeSpan.FromTicks(ticks);
         var options = new NetworkClientOptions();
 
         var ex = Assert.Throws<ArgumentOutOfRangeException>(() => options.Timeout = timeout);
-        Assert.StartsWith("Timeout must be a positive duration", ex.Message);
+        Assert.Equal("timeout must be a positive duration of at most 2147483647 ms", ex.Message);
         ex = Assert.Throws<ArgumentOutOfRangeException>(() => options.StreamTimeout = timeout);
-        Assert.StartsWith("StreamTimeout must be a positive duration", ex.Message);
+        Assert.Equal("stream timeout must be a positive duration of at most 2147483647 ms", ex.Message);
 
         Assert.Equal(TimeSpan.FromSeconds(15), options.Timeout);
         Assert.Equal(TimeSpan.FromMinutes(5), options.StreamTimeout);
+    }
+
+    [Fact]
+    public void TimeoutsAtTheUpperBound_AreKept()
+    {
+        var max = TimeSpan.FromMilliseconds(2147483647L);
+        var options = new NetworkClientOptions { Timeout = max, StreamTimeout = max };
+
+        Assert.Equal(max, options.Timeout);
+        Assert.Equal(max, options.StreamTimeout);
     }
 
     [Fact]
@@ -288,14 +298,8 @@ public class DefaultDeadlineInterceptorTests
     /// <summary>
     /// HTTP/2 server that records each request's grpc-timeout and answers UNIMPLEMENTED unread.
     /// </summary>
-    private static async Task<(WebApplication App, string BaseUrl)> StartTimeoutRecorderAsync(List<string?> timeouts)
-    {
-        var port = TestPorts.FindFreePort();
-        var builder = WebApplication.CreateBuilder();
-        builder.WebHost.ConfigureKestrel(options =>
-            options.ListenLocalhost(port, listenOptions => listenOptions.Protocols = HttpProtocols.Http2));
-        var app = builder.Build();
-        app.Run(context =>
+    private static Task<(WebApplication App, string BaseUrl)> StartTimeoutRecorderAsync(List<string?> timeouts) =>
+        TestServer.StartHttp2Async(context =>
         {
             lock (timeouts)
                 timeouts.Add(context.Request.Headers["grpc-timeout"].SingleOrDefault());
@@ -304,19 +308,6 @@ public class DefaultDeadlineInterceptorTests
             context.Response.Headers["grpc-status"] = "12";
             return Task.CompletedTask;
         });
-
-        try
-        {
-            await app.StartAsync();
-            await TestPorts.WaitForPortAsync(port, TimeSpan.FromSeconds(10));
-            return (app, $"http://127.0.0.1:{port}");
-        }
-        catch
-        {
-            await app.DisposeAsync();
-            throw;
-        }
-    }
 
     private static TimeSpan ParseGrpcTimeout(string? value)
     {

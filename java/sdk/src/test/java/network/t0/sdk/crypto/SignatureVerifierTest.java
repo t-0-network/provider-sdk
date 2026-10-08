@@ -258,9 +258,10 @@ class SignatureVerifierTest {
         assertThat(SignatureVerifier.publicKeysEqual(key, null)).isFalse();
     }
 
-    // ==================== BC ECCurve.decodePoint exception path ====================
-    // SignatureVerifier wraps decodePoint in try/catch(IllegalArgumentException);
-    // these tests pass 65-byte buffers that BC must reject so the catch returns false.
+    // ==================== Public key refused (rule V2) ====================
+    // SignatureVerifier parses the key as the server does: a form other than 02/03 (33 bytes) or
+    // 04 (65 bytes) is refused before decodePoint, a point off the curve by decodePoint. Both
+    // throw IllegalArgumentException, and verify returns false.
 
     @Test
     void verify_offCurvePublicKey_shouldReturnFalse() {
@@ -280,7 +281,7 @@ class SignatureVerifierTest {
 
     @Test
     void verify_invalidPublicKeyPrefix_shouldReturnFalse() {
-        // Valid x,y but with prefix 0x05 - BC rejects unknown encoding bytes.
+        // Valid x,y but with prefix 0x05, not a form rule V2 allows.
         byte[] validKey = hexToBytes(PUBLIC_KEY_HEX);
         byte[] invalidPrefixKey = Arrays.copyOf(validKey, validKey.length);
         invalidPrefixKey[0] = 0x05;

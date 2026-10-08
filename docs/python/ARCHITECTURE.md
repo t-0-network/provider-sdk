@@ -295,7 +295,7 @@ ConnectRPC was chosen over gRPC for its HTTP/1.1 compatibility, simpler deployme
 | Protobuf | protobuf | `protobuf>=7.34.1` | `google.protobuf` | Standard Protocol Buffers runtime |
 | ECDSA Crypto | coincurve | `coincurve>=21.0` | `coincurve` | Python bindings for libsecp256k1 |
 | Keccak Hash | pycryptodome | `pycryptodome>=3.23` | `Crypto.Hash.keccak` | Legacy Keccak-256 implementation. Not `pysha3` (incompatible with Python 3.13) and not `hashlib.sha3_256` (NIST SHA-3, different padding) |
-| Validation | protovalidate | `protovalidate>=0.3` | `protovalidate` | Checks provider responses against the `buf.validate` rules in the protos |
+| Validation | protovalidate | `protovalidate>=2.0` | `protovalidate` | Checks provider responses against the `buf.validate` rules in the protos. Floor is 2.0: the SDK reads 2.0's error types and field paths |
 | Health | grpcio-health-checking | `grpcio-health-checking>=1.60` | `grpc_health.v1` | The `grpc.health.v1` messages of the health service |
 | Env Loading | python-dotenv | `python-dotenv>=1.0` | `dotenv` | Template .env file handling (template dependency) |
 
@@ -384,9 +384,10 @@ sequenceDiagram
 ```
 
 **Phase 1 -- ASGI/WSGI Middleware:**
-- **ASGI:** Intercepts the raw ASGI `receive` callable to buffer the entire request body; creates a synthetic `receive` that replays the buffered body downstream
-- **WSGI:** Reads raw body from `environ["wsgi.input"]`; replaces it with a `BytesIO` to replay body downstream
-- Both variants: parse and validate signature headers, verify the ECDSA signature against the raw body bytes, store any error in a `contextvars.ContextVar`
+- Both variants check the signature headers first (V10 in `docs/CROSS_SDK_RULES.md`: presence and format, the window, the network key, the signature length), then read the body (at most the limit; a declared `Content-Length` over it is refused unread), then verify the signature over the raw bytes, and store any error in a `contextvars.ContextVar`
+- **ASGI:** reads the body through the raw `receive` callable and replays it with a synthetic `receive`; for a rejected request it first reads and discards what the caller is still sending (bounded), so the caller reads the answer instead of a reset connection
+- **WSGI:** reads the body from `environ["wsgi.input"]` and replaces it with a `BytesIO`
+- A rejected request goes on with an empty request message in place of its body (and without its encoding headers), so ConnectRPC decodes nothing the caller sent and reaches the interceptor, which answers with the rejection whatever the body held
 
 **Phase 2 -- ConnectRPC Interceptor:**
 - Runs inside ConnectRPC's request pipeline, after Protobuf deserialization
@@ -627,8 +628,8 @@ def verify_signature(public_key: PublicKey, digest: bytes, signature: bytes) -> 
     """Verify ECDSA signature. Accepts 64-byte (r+s) or 65-byte (r+s+v) signatures."""
 ```
 
-- For 65-byte signatures: recovers the public key directly using the recovery ID
-- For 64-byte signatures: tries both `v=0` and `v=1`, succeeds if either matches
+- Uses only r and s: a 65-byte signature is verified as its first 64 bytes, so its recovery byte is ignored (rule V5)
+- Tries both recovery ids, `v=0` and `v=1`, and succeeds if either recovers the expected key (this also accepts a high s)
 - Uses `PublicKey.from_signature_and_message(sig, digest, hasher=None)`
 - Compares recovered key to expected key in uncompressed format (65 bytes)
 - Returns `False` for any exception during recovery (invalid signature data)
@@ -725,14 +726,15 @@ All errors extend `SignatureVerificationError`. See [Section 3.6](#36-error-hier
 |-------------|-----------|----------------|
 | `MissingRequiredHeaderError` | `header_name: str` | `"missing required header: {name}"` |
 | `InvalidHeaderEncodingError` | `header_name: str` | `"invalid header encoding: {name}"` |
+| `InvalidTimestampError` | `reason: str` | `"invalid timestamp header: {reason}"` (`not a decimal number`, `value out of range`) |
 | `TimestampOutOfRangeError` | -- | `"timestamp is outside the allowed time window"` |
 | `BodyTooLargeError` | `max_size: int` | `"max payload size of {max_size} bytes exceeded"` |
-| `UnknownPublicKeyError` | -- | `"unknown public key"` |
+| `UnknownPublicKeyError` | -- | `"request signed with unknown public key"` |
 | `SignatureFailedError` | -- | `"signature verification failed"` |
 
 #### 4.4.2 `middleware.py` / `middleware_wsgi.py` -- Signature Verification
 
-The most complex modules in the SDK. Implement Phase 1 of the [two-phase verification](#33-server-side-two-phase-verification). `middleware.py` handles ASGI, `middleware_wsgi.py` handles WSGI. Both share `_verify_request()` (the core verification logic is protocol-agnostic).
+The most complex modules in the SDK. Implement Phase 1 of the [two-phase verification](#33-server-side-two-phase-verification). `middleware.py` handles ASGI, `middleware_wsgi.py` handles WSGI. Both share `_check_headers()` and `_verify_body()` (the core verification logic is protocol-agnostic).
 
 **Key exports:**
 
@@ -748,36 +750,35 @@ The most complex modules in the SDK. Implement Phase 1 of the [two-phase verific
 | Constant | Value |
 |----------|-------|
 | `DEFAULT_MAX_BODY_SIZE` | `10 * 1024 * 1024` (10 MiB) |
-| `TIMESTAMP_TOLERANCE_MS` | `60_000` (60 seconds) |
+| `TIMESTAMP_WINDOW_MS` | `60_000` (60 seconds; fixed) |
 
 **`VerifySignatureFn`** is a frozen dataclass holding the network's public key. When called, it:
-1. Validates signature length (64-65 bytes)
-2. Parses the signer's public key (33-byte compressed or 65-byte uncompressed) and compares it to the network public key as a point (raises `UnknownPublicKeyError` for bytes that are not a key, or for another key)
+1. Parses the signer's public key (33-byte compressed or 65-byte uncompressed) and compares it to the network public key as a point (raises `UnknownPublicKeyError` for bytes that are not a key, or for another key)
+2. Validates signature length (64-65 bytes, else `SignatureFailedError`), in the same order as the server (rule V10; both use `_check_signer`)
 3. Computes `Keccak256(message)` and verifies the signature (raises `SignatureFailedError` on failure)
 
 **`signature_verification_middleware(app, verify_fn, max_body_size)`** returns an ASGI middleware that:
-1. Reads the full request body via `_read_body()` (enforcing size limit)
-2. Calls `_verify_request()` which parses headers and runs verification
-3. Stores the result (an error, or `None`) in `signature_error_var`
-4. Creates a synthetic `receive` via `_replay_receive()` to replay the buffered body
-5. Forwards to the downstream ASGI app, and resets `signature_error_var` when it returns
+1. Checks the headers with `_check_headers()`
+2. Reads the body with `_BodyReader.read()` (enforcing the size limit)
+3. Verifies the signature with `_verify_body()`
+4. Stores the result (an error, or `None`) in `signature_error_var`; for an error, replaces the body with `_rejection_body()`. If the caller is still sending, the answer goes out at once and only the message that ends the response waits while the rest of the body is read (`_AnswerThenDrain`), at most 4× the body limit and 1 s, so an HTTP/1.1 client reads the answer instead of a reset under its upload. HTTP/2 without trailers ends at once, without a drain
+5. Forwards to the downstream ASGI app with a replayed `receive`, and resets `signature_error_var` when it returns
 
-**`signature_verification_middleware_wsgi(app, verify_fn, max_body_size)`** (in `middleware_wsgi.py`) returns a WSGI middleware that:
-1. Reads the full request body from `environ["wsgi.input"]` via `_read_wsgi_body()`
-2. Calls the same `_verify_request()` for header parsing and verification
-3. Stores the result (an error, or `None`) in `signature_error_var`
-4. Replaces `environ["wsgi.input"]` with a `BytesIO` to replay the body
-5. Forwards to the downstream WSGI app, and resets `signature_error_var` when it returns
+`verify_fn` is the `VerifySignatureFn` built by `new_verify_signature`, or, as in 1.2.1, a `CustomVerifyFn` of the caller's own, called after the header checks and before the body is decoded; such a function decides the signature itself. `new_asgi_app` and `new_wsgi_app` always use the network key.
+
+**`signature_verification_middleware_wsgi(app, verify_fn, max_body_size)`** (in `middleware_wsgi.py`) does the same for WSGI, reading the body from `environ["wsgi.input"]` with `_read_wsgi_body()` and replaying it with a `BytesIO`.
 
 **Internal helpers:**
 
 | Function | Purpose |
 |----------|---------|
-| `_verify_request(verify_fn, headers, body)` | Orchestrates header parsing and signature verification. If the signature does not verify over the whole body and the request is `application/grpc*` with a body of exactly one uncompressed frame, it verifies again over the message without its 5-byte prefix |
+| `_check_headers(network_public_key, headers)` | Everything the headers decide, in the shared order; returns the signature and the timestamp bytes |
+| `_verify_body(network_public_key, headers, body, signed)` | Verifies over the whole body; failing that, for an `application/grpc*` body of exactly one uncompressed frame, over the message without its 5-byte prefix |
 | `_parse_scope_headers(scope)` | Extracts headers from ASGI scope as a dict |
-| `_parse_hex_header(headers, name)` | Strips an optional `0x`/`0X` prefix and decodes strict hex (no whitespace) |
 | `_parse_timestamp(headers)` | Parses the timestamp header (ASCII digits, below 2^63), returns `(ms_int, LE_8bytes)` |
-| `_read_body(receive, max_size)` | Reads full ASGI body with size enforcement |
+| `_BodyReader` | Reads the ASGI body with size enforcement, and drains a rejected one after its answer |
+| `_AnswerThenDrain` | Wraps `send` for a rejected call: sends the answer at once, then reads the rest of the body (bounded by bytes and time) before ending the response |
+| `_rejection_body(headers)` | The empty request message replayed in place of a rejected body |
 | `_replay_receive(body)` | Returns a synthetic ASGI `receive` callable |
 
 #### 4.4.3 `interceptor.py` -- ConnectRPC Error Conversion

@@ -19,18 +19,29 @@ class Config:
 
 
 def _parse_positive_int(value: str, *, default: int) -> int:
+    """An integer from 1 to 2147483647, else the default."""
     try:
         parsed = int(value)
     except (ValueError, TypeError):
         return default
-    return parsed if parsed > 0 else default
+    return parsed if 0 < parsed <= 2_147_483_647 else default
+
+
+def _parse_port(value: str) -> int:
+    """PORT: decimal digits, 1 to 65535. Unset or empty means 8080."""
+    if not value:
+        return 8080
+    if not (value.isascii() and value.isdigit() and 1 <= int(value) <= 65535):
+        print(f"Error: PORT must be an integer from 1 to 65535, got {value!r}", file=sys.stderr)
+        sys.exit(1)
+    return int(value)
 
 
 def load_config() -> Config:
     """Load configuration from .env file and environment variables."""
     load_dotenv(".env")
 
-    provider_private_key = os.getenv("PROVIDER_PRIVATE_KEY", "")
+    provider_private_key = os.getenv("PROVIDER_PRIVATE_KEY", "").strip()
     if not provider_private_key or provider_private_key == "your_private_key_here":
         print("Error: PROVIDER_PRIVATE_KEY is not set in .env", file=sys.stderr)
         sys.exit(1)
@@ -43,7 +54,8 @@ def load_config() -> Config:
     return Config(
         network_public_key=network_public_key,
         provider_private_key=provider_private_key,
-        tzero_endpoint=os.getenv("TZERO_ENDPOINT", "https://api-sandbox.t-0.network"),
-        port=int(os.getenv("PORT", "8080")),
+        # An empty value counts as unset.
+        tzero_endpoint=os.getenv("TZERO_ENDPOINT") or "https://api-sandbox.t-0.network",
+        port=_parse_port(os.getenv("PORT", "")),
         quote_publishing_interval_ms=_parse_positive_int(os.getenv("QUOTE_PUBLISHING_INTERVAL", "5000"), default=5000),
     )

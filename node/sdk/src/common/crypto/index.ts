@@ -1,6 +1,7 @@
 export { verifySignature } from './verify.js'
 export { keccak256, computeDigest } from './hash.js'
 export { parsePublicKey, publicKeyFromPrivateKey, publicKeysEqual } from './keys.js'
-export { createRequestVerifier, DEFAULT_TOLERANCE_MS, rejectRequest } from './request.js'
+export { createRequestVerifier, rejectRequest } from './request.js'
+export { TIMESTAMP_WINDOW_MS } from '../limits.js'
 export type { CreateVerifierOptions, VerifyRequest, VerifyRequestResult, VerifyRequestFailure, RequestVerifier, RejectedRequest } from './request.js'
 export type { CreateDecoderOptions, IncomingHeaders, IncomingRequest, WireFormat, DecodeRequestFailure, Violation, WireResponse, DecodeError, DecodeRequestResult, RequestDecoder } from './decode.js'

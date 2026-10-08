@@ -15,6 +15,7 @@ type publicKeyParsingVectors struct {
 		Input        string `json:"input"`
 		Valid        bool   `json:"valid"`
 		Uncompressed string `json:"uncompressed"`
+		Error        string `json:"error"`
 	} `json:"public_key_parsing"`
 }
 
@@ -25,13 +26,13 @@ func TestCrossVectors_PublicKeyParsing(t *testing.T) {
 	require.NoError(t, err, "failed to read test vectors")
 	var v publicKeyParsingVectors
 	require.NoError(t, json.Unmarshal(data, &v))
-	require.Len(t, v.PublicKeyParsing, 17)
+	require.Len(t, v.PublicKeyParsing, 20)
 
 	for _, tc := range v.PublicKeyParsing {
 		t.Run(tc.Name, func(t *testing.T) {
 			publicKey, err := ParseHex(tc.Input)
 			if !tc.Valid {
-				require.Error(t, err)
+				require.EqualError(t, err, tc.Error)
 				return
 			}
 			require.NoError(t, err)

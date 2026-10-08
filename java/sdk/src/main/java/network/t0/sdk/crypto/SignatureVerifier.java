@@ -1,5 +1,6 @@
 package network.t0.sdk.crypto;
 
+import network.t0.sdk.common.Messages;
 import network.t0.sdk.common.HexUtils;
 import org.bouncycastle.asn1.x9.X9ECParameters;
 import org.bouncycastle.crypto.ec.CustomNamedCurves;
@@ -43,7 +44,10 @@ public final class SignatureVerifier {
     /**
      * Verifies an ECDSA signature against a public key.
      *
-     * @param publicKey the 65-byte uncompressed public key (0x04 + x[32] + y[32])
+     * @param publicKey the public key, parsed as the provider server parses the network key: a
+     *                  33-byte compressed (0x02/0x03 + x[32]) or 65-byte uncompressed
+     *                  (0x04 + x[32] + y[32]) point on secp256k1; any other key, a hybrid one
+     *                  (0x06/0x07) among them, does not verify
      * @param digest    the 32-byte hash that was signed
      * @param signature the 64-byte or 65-byte signature (r[32] + s[32] [+ v[1]])
      * @return true if the signature is valid, false otherwise
@@ -57,13 +61,13 @@ public final class SignatureVerifier {
             return false;
         }
 
-        if (publicKey == null || publicKey.length != PUBLIC_KEY_LENGTH) {
+        if (publicKey == null) {
             return false;
         }
 
         try {
-            // Parse public key
-            ECPoint pubKeyPoint = DOMAIN_PARAMS.getCurve().decodePoint(publicKey);
+            // Parse public key by rule V2, as the server does
+            ECPoint pubKeyPoint = decodePublicKey(publicKey);
             ECPublicKeyParameters pubKeyParams = new ECPublicKeyParameters(pubKeyPoint, DOMAIN_PARAMS);
 
             // Extract R and S from signature (ignore V at position 64)
@@ -79,7 +83,7 @@ public final class SignatureVerifier {
             return signer.verifySignature(digest, r, s);
 
         } catch (IllegalArgumentException | ArithmeticException e) {
-            // Expected for invalid signatures: point not on curve, invalid coordinates, etc.
+            // Expected for an invalid key or signature: a key V2 refuses, invalid coordinates, etc.
             return false;
         }
     }
@@ -96,17 +100,40 @@ public final class SignatureVerifier {
      */
     @Deprecated
     public static byte[] parsePublicKeyHex(String hexPublicKey) {
-        // The SDK's one public key parser. SignatureVerificationInterceptor, in another package,
-        // delegates here (Java has no internal visibility across packages), so removing this
-        // method means moving its body there.
-        byte[] publicKey = HexUtils.hexToBytes(HexUtils.stripHexPrefix(hexPublicKey));
-        if (publicKey.length == 0) {
-            // decodePoint would throw ArrayIndexOutOfBoundsException.
-            throw new IllegalArgumentException("public key must not be empty");
+        // The SDK's one public key parser, with decodePublicKey, which verify uses too.
+        // SignatureVerificationInterceptor, in another package, delegates here (Java has no
+        // internal visibility across packages), so removing this method means moving its body
+        // there and keeping decodePublicKey reachable from both.
+        byte[] publicKey;
+        try {
+            publicKey = HexUtils.hexToBytes(HexUtils.stripHexPrefix(hexPublicKey == null ? "" : hexPublicKey));
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException(Messages.PUBLIC_KEY_NOT_HEX);
         }
-        // Throws IllegalArgumentException for an encoding of the wrong length or type and for a point
-        // off the curve.
-        return DOMAIN_PARAMS.getCurve().decodePoint(publicKey).getEncoded(false);
+        if (publicKey.length == 0) {
+            throw new IllegalArgumentException(Messages.PUBLIC_KEY_NOT_HEX);
+        }
+        return decodePublicKey(publicKey).getEncoded(false);
+    }
+
+    /**
+     * Rule V2: a compressed (33 bytes, 02 or 03) or uncompressed (65 bytes, 04) point on secp256k1.
+     * decodePoint also accepts the hybrid forms (06, 07) and the point at infinity (00), so the
+     * form is checked first.
+     *
+     * @throws IllegalArgumentException with "not a point on secp256k1" for any other bytes
+     */
+    private static ECPoint decodePublicKey(byte[] publicKey) {
+        boolean compressed = publicKey.length == 33 && (publicKey[0] == 0x02 || publicKey[0] == 0x03);
+        boolean uncompressed = publicKey.length == PUBLIC_KEY_LENGTH && publicKey[0] == 0x04;
+        if (!compressed && !uncompressed) {
+            throw new IllegalArgumentException(Messages.PUBLIC_KEY_NOT_A_POINT);
+        }
+        try {
+            return DOMAIN_PARAMS.getCurve().decodePoint(publicKey);
+        } catch (IllegalArgumentException e) {
+            throw new IllegalArgumentException(Messages.PUBLIC_KEY_NOT_A_POINT);
+        }
     }
 
     /**

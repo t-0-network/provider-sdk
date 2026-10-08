@@ -38,12 +38,18 @@ assertion rather than a sign-then-verify round trip.
 | `keccak256` | text input → hash |
 | `request_signing` | one signing case with a text `body` |
 | `request_signing_cases` | signing cases with a `body_hex`, so a body can be binary, framed or empty |
+| `signer_cases` | a private key and a digest → what the SDK's signer-from-hex factory gives: the 65-byte signature and public key, or the error |
 | `signature_verification` | a presented request → does it verify |
 | `stream_signing_cases` | a streaming request body → the bytes its signature covers, and the signature |
 | `public_key_parsing` | a public key string → accepted or not, and its 65-byte uncompressed form |
 | `timestamp_parsing` | an `X-Signature-Timestamp` value → accepted or not, and its value |
 | `base_url_parsing` | a client's base URL → accepted or not, and the error message |
 | `private_key_parsing` | a private key string → its 65-byte uncompressed public key, or the error message |
+| `constants` | the values every SDK defines as named constants (body limit, timestamp window, header names, client defaults, timeout bound) |
+| `server_cases` | a request to a provider server → the code and the message of its answer |
+| `client_cases` | a call an SDK client makes to `go_helper client-probe` → the code it must end with |
+| `messages`, `messages_scope` | every message an SDK raises itself, by name, and the SDKs that raise the ones not every SDK can |
+| `max_body_size_cases` | a configured max body size → the limit a server uses (0 or less keeps the default) |
 
 `body_hex` is the exact preimage: whatever the transport put in the body, before the
 timestamp is appended and before anything decodes it. `grpc-framed-body` carries the gRPC
@@ -68,6 +74,40 @@ key compare equal; a valid timestamp row gives its value. A valid private key ro
 uncompressed public key of the key it parses to, and an invalid one the message every SDK fails
 with.
 
+`constants` are the values every SDK defines, one named constant each. Each SDK has a contract
+test that compares its constants with these and fails when the file names one the SDK lacks.
+
+`server_cases` are requests to `grpc.health.v1.Health/Check`, the service every provider server
+mounts, and the answer each must get: `ok` (a SERVING reply), or an error code with its exact
+message. `go_helper probe` sends them to a running server (below). A case changes one thing of a
+signed request: a header missing or malformed, the timestamp, the key, the signature, the body size
+(`body_size` is the whole HTTP body, gRPC prefix included; the request is padded with an unknown
+field), or a body that is not a request message. The `order-*` cases have two faults, so they pin
+which check runs first. `health-unknown-service` asks Check for a service the server does not have,
+and `response-invalid` and `response-invalid-nested-field` call `ProviderService/ApprovePaymentQuotes`
+and `PayOut`, which the SDK's probe test serves with an invalid response: they pin the rendering of
+a violation, `<field path>: <message>`. Every reply of the health service must carry
+`T0-Sdk-Ecosystem` (the `--sdk` name) and `T0-Sdk-Version`. `library_message` names the SDKs whose message for that case comes from the
+RPC library underneath; only the code is compared there.
+
+`messages` holds every message an SDK raises itself, setup and RPC errors alike, under one name
+each; every SDK holds them as named constants and its constants test checks them. A `{placeholder}`
+is filled in when the message is raised. `go test` in `go_helper/` checks that every message the
+other sections expect is one of them.
+
+`signer_cases` pin the signer contract: the factory's signer returns 65 bytes `r‖s‖v` (v 0 or 1)
+and the 65-byte uncompressed key, and refuses a digest that is not 32 bytes. A custom signer is a
+function of the same shape; the `custom_signer` client cases check what a client does with its
+output: it refuses a signature that is not 64 or 65 bytes or a key that is not 65 bytes
+uncompressed, and sends any other signature exactly as returned, v included.
+
+`client_cases` are calls each SDK's client makes to `grpc.health.v1.Health/Check` on `go_helper
+client-probe` (below), one per case at the base URL `<base_url>/<case name>`, with the timeouts the
+case sets. The probe checks each request it gets (the signature headers and the deadline header)
+and answers SERVING, or `failed_precondition` with the reason; a case that expects an error checks
+that a call which must fail does (a per-call timeout of 0, a redirect). `client_cases_note` is what
+an SDK test must do.
+
 `signature_verification` answers one question: does this signature verify against this
 public key for this body and timestamp. It stops there on purpose. Whether a request is
 *accepted* also depends on the timestamp window, which every provider measures against a
@@ -76,10 +116,9 @@ fixture.
 
 ### Adding a case
 
-Sign it with any one SDK and run the other four. On the wire every SDK ignores `v`.
-Python's `verify_signature` helper — which the Python cross-vector test calls — does
-not, so fixture 65-byte signatures must carry the recovery byte that recovers the
-trusted key.
+Sign it with any one SDK and run the other four. Every SDK ignores `v`, on the wire and in
+its public `verify_signature` helper, so a 65-byte fixture signature may carry any last byte
+(`v-plus-27` and `wrong-recovery-id` pin this).
 
 ## Go helper (`go_helper/`)
 
@@ -105,6 +144,8 @@ CI builds the helper automatically (each language's CI workflow sets up Go and b
 | `serve <port> <hex_public_key>` | Provider server (h2c, Connect + gRPC) |
 | `call-pay-out <url> <hex_private_key> [--grpc]` | Signed PayOut RPC |
 | `call-health <url> <hex_private_key> [--grpc]` | Signed health check |
+| `probe <url> --sdk <name> [--protocol connect\|grpc] [--vectors <path>]` | Sends every `server_cases` request to the server at url and checks each answer |
+| `client-probe --sdk <name> [--vectors <path>]` | Serves the `client_cases` on a free port; prints `READY <base_url>` |
 
 `serve` also serves `test.v1.StreamTest` ([`stream_test.proto`](stream_test.proto), reference
 only). Like the provider service, it is built with `provider.Handler`, so the Go SDK's signature
@@ -146,6 +187,22 @@ verified over the envelope). The verifier itself is tested in the Go SDK (`go/pr
 rules: [`docs/STREAMING.md`](../docs/STREAMING.md).
 
 Default protocol is Connect (HTTP/1.1). Pass `--grpc` for gRPC protocol over h2c.
+
+`probe` signs each case with `keys.private_key`; the server's network key is `keys.public_key`.
+Connect goes over HTTP/1.1, with `Expect: 100-continue` for a body over 1 MiB so that a server that
+refuses a request on its headers answers before the body is sent; gRPC goes over h2c. It prints one
+`PASS` or `FAIL` line per case and protocol, and exits 1 if any case failed. Every SDK runs it
+against its own server (the probe tests are listed in
+[`docs/CROSS_SDK_RULES.md`](../docs/CROSS_SDK_RULES.md#receiving-calls-from-the-network-provider-servers)).
+
+`client-probe` listens on a free port of 127.0.0.1 (Connect over HTTP/1.1, gRPC over h2c), prints
+`READY <base_url>` as its first line on stdout and runs until it is killed. It logs one line per
+request on stderr: `PASS <case>`, or `FAIL <case>: <reason>`, `<case>` being the first segment of the
+request's path. Every SDK test fails on a `FAIL` line and shows it. After each call it looks for a
+`FAIL` line of that case. Once the probe has stopped, it looks for any `FAIL` line of the run, because
+a call that ends on its own deadline (such as a per-call timeout of 0 sent anyway) can end before the
+probe logs its request. The Go column of the client cases is `clientprobe_test.go` here, with the Go
+SDK's own client.
 
 ### Cross-language server tests
 

@@ -149,8 +149,8 @@ async def main() -> None:
     # TODO: Step 3B.2 Create a payment intent for a real end-user when they want to pay
     # await create_payment_intent(payment_intent_client)
 
-    # Run ASGI server
-    server_config = uvicorn.Config(app, host="0.0.0.0", port=config.port, log_level="info")
+    # Run ASGI server. host="" listens on all interfaces, IPv4 and IPv6 (where the host has it).
+    server_config = uvicorn.Config(app, host="", port=config.port, log_level="info")
     server = uvicorn.Server(server_config)
 
     # TODO: Step 2.2 Deploy your integration and provide t-0 team with the base URL

@@ -10,6 +10,8 @@
 //	go_helper serve <port> <hex_network_public_key>
 //	go_helper call-pay-out <base_url> <hex_private_key> [--grpc]
 //	go_helper call-health <base_url> <hex_private_key> [--grpc]
+//	go_helper probe <base_url> --sdk <name> [--protocol connect|grpc] [--vectors <path>]
+//	go_helper client-probe --sdk <name> [--vectors <path>]
 package main
 
 import (
@@ -17,9 +19,9 @@ import (
 	"encoding/hex"
 	"fmt"
 	"log"
-	"net"
 	"net/http"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -31,8 +33,6 @@ import (
 	"github.com/t-0-network/provider-sdk/go/crypto"
 	"github.com/t-0-network/provider-sdk/go/network"
 	"github.com/t-0-network/provider-sdk/go/provider"
-	"golang.org/x/net/http2"
-	"golang.org/x/net/http2/h2c"
 )
 
 func main() {
@@ -56,6 +56,10 @@ func main() {
 		cmdCallPayOut()
 	case "call-health":
 		cmdCallHealth()
+	case "probe":
+		cmdProbe()
+	case "client-probe":
+		cmdClientProbe()
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown command: %s\n", os.Args[1])
 		os.Exit(1)
@@ -139,23 +143,20 @@ func cmdServe() {
 		log.Fatalf("Failed to create handler: %v", err)
 	}
 
-	ln, err := net.Listen("tcp", ":"+port)
+	// The SDK's own server, so the cross tests that call this one test it too.
+	shutdown, err := provider.StartServer(handler, provider.WithAddr(":"+port))
 	if err != nil {
-		log.Fatalf("Failed to listen: %v", err)
+		log.Fatalf("Failed to start server: %v", err)
 	}
-
-	srv := &http.Server{Handler: handler}
+	defer shutdown(context.Background())
 
 	fmt.Printf("READY on :%s\n", port)
 	os.Stdout.Sync()
-
-	if err := srv.Serve(ln); err != nil && err != http.ErrServerClosed {
-		log.Fatalf("Server error: %v", err)
-	}
+	select {}
 }
 
 // newServeHandler serves the provider service and test.v1.StreamTest behind the SDK's signature
-// verification; h2c lets Connect (HTTP/1.1) and gRPC share the port.
+// verification; provider.StartServer adds h2c, so Connect (HTTP/1.1) and gRPC share the port.
 func newServeHandler(networkPublicKeyHex string) (http.Handler, error) {
 	httpHandler, err := provider.NewHttpHandler(
 		provider.NetworkPublicKeyHexed(networkPublicKeyHex),
@@ -165,16 +166,11 @@ func newServeHandler(networkPublicKeyHex string) (http.Handler, error) {
 	if err != nil {
 		return nil, err
 	}
-	return h2c.NewHandler(httpHandler, &http2.Server{}), nil
+	return logRejections(httpHandler), nil
 }
 
 func hasFlag(flag string) bool {
-	for _, arg := range os.Args[2:] {
-		if arg == flag {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(os.Args[2:], flag)
 }
 
 func cmdCallPayOut() {
@@ -270,9 +266,14 @@ func cmdCallHealth() {
 
 type testProviderService struct{}
 
+// PayOut answers a response whose failed.details is over its 1024-character limit, so the call
+// fails response validation: the server case response-invalid-nested-field.
 func (s *testProviderService) PayOut(ctx context.Context, req *connect.Request[payment.PayoutRequest]) (*connect.Response[payment.PayoutResponse], error) {
 	log.Printf("PayOut called: payment_id=%d", req.Msg.PaymentId)
-	return connect.NewResponse(&payment.PayoutResponse{}), nil
+	details := strings.Repeat("x", 1025)
+	return connect.NewResponse(&payment.PayoutResponse{
+		Result: &payment.PayoutResponse_Failed_{Failed: &payment.PayoutResponse_Failed{Details: &details}},
+	}), nil
 }
 
 func (s *testProviderService) UpdatePayment(ctx context.Context, req *connect.Request[payment.UpdatePaymentRequest]) (*connect.Response[payment.UpdatePaymentResponse], error) {

@@ -29,12 +29,6 @@ public final class Headers {
      */
     public static final String PUBLIC_KEY = "X-Public-Key";
 
-    /**
-     * The validity window for timestamp verification (in milliseconds).
-     * Requests with timestamps outside this window will be rejected.
-     */
-    public static final long TIMESTAMP_VALIDITY_WINDOW_MS = 60_000; // 60 seconds
-
     private Headers() {
         // Constants class
     }

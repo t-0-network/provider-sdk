@@ -2,6 +2,7 @@
 package network
 
 import (
+	"errors"
 	"net/http"
 	"net/url"
 	"sync"
@@ -9,15 +10,24 @@ import (
 
 	"connectrpc.com/connect"
 	"github.com/t-0-network/provider-sdk/go/crypto"
+	"github.com/t-0-network/provider-sdk/go/internal/contract"
 )
 
 type PrivateKeyHexed string
+
+var (
+	errSignerNull   = errors.New(contract.SignerNull)
+	errKeyAndSigner = errors.New(contract.KeyAndSigner)
+)
 
 type ClientFactory[T any] func(httpClient connect.HTTPClient, baseURL string, opts ...connect.ClientOption) T
 
 // NewServiceClient builds a client for a T-0 Network service that signs every request: unary calls
 // over the whole body, client- and server-streaming calls over their first request message.
 // Bidirectional-streaming calls fail with connect.CodeUnimplemented. See docs/STREAMING.md.
+//
+// It signs with privateKey, or with the signer given by WithSignatureFunction, whose privateKey
+// is then empty; both together are refused.
 func NewServiceClient[T any](
 	privateKey PrivateKeyHexed, clientFactory ClientFactory[T], opts ...ClientOption,
 ) (T, error) {
@@ -32,7 +42,15 @@ func NewServiceClient[T any](
 		return t, err
 	}
 
-	if options.signFn == nil {
+	if options.signFnGiven {
+		if options.signFn == nil {
+			return t, errSignerNull
+		}
+		// The signer replaces the key; a key given as well would be silently ignored.
+		if privateKey != "" {
+			return t, errKeyAndSigner
+		}
+	} else {
 		if privateKey == "" {
 			return t, ErrEmptyPrivateKey
 		}

@@ -14,6 +14,23 @@ internal static class TestPorts
         return port;
     }
 
+    public static bool IPv6LoopbackAvailable()
+    {
+        if (!Socket.OSSupportsIPv6)
+            return false;
+        try
+        {
+            var listener = new TcpListener(IPAddress.IPv6Loopback, 0);
+            listener.Start();
+            listener.Stop();
+            return true;
+        }
+        catch (SocketException)
+        {
+            return false;
+        }
+    }
+
     public static async Task WaitForPortAsync(int port, TimeSpan timeout)
     {
         var deadline = DateTime.UtcNow + timeout;

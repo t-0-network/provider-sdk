@@ -1,6 +1,6 @@
 """ConnectRPC interceptor that converts signature errors to proper ConnectError responses.
 
-Reads the error stored by the ASGI middleware via contextvars and raises
+Reads the error stored by the ASGI or WSGI middleware via contextvars and raises
 ConnectError with the appropriate code before the RPC handler executes.
 """
 
@@ -13,6 +13,7 @@ from connectrpc.code import Code
 from connectrpc.errors import ConnectError
 from connectrpc.request import RequestContext
 
+from t0_provider_sdk._messages import NO_SIGNATURE_RESULT
 from t0_provider_sdk.provider.errors import (
     BodyTooLargeError,
     SignatureFailedError,
@@ -29,7 +30,7 @@ def _raise_if_signature_error() -> None:
 
     if err is NOT_VERIFIED:
         # The signature middleware did not run for this request: refuse it rather than serve it unverified.
-        raise ConnectError(Code.INTERNAL, "no signature result in context")
+        raise ConnectError(Code.INTERNAL, NO_SIGNATURE_RESULT)
 
     if isinstance(err, (UnknownPublicKeyError, SignatureFailedError)):
         raise ConnectError(Code.UNAUTHENTICATED, str(err))

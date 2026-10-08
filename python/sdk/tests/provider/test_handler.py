@@ -8,8 +8,11 @@ in-process; the answer is read as the Connect error code ("ok" for a response).
 import asyncio
 import io
 import json
+import logging
+from urllib.parse import unquote
 
 import pytest
+from t0_provider_sdk._version import __version__
 from t0_provider_sdk.crypto.keys import private_key_from_hex
 from t0_provider_sdk.crypto.signer import new_signer_from_hex
 from t0_provider_sdk.network.signing import _sign_request
@@ -24,7 +27,13 @@ from t0_provider_sdk.provider.health import HealthASGIApplication, HealthImpl, H
 from t0_provider_sdk.provider.interceptor import SignatureErrorInterceptor, SignatureErrorInterceptorSync
 from t0_provider_sdk.provider.middleware import DEFAULT_MAX_BODY_SIZE
 from tzero.v1.payment import provider_pb2 as payment_pb2
+from tzero.v1.payment import quote_pb2
 from tzero.v1.payment.provider_connect import ProviderServiceASGIApplication, ProviderServiceWSGIApplication
+from tzero.v1.payment.quote_connect import QuoteServiceASGIApplication, QuoteServiceWSGIApplication
+
+from .unevaluable_rule import TYPE_NAME as UNEVALUABLE_TYPE_NAME
+from .unevaluable_rule import UnevaluableRule
+from .unevaluable_rule import cause as unevaluable_cause
 
 PRIVATE_KEY = "0x6b30303de7b26bfb1222b317a52113357f8bb06de00160b4261a2fef9c8b9bd8"
 PUBLIC_KEY = "0x044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0"
@@ -43,6 +52,23 @@ TRANSPORTS = ["asgi", "wsgi"]
 def test_missing_key_is_rejected(build, key):
     with pytest.raises(NetworkPublicKeyRequiredError, match="network public key is not set"):
         build(key)
+
+
+@pytest.mark.parametrize(
+    ("register", "app_class"),
+    [(handler, ProviderServiceASGIApplication), (handler_sync, ProviderServiceWSGIApplication)],
+    ids=["handler", "handler_sync"],
+)
+def test_service_must_not_be_none(register, app_class):
+    with pytest.raises(ValueError, match="^service must not be null$"):
+        register(app_class, None)
+
+
+def test_network_public_key_required_error_is_importable_from_handler():
+    """1.2.0 and 1.2.1 had it in this module's namespace; code that imports it from there still works."""
+    from t0_provider_sdk.provider.handler import NetworkPublicKeyRequiredError as FromHandler
+
+    assert FromHandler is NetworkPublicKeyRequiredError
 
 
 @pytest.mark.parametrize("build", BUILDERS)
@@ -263,6 +289,110 @@ def test_body_over_the_limit_is_resource_exhausted_over_grpc():
     assert statuses == [b"8"]  # RESOURCE_EXHAUSTED
 
 
+# A client that sends one byte over this limit and then nothing, without ending the body.
+OPEN_BODY_LIMIT = 16
+# How soon the answer to such a client must be out.
+ANSWER_TIMEOUT = 1.0
+
+
+def _start_open_body_call(protocol: str, headers: dict[str, str]):
+    """Calls a new_asgi_app limited to OPEN_BODY_LIMIT bytes from a client that sends one byte over
+    the limit and then stalls. Returns the call's task, the messages it has sent, and the event that
+    ends the body."""
+    app = new_asgi_app(PUBLIC_KEY, max_body_size=OPEN_BODY_LIMIT)
+    grpc = protocol == "grpc"
+    scope = {
+        "type": "http",
+        "http_version": "2" if grpc else "1.1",
+        "method": "POST",
+        "path": CHECK_PATH,
+        "root_path": "",
+        "query_string": b"",
+        "headers": [(b"content-type", b"application/grpc" if grpc else b"application/proto")]
+        + [(k.encode(), v.encode()) for k, v in headers.items()],
+        "extensions": {"http.response.trailers": {}} if grpc else {},
+    }
+    first = [{"type": "http.request", "body": b"\x00" * (OPEN_BODY_LIMIT + 1), "more_body": True}]
+    body_ended = asyncio.Event()
+    sent: list[dict] = []
+
+    async def receive():
+        if first:
+            return first.pop()
+        await body_ended.wait()
+        return {"type": "http.request", "body": b"", "more_body": False}
+
+    async def send(message):
+        sent.append(message)
+
+    return asyncio.create_task(app(scope, receive, send)), sent, body_ended
+
+
+async def _wait_for_answer(protocol: str, sent: list[dict]) -> tuple[str, str]:
+    """The code and message of the answer, once all of it is sent; fails after ANSWER_TIMEOUT."""
+    deadline = asyncio.get_running_loop().time() + ANSWER_TIMEOUT
+    while asyncio.get_running_loop().time() < deadline:
+        if protocol == "grpc":
+            trailers = {k: v for m in sent if m["type"] == "http.response.trailers" for k, v in m["headers"]}
+            if b"grpc-status" in trailers:
+                return trailers[b"grpc-status"].decode(), unquote(trailers[b"grpc-message"].decode())
+        else:
+            body = b"".join(m.get("body", b"") for m in sent if m["type"] == "http.response.body")
+            if body:
+                start = next(m for m in sent if m["type"] == "http.response.start")
+                # The client knows where the answer ends without waiting for the end of the response.
+                assert dict(start["headers"])[b"content-length"] == str(len(body)).encode()
+                return _answer(start["status"], body)
+        await asyncio.sleep(0.01)
+    pytest.fail(f"no answer within {ANSWER_TIMEOUT}s while the body is still arriving; sent: {sent}")
+
+
+_OVER_THE_LIMIT = ("resource_exhausted", f"max payload size of {OPEN_BODY_LIMIT} bytes exceeded")
+_HEADER_REFUSED = ("invalid_argument", "missing required header: X-Signature")
+_GRPC_CODES = {"resource_exhausted": "8", "invalid_argument": "3"}
+
+
+@pytest.mark.parametrize("protocol", ["connect", "grpc"])
+@pytest.mark.parametrize("case", ["body over the limit", "declared length over the limit", "header refusal"])
+async def test_refusal_is_answered_while_the_body_is_still_arriving(protocol, case):
+    """Rule V7: a refused request is answered at once, not after the rest of its body. The answer goes
+    out while the client is still sending, and the response ends once the body has ended."""
+    # Signed here, not at collection, so the timestamp is inside the window.
+    headers = _signed_headers()
+    expected = _OVER_THE_LIMIT
+    if case == "declared length over the limit":
+        headers["content-length"] = "1000"
+    elif case == "header refusal":
+        del headers["x-signature"]
+        expected = _HEADER_REFUSED
+    task, sent, body_ended = _start_open_body_call(protocol, headers)
+    try:
+        code, message = await _wait_for_answer(protocol, sent)
+        expected_code, expected_message = expected
+        assert (code, message) == (
+            (_GRPC_CODES[expected_code] if protocol == "grpc" else expected_code),
+            expected_message,
+        )
+        body_ended.set()
+        await asyncio.wait_for(task, timeout=ANSWER_TIMEOUT)
+    finally:
+        task.cancel()
+    last = sent[-1]
+    assert not last.get("more_body", False) and not last.get("more_trailers", False)
+
+
+async def test_refused_body_that_never_ends_is_read_for_a_bounded_time():
+    """After the answer, what is left of a refused body is read for a bounded time only: a client that
+    stalls without ending its body does not hold the call."""
+    task, sent, _ = _start_open_body_call("connect", _signed_headers())
+    try:
+        assert await _wait_for_answer("connect", sent) == _OVER_THE_LIMIT
+        await asyncio.wait_for(task, timeout=5.0)
+    finally:
+        task.cancel()
+    assert sent[-1] == {"type": "http.response.body", "body": b"", "more_body": False}
+
+
 @pytest.mark.parametrize("transport", TRANSPORTS)
 def test_option_cannot_remove_the_signature_check(transport):
     """An option is handed the interceptor list and may empty it; the signature check is still run."""
@@ -292,3 +422,304 @@ def test_unverified_call_is_refused_over_wsgi():
 
     assert _call_wsgi(new_wsgi_app(PUBLIC_KEY), CHECK_PATH, _signed_headers())[0] == "ok"
     assert _call_wsgi(unwrapped, CHECK_PATH, _signed_headers()) == ("internal", "no signature result in context")
+
+
+class _Records(logging.Handler):
+    def __init__(self) -> None:
+        super().__init__(level=logging.DEBUG)
+        self.records: list[logging.LogRecord] = []
+
+    def emit(self, record: logging.LogRecord) -> None:
+        self.records.append(record)
+
+
+def _version_header(headers) -> str:
+    return next(
+        v.decode() if isinstance(v, bytes) else v
+        for k, v in headers
+        if k.lower() in (b"t0-sdk-version", "t0-sdk-version")
+    )
+
+
+def _report_of(transport: str, version: str | None) -> tuple[str, str]:
+    """The version a server built with this override reports: in the health headers, and in the log
+    line of a response that fails validation (the stub's PayoutResponse has no result)."""
+    logger = logging.getLogger(f"t0_provider_sdk.tests.version.{transport}")
+    logger.propagate = False
+    records = _Records()
+    logger.addHandler(records)
+    try:
+        if transport == "asgi":
+            app = new_asgi_app(
+                PUBLIC_KEY,
+                handler(ProviderServiceASGIApplication, _StubProviderService()),
+                logger=logger,
+                version=version,
+            )
+            health = asyncio.run(_send_asgi(app, CHECK_PATH, _signed_headers()))[0]["headers"]
+            assert asyncio.run(_call_asgi(app, PAY_OUT_PATH, _signed_headers()))[0] == "internal"
+        else:
+            app = new_wsgi_app(
+                PUBLIC_KEY,
+                handler_sync(ProviderServiceWSGIApplication, _StubProviderServiceSync()),
+                logger=logger,
+                version=version,
+            )
+            captured = []
+            environ = {
+                "REQUEST_METHOD": "POST",
+                "PATH_INFO": CHECK_PATH,
+                "SCRIPT_NAME": "",
+                "CONTENT_TYPE": "application/proto",
+                "CONTENT_LENGTH": "0",
+                "wsgi.input": io.BytesIO(b""),
+                "wsgi.errors": io.StringIO(),
+            }
+            for name, value in _signed_headers().items():
+                environ["HTTP_" + name.upper().replace("-", "_")] = value
+            b"".join(app(environ, lambda status, headers, exc_info=None: captured.append(headers)))
+            health = captured[0]
+            assert _call_wsgi(app, PAY_OUT_PATH, _signed_headers())[0] == "internal"
+    finally:
+        logger.removeHandler(records)
+    [record] = records.records
+    return _version_header(health), record.sdk_version
+
+
+@pytest.mark.parametrize("transport", TRANSPORTS)
+@pytest.mark.parametrize(
+    ("version", "reported"),
+    [("0.2.9", "0.2.9"), (None, __version__), ("", __version__), (" \t", __version__)],
+    ids=["override", "none", "empty", "whitespace"],
+)
+def test_version_override_reaches_health_headers_and_validation_log(transport, version, reported):
+    """One server reports one version: the override when it is not blank, else the SDK's."""
+    assert _report_of(transport, version) == (reported, reported)
+
+
+class _UnevaluableProviderService(_StubProviderService):
+    async def pay_out(self, request, ctx):
+        return UnevaluableRule()
+
+
+class _UnevaluableProviderServiceSync(_StubProviderServiceSync):
+    def pay_out(self, request, ctx):
+        return UnevaluableRule()
+
+
+@pytest.mark.parametrize("transport", TRANSPORTS)
+def test_response_rule_that_cannot_be_evaluated_is_internal(transport):
+    """A response whose rule protovalidate cannot evaluate is Internal "response validation error:
+    <cause>" (V12), logged once like an invalid one."""
+    logger = logging.getLogger(f"t0_provider_sdk.tests.unevaluable.{transport}")
+    logger.propagate = False
+    records = _Records()
+    logger.addHandler(records)
+    try:
+        if transport == "asgi":
+            app = new_asgi_app(
+                PUBLIC_KEY,
+                handler(ProviderServiceASGIApplication, _UnevaluableProviderService()),
+                logger=logger,
+                version="9.9.9-test",
+            )
+            answer = asyncio.run(_call_asgi(app, PAY_OUT_PATH, _signed_headers()))
+        else:
+            app = new_wsgi_app(
+                PUBLIC_KEY,
+                handler_sync(ProviderServiceWSGIApplication, _UnevaluableProviderServiceSync()),
+                logger=logger,
+                version="9.9.9-test",
+            )
+            answer = _call_wsgi(app, PAY_OUT_PATH, _signed_headers())
+    finally:
+        logger.removeHandler(records)
+    assert answer == ("internal", f"response validation error: {unevaluable_cause()}")
+    [record] = records.records
+    assert record.levelno == logging.ERROR
+    assert record.getMessage() == f"response validation error: {unevaluable_cause()}"
+    assert record.rpc_method == "tzero.v1.payment.ProviderService/PayOut"
+    assert record.response_type == UNEVALUABLE_TYPE_NAME
+    assert record.error == unevaluable_cause()
+    assert record.sdk_version == "9.9.9-test"
+
+
+def _status(transport: str, method: str, path: str, query: str = "", content_type: str = "application/proto") -> int:
+    """The HTTP status a signed call with an empty body gets from new_asgi_app / new_wsgi_app."""
+    headers = _signed_headers()
+    if transport == "asgi":
+        app = new_asgi_app(PUBLIC_KEY, handler(ProviderServiceASGIApplication, _StubProviderService()))
+        scope = {
+            "type": "http",
+            "method": method,
+            "path": path,
+            "root_path": "",
+            "query_string": query.encode(),
+            "headers": [(b"content-type", content_type.encode())]
+            + [(k.encode(), v.encode()) for k, v in headers.items()],
+            "extensions": {"http.response.trailers": {}},
+        }
+        sent = []
+
+        async def receive():
+            return {"type": "http.request", "body": b"", "more_body": False}
+
+        async def send(message):
+            sent.append(message)
+
+        asyncio.run(app(scope, receive, send))
+        return sent[0]["status"]
+    app = new_wsgi_app(PUBLIC_KEY, handler_sync(ProviderServiceWSGIApplication, _StubProviderServiceSync()))
+    environ = {
+        "REQUEST_METHOD": method,
+        "PATH_INFO": path,
+        "SCRIPT_NAME": "",
+        "QUERY_STRING": query,
+        "CONTENT_TYPE": content_type,
+        "CONTENT_LENGTH": "0",
+        "wsgi.input": io.BytesIO(b""),
+        "wsgi.errors": io.StringIO(),
+    }
+    for name, value in headers.items():
+        environ["HTTP_" + name.upper().replace("-", "_")] = value
+    statuses = []
+    b"".join(app(environ, lambda status, headers, exc_info=None: statuses.append(int(status.split()[0]))))
+    return statuses[0]
+
+
+@pytest.mark.parametrize("transport", TRANSPORTS)
+def test_health_check_is_post_only(transport):
+    """A provider server refuses GET, as in every SDK: HTTP 501, Unimplemented."""
+    assert _status(transport, "POST", CHECK_PATH) == 200
+    assert _status(transport, "GET", CHECK_PATH, query="encoding=proto&message=") == 501
+
+
+class _CountingQuoteService:
+    """QuoteService, whose GetQuotes is NO_SIDE_EFFECTS: Connect serves it over GET as well."""
+
+    def __init__(self) -> None:
+        self.calls = 0
+
+    async def get_quotes(self, request, ctx):
+        self.calls += 1
+        return quote_pb2.GetQuotesResponse()
+
+
+class _CountingQuoteServiceSync(_CountingQuoteService):
+    def get_quotes(self, request, ctx):  # type: ignore[override]
+        self.calls += 1
+        return quote_pb2.GetQuotesResponse()
+
+
+GET_QUOTES_PATH = "/tzero.v1.payment.QuoteService/GetQuotes"
+GET_QUERY = "connect=v1&encoding=proto&base64=1&message="
+
+
+def _request(
+    transport: str, app, method: str, path: str, query: str, headers: dict[str, str], content_type: str | None
+) -> tuple[int, dict[str, str], bytes]:
+    """Sends a request with an empty body to app; returns the status, the headers and the body."""
+    pairs = [(k.lower(), v) for k, v in headers.items()]
+    if content_type is not None:
+        pairs.append(("content-type", content_type))
+    if transport == "asgi":
+        scope = {
+            "type": "http",
+            "method": method,
+            "http_version": "1.1",
+            "path": path,
+            "root_path": "",
+            "query_string": query.encode(),
+            "headers": [(k.encode(), v.encode()) for k, v in pairs],
+            "extensions": {"http.response.trailers": {}},
+        }
+        sent = []
+
+        async def receive():
+            return {"type": "http.request", "body": b"", "more_body": False}
+
+        async def send(message):
+            sent.append(message)
+
+        asyncio.run(app(scope, receive, send))
+        start = sent[0]
+        answer_headers = {k.decode().lower(): v.decode() for k, v in start["headers"]}
+        return start["status"], answer_headers, b"".join(m.get("body", b"") for m in sent[1:])
+    environ = {
+        "REQUEST_METHOD": method,
+        "PATH_INFO": path,
+        "SCRIPT_NAME": "",
+        "QUERY_STRING": query,
+        "CONTENT_LENGTH": "0",
+        "wsgi.input": io.BytesIO(b""),
+        "wsgi.errors": io.StringIO(),
+    }
+    for name, value in pairs:
+        if name == "content-type":
+            environ["CONTENT_TYPE"] = value
+        else:
+            environ["HTTP_" + name.upper().replace("-", "_")] = value
+    started = []
+
+    def start_response(status, response_headers, exc_info=None):
+        started.append((int(status.split()[0]), {k.lower(): v for k, v in response_headers}))
+
+    body = b"".join(app(environ, start_response))
+    return started[0][0], started[0][1], body
+
+
+@pytest.mark.parametrize("transport", TRANSPORTS)
+@pytest.mark.parametrize(
+    ("method", "path", "query", "signed", "content_type"),
+    [
+        ("GET", GET_QUOTES_PATH, GET_QUERY, True, None),
+        ("GET", CHECK_PATH, GET_QUERY, True, None),
+        ("GET", GET_QUOTES_PATH, GET_QUERY, False, None),
+        ("GET", GET_QUOTES_PATH, "", True, "application/grpc"),
+        ("PUT", GET_QUOTES_PATH, "", True, "application/proto"),
+        ("DELETE", GET_QUOTES_PATH, "", True, "application/proto"),
+    ],
+    ids=[
+        "GET of a NO_SIDE_EFFECTS method",
+        "GET of the health service",
+        "GET without signature headers",
+        "GET with a gRPC content type",
+        "PUT",
+        "DELETE",
+    ],
+)
+def test_methods_other_than_post_are_refused_before_anything_else(transport, method, path, query, signed, content_type):
+    """A provider server refuses a request whose method is not POST before everything else, the
+    signature headers included: a call's message must be in its signed body. Not even a method that
+    Connect serves over GET (NO_SIDE_EFFECTS) reaches its handler. The answer is a Connect unary
+    error, whatever the Content-Type, as in every SDK."""
+    if transport == "asgi":
+        service = _CountingQuoteService()
+        app = new_asgi_app(PUBLIC_KEY, handler(QuoteServiceASGIApplication, service))
+    else:
+        service = _CountingQuoteServiceSync()
+        app = new_wsgi_app(PUBLIC_KEY, handler_sync(QuoteServiceWSGIApplication, service))
+    headers = _signed_headers() if signed else {}
+
+    status, answer_headers, body = _request(transport, app, method, path, query, headers, content_type)
+
+    assert status == 501, body
+    assert answer_headers["content-type"] == "application/json"
+    assert json.loads(body) == {"code": "unimplemented", "message": "GET requests are not supported"}
+    assert service.calls == 0, "the request reached its handler"
+
+    # The same call, signed and sent with POST, reaches the handler.
+    status, _, body = _request(transport, app, "POST", GET_QUOTES_PATH, "", _signed_headers(), "application/proto")
+    assert status == 200, body
+    assert service.calls == 1
+
+
+@pytest.mark.parametrize(
+    ("transport", "content_type"),
+    [("asgi", "application/proto"), ("asgi", "application/grpc"), ("wsgi", "application/proto")],
+    ids=["asgi connect", "asgi grpc", "wsgi connect"],
+)
+@pytest.mark.parametrize("method", ["Watch", "List"])
+def test_health_watch_and_list_are_not_served(transport, content_type, method):
+    """HTTP 404, which Connect and gRPC clients read as UNIMPLEMENTED, the code of every SDK."""
+    assert _status(transport, "POST", f"/grpc.health.v1.Health/{method}", content_type=content_type) == 404

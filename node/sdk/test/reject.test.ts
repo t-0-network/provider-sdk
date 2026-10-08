@@ -12,39 +12,33 @@ import {
 } from '../src/index.js';
 
 describe('rejectRequest', () => {
-  const badRequestReasons: VerifyRequestFailure[] = [
-    'invalid_timestamp',
-    'timestamp_out_of_range',
-    'invalid_public_key',
-    'invalid_signature_format',
-  ];
+  // Each reason's status, code and the text it sends when given no message.
+  const expected: Record<VerifyRequestFailure, [number, string, string]> = {
+    invalid_timestamp: [400, 'invalid_argument', 'invalid timestamp header: not a decimal number'],
+    timestamp_out_of_range: [400, 'invalid_argument', 'timestamp is outside the allowed time window'],
+    invalid_public_key: [400, 'invalid_argument', 'missing required header: X-Public-Key'],
+    invalid_signature_format: [400, 'invalid_argument', 'invalid header encoding: X-Signature'],
+    unknown_public_key: [401, 'unauthenticated', 'request signed with unknown public key'],
+    signature_failed: [401, 'unauthenticated', 'signature verification failed'],
+  };
 
-  const unauthenticatedReasons: VerifyRequestFailure[] = [
-    'unknown_public_key',
-    'signature_failed',
-  ];
-
-  for (const reason of badRequestReasons) {
-    it(`maps "${reason}" to 400`, () => {
-      const result = rejectRequest(reason);
-      assert.equal(result.status, 400);
+  for (const [reason, [status, code, message]] of Object.entries(expected)) {
+    it(`maps "${reason}" to ${status} ${code}`, () => {
+      const result = rejectRequest(reason as VerifyRequestFailure);
+      assert.equal(result.status, status);
       assert.equal(result.headers['Content-Type'], 'application/json');
-      const body = JSON.parse(result.body);
-      assert.equal(body.code, 'invalid_argument');
-      assert.ok(body.message.length > 0);
+      assert.deepEqual(JSON.parse(result.body), { code, message });
     });
   }
 
-  for (const reason of unauthenticatedReasons) {
-    it(`maps "${reason}" to 401`, () => {
-      const result = rejectRequest(reason);
-      assert.equal(result.status, 401);
-      assert.equal(result.headers['Content-Type'], 'application/json');
-      const body = JSON.parse(result.body);
-      assert.equal(body.code, 'unauthenticated');
-      assert.ok(body.message.length > 0);
+  it("sends the verifier's message", () => {
+    const result = rejectRequest('invalid_timestamp', 'missing required header: X-Signature-Timestamp');
+    assert.equal(result.status, 400);
+    assert.deepEqual(JSON.parse(result.body), {
+      code: 'invalid_argument',
+      message: 'missing required header: X-Signature-Timestamp',
     });
-  }
+  });
 
   it('round-trips with createRequestVerifier against a raw http server', async () => {
     const priv = Uint8Array.from(randomBytes(32));
@@ -66,7 +60,7 @@ describe('rejectRequest', () => {
         });
 
         if (!result.valid) {
-          const rejected = rejectRequest(result.reason);
+          const rejected = rejectRequest(result.reason, result.message);
           res.writeHead(rejected.status, rejected.headers);
           res.end(rejected.body);
           return;
@@ -101,6 +95,18 @@ describe('rejectRequest', () => {
       });
       assert.equal(okResp.status, 200);
 
+      // The 0X prefix is accepted, as by the server (server_cases valid-signature-0X-prefix)
+      const upperResp = await fetch(baseUrl, {
+        method: 'POST',
+        body: payload,
+        headers: {
+          'x-signature': '0X' + sigBytes.toString('hex'),
+          'x-public-key': pubHex,
+          'x-signature-timestamp': String(ts),
+        },
+      });
+      assert.equal(upperResp.status, 200);
+
       // Invalid signature should get a mapped rejection
       const badResp = await fetch(baseUrl, {
         method: 'POST',
@@ -113,7 +119,7 @@ describe('rejectRequest', () => {
       });
       assert.equal(badResp.status, 401);
       const badBody = await badResp.json();
-      assert.equal(badBody.code, 'unauthenticated');
+      assert.deepEqual(badBody, { code: 'unauthenticated', message: 'signature verification failed' });
     } finally {
       await new Promise<void>((resolve) => server.close(() => resolve()));
     }

@@ -12,11 +12,6 @@ public static class Headers
     public const string PublicKey = "X-Public-Key";
 
     /// <summary>
-    /// The validity window for timestamp verification (60 seconds).
-    /// </summary>
-    public static readonly TimeSpan TimestampValidityWindow = TimeSpan.FromSeconds(60);
-
-    /// <summary>
     /// Encodes a timestamp as 8-byte little-endian bytes.
     /// </summary>
     public static byte[] EncodeTimestamp(long timestampMs)

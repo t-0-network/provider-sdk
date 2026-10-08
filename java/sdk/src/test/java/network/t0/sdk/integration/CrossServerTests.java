@@ -694,7 +694,10 @@ class CrossServerTests {
     private static final class MinimalProviderService extends ProviderServiceGrpc.ProviderServiceImplBase {
         @Override
         public void payOut(PayoutRequest request, StreamObserver<PayoutResponse> observer) {
-            observer.onNext(PayoutResponse.getDefaultInstance());
+            // A valid response: the server validates every response it sends.
+            observer.onNext(PayoutResponse.newBuilder()
+                    .setAccepted(PayoutResponse.Accepted.getDefaultInstance())
+                    .build());
             observer.onCompleted();
         }
 

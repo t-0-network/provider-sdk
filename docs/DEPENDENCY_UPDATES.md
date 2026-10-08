@@ -30,7 +30,7 @@ Treat a dependency as being on the signing path if any of these is true, and als
 
 - **It is reachable from the code that signs or verifies requests.** That covers computing the digest, deriving keys and checking the signature timestamp. Trace from:
   - Go: `go/crypto/` and `cli/keygen.go`;
-  - Node: `node/sdk/src/client/signer.ts`, `node/sdk/src/service/service.ts` and `node/sdk/src/common/client/`;
+  - Node: `node/sdk/src/client/signer.ts`, `node/sdk/src/common/service.ts` and `node/sdk/src/common/client/`;
   - Python: `python/sdk/src/t0_provider_sdk/crypto/`;
   - Java: `java/sdk/src/main/java/network/t0/sdk/crypto/`;
   - C#: `csharp/sdk/T0.ProviderSdk/Crypto/`.

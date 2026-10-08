@@ -12,7 +12,8 @@ All flags and the install-only form: [`cli/README.md`](../../cli/README.md).
 The initializer generates a complete project with:
 - `.env` with auto-generated secp256k1 keypair
 - `PaymentHandler.cs` with all gRPC methods stubbed
-- `QuotePublisher.cs` for periodic quote publishing
+- `Config.cs`, which reads the environment into a `T0Config`
+- `QuotePublisher.cs` for periodic quote publishing (on the starter's `QuotePublisherService`)
 - `Dockerfile` for deployment
 
 ## Minimal Program.cs
@@ -22,8 +23,8 @@ using T0.ProviderSdk;
 using T0.ProviderSdk.Crypto;
 using T0.ProviderSdk.Network;
 
-DotNetEnv.Env.Load();
-var config = T0Config.FromEnvironment();
+DotNetEnv.Env.NoClobber().Load();
+var config = MyProvider.Config.FromEnvironment();
 var signer = Signer.FromHex(config.ProviderPrivateKey);
 var networkClient = NetworkClient.CreateNetworkServiceClient(config.TZeroEndpoint, signer);
 
@@ -70,10 +71,9 @@ server.MapPaymentIntentService<MyProvider.Services.PaymentIntentHandler>(intentN
 
 ## Testing Your Handler
 
-The SDK provides interfaces (`ISigner`, `ISignatureVerifier`) for easy mocking:
+A client takes a `SignFn` delegate, so a test can pass a plain lambda instead of a key; `ISignatureVerifier` can be mocked for server tests:
 
 ```csharp
 // In your test
-var mockSigner = new Mock<ISigner>();
-mockSigner.Setup(s => s.GetPublicKey()).Returns(new byte[65]);
+SignFn fakeSigner = digest => (new byte[65], fakeUncompressedPublicKey);
 ```

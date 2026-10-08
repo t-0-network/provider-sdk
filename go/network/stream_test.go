@@ -59,6 +59,7 @@ type verified struct {
 	procedure string
 	framing   string // "envelope", "payload" (gRPC without the prefix) or "body" (unary)
 	signed    []byte
+	signature []byte // the X-Signature header, decoded
 }
 
 // streamTestServer verifies like the network: a streaming request over its first envelope, before
@@ -237,7 +238,7 @@ func (s *streamTestServer) checkSignature(r *http.Request) (verified, error) {
 	for _, framing := range order {
 		signed := candidates[framing]
 		if crypto.VerifySignature(pubKey, digestOf(signed, timestamp), signature) {
-			return verified{procedure: r.URL.Path, framing: framing, signed: signed}, nil
+			return verified{procedure: r.URL.Path, framing: framing, signed: signed, signature: signature}, nil
 		}
 	}
 	return verified{}, errors.New("signature does not verify")
@@ -580,6 +581,20 @@ func TestSigningTransport_FirstEnvelopeReadErrorKeepsCode(t *testing.T) {
 	_, err := st.RoundTrip(newStreamRequest(t, context.Background(), body))
 	require.Error(t, err)
 	require.Equal(t, connect.CodePermissionDenied, connect.CodeOf(err))
+	require.True(t, body.closed, "the body must be closed when RoundTrip fails")
+}
+
+// A first message that cannot be read, for a reason with no code of its own, fails the call with
+// Internal "reading first request message: <cause>".
+func TestSigningTransport_FirstEnvelopeReadErrorIsInternal(t *testing.T) {
+	body := &errReadCloser{err: errors.New("source failed")}
+	st := NewSigningTransport(newTestKey(t).sign, time.Now, WithTransport(unexpectedRoundTrip(t)))
+
+	_, err := st.RoundTrip(newStreamRequest(t, context.Background(), body))
+	require.Equal(t, connect.CodeInternal, connect.CodeOf(err))
+	var connectErr *connect.Error
+	require.ErrorAs(t, err, &connectErr)
+	require.Equal(t, "reading first request message: source failed", connectErr.Message())
 	require.True(t, body.closed, "the body must be closed when RoundTrip fails")
 }
 
@@ -1059,5 +1074,87 @@ func TestSigningTransport_StreamSigningVectors(t *testing.T) {
 			require.Equal(t, strconv.FormatInt(tc.TimestampMs, 10), sent.Header.Get(common.SignatureTimestampHeader))
 			require.Equal(t, body, forwarded)
 		})
+	}
+}
+
+// A signer that fails, or whose output no server would accept, fails the call before anything is
+// sent: Internal "signing the request failed: <cause>", for a unary call and for a stream's first
+// message. A signature of 64 bytes, or of 65 whatever its last byte, is sent as it is.
+func TestClient_SigningFailed(t *testing.T) {
+	key := newTestKey(t)
+	edited := func(edit func(signature, publicKey []byte) ([]byte, []byte)) crypto.SignFn {
+		return func(digest []byte) ([]byte, []byte, error) {
+			signature, publicKey, err := key.sign(digest)
+			signature, publicKey = edit(slices.Clone(signature), publicKey)
+			return signature, publicKey, err
+		}
+	}
+	const badSignature = "signature must be 64 or 65 bytes"
+	cases := []struct {
+		name  string
+		sign  crypto.SignFn
+		cause string
+	}{
+		{"signer error", func([]byte) ([]byte, []byte, error) { return nil, nil, errors.New("key store offline") }, "key store offline"},
+		{"63-byte signature", edited(func(s, p []byte) ([]byte, []byte) { return s[:63], p }), badSignature},
+		{"66-byte signature", edited(func(s, p []byte) ([]byte, []byte) { return append(s, 0), p }), badSignature},
+		{"compressed public key", edited(func(s, p []byte) ([]byte, []byte) {
+			publicKey, err := secp256k1.ParsePubKey(p)
+			require.NoError(t, err)
+			return s, publicKey.SerializeCompressed()
+		}), "public key must be 65 bytes, uncompressed"},
+	}
+	requireSigningFailed := func(t *testing.T, err error, want string) {
+		t.Helper()
+		require.Equal(t, connect.CodeInternal, connect.CodeOf(err), "error: %v", err)
+		var connectErr *connect.Error
+		require.ErrorAs(t, err, &connectErr)
+		require.Equal(t, want, connectErr.Message())
+	}
+
+	for _, p := range connectAndGRPC {
+		for _, c := range cases {
+			t.Run(p.name+"/"+c.name, func(t *testing.T) {
+				srv := newStreamTestServer(t, key.publicKey)
+				client := p.client(t, srv, key, WithSignatureFunction(c.sign))
+				want := "signing the request failed: " + c.cause
+
+				_, err := client.unary.CallUnary(testContext(t), connect.NewRequest(wrapperspb.String("hello")))
+				requireSigningFailed(t, err, want)
+
+				stream, err := client.serverStream.CallServerStream(testContext(t), connect.NewRequest(wrapperspb.String("hello")))
+				if err == nil {
+					for stream.Receive() {
+					}
+					err = stream.Err()
+				}
+				requireSigningFailed(t, err, want)
+
+				accepted, rejected := srv.results()
+				require.Empty(t, accepted, "nothing is sent")
+				require.Empty(t, rejected, "nothing is sent")
+			})
+		}
+
+		for name, edit := range map[string]func(s, p []byte) ([]byte, []byte){
+			"64-byte signature": func(s, p []byte) ([]byte, []byte) { return s[:64], p },
+			"v of 27":           func(s, p []byte) ([]byte, []byte) { s[64] += 27; return s, p },
+		} {
+			t.Run(p.name+"/"+name, func(t *testing.T) {
+				srv := newStreamTestServer(t, key.publicKey)
+				var sent []byte
+				sign := edited(func(s, p []byte) ([]byte, []byte) {
+					s, p = edit(s, p)
+					sent = s
+					return s, p
+				})
+				client := p.client(t, srv, key, WithSignatureFunction(sign))
+				_, err := client.unary.CallUnary(testContext(t), connect.NewRequest(wrapperspb.String("hello")))
+				require.NoError(t, err)
+				accepted, _ := srv.results()
+				require.Len(t, accepted, 1)
+				require.Equal(t, sent, accepted[0].signature, "the signature is sent as the signer returned it")
+			})
+		}
 	}
 }

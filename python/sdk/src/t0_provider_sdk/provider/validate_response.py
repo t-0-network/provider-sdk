@@ -1,7 +1,8 @@
 """ConnectRPC interceptor that validates provider responses against buf.validate rules.
 
 Invalid responses are rejected with Code.INTERNAL since they indicate
-a provider implementation bug, not a client error.
+a provider implementation bug, not a client error. So is a response with a rule
+protovalidate cannot compile or evaluate ("response validation error: <cause>").
 
 The interceptor also emits one ``error``-level log line before re-raising so
 providers see the failure in their own logs even when they don't wrap their
@@ -21,49 +22,100 @@ from connectrpc.code import Code
 from connectrpc.errors import ConnectError
 from connectrpc.request import RequestContext
 
-from t0_provider_sdk._version import __version__
-from t0_provider_sdk.provider.validate import _get_validator
+from t0_provider_sdk._messages import RESPONSE_INVALID, RESPONSE_VALIDATION_ERROR
+from t0_provider_sdk.provider._sdk_version import _reported_version
+from t0_provider_sdk.provider.validate import _RULE_ERRORS, _cause, _get_validator, _violations
 
 DEFAULT_LOGGER_NAME = "t0_provider_sdk"
 
 
 def _rpc_method_from_ctx(ctx: Any) -> str:
-    """Best-effort extraction of the RPC method FQN from a RequestContext."""
-    for attr in ("method", "procedure", "path"):
-        value = getattr(ctx, attr, None)
-        if isinstance(value, str) and value:
-            return value
-    return ""
+    """The RPC method as ``<service>/<method>`` (e.g. tzero.v1.payment.ProviderService/PayOut), from
+    the MethodInfo of a RequestContext."""
+    method = getattr(ctx, "method", None)
+    if isinstance(method, str):
+        return method
+    service_name, name = getattr(method, "service_name", ""), getattr(method, "name", "")
+    return f"{service_name}/{name}" if service_name and name else ""
+
+
+def _response_type(response: Any) -> str:
+    return type(response).DESCRIPTOR.full_name if hasattr(type(response), "DESCRIPTOR") else type(response).__name__
 
 
 def _log_validation_failure(
     logger: logging.Logger,
     response: Any,
     ctx: Any,
-    error: protovalidate.ValidationError,
+    violations: str,
+    sdk_version: str,
 ) -> None:
     """Emit one error-level line with structured fields for a validation failure."""
-    response_type = (
-        type(response).DESCRIPTOR.full_name if hasattr(type(response), "DESCRIPTOR") else type(response).__name__
-    )
     logger.error(
         "response validation failed: %s",
-        error,
+        violations,
         extra={
             "rpc_method": _rpc_method_from_ctx(ctx),
-            "response_type": response_type,
-            "violations": str(error),
-            "sdk_version": __version__,
+            "response_type": _response_type(response),
+            "violations": violations,
+            "sdk_version": sdk_version,
         },
     )
 
 
-class ValidationInterceptor:
-    """Async ConnectRPC unary interceptor that validates responses against proto rules."""
+def _log_validation_error(
+    logger: logging.Logger,
+    response: Any,
+    ctx: Any,
+    cause: str,
+    sdk_version: str,
+) -> None:
+    """Emit one error-level line with structured fields for a rule protovalidate could not
+    evaluate."""
+    logger.error(
+        "response validation error: %s",
+        cause,
+        extra={
+            "rpc_method": _rpc_method_from_ctx(ctx),
+            "response_type": _response_type(response),
+            "error": cause,
+            "sdk_version": sdk_version,
+        },
+    )
 
-    def __init__(self, logger: logging.Logger | None = None) -> None:
+
+def _check_response(
+    validator: protovalidate.Validator,
+    logger: logging.Logger,
+    sdk_version: str,
+    response: Any,
+    ctx: Any,
+) -> None:
+    """Validate response; on failure, log one error line and raise ConnectError INTERNAL
+    ("response validation failed: ..." or "response validation error: ...")."""
+    try:
+        validator.validate(response)
+    except protovalidate.ValidationError as e:
+        violations = _violations(e)
+        _log_validation_failure(logger, response, ctx, violations, sdk_version)
+        raise ConnectError(Code.INTERNAL, RESPONSE_INVALID.format(violations=violations)) from e
+    except _RULE_ERRORS as e:
+        cause = _cause(e)
+        _log_validation_error(logger, response, ctx, cause, sdk_version)
+        raise ConnectError(Code.INTERNAL, RESPONSE_VALIDATION_ERROR.format(cause=cause)) from e
+
+
+class ValidationInterceptor:
+    """Async ConnectRPC unary interceptor that validates responses against proto rules.
+
+    version is the SDK version its log line reports (``sdk_version``): new_asgi_app passes its own
+    ``version`` override; None or a blank value means this SDK's version.
+    """
+
+    def __init__(self, logger: logging.Logger | None = None, *, version: str | None = None) -> None:
         self._validator = _get_validator()
         self._logger = logger if logger is not None else logging.getLogger(DEFAULT_LOGGER_NAME)
+        self._version = _reported_version(version)
 
     async def intercept_unary(
         self,
@@ -72,20 +124,20 @@ class ValidationInterceptor:
         ctx: RequestContext,
     ) -> Any:
         response = await call_next(request, ctx)
-        try:
-            self._validator.validate(response)
-        except protovalidate.ValidationError as e:
-            _log_validation_failure(self._logger, response, ctx, e)
-            raise ConnectError(Code.INTERNAL, f"response validation failed: {e}") from e
+        _check_response(self._validator, self._logger, self._version, response, ctx)
         return response
 
 
 class ValidationInterceptorSync:
-    """Sync ConnectRPC unary interceptor that validates responses against proto rules."""
+    """Sync ConnectRPC unary interceptor that validates responses against proto rules.
 
-    def __init__(self, logger: logging.Logger | None = None) -> None:
+    version: as for ValidationInterceptor (new_wsgi_app passes its own ``version`` override).
+    """
+
+    def __init__(self, logger: logging.Logger | None = None, *, version: str | None = None) -> None:
         self._validator = _get_validator()
         self._logger = logger if logger is not None else logging.getLogger(DEFAULT_LOGGER_NAME)
+        self._version = _reported_version(version)
 
     def intercept_unary_sync(
         self,
@@ -94,11 +146,7 @@ class ValidationInterceptorSync:
         ctx: RequestContext,
     ) -> Any:
         response = call_next(request, ctx)
-        try:
-            self._validator.validate(response)
-        except protovalidate.ValidationError as e:
-            _log_validation_failure(self._logger, response, ctx, e)
-            raise ConnectError(Code.INTERNAL, f"response validation failed: {e}") from e
+        _check_response(self._validator, self._logger, self._version, response, ctx)
         return response
 
 

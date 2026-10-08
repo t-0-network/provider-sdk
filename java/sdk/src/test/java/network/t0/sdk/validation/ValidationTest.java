@@ -8,7 +8,9 @@ import io.grpc.*;
 import network.t0.sdk.proto.tzero.v1.common.Decimal;
 import network.t0.sdk.proto.tzero.v1.payment.AppendLedgerEntriesRequest;
 import network.t0.sdk.proto.tzero.v1.payment.PayoutResponse;
+import network.t0.sdk.proto.tzero.v1.payment.UpdateLimitRequest;
 import network.t0.sdk.proto.tzero.v1.payment.UpdatePaymentResponse;
+import network.t0.sdk.common.ValidationUtils;
 import ch.qos.logback.classic.spi.ILoggingEvent;
 import ch.qos.logback.core.read.ListAppender;
 import network.t0.sdk.provider.ResponseValidationInterceptor;
@@ -160,6 +162,36 @@ class ValidationTest {
             Decimal msg = Decimal.newBuilder().setExponent(100).build();
             ValidationResult result = validator.validate(msg);
             assertThat(result.isSuccess()).isFalse();
+        }
+    }
+
+    /** The field is named by its full path, as every SDK writes it (field_path_cases in cross_test/test_vectors.json). */
+    @Nested
+    @DisplayName("Violation format")
+    class ViolationFormat {
+
+        @Test
+        @DisplayName("A nested field")
+        void nestedField() throws ValidationException {
+            PayoutResponse msg = PayoutResponse.newBuilder()
+                    .setFailed(PayoutResponse.Failed.newBuilder().setDetails("x".repeat(1025)))
+                    .build();
+            assertThat(ValidationUtils.formatViolations(validator.validate(msg)))
+                    .isEqualTo("failed.details: must be at most 1024 characters");
+        }
+
+        @Test
+        @DisplayName("A list element's fields")
+        void listElement() throws ValidationException {
+            UpdateLimitRequest msg = UpdateLimitRequest.newBuilder()
+                    .addLimits(UpdateLimitRequest.Limit.newBuilder().setVersion(-1).setCounterpartId(1))
+                    .build();
+            assertThat(ValidationUtils.formatViolations(validator.validate(msg))).isEqualTo(
+                    "limits[0].version: must be greater than or equal to 0; "
+                            + "limits[0].payout_limit: value is required; "
+                            + "limits[0].credit_limit: value is required; "
+                            + "limits[0].credit_usage: value is required; "
+                            + "limits[0].reserve: value is required");
         }
     }
 

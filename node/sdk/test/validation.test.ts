@@ -95,19 +95,33 @@ describe('Request validation', () => {
   });
 });
 
+// A unary request to test.Service/Test carrying message.
+function makeReq(message: Decimal) {
+  return {
+    stream: false as const,
+    service: { typeName: 'test.Service' },
+    method: { name: 'Test', kind: 0, input: DecimalSchema, output: DecimalSchema, idempotency: undefined },
+    header: new Headers(),
+    contextValues: undefined,
+    message,
+  };
+}
+
+// A logger that records every error call.
+function spyLogger() {
+  const calls: Array<{ msg: string; fields?: Record<string, unknown> }> = [];
+  return {
+    logger: {
+      error: (msg: string, fields?: Record<string, unknown>) => {
+        calls.push({ msg, fields });
+      },
+    },
+    calls,
+  };
+}
+
 describe('Validation interceptor', () => {
   const interceptor = createValidationInterceptor();
-
-  function makeReq(message: Decimal) {
-    return {
-      stream: false as const,
-      service: { typeName: 'test.Service' },
-      method: { name: 'Test', kind: 0, input: DecimalSchema, output: DecimalSchema, idempotency: undefined },
-      header: new Headers(),
-      contextValues: undefined,
-      message,
-    };
-  }
 
   it('rejects invalid response with Code.Internal', async () => {
     const handler = interceptor((req: any) =>
@@ -122,13 +136,8 @@ describe('Validation interceptor', () => {
   });
 
   it('calls custom logger with structured fields on invalid response', async () => {
-    const calls: Array<{ msg: string; fields?: Record<string, unknown> }> = [];
-    const spyLogger = {
-      error: (msg: string, fields?: Record<string, unknown>) => {
-        calls.push({ msg, fields });
-      },
-    };
-    const customInterceptor = createValidationInterceptor(spyLogger);
+    const { logger, calls } = spyLogger();
+    const customInterceptor = createValidationInterceptor(logger);
     const handler = customInterceptor((req: any) =>
       Promise.resolve({ stream: false, header: new Headers(), trailer: new Headers(), message: create(DecimalSchema, { exponent: 100 }) })
     );
@@ -154,13 +163,8 @@ describe('Validation interceptor', () => {
   });
 
   it('custom logger is NOT called on valid response', async () => {
-    const calls: Array<{ msg: string; fields?: Record<string, unknown> }> = [];
-    const spyLogger = {
-      error: (msg: string, fields?: Record<string, unknown>) => {
-        calls.push({ msg, fields });
-      },
-    };
-    const customInterceptor = createValidationInterceptor(spyLogger);
+    const { logger, calls } = spyLogger();
+    const customInterceptor = createValidationInterceptor(logger);
     const handler = customInterceptor((req: any) =>
       Promise.resolve({ stream: false, header: new Headers(), trailer: new Headers(), message: create(DecimalSchema, { exponent: 2 }) })
     );
@@ -194,30 +198,14 @@ describe('Validation interceptor', () => {
 
 describe('createNetworkValidationInterceptor', () => {
   it('logs sdk_version from SDK_VERSION on response validation failure', async () => {
-    const calls: Array<{ msg: string; fields?: Record<string, unknown> }> = [];
-    const logger = {
-      error: (msg: string, fields?: Record<string, unknown>) => {
-        calls.push({ msg, fields });
-      },
-    };
+    const { logger, calls } = spyLogger();
     const netInterceptor = createNetworkValidationInterceptor(logger);
     const handler = netInterceptor((req: any) =>
       Promise.resolve({ stream: false, header: new Headers(), trailer: new Headers(), message: create(DecimalSchema, { exponent: 100 }) })
     );
 
-    function makeReqLocal(message: Decimal) {
-      return {
-        stream: false as const,
-        service: { typeName: 'test.Service' },
-        method: { name: 'Test', kind: 0, input: DecimalSchema, output: DecimalSchema, idempotency: undefined },
-        header: new Headers(),
-        contextValues: undefined,
-        message,
-      };
-    }
-
     await assert.rejects(
-      () => handler(makeReqLocal(create(DecimalSchema, { exponent: 2 }))),
+      () => handler(makeReq(create(DecimalSchema, { exponent: 2 }))),
       (err: any) => {
         assert.ok(err instanceof ConnectError);
         assert.equal(err.code, Code.Internal);

@@ -1,5 +1,6 @@
 package network.t0.sdk.crypto;
 
+import network.t0.sdk.common.Messages;
 import org.bouncycastle.jcajce.provider.digest.Keccak;
 
 /**
@@ -28,7 +29,7 @@ public final class Keccak256 {
      */
     public static byte[] hash(byte[] data) {
         if (data == null) {
-            throw new IllegalArgumentException("data must not be null");
+            throw new IllegalArgumentException(String.format(Messages.ARGUMENT_NULL, "data"));
         }
 
         Keccak.Digest256 digest = new Keccak.Digest256();

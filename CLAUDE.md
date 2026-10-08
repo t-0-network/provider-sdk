@@ -4,6 +4,10 @@
 
 Sign and verify the raw wire bytes, never a re-encoded protobuf message. Rule S2 in [`docs/CROSS_SDK_RULES.md`](docs/CROSS_SDK_RULES.md). All languages.
 
+## One behavior in every SDK
+
+All five implementations (Go, Java, Node, Python, C#) are kept as alike as the languages allow. Every default, input check, SDK-raised error code and message, public helper and option exists in every SDK, with the same value, under one name in each language's casing. Each value is one named constant per SDK, and the cross-language tests check it against `cross_test/test_vectors.json`; where it is a behavior, they run it against every server. A change to one SDK is made in all five in the same PR, together with `cross_test/test_vectors.json`. A difference is allowed only as an exception the user approved, stated in [`docs/CROSS_SDK_RULES.md`](docs/CROSS_SDK_RULES.md). Values that come from the underlying stack and that the SDK does not set itself are not differences.
+
 ## Repository Layout
 
 ```

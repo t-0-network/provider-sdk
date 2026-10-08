@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+using Grpc.Core;
 using T0.ProviderSdk.Common;
 using T0.ProviderSdk.Crypto;
 
@@ -17,13 +19,24 @@ namespace T0.ProviderSdk.Network;
 /// </remarks>
 public sealed class SigningDelegatingHandler : DelegatingHandler
 {
-    private readonly ISigner _signer;
+    private readonly SignFn _signer;
     private readonly TimeProvider _timeProvider;
 
-    public SigningDelegatingHandler(ISigner signer, TimeProvider? timeProvider = null)
+    public SigningDelegatingHandler(SignFn signer, TimeProvider? timeProvider = null)
     {
-        _signer = signer ?? throw new ArgumentNullException(nameof(signer));
+        _signer = signer ?? throw new ArgumentNullException(null, Messages.SignerNull);
         _timeProvider = timeProvider ?? TimeProvider.System;
+    }
+
+    /// <summary>
+    /// Signs with <paramref name="signer"/> through a <see cref="SignFn"/> made from
+    /// <see cref="ISigner.Sign"/>, with the same checks and errors.
+    /// </summary>
+    [Obsolete(SignerAdapter.ObsoleteMessage)]
+    [OverloadResolutionPriority(-1)]
+    public SigningDelegatingHandler(ISigner signer, TimeProvider? timeProvider = null)
+        : this(SignerAdapter.ToSignFn(signer)!, timeProvider)
+    {
     }
 
     /// <summary>
@@ -81,7 +94,18 @@ public sealed class SigningDelegatingHandler : DelegatingHandler
     {
         var timestampMs = _timeProvider.GetUtcNow().ToUnixTimeMilliseconds();
         var digest = Keccak256.Hash(signed, Headers.EncodeTimestamp(timestampMs));
-        var result = _signer.Sign(digest);
+        SignResult result;
+        try
+        {
+            // SignResult checks the output before anything is sent: the signature, then the key.
+            var (signature, publicKey) = _signer(digest);
+            result = new SignResult(signature, publicKey);
+        }
+        catch (Exception e)
+        {
+            // Not Unavailable, which callers retry: a failing signer is not transient.
+            throw new RpcException(new Status(StatusCode.Internal, Messages.SigningFailed(e.Message), e));
+        }
 
         SetHeader(request, Headers.PublicKey, result.PublicKeyHex);
         SetHeader(request, Headers.Signature, result.SignatureHex);

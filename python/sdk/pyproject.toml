@@ -8,14 +8,14 @@ authors = [
     { name = "T-0 Network" },
 ]
 dependencies = [
-    "connectrpc>=0.11.1",
+    "connectrpc>=0.12.1",
     # connectrpc's HTTP client. Requires cancellation to abort a streaming upload rather than
     # finish it normally after a partial body, as well as disabling signed-request redirects.
     "pyqwest>=0.11.0",
     "protobuf>=7.34.1",
     "coincurve>=21.0",
     "pycryptodome>=3.23",
-    "protovalidate>=0.3",
+    "protovalidate>=2.0",
     # grpc.health.v1 messages. Upstream publishes them under the top-level
     # grpc_health package precisely because a generated grpc.health.v1 would
     # collide with grpcio's regular grpc package in any customer venv that has it.

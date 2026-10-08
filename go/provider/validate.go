@@ -12,13 +12,13 @@ import (
 	"buf.build/go/protovalidate"
 	"connectrpc.com/connect"
 	"google.golang.org/protobuf/proto"
+
+	"github.com/t-0-network/provider-sdk/go/internal/contract"
 )
 
-// validator is shared by every Validate call. protovalidate.New caches compiled
-// rule programs per message descriptor, so re-using one instance avoids
-// recompiling on each call. Construction is lazy because protovalidate.New can
-// fail at process startup and we don't want to penalize callers who never use
-// the helper.
+// validator is shared by Validate and the response-validation interceptor.
+// protovalidate.GlobalValidator compiles the rules of each message descriptor
+// once, on first use, and keeps them.
 var validator = sync.OnceValue(func() protovalidate.Validator {
 	// protovalidate.GlobalValidator falls back to a lazily-initialised default
 	// instance. Returning it here keeps the helper and the connect validate
@@ -27,9 +27,9 @@ var validator = sync.OnceValue(func() protovalidate.Validator {
 })
 
 // Validate runs protovalidate on msg and returns it unchanged on success.
-// On failure it returns the zero value of T and an error whose message is
-// prefixed "response validation failed: " so it surfaces consistently with the
-// interceptor safety net.
+// On failure it returns the zero value of T and the error of the interceptor
+// safety net: connect.CodeInternal "response validation failed: <field>:
+// <message>[; <field>: <message>…]", with a buf.validate.Violations detail.
 //
 // Usage:
 //
@@ -46,15 +46,17 @@ var validator = sync.OnceValue(func() protovalidate.Validator {
 func Validate[T proto.Message](msg T) (T, error) {
 	if err := validator().Validate(msg); err != nil {
 		var zero T
-		return zero, connect.NewError(connect.CodeInternal,
-			fmt.Errorf("response validation failed: %w", err))
+		if ve := asValidationError(err); ve != nil {
+			return zero, newResponseValidationError(ve)
+		}
+		return zero, connect.NewError(connect.CodeInternal, fmt.Errorf(contract.ResponseValidationError, err))
 	}
 	return msg, nil
 }
 
 // asValidationError extracts a *protovalidate.ValidationError from err if one
-// is wrapped inside, returning nil otherwise. Exposed unexported so the
-// interceptor and tests can share the same extraction logic.
+// is wrapped inside, returning nil otherwise. Validate and the response-validation
+// interceptor both use it.
 func asValidationError(err error) *protovalidate.ValidationError {
 	var ve *protovalidate.ValidationError
 	if errors.As(err, &ve) {

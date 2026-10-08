@@ -2,6 +2,7 @@ package provider
 
 import (
 	"context"
+	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -59,6 +60,63 @@ func TestHealth_ChecksRegisteredServices(t *testing.T) {
 
 	_, err = client.Check(context.Background(), &grpchealth.CheckRequest{Service: "example.v1.NotRegistered"})
 	require.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
+	var connectErr *connect.Error
+	require.ErrorAs(t, err, &connectErr)
+	require.Equal(t, "unknown service 'example.v1.NotRegistered'", connectErr.Message())
+}
+
+// A NotFound reply carries the identity too, over Connect and over gRPC, as in
+// every SDK.
+func TestHealth_ReportsSdkIdentityOnNotFound(t *testing.T) {
+	priv, err := secp256k1.GeneratePrivateKey()
+	require.NoError(t, err)
+	mux, err := NewHttpHandlerWithOptions(
+		NetworkPublicKeyHexed(crypto.HexPublicKey(priv.PubKey())),
+		[]HttpHandlerOption{WithSDKVersion("9.9.9-test")},
+	)
+	require.NoError(t, err)
+	srv := httptest.NewUnstartedServer(mux)
+	srv.EnableHTTP2 = true
+	srv.StartTLS()
+	t.Cleanup(srv.Close)
+
+	signFn, err := crypto.NewSignerFromHex(crypto.HexPrivateKey(priv))
+	require.NoError(t, err)
+	signing := &http.Client{Transport: network.NewSigningTransport(signFn, time.Now, network.WithTransport(srv.Client().Transport))}
+
+	t.Run("connect", func(t *testing.T) {
+		req, err := http.NewRequest(http.MethodPost, srv.URL+"/grpc.health.v1.Health/Check", strings.NewReader(`{"service":"example.v1.NotRegistered"}`))
+		require.NoError(t, err)
+		req.Header.Set("Content-Type", "application/json")
+		resp, err := signing.Do(req)
+		require.NoError(t, err)
+		defer func() { _ = resp.Body.Close() }()
+		require.Equal(t, http.StatusNotFound, resp.StatusCode)
+		body, err := io.ReadAll(resp.Body)
+		require.NoError(t, err)
+		require.JSONEq(t, `{"code":"not_found","message":"unknown service 'example.v1.NotRegistered'"}`, string(body))
+		require.Equal(t, sdkEcosystem, resp.Header.Get(SDKEcosystemHeader))
+		require.Equal(t, "9.9.9-test", resp.Header.Get(SDKVersionHeader))
+	})
+
+	t.Run("grpc", func(t *testing.T) {
+		var header http.Header
+		recording := &http.Client{Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+			resp, err := signing.Transport.RoundTrip(req)
+			if err == nil {
+				header = resp.Header
+			}
+			return resp, err
+		})}
+		client := grpchealth.NewClient(recording, srv.URL, connect.WithGRPC())
+		_, err := client.Check(context.Background(), &grpchealth.CheckRequest{Service: "example.v1.NotRegistered"})
+		require.Equal(t, connect.CodeNotFound, connect.CodeOf(err))
+		var connectErr *connect.Error
+		require.ErrorAs(t, err, &connectErr)
+		require.Equal(t, "unknown service 'example.v1.NotRegistered'", connectErr.Message())
+		require.Equal(t, sdkEcosystem, header.Get(SDKEcosystemHeader))
+		require.Equal(t, "9.9.9-test", header.Get(SDKVersionHeader))
+	})
 }
 
 // Response headers are the only place the SDK reports what it is: the health
@@ -70,22 +128,7 @@ func TestHealth_ChecksRegisteredServices(t *testing.T) {
 // Connect client, which does not.
 func TestHealth_ReportsSdkIdentityInResponseHeaders(t *testing.T) {
 	srv, priv := newHealthServer(t)
-
-	signFn, err := crypto.NewSignerFromHex(crypto.HexPrivateKey(priv))
-	require.NoError(t, err)
-	signing := &http.Client{Transport: network.NewSigningTransport(signFn, time.Now)}
-
-	req, err := http.NewRequest(http.MethodPost, srv.URL+"/grpc.health.v1.Health/Check", strings.NewReader("{}"))
-	require.NoError(t, err)
-	req.Header.Set("Content-Type", "application/json")
-
-	resp, err := signing.Do(req)
-	require.NoError(t, err)
-	defer func() { _ = resp.Body.Close() }()
-	require.Equal(t, http.StatusOK, resp.StatusCode)
-
-	require.Equal(t, sdkEcosystem, resp.Header.Get(SDKEcosystemHeader))
-	require.Equal(t, sdkversion.Version, resp.Header.Get(SDKVersionHeader))
+	requireIdentityHeaders(t, srv, priv, sdkversion.Version)
 }
 
 func newHealthServerWithOptions(t *testing.T, opts ...HttpHandlerOption) (*httptest.Server, *secp256k1.PrivateKey) {
@@ -107,7 +150,13 @@ func newHealthServerWithOptions(t *testing.T, opts ...HttpHandlerOption) (*httpt
 
 func TestHealth_ReportsOverriddenSdkVersionInResponseHeaders(t *testing.T) {
 	srv, priv := newHealthServerWithOptions(t, WithSDKVersion("9.9.9-test"))
+	requireIdentityHeaders(t, srv, priv, "9.9.9-test")
+}
 
+// requireIdentityHeaders sends srv a Connect health Check signed with priv and requires the
+// answer to be OK with the SDK identity headers, wantVersion as the version.
+func requireIdentityHeaders(t *testing.T, srv *httptest.Server, priv *secp256k1.PrivateKey, wantVersion string) {
+	t.Helper()
 	signFn, err := crypto.NewSignerFromHex(crypto.HexPrivateKey(priv))
 	require.NoError(t, err)
 	signing := &http.Client{Transport: network.NewSigningTransport(signFn, time.Now)}
@@ -122,7 +171,7 @@ func TestHealth_ReportsOverriddenSdkVersionInResponseHeaders(t *testing.T) {
 	require.Equal(t, http.StatusOK, resp.StatusCode)
 
 	require.Equal(t, sdkEcosystem, resp.Header.Get(SDKEcosystemHeader))
-	require.Equal(t, "9.9.9-test", resp.Header.Get(SDKVersionHeader))
+	require.Equal(t, wantVersion, resp.Header.Get(SDKVersionHeader))
 }
 
 // The probe is signed like every other call the Network makes. Without this the

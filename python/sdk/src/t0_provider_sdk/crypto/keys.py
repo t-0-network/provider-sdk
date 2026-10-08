@@ -6,6 +6,14 @@ import warnings
 from coincurve import PrivateKey, PublicKey
 from coincurve.utils import GROUP_ORDER_INT
 
+from t0_provider_sdk._messages import (
+    PRIVATE_KEY_EMPTY,
+    PRIVATE_KEY_MALFORMED,
+    PRIVATE_KEY_OUT_OF_RANGE,
+    PUBLIC_KEY_NOT_A_POINT,
+    PUBLIC_KEY_NOT_HEX,
+)
+
 
 def private_key_from_hex(hex_key: str) -> PrivateKey:
     """Create a PrivateKey from a hex-encoded string of 32 bytes.
@@ -14,7 +22,7 @@ def private_key_from_hex(hex_key: str) -> PrivateKey:
     is not exactly 64 hex digits, and for a value outside [1, n-1].
     """
     if not hex_key:
-        raise ValueError("private key must not be null or empty")
+        raise ValueError(PRIVATE_KEY_EMPTY)
     cleaned = hex_key[2:] if hex_key[:2] in ("0x", "0X") else hex_key
     # unhexlify, not bytes.fromhex, which skips whitespace; and the length is checked here, because the
     # curve library pads a short key. A malformed key would otherwise become a different, valid one.
@@ -23,11 +31,20 @@ def private_key_from_hex(hex_key: str) -> PrivateKey:
     except ValueError:
         secret = b""
     if len(secret) != 32:
-        raise ValueError("private key must be 32 bytes (64 hex characters)")
+        raise ValueError(PRIVATE_KEY_MALFORMED)
     # GROUP_ORDER_INT is the order n of secp256k1.
     if not 0 < int.from_bytes(secret, "big") < GROUP_ORDER_INT:
-        raise ValueError("private key must be in range [1, n-1]")
+        raise ValueError(PRIVATE_KEY_OUT_OF_RANGE)
     return PrivateKey(secret)
+
+
+def public_key_from_private_key(private_key_hex: str) -> str:
+    """The public key of a hex-encoded private key: "0x" and the 65-byte uncompressed key
+    (04 || x || y) in lowercase hex.
+
+    Parses the key as private_key_from_hex does, and raises the same ValueError.
+    """
+    return "0x" + private_key_from_hex(private_key_hex).public_key.format(compressed=False).hex()
 
 
 @warnings.deprecated("public_key_from_hex is deprecated: not used by the SDK; will be removed in a future release")
@@ -57,11 +74,15 @@ def _decode_hex_strict(value: str) -> bytes:
 
 
 def _public_key_from_bytes_strict(data: bytes) -> PublicKey:
-    """Parse a SEC1-encoded secp256k1 key (coincurve's parser). Raises ValueError."""
+    """Parse a compressed (33 bytes, 02 or 03) or uncompressed (65 bytes, 04) point on secp256k1
+    (rule V2). coincurve also accepts the hybrid forms (06, 07), so the form is checked first.
+    Raises ValueError."""
+    if not ((len(data) == 33 and data[0] in (2, 3)) or (len(data) == 65 and data[0] == 4)):
+        raise ValueError(PUBLIC_KEY_NOT_A_POINT)
     try:
         return PublicKey(data)
     except ValueError as e:
-        raise ValueError("not a secp256k1 public key") from e
+        raise ValueError(PUBLIC_KEY_NOT_A_POINT) from e
 
 
 def _parse_public_key(value: str) -> PublicKey:
@@ -69,7 +90,11 @@ def _parse_public_key(value: str) -> PublicKey:
 
     Accepts only strict hex. Raises ValueError.
     """
-    return _public_key_from_bytes_strict(_decode_hex_strict(value))
+    try:
+        data = _decode_hex_strict(value)
+    except ValueError as e:
+        raise ValueError(PUBLIC_KEY_NOT_HEX) from e
+    return _public_key_from_bytes_strict(data)
 
 
 def public_key_to_bytes(key: PublicKey) -> bytes:

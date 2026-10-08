@@ -20,7 +20,9 @@ import network.t0.sdk.common.ValidationUtils;
  * <p>Wire behavior is unchanged: if a {@link ResponseValidationException}
  * thrown by this helper propagates out of the handler, the SDK interceptor
  * closes the call with the same {@code Status.INTERNAL} + same description
- * it would produce on its own.
+ * it would produce on its own: {@code "response validation failed: <violations>"},
+ * or {@code "response validation error: <cause>"} when {@code protovalidate}
+ * cannot evaluate a rule.
  *
  * <p>Example:
  * <pre>{@code
@@ -44,7 +46,8 @@ public final class Validate {
      * @param msg the message to validate
      * @param <T> the concrete message type
      * @return {@code msg} unchanged, on success
-     * @throws ResponseValidationException if validation fails or the validator itself errors
+     * @throws ResponseValidationException if validation fails ({@code "response validation failed: <violations>"})
+     *         or protovalidate cannot evaluate a rule ({@code "response validation error: <cause>"})
      */
     public static <T extends Message> T check(T msg) {
         if (msg == null) {
@@ -58,7 +61,7 @@ public final class Validate {
             }
             return msg;
         } catch (ValidationException e) {
-            throw new ResponseValidationException(responseType, e.getMessage(), e);
+            throw ResponseValidationException.validationError(responseType, e);
         }
     }
 }

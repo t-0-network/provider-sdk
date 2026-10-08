@@ -3,6 +3,7 @@ using System.Buffers.Binary;
 using System.IO.Pipelines;
 using System.Net;
 using Grpc.Core;
+using T0.ProviderSdk.Common;
 
 namespace T0.ProviderSdk.Network;
 
@@ -217,7 +218,7 @@ internal sealed class FirstFrameThenPipeContent : HttpContent
     }
 
     private static RpcException BrokenFirstMessage() =>
-        new(new Status(StatusCode.InvalidArgument, "streaming request ends inside its first message"));
+        new(new Status(StatusCode.InvalidArgument, Messages.FirstMessageIncomplete));
 
     // The prefix and payload length. A frame longer than a byte array can hold could never arrive
     // whole, so it is a first message that ends early, refused before anything is signed.
@@ -231,8 +232,7 @@ internal sealed class FirstFrameThenPipeContent : HttpContent
         return FramePrefixLength + (int)payloadLength;
     }
 
-    private static InvalidOperationException CannotSend(int state) => state == StateClosed
-        ? new InvalidOperationException("The request body of a streaming call cannot be sent: the request was aborted.")
-        : new InvalidOperationException(
-            "The request body of a streaming call cannot be sent again once forwarding of its later messages has started.");
+    private static InvalidOperationException CannotSend(int state) => new(state == StateClosed
+        ? Messages.ClientStreamAborted
+        : Messages.ClientStreamResend);
 }

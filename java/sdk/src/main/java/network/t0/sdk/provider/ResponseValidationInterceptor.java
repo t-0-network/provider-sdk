@@ -1,5 +1,6 @@
 package network.t0.sdk.provider;
 
+import network.t0.sdk.common.Messages;
 import build.buf.protovalidate.ValidationResult;
 import build.buf.protovalidate.Validator;
 import build.buf.protovalidate.exceptions.ValidationException;
@@ -18,11 +19,15 @@ import org.slf4j.LoggerFactory;
  * <p>This class is thread-safe. The {@link Validator} instance is shared
  * with {@link Validate#check(Message)} via {@link Validators#shared()}.
  *
+ * <p>A rule that {@code protovalidate} cannot evaluate is rejected with
+ * {@link Status#INTERNAL} {@code "response validation error: <cause>"}.
+ *
  * <p>The interceptor also handles {@link ResponseValidationException} that
  * propagates out of a handler (e.g. when the developer calls
  * {@link Validate#check(Message)} but does not catch the failure): the wire
- * shape stays {@code Status.INTERNAL} with description
- * {@code "response validation failed: <details>"}.
+ * shape stays {@code Status.INTERNAL} with the exception's message as the
+ * description, {@code "response validation failed: <details>"} or
+ * {@code "response validation error: <cause>"}.
  */
 public final class ResponseValidationInterceptor implements ServerInterceptor {
 
@@ -30,6 +35,7 @@ public final class ResponseValidationInterceptor implements ServerInterceptor {
     static final String DEFAULT_LOGGER_NAME = ResponseValidationInterceptor.class.getName();
 
     private final Logger log;
+    private final String sdkVersion;
     private final Validator validator;
 
     /** Backwards-compatible no-arg constructor (logs to the class logger). */
@@ -42,10 +48,19 @@ public final class ResponseValidationInterceptor implements ServerInterceptor {
      *            Must not be {@code null}.
      */
     public ResponseValidationInterceptor(Logger log) {
+        this(log, HealthServiceImpl.SDK_VERSION);
+    }
+
+    /**
+     * @param log        as in {@link #ResponseValidationInterceptor(Logger)}
+     * @param sdkVersion the version the server reports, logged as {@code sdk_version}
+     */
+    ResponseValidationInterceptor(Logger log, String sdkVersion) {
         if (log == null) {
-            throw new IllegalArgumentException("log must not be null");
+            throw new IllegalArgumentException(String.format(Messages.ARGUMENT_NULL, "log"));
         }
         this.log = log;
+        this.sdkVersion = sdkVersion;
         this.validator = Validators.shared();
     }
 
@@ -58,8 +73,15 @@ public final class ResponseValidationInterceptor implements ServerInterceptor {
                 ? call.getMethodDescriptor().getFullMethodName()
                 : "unknown";
         ServerCall<ReqT, RespT> validatingCall = new ForwardingServerCall.SimpleForwardingServerCall<>(call) {
+            // Set once a response is refused: the handler goes on to send or close a call that is
+            // already closed, which grpc would refuse with an IllegalStateException.
+            private volatile boolean refused;
+
             @Override
             public void sendMessage(RespT message) {
+                if (refused) {
+                    return;
+                }
                 if (message instanceof Message protoMessage) {
                     String responseType = protoMessage.getDescriptorForType().getFullName();
                     try {
@@ -67,16 +89,28 @@ public final class ResponseValidationInterceptor implements ServerInterceptor {
                         if (!result.isSuccess()) {
                             String details = ValidationUtils.formatViolations(result);
                             logFailure(rpcMethod, responseType, details);
-                            call.close(Status.INTERNAL.withDescription("response validation failed: " + details), new Metadata());
+                            refuse(String.format(Messages.RESPONSE_INVALID, details));
                             return;
                         }
                     } catch (ValidationException e) {
                         logFailure(rpcMethod, responseType, e.getMessage());
-                        call.close(Status.INTERNAL.withDescription("response validation error: " + e.getMessage()), new Metadata());
+                        refuse(String.format(Messages.RESPONSE_VALIDATION_ERROR, e.getMessage()));
                         return;
                     }
                 }
                 super.sendMessage(message);
+            }
+
+            @Override
+            public void close(Status status, Metadata trailers) {
+                if (!refused) {
+                    super.close(status, trailers);
+                }
+            }
+
+            private void refuse(String description) {
+                refused = true;
+                call.close(Status.INTERNAL.withDescription(description), new Metadata());
             }
         };
         // Map ResponseValidationException thrown by a handler (e.g. via Validate.check)
@@ -99,7 +133,7 @@ public final class ResponseValidationInterceptor implements ServerInterceptor {
                     action.run();
                 } catch (ResponseValidationException e) {
                     logFailure(rpcMethod, e.getResponseType(), e.getViolations());
-                    call.close(Status.INTERNAL.withDescription(e.getMessage()), new Metadata());
+                    validatingCall.close(Status.INTERNAL.withDescription(e.getMessage()), new Metadata());
                 }
             }
         };
@@ -119,7 +153,7 @@ public final class ResponseValidationInterceptor implements ServerInterceptor {
                 .addKeyValue("rpc_method", rpcMethod)
                 .addKeyValue("response_type", responseType)
                 .addKeyValue("violations", violations)
-                .addKeyValue("sdk_version", HealthServiceImpl.SDK_VERSION)
+                .addKeyValue("sdk_version", sdkVersion)
                 .log();
     }
 

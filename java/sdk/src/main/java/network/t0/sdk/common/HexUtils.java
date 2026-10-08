@@ -25,7 +25,7 @@ public final class HexUtils {
      */
     public static byte[] hexToBytes(String hex) {
         if (hex == null) {
-            throw new IllegalArgumentException("hex string must not be null");
+            throw new IllegalArgumentException(String.format(Messages.ARGUMENT_NULL, "hex"));
         }
         // ASCII 0-9, a-f and A-F only. Non-ASCII digits are rejected.
         return HEX.parseHex(hex);
@@ -39,7 +39,7 @@ public final class HexUtils {
      */
     public static String bytesToHex(byte[] bytes) {
         if (bytes == null) {
-            throw new IllegalArgumentException("bytes must not be null");
+            throw new IllegalArgumentException(String.format(Messages.ARGUMENT_NULL, "bytes"));
         }
         return HEX.formatHex(bytes);
     }

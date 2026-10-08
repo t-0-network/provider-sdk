@@ -14,8 +14,7 @@ import java.util.concurrent.TimeUnit;
  *
  * <p>Log levels:
  * <ul>
- *   <li>INFO: Request start and completion with timing</li>
- *   <li>DEBUG: Headers and detailed status information</li>
+ *   <li>DEBUG: Request start, headers, messages, and completion with timing</li>
  *   <li>WARN: Request failures and errors</li>
  * </ul>
  *

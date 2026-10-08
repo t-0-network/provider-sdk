@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"errors"
+	"github.com/t-0-network/provider-sdk/go/provider"
 	"log"
 	"net/http"
 	"net/http/httptest"
@@ -31,12 +32,15 @@ func serveHelper(t *testing.T) string {
 	if err != nil {
 		t.Fatal(err)
 	}
-	srv := httptest.NewServer(handler)
+	// The handler of the SDK's own server: h2c, so Connect and gRPC share the port.
+	srv := httptest.NewServer(provider.NewServer(handler).Handler)
 	t.Cleanup(srv.Close)
 	return srv.URL
 }
 
-// helperLog collects what the helper logs, as the cross tests read it from its stderr.
+// helperLog collects what the helper logs, as the cross tests read it from its stderr, and the
+// PASS and FAIL lines of an in-process probe. Its writers log from many goroutines, one line per
+// Write.
 type helperLog struct {
 	mu  sync.Mutex
 	buf bytes.Buffer
@@ -52,6 +56,15 @@ func (l *helperLog) contains(s string) bool {
 	l.mu.Lock()
 	defer l.mu.Unlock()
 	return strings.Contains(l.buf.String(), s)
+}
+
+func (l *helperLog) lines() []string {
+	l.mu.Lock()
+	defer l.mu.Unlock()
+	if l.buf.Len() == 0 {
+		return nil
+	}
+	return strings.Split(strings.TrimSuffix(l.buf.String(), "\n"), "\n")
 }
 
 func captureLog(t *testing.T) *helperLog {

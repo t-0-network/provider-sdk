@@ -4,6 +4,7 @@ using Microsoft.AspNetCore.Http;
 using T0.ProviderSdk.Common;
 using T0.ProviderSdk.Crypto;
 using T0.ProviderSdk.Provider;
+using T0.ProviderSdk.Tests.Network;
 
 namespace T0.ProviderSdk.Tests.Provider;
 
@@ -22,6 +23,42 @@ public class SignatureVerificationMiddlewareTests
 
     private static T0ProviderServer NewServer(string key) =>
         new(new T0Config { ProviderPrivateKey = TestPrivateKey, NetworkPublicKey = key, Port = 0 }, Signer.FromHex(TestPrivateKey));
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(65536)]
+    public void PortOutOfRange_IsRefused(int port)
+    {
+        var config = new T0Config { ProviderPrivateKey = TestPrivateKey, NetworkPublicKey = _signer.GetPublicKeyHexPrefixed(), Port = port };
+
+        var ex = Assert.Throws<ArgumentException>(() => new T0ProviderServer(config, _signer));
+        Assert.Equal("port must be between 0 and 65535", ex.Message);
+    }
+
+    [Theory]
+    [InlineData(0L)]
+    [InlineData(-1L)]
+    public void BodyLimitNotPositive_KeepsTheDefault(long limit)
+    {
+        Assert.Equal(ProviderServerOptions.DefaultMaxBodySize,
+            NewServer(_signer.GetPublicKeyHexPrefixed()).WithMaxBodySize(limit).MaxBodySize);
+
+        var options = CreateOptions();
+        options.MaxBodySize = limit;
+        Assert.Equal(ProviderServerOptions.DefaultMaxBodySize,
+            new SignatureVerificationMiddleware(_ => Task.CompletedTask, options).MaxBodySize);
+    }
+
+    [Fact]
+    public void ServerNullArguments_AreRefused_WithoutAParameterSuffix()
+    {
+        var config = new T0Config { ProviderPrivateKey = TestPrivateKey, NetworkPublicKey = _signer.GetPublicKeyHexPrefixed() };
+
+        Assert.Equal("config must not be null",
+            Assert.Throws<ArgumentNullException>(() => new T0ProviderServer(null!, _signer)).Message);
+        Assert.Equal("signer must not be null",
+            Assert.Throws<ArgumentNullException>(() => new T0ProviderServer(config, null!)).Message);
+    }
 
     [Theory]
     [InlineData(null)]
@@ -103,7 +140,7 @@ public class SignatureVerificationMiddlewareTests
         var (handlerCalled, context) = await InvokeSignedAsync(publicKeyHeader);
         Assert.False(handlerCalled);
         Assert.Equal("3", context.Response.Headers["grpc-status"].ToString()); // InvalidArgument = 3
-        Assert.Equal($"missing or invalid header: {Headers.PublicKey}", context.Response.Headers["grpc-message"].ToString());
+        Assert.Equal($"missing required header: {Headers.PublicKey}", context.Response.Headers["grpc-message"].ToString());
     }
 
     public static TheoryData<string> NonKeyPublicKeyHeaders()
@@ -131,7 +168,7 @@ public class SignatureVerificationMiddlewareTests
         var (handlerCalled, context) = await InvokeSignedAsync(publicKeyHeader);
         Assert.False(handlerCalled);
         Assert.Equal("16", context.Response.Headers["grpc-status"].ToString()); // Unauthenticated = 16
-        Assert.Equal("unknown public key", context.Response.Headers["grpc-message"].ToString());
+        Assert.Equal("request signed with unknown public key", context.Response.Headers["grpc-message"].ToString());
     }
 
     [Theory]
@@ -144,7 +181,7 @@ public class SignatureVerificationMiddlewareTests
             "0x" + (compressed ? CompressedPublicKeyHex(other) : HexUtils.BytesToHex(other)));
         Assert.False(handlerCalled);
         Assert.Equal("16", context.Response.Headers["grpc-status"].ToString());
-        Assert.Equal("unknown public key", context.Response.Headers["grpc-message"].ToString());
+        Assert.Equal("request signed with unknown public key", context.Response.Headers["grpc-message"].ToString());
     }
 
     [Fact]
@@ -152,7 +189,7 @@ public class SignatureVerificationMiddlewareTests
     {
         var body = "test body"u8.ToArray();
         var timestampMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        var timeProvider = new FakeTimeProvider(DateTimeOffset.FromUnixTimeMilliseconds(timestampMs));
+        var timeProvider = new FixedTimeProvider(DateTimeOffset.FromUnixTimeMilliseconds(timestampMs));
 
         var tsBytes = new byte[8];
         BinaryPrimitives.WriteUInt64LittleEndian(tsBytes, (ulong)timestampMs);
@@ -176,7 +213,7 @@ public class SignatureVerificationMiddlewareTests
     {
         var body = "test"u8.ToArray();
         var timestampMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        var timeProvider = new FakeTimeProvider(DateTimeOffset.FromUnixTimeMilliseconds(timestampMs));
+        var timeProvider = new FixedTimeProvider(DateTimeOffset.FromUnixTimeMilliseconds(timestampMs));
 
         var handlerCalled = false;
         var middleware = new SignatureVerificationMiddleware(
@@ -209,7 +246,7 @@ public class SignatureVerificationMiddlewareTests
         var body = "test"u8.ToArray();
         var now = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
         var requestTimestamp = now + offsetMs;
-        var timeProvider = new FakeTimeProvider(DateTimeOffset.FromUnixTimeMilliseconds(now));
+        var timeProvider = new FixedTimeProvider(DateTimeOffset.FromUnixTimeMilliseconds(now));
 
         var tsBytes = new byte[8];
         BinaryPrimitives.WriteUInt64LittleEndian(tsBytes, (ulong)requestTimestamp);
@@ -237,7 +274,7 @@ public class SignatureVerificationMiddlewareTests
     {
         var body = "test"u8.ToArray();
         var timestampMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        var timeProvider = new FakeTimeProvider(DateTimeOffset.FromUnixTimeMilliseconds(timestampMs));
+        var timeProvider = new FixedTimeProvider(DateTimeOffset.FromUnixTimeMilliseconds(timestampMs));
 
         var tsBytes = new byte[8];
         BinaryPrimitives.WriteUInt64LittleEndian(tsBytes, (ulong)timestampMs);
@@ -264,7 +301,7 @@ public class SignatureVerificationMiddlewareTests
     {
         var body = "test"u8.ToArray();
         var timestampMs = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
-        var timeProvider = new FakeTimeProvider(DateTimeOffset.FromUnixTimeMilliseconds(timestampMs));
+        var timeProvider = new FixedTimeProvider(DateTimeOffset.FromUnixTimeMilliseconds(timestampMs));
 
         // Create valid headers but with a wrong signature (sign different data)
         var tsBytes = new byte[8];
@@ -293,7 +330,7 @@ public class SignatureVerificationMiddlewareTests
     [InlineData("application/grpc+proto", true)]
     public async Task GrpcFrame_SignedOverBodyOrPayload_ShouldPassThrough(string contentType, bool signPayload)
     {
-        var body = GrpcFrame(0, GrpcPayload);
+        var body = StreamingTestHelpers.Frame(GrpcPayload);
         var (handlerCalled, _) = await InvokeSignedAsync(
             _signer.GetPublicKeyHexPrefixed(), body, signPayload ? GrpcPayload : body, contentType);
         Assert.True(handlerCalled);
@@ -301,9 +338,9 @@ public class SignatureVerificationMiddlewareTests
 
     public static TheoryData<string, byte[]> NotOneUncompressedGrpcFrame() => new()
     {
-        { "application/proto", GrpcFrame(0, GrpcPayload) },
-        { "application/grpc", GrpcFrame(1, GrpcPayload) },
-        { "application/grpc", [.. GrpcFrame(0, GrpcPayload), .. GrpcFrame(0, GrpcPayload)] },
+        { "application/proto", StreamingTestHelpers.Frame(GrpcPayload) },
+        { "application/grpc", StreamingTestHelpers.Frame(GrpcPayload, flags: 1) },
+        { "application/grpc", [.. StreamingTestHelpers.Frame(GrpcPayload), .. StreamingTestHelpers.Frame(GrpcPayload)] },
     };
 
     [Theory]
@@ -338,24 +375,12 @@ public class SignatureVerificationMiddlewareTests
         var middleware = new SignatureVerificationMiddleware(
             _ => { handlerCalled = true; return Task.CompletedTask; },
             CreateOptions(),
-            new FakeTimeProvider(DateTimeOffset.FromUnixTimeMilliseconds(timestampMs)));
+            new FixedTimeProvider(DateTimeOffset.FromUnixTimeMilliseconds(timestampMs)));
 
         var context = CreateContext(body, result.SignatureHex, publicKeyHeader, timestampMs);
         context.Request.ContentType = contentType;
         await middleware.InvokeAsync(context);
         return (handlerCalled, context);
-    }
-
-    /// <summary>
-    /// A gRPC length-prefixed message: the flags byte, the payload length (big-endian uint32), the payload.
-    /// </summary>
-    private static byte[] GrpcFrame(byte flags, byte[] payload)
-    {
-        var frame = new byte[5 + payload.Length];
-        frame[0] = flags;
-        BinaryPrimitives.WriteUInt32BigEndian(frame.AsSpan(1, 4), (uint)payload.Length);
-        payload.CopyTo(frame, 5);
-        return frame;
     }
 
     /// <summary>
@@ -373,10 +398,5 @@ public class SignatureVerificationMiddlewareTests
         context.Request.Headers[Headers.PublicKey] = publicKey;
         context.Request.Headers[Headers.SignatureTimestamp] = timestampMs.ToString();
         return context;
-    }
-
-    private sealed class FakeTimeProvider(DateTimeOffset fixedTime) : TimeProvider
-    {
-        public override DateTimeOffset GetUtcNow() => fixedTime;
     }
 }

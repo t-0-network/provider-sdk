@@ -1,5 +1,6 @@
 package network.t0.sdk.crypto;
 
+import network.t0.sdk.common.Messages;
 import network.t0.sdk.common.HexUtils;
 import org.bouncycastle.asn1.x9.X9ECParameters;
 import org.bouncycastle.crypto.digests.SHA256Digest;
@@ -43,13 +44,12 @@ public final class Signer implements DigestSigner {
     );
 
     private static final int PRIVATE_KEY_LENGTH = 32;
+    private static final int DIGEST_LENGTH = 32;
 
-    private final BigInteger privateKey;
     private final byte[] publicKey;
     private final ECPrivateKeyParameters privateKeyParams;
 
     private Signer(BigInteger privateKey, byte[] publicKey) {
-        this.privateKey = privateKey;
         this.publicKey = publicKey;
         this.privateKeyParams = new ECPrivateKeyParameters(privateKey, DOMAIN_PARAMS);
     }
@@ -64,7 +64,7 @@ public final class Signer implements DigestSigner {
      */
     public static Signer fromHex(String hexPrivateKey) {
         if (hexPrivateKey == null || hexPrivateKey.isEmpty()) {
-            throw new IllegalArgumentException("private key must not be null or empty");
+            throw new IllegalArgumentException(Messages.PRIVATE_KEY_EMPTY);
         }
 
         // Exactly 32 bytes of hex after an optional 0x or 0X prefix; anything else is refused, not repaired.
@@ -78,9 +78,20 @@ public final class Signer implements DigestSigner {
             }
         }
         if (privateKeyBytes == null) {
-            throw new IllegalArgumentException("private key must be 32 bytes (64 hex characters)");
+            throw new IllegalArgumentException(Messages.PRIVATE_KEY_MALFORMED);
         }
         return fromBytes(privateKeyBytes);
+    }
+
+    /**
+     * Derives the public key of a hex-encoded private key.
+     *
+     * @param hexPrivateKey the private key as 64 hex characters, with an optional {@code 0x} or {@code 0X} prefix
+     * @return {@code "0x"} followed by the 130 lowercase hex characters of the 65-byte uncompressed public key
+     * @throws IllegalArgumentException for the same keys, with the same messages, as {@link #fromHex(String)}
+     */
+    public static String publicKeyFromPrivateKey(String hexPrivateKey) {
+        return fromHex(hexPrivateKey).getPublicKeyHexPrefixed();
     }
 
     /**
@@ -92,7 +103,7 @@ public final class Signer implements DigestSigner {
      */
     public static Signer fromBytes(byte[] privateKeyBytes) {
         if (privateKeyBytes == null || privateKeyBytes.length != PRIVATE_KEY_LENGTH) {
-            throw new IllegalArgumentException("private key must be 32 bytes");
+            throw new IllegalArgumentException(Messages.PRIVATE_KEY_BYTES_LENGTH);
         }
 
         BigInteger privateKeyInt = new BigInteger(1, privateKeyBytes);
@@ -113,8 +124,8 @@ public final class Signer implements DigestSigner {
      */
     @Override
     public SignResult sign(byte[] digest) {
-        if (digest == null || digest.length != PRIVATE_KEY_LENGTH) {
-            throw new IllegalArgumentException("digest must be 32 bytes");
+        if (digest == null || digest.length != DIGEST_LENGTH) {
+            throw new IllegalArgumentException(Messages.DIGEST_LENGTH);
         }
 
         // Use RFC 6979 deterministic k-value generation with HMAC-SHA256
@@ -184,7 +195,7 @@ public final class Signer implements DigestSigner {
     private static void validatePrivateKeyRange(BigInteger privateKey) {
         BigInteger n = DOMAIN_PARAMS.getN();
         if (privateKey.compareTo(BigInteger.ONE) < 0 || privateKey.compareTo(n) >= 0) {
-            throw new IllegalArgumentException("private key must be in range [1, n-1]");
+            throw new IllegalArgumentException(Messages.PRIVATE_KEY_OUT_OF_RANGE);
         }
     }
 
@@ -203,7 +214,7 @@ public final class Signer implements DigestSigner {
         }
 
         // This should never happen with a valid signature
-        throw new IllegalStateException("Could not determine recovery ID");
+        throw new IllegalStateException(Messages.RECOVERY_ID_NOT_FOUND);
     }
 
     private byte[] recoverPublicKey(byte[] digest, BigInteger r, BigInteger s, int recId) {

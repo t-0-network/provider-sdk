@@ -35,6 +35,8 @@ node/
 
 `@connectrpc/connect` and `@connectrpc/connect-node` are pinned to one exact version (no `^`) and bumped together as a signing-path update ([`docs/DEPENDENCY_UPDATES.md`](../docs/DEPENDENCY_UPDATES.md)): the client signs the bytes connect-es builds, relies on connect-es's `@private` `CommonTransportOptions`, and sends through connect-node's `@private` `createNodeHttpClient`. It also replaces the server-streaming methods on the client that connect-es `createClient` returns, because connect-es's server-stream iterable has no `return()`: leaving a `for await` early must cancel the call (test "leaving a server stream early cancels the call").
 
+`@noble/curves` and `@noble/hashes` compute the digest and the signature. They are pinned to one exact version too, and are bumped together.
+
 The streaming rules shared by every SDK: [`docs/STREAMING.md`](../docs/STREAMING.md).
 
 ## Versioning

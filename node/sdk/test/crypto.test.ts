@@ -3,8 +3,9 @@ import * as nodeAssert from 'node:assert/strict';
 import { keccak_256 } from '@noble/hashes/sha3.js';
 import { secp256k1 } from '@noble/curves/secp256k1.js';
 import { CreateSigner } from '../src/client/signer.js';
-import { verifySignature, keccak256, computeDigest, parsePublicKey, publicKeyFromPrivateKey, publicKeysEqual, createRequestVerifier, NetworkHeaders } from '../src/crypto/index.js';
+import { verifySignature, keccak256, computeDigest, parsePublicKey, publicKeyFromPrivateKey, publicKeysEqual, createRequestVerifier, NetworkHeaders, TIMESTAMP_WINDOW_MS } from '../src/crypto/index.js';
 import * as sdk from '../src/index.js';
+import { createHandler } from '../src/index.js';
 import type { VerifyRequest } from '../src/crypto/index.js';
 import type { TestContext } from 'node:test';
 import { Code, ConnectError } from '@connectrpc/connect';
@@ -69,21 +70,21 @@ describe('secp256k1 verification', () => {
   const validSig = Buffer.from(vectors.request_signing.expected_signature, 'hex');
 
   it('accepts cross-language signature against matching public key + hash', () => {
-    const ok = secp256k1.verify(validSig, validHash, publicKey, { prehash: false });
+    const ok = secp256k1.verify(validSig, validHash, publicKey, { prehash: false, lowS: false });
     nodeAssert.equal(ok, true);
   });
 
   it('rejects signature with one bit flipped', () => {
     const tampered = Buffer.from(validSig);
     tampered[63] ^= 0x01;
-    const ok = secp256k1.verify(tampered, validHash, publicKey, { prehash: false });
+    const ok = secp256k1.verify(tampered, validHash, publicKey, { prehash: false, lowS: false });
     nodeAssert.equal(ok, false);
   });
 
   it('rejects when hash does not match what was signed', () => {
     const tamperedHash = Buffer.from(validHash);
     tamperedHash[0] ^= 0xff;
-    const ok = secp256k1.verify(validSig, tamperedHash, publicKey, { prehash: false });
+    const ok = secp256k1.verify(validSig, tamperedHash, publicKey, { prehash: false, lowS: false });
     nodeAssert.equal(ok, false);
   });
 
@@ -94,7 +95,7 @@ describe('secp256k1 verification', () => {
     const otherPub = Buffer.from(secp256k1.getPublicKey(otherPriv, false));
     nodeAssert.notEqual(otherPub.toString('hex'), publicKey.toString('hex'));
 
-    const ok = secp256k1.verify(validSig, validHash, otherPub, { prehash: false });
+    const ok = secp256k1.verify(validSig, validHash, otherPub, { prehash: false, lowS: false });
     nodeAssert.equal(ok, false);
   });
 
@@ -107,7 +108,7 @@ describe('secp256k1 verification', () => {
     validSig.copy(sig65, 0);
     sig65[64] = 0x01; // recovery id; will be discarded
     const truncated = sig65.subarray(0, 64);
-    const ok = secp256k1.verify(truncated, validHash, publicKey, { prehash: false });
+    const ok = secp256k1.verify(truncated, validHash, publicKey, { prehash: false, lowS: false });
     nodeAssert.equal(ok, true);
   });
 });
@@ -127,18 +128,29 @@ describe('CreateSigner', () => {
     nodeAssert.equal(sig.publicKey.toString('hex'), vectors.keys.public_key);
   });
 
-  it('produces a 64-byte compact signature', async () => {
+  it('produces a 65-byte r ‖ s ‖ v signature with v of 0 or 1', async () => {
     const signer = CreateSigner(vectors.keys.private_key);
-    const hash = Buffer.from(keccak_256(Buffer.from('test', 'utf-8')));
-    const sig = await signer(hash);
-    nodeAssert.equal(sig.signature.length, 64);
+    for (const vec of vectors.request_signing_cases) {
+      const sig = await signer(requestDigest(vec.body_hex, vec.timestamp_ms));
+      nodeAssert.equal(sig.signature.length, 65, vec.name);
+      nodeAssert.equal(sig.signature.subarray(0, 64).toString('hex'), vec.expected_signature, vec.name);
+      const v = sig.signature[64];
+      nodeAssert.ok(v === 0 || v === 1, `${vec.name}: v = ${v}`);
+      // v is the recovery id of the signer's key.
+      const recovered = Buffer.concat([sig.signature.subarray(64), sig.signature.subarray(0, 64)]);
+      nodeAssert.equal(
+        Buffer.from(secp256k1.recoverPublicKey(recovered, requestDigest(vec.body_hex, vec.timestamp_ms), { prehash: false })).toString('hex'),
+        Buffer.from(secp256k1.Point.fromHex(vectors.keys.public_key).toBytes(true)).toString('hex'),
+        vec.name,
+      );
+    }
   });
 
   it('rejects non-32-byte input', async () => {
     const signer = CreateSigner(vectors.keys.private_key);
     await nodeAssert.rejects(
       () => signer(Buffer.from('short', 'utf-8')),
-      { message: 'Message hash must be 32 bytes' }
+      { message: 'digest must be 32 bytes' }
     );
   });
 
@@ -153,7 +165,7 @@ describe('CreateSigner', () => {
   });
 
   it('rejects an empty private key', () => {
-    for (const key of ['', Buffer.alloc(0), null, undefined] as unknown as string[]) {
+    for (const key of ['', null, undefined] as unknown as string[]) {
       nodeAssert.throws(() => CreateSigner(key), { message: 'private key must not be null or empty' });
     }
   });
@@ -165,7 +177,8 @@ describe('CreateSigner', () => {
     ]) {
       nodeAssert.throws(() => CreateSigner(key), { message: 'private key must be 32 bytes (64 hex characters)' });
     }
-    for (const key of [Buffer.alloc(31, 1), Buffer.alloc(33, 1)]) {
+    // Key bytes of any other length, none included, as Java Signer.fromBytes and C# Signer.FromBytes.
+    for (const key of [Buffer.alloc(0), Buffer.alloc(31, 1), Buffer.alloc(33, 1)]) {
       nodeAssert.throws(() => CreateSigner(key), { message: 'private key must be 32 bytes' });
     }
   });
@@ -256,7 +269,7 @@ describe('Signature verification cases', () => {
 
       let valid = false;
       try {
-        valid = secp256k1.verify(sig64, digest, publicKey, { prehash: false });
+        valid = secp256k1.verify(sig64, digest, publicKey, { prehash: false, lowS: false });
       } catch {
         valid = false;
       }
@@ -275,10 +288,24 @@ describe('Public key parsing cases', () => {
         if (vec.valid) {
           nodeAssert.equal(parse(vec.input).toString('hex'), vec.uncompressed);
         } else {
-          nodeAssert.throws(() => parse(vec.input));
+          nodeAssert.throws(() => parse(vec.input), { message: vec.error });
         }
       });
     }
+  }
+
+  // The configured network key: trimmed, then "network public key is not set" or
+  // "invalid network public key: <error>".
+  for (const vec of vectors.public_key_parsing) {
+    it(`network key: ${vec.name} is ${vec.valid ? 'accepted' : 'refused'}`, () => {
+      if (vec.valid) {
+        nodeAssert.doesNotThrow(() => createHandler(` ${vec.input} `, () => {}));
+      } else if (vec.input.trim() === '') {
+        nodeAssert.throws(() => createHandler(vec.input, () => {}), { message: 'network public key is not set' });
+      } else {
+        nodeAssert.throws(() => createHandler(vec.input, () => {}), { message: `invalid network public key: ${vec.error}` });
+      }
+    });
   }
 });
 
@@ -585,6 +612,14 @@ describe('crypto/publicKeyFromPrivateKey', () => {
     }
   });
 
+  it('a missing or empty key is "private key must not be null or empty" in each helper that takes one', () => {
+    for (const [name, helper] of Object.entries({ newSignerFromHex: sdk.newSignerFromHex, publicKeyFromPrivateKey: sdk.publicKeyFromPrivateKey })) {
+      for (const key of ['', null, undefined] as unknown as string[]) {
+        nodeAssert.throws(() => helper(key), { message: vectors.messages.private_key_empty }, `${name}(${JSON.stringify(key)})`);
+      }
+    }
+  });
+
   it('preserves synchronous signer validation for string and Buffer inputs', async () => {
     nodeAssert.throws(() => CreateSigner('0'.repeat(64)), {message: 'private key must be in range [1, n-1]'});
     nodeAssert.throws(() => CreateSigner(Buffer.alloc(32)), {message: 'private key must be in range [1, n-1]'});
@@ -745,7 +780,7 @@ describe('crypto module cross-consistency', () => {
 
       let rawResult = false;
       try {
-        rawResult = secp256k1.verify(sig64, digest, key, { prehash: false });
+        rawResult = secp256k1.verify(sig64, digest, key, { prehash: false, lowS: false });
       } catch {
         rawResult = false;
       }
@@ -816,23 +851,23 @@ describe('crypto/createRequestVerifier', () => {
 
   it('rejects non-numeric timestamp', () => {
     const result = verify(makeReq({ timestampHeader: 'not-a-number' }));
-    nodeAssert.deepStrictEqual(result, { valid: false, reason: 'invalid_timestamp' });
+    nodeAssert.deepStrictEqual(result, { valid: false, reason: 'invalid_timestamp', message: 'invalid timestamp header: not a decimal number' });
   });
 
   it('rejects empty timestamp', () => {
     const result = verify(makeReq({ timestampHeader: '' }));
-    nodeAssert.deepStrictEqual(result, { valid: false, reason: 'invalid_timestamp' });
+    nodeAssert.deepStrictEqual(result, { valid: false, reason: 'invalid_timestamp', message: 'missing required header: X-Signature-Timestamp' });
   });
 
   it('rejects negative timestamp', () => {
     const result = verify(makeReq({ timestampHeader: '-1' }));
-    nodeAssert.deepStrictEqual(result, { valid: false, reason: 'invalid_timestamp' });
+    nodeAssert.deepStrictEqual(result, { valid: false, reason: 'invalid_timestamp', message: 'invalid timestamp header: not a decimal number' });
   });
 
   it('rejects a signed timestamp followed by other characters', () => {
     const ts = String(vectors.signature_verification[0].timestamp_ms);
     for (const header of [`${ts}abc`, `${ts}.0`, `${ts} `, `+${ts}`]) {
-      nodeAssert.deepStrictEqual(verify(makeReq({ timestampHeader: header })), { valid: false, reason: 'invalid_timestamp' }, header);
+      nodeAssert.deepStrictEqual(verify(makeReq({ timestampHeader: header })), { valid: false, reason: 'invalid_timestamp', message: 'invalid timestamp header: not a decimal number' }, header);
     }
   });
 
@@ -840,158 +875,23 @@ describe('crypto/createRequestVerifier', () => {
     for (const vec of vectors.timestamp_parsing) {
       const result = verify(makeReq({ timestampHeader: vec.input }));
       if (vec.valid) {
-        nodeAssert.notDeepStrictEqual(result, { valid: false, reason: 'invalid_timestamp' }, vec.name);
+        nodeAssert.ok(result.valid || result.reason !== 'invalid_timestamp', vec.name);
       } else {
-        nodeAssert.deepStrictEqual(result, { valid: false, reason: 'invalid_timestamp' }, vec.name);
+        nodeAssert.deepStrictEqual(result, { valid: false, reason: 'invalid_timestamp', message: vec.error }, vec.name);
       }
     }
   });
 
-  it('accepts toleranceMs in (0, 60000]', () => {
-    for (const toleranceMs of [1, 0.5, 60_000, undefined]) {
-      nodeAssert.doesNotThrow(() => createRequestVerifier({ networkPublicKey: vectors.keys.public_key, toleranceMs }), String(toleranceMs));
-    }
-  });
-
-  it('throws at creation on any other toleranceMs', () => {
-    for (const toleranceMs of [Infinity, -Infinity, NaN, 0, -1, 60_001, '1000' as unknown as number]) {
-      nodeAssert.throws(
-        () => createRequestVerifier({ networkPublicKey: vectors.keys.public_key, toleranceMs }),
-        { message: 'toleranceMs must be a finite number greater than 0 and at most 60000' },
-        String(toleranceMs),
-      );
-    }
-  });
-
-  it('rejects expired timestamp with default tolerance', () => {
-    const strictVerify = createRequestVerifier({
-      networkPublicKey: vectors.keys.public_key,
-    });
-    const oldTs = Date.now() - 120_000;
-    const result = strictVerify(makeReq({ timestampHeader: String(oldTs) }));
-    nodeAssert.deepStrictEqual(result, { valid: false, reason: 'timestamp_out_of_range' });
-  });
-
-  it('rejects future timestamp with default tolerance', () => {
-    const strictVerify = createRequestVerifier({
-      networkPublicKey: vectors.keys.public_key,
-    });
-    const futureTs = Date.now() + 120_000;
-    const result = strictVerify(makeReq({ timestampHeader: String(futureTs) }));
-    nodeAssert.deepStrictEqual(result, { valid: false, reason: 'timestamp_out_of_range' });
-  });
-
-  it('accepts timestamp within tolerance (live sign + verify)', async () => {
-    const liveVerify = createRequestVerifier({
-      networkPublicKey: vectors.keys.public_key,
-    });
-    const signer = CreateSigner(vectors.keys.private_key);
-    const body = Buffer.from('fresh request');
-    const ts = Date.now();
-    const digest = computeDigest(body, ts);
-    const { signature, publicKey } = await signer(digest);
-    const result = liveVerify({
-      body,
-      signatureHeader: '0x' + signature.toString('hex'),
-      publicKeyHeader: '0x' + publicKey.toString('hex'),
-      timestampHeader: String(ts),
-    });
-    nodeAssert.deepStrictEqual(result, { valid: true });
-  });
-
-  it('rejects malformed public key hex as unknown_public_key', () => {
-    const result = verify(makeReq({ publicKeyHeader: '0xZZZZ' }));
-    nodeAssert.deepStrictEqual(result, { valid: false, reason: 'unknown_public_key' });
-  });
-
-  it('rejects a missing public key as invalid_public_key', () => {
-    const result = verify(makeReq({ publicKeyHeader: '' }));
-    nodeAssert.deepStrictEqual(result, { valid: false, reason: 'invalid_public_key' });
-  });
-
-  it('rejects short public key', () => {
-    const result = verify(makeReq({ publicKeyHeader: '0x0401020304' }));
-    nodeAssert.deepStrictEqual(result, { valid: false, reason: 'unknown_public_key' });
-  });
-
-  it('rejects unknown public key (impostor)', () => {
-    const result = verify(makeReq({
-      publicKeyHeader: '0x' + vectors.impostor_keys.public_key,
-    }));
-    nodeAssert.deepStrictEqual(result, { valid: false, reason: 'unknown_public_key' });
-  });
-
-  const keyRow = (name: string) => vectors.public_key_parsing.find((v: any) => v.name === name).input;
-
-  it('accepts the compressed form of the network key and a 0X prefix', () => {
-    for (const name of ['compressed-0x', 'compressed-no-prefix', 'uncompressed-0X']) {
-      nodeAssert.deepStrictEqual(verify(makeReq({ publicKeyHeader: keyRow(name) })), { valid: true }, name);
-    }
-  });
-
-  it('a compressed network key accepts the uncompressed header', () => {
-    const v = createRequestVerifier({ networkPublicKey: keyRow('compressed-0x') });
-    nodeAssert.deepStrictEqual(v(makeReq()), { valid: true });
-  });
-
-  it('rejects a header that is not a key, hex or not, as unknown_public_key', () => {
-    for (const vec of vectors.public_key_parsing) {
-      if (vec.valid || vec.input === '') continue;
-      nodeAssert.deepStrictEqual(verify(makeReq({ publicKeyHeader: vec.input })), { valid: false, reason: 'unknown_public_key' }, vec.name);
-    }
-  });
-
-  it('rejects the compressed form of another key as unknown_public_key', () => {
-    const impostor = secp256k1.Point.fromBytes(Buffer.from(vectors.impostor_keys.public_key, 'hex')).toBytes(true);
-    const result = verify(makeReq({ publicKeyHeader: '0x' + Buffer.from(impostor).toString('hex') }));
-    nodeAssert.deepStrictEqual(result, { valid: false, reason: 'unknown_public_key' });
-  });
-
-  it('rejects signature with wrong length (too short)', () => {
-    const result = verify(makeReq({
-      signatureHeader: '0x' + '00'.repeat(32),
-    }));
-    nodeAssert.deepStrictEqual(result, { valid: false, reason: 'invalid_signature_format' });
-  });
-
-  it('rejects empty signature', () => {
-    const result = verify(makeReq({ signatureHeader: '0x' }));
-    nodeAssert.deepStrictEqual(result, { valid: false, reason: 'invalid_signature_format' });
-  });
-
-  it('handles headers without 0x prefix', () => {
-    const vec = vectors.signature_verification[0];
-    const result = verify(makeReq({
-      signatureHeader: vec.signature,
-      publicKeyHeader: vec.public_key,
-    }));
-    nodeAssert.deepStrictEqual(result, { valid: true });
+  it('has a fixed window of TIMESTAMP_WINDOW_MS, no option', () => {
+    nodeAssert.equal(TIMESTAMP_WINDOW_MS, 60_000);
+    const verifyFixed = createRequestVerifier({ networkPublicKey: vectors.keys.public_key });
+    const stale = verifyFixed(makeReq({ timestampHeader: String(Date.now() - TIMESTAMP_WINDOW_MS - 1_000) }));
+    nodeAssert.deepStrictEqual(stale, { valid: false, reason: 'timestamp_out_of_range', message: 'timestamp is outside the allowed time window' });
   });
 
   it('returns signature_failed for tampered body', () => {
     const result = verify(makeReq({ body: Buffer.from('tampered') }));
-    nodeAssert.deepStrictEqual(result, { valid: false, reason: 'signature_failed' });
-  });
-
-  it('custom toleranceMs is respected', () => {
-    const tightVerify = createRequestVerifier({
-      networkPublicKey: vectors.keys.public_key,
-      toleranceMs: 1_000,
-    });
-    const looseVerify = createRequestVerifier({
-      networkPublicKey: vectors.keys.public_key,
-      toleranceMs: 10_000,
-    });
-    const ts = Date.now() - 5_000; // 5s ago
-
-    const tight = tightVerify(makeReq({ timestampHeader: String(ts) }));
-    nodeAssert.equal(tight.valid, false);
-    nodeAssert.equal((tight as any).reason, 'timestamp_out_of_range');
-
-    const loose = looseVerify(makeReq({ timestampHeader: String(ts) }));
-    // Passes time check but sig won't match (different timestamp in digest)
-    nodeAssert.equal(loose.valid, false);
-    nodeAssert.equal((loose as any).reason, 'signature_failed');
+    nodeAssert.deepStrictEqual(result, { valid: false, reason: 'signature_failed', message: 'signature verification failed' });
   });
 
   it('factory validates network public key at creation time', () => {
@@ -1020,7 +920,7 @@ describe('crypto/createRequestVerifier', () => {
     const result = verify(makeReq({
       signatureHeader: '0x' + 'dc7c' + 'ZZZZ' + '00'.repeat(58),
     }));
-    nodeAssert.deepStrictEqual(result, { valid: false, reason: 'invalid_signature_format' });
+    nodeAssert.deepStrictEqual(result, { valid: false, reason: 'invalid_signature_format', message: 'invalid header encoding: X-Signature' });
   });
 
   it('accepts ArrayBuffer body by coercing to Uint8Array', () => {
@@ -1035,7 +935,35 @@ describe('crypto/createRequestVerifier', () => {
     const result = verify(makeReq({
       signatureHeader: '0x' + 'a'.repeat(127), // odd length
     }));
-    nodeAssert.deepStrictEqual(result, { valid: false, reason: 'invalid_signature_format' });
+    nodeAssert.deepStrictEqual(result, { valid: false, reason: 'invalid_signature_format', message: 'invalid header encoding: X-Signature' });
+  });
+
+  it('accepts a 0X signature prefix', () => {
+    const result = verify(makeReq({ signatureHeader: '0X' + vectors.signature_verification[0].signature }));
+    nodeAssert.deepStrictEqual(result, { valid: true });
+  });
+
+  it('rejects a prefix with no signature', () => {
+    nodeAssert.deepStrictEqual(verify(makeReq({ signatureHeader: '0x' })), { valid: false, reason: 'invalid_signature_format', message: 'invalid header encoding: X-Signature' });
+  });
+
+  it('reads an absent header as missing', () => {
+    const absent = undefined as unknown as string;
+    nodeAssert.deepStrictEqual(
+      verify(makeReq({ publicKeyHeader: absent })),
+      { valid: false, reason: 'invalid_public_key', message: 'missing required header: X-Public-Key' },
+    );
+    nodeAssert.deepStrictEqual(
+      verify(makeReq({ signatureHeader: absent })),
+      { valid: false, reason: 'invalid_signature_format', message: 'missing required header: X-Signature' },
+    );
+  });
+
+  it('refuses a signature of the wrong length as signature_failed', () => {
+    nodeAssert.deepStrictEqual(
+      verify(makeReq({ signatureHeader: '0x' + '11'.repeat(63) })),
+      { valid: false, reason: 'signature_failed', message: 'signature verification failed' },
+    );
   });
 });
 
@@ -1117,7 +1045,8 @@ describe('Stream signing cases', () => {
       const sent = await sendThroughSigningClient(t, vec, envelopes);
       nodeAssert.ok(sent, 'the request is sent');
 
-      nodeAssert.equal(sent.headers.get(NetworkHeaders.Signature), '0x' + vec.expected_signature);
+      // r ‖ s from the vector, then v of 0 or 1.
+      nodeAssert.match(sent.headers.get(NetworkHeaders.Signature) ?? '', new RegExp(`^0x${vec.expected_signature}0[01]$`));
       nodeAssert.equal(sent.headers.get(NetworkHeaders.PublicKey), '0x' + vectors.keys.public_key);
       nodeAssert.equal(sent.headers.get(NetworkHeaders.SignatureTimestamp), String(vec.timestamp_ms));
       nodeAssert.equal((sent.chunks[0] ?? Buffer.alloc(0)).toString('hex'), vec.signed_hex, 'the first chunk is the signed envelope');

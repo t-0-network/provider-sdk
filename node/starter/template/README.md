@@ -53,8 +53,8 @@ my-provider/
 | `PROVIDER_PRIVATE_KEY` | Yes | Auto-generated | Your secp256k1 private key (hex) |
 | `NETWORK_PUBLIC_KEY` | Yes | Sandbox key | T-0 Network public key for signature verification |
 | `TZERO_ENDPOINT` | No | `https://api-sandbox.t-0.network` | T-0 Network API endpoint |
-| `PORT` | No | `3000` | Server port |
-| `QUOTE_PUBLISHING_INTERVAL` | No | `5000` | Quote publishing frequency in milliseconds |
+| `PORT` | No | `8080` | Server port |
+| `QUOTE_PUBLISHING_INTERVAL` | No | `5000` | Quote publishing frequency in milliseconds; a value that is not an integer from 1 to 2147483647 gives 5000 |
 
 ## Getting Started
 
@@ -145,7 +145,7 @@ The same `logger` object is accepted by `createRequestDecoder`, so standalone in
 
 ```bash
 docker build -t my-provider .
-docker run -p 3000:3000 --env-file .env my-provider
+docker run -p 8080:8080 --env-file .env my-provider
 ```
 
 ## SDK Reference

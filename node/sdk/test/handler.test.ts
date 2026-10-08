@@ -11,8 +11,8 @@ import { createClient, WireFormat } from '../src/client/client.js';
 import { CreateSigner } from '../src/client/signer.js';
 import { transportOptions } from '../src/common/client/client.js';
 import { createSigningHttpClient } from '../src/common/client/signing-http-client.js';
-import { BodyHashes, createService, type CreateServiceOptions } from '../src/common/service.js';
-import { computeDigest, createHandler, createRequestVerifier, NetworkHeaders } from '../src/index.js';
+import { createService, type CreateServiceOptions } from '../src/common/service.js';
+import { computeDigest, createHandler, createRequestVerifier, DEFAULT_MAX_BODY_SIZE, NetworkHeaders } from '../src/index.js';
 import { SDK_VERSION } from '../src/version.js';
 import { SDK_VERSION_HEADER } from '../src/service/health.js';
 import {
@@ -20,11 +20,14 @@ import {
   HealthCheckRequestSchema,
   HealthCheckResponse_ServingStatus,
 } from '../src/service/health_pb.js';
+import { GetQuotesResponseSchema, QuoteService } from '../src/common/gen/tzero/v1/payment/quote_pb.js';
 import {
   ConnectError,
   Code,
   createClient as createConnectClient,
+  createConnectRouter,
 } from '@connectrpc/connect';
+import { createAsyncIterable } from '@connectrpc/connect/protocol';
 import { createTransport } from '@connectrpc/connect/protocol-connect';
 import { createConnectTransport, createNodeHttpClient } from '@connectrpc/connect-node';
 import { secp256k1 } from '@noble/curves/secp256k1.js';
@@ -256,13 +259,31 @@ describe('createHandler', () => {
           await assert.rejects(checkWithHeader(url, network.privateKeyHex, NetworkHeaders.SignatureTimestamp, edit), (err: unknown) => {
             assert.ok(err instanceof ConnectError);
             assert.equal(err.code, Code.InvalidArgument);
-            assert.match(err.rawMessage, /must be a number/);
+            assert.equal(err.rawMessage, 'invalid timestamp header: not a decimal number');
             return true;
           });
         } finally {
           await close();
         }
       });
+    }
+  });
+
+  it('keeps the default body limit for a maxBodySize of 0 or less, or NaN', () => {
+    const { publicKeyHex } = newKeypair();
+    for (const maxBodySize of [0, -1, NaN]) {
+      assert.equal(createService(publicKeyHex, () => {}, { maxBodySize }).readMaxBytes, DEFAULT_MAX_BODY_SIZE, String(maxBodySize));
+    }
+    assert.equal(createService(publicKeyHex, () => {}, { maxBodySize: 16 }).readMaxBytes, 16);
+  });
+
+  it('refuses a null service when it is built', () => {
+    const { publicKeyHex } = newKeypair();
+    for (const [desc, impl] of [[null, {}], [Health, null], [undefined, undefined]]) {
+      assert.throws(
+        () => createHandler(publicKeyHex, (router) => router.service(desc as typeof Health, impl as never)),
+        { name: 'TypeError', message: 'service must not be null' },
+      );
     }
   });
 
@@ -334,38 +355,45 @@ describe('createHandler', () => {
     }
   });
 
-  // On the wire, connect refuses these bodies before the signature is checked (a body that starts
-  // with a 0 byte is not a protobuf message; a unary gRPC call takes one message), so the cases
-  // call the signature interceptor directly, with the body hashed one byte at a time.
+  // The rule of V6 on its own: each case goes to the health Check handler that createService
+  // builds, which verifies the signature before the RPC library reads the body.
   describe('gRPC framing fallback: when it applies', () => {
     const network = newKeypair();
 
-    function intercept(contentType: string, body: Uint8Array, signed: Uint8Array) {
+    // The verdict for this body signed over `signed`: the HTTP status for Connect, the grpc-status
+    // for gRPC (0 when the signature passed and the call went on).
+    async function verdict(contentType: string, body: Uint8Array, signed: Uint8Array): Promise<string> {
       const service = createService(network.publicKeyHex, () => {});
-      const bodyHashes = new BodyHashes();
-      for (let i = 0; i < body.length; i++) {
-        bodyHashes.update(Buffer.from(body.subarray(i, i + 1)));
-      }
-      const req = {
+      const router = createConnectRouter({ interceptors: service.interceptors });
+      service.routes(router);
+      const handler = router.handlers.find((h) => h.requestPath === '/grpc.health.v1.Health/Check')!;
+      const response = await handler({
+        httpVersion: '2.0',
+        url: 'http://localhost/grpc.health.v1.Health/Check',
+        method: 'POST',
         header: new Headers({ ...signatureHeaders(network.privateKeyHex, signed), 'content-type': contentType }),
-        contextValues: service.contextValues({ bodyHashes }),
-      };
-      return service.interceptors[0](async () => ({}) as never)(req as never);
+        body: createAsyncIterable([body]),
+        signal: new AbortController().signal,
+      });
+      if (contentType.startsWith('application/grpc')) {
+        return response.trailer?.get('grpc-status') ?? response.header?.get('grpc-status') ?? '0';
+      }
+      return String(response.status);
     }
 
     const body = frame(0, healthCheckPayload);
 
     it('a gRPC body of one frame signed over its payload passes', async () => {
-      await intercept('application/grpc+proto', body, body.subarray(5));
+      assert.equal(await verdict('application/grpc+proto', body, body.subarray(5)), '0');
     });
 
     it('a non-gRPC body that looks like a frame signed over all but its first 5 bytes is refused', async () => {
-      await assertRejected(intercept('application/proto', body, body.subarray(5)), Code.Unauthenticated);
+      assert.equal(await verdict('application/proto', body, body.subarray(5)), '401');
     });
 
     it('a gRPC body of two frames signed over all but its first 5 bytes is refused', async () => {
       const twoFrames = Buffer.concat([body, body]);
-      await assertRejected(intercept('application/grpc', twoFrames, twoFrames.subarray(5)), Code.Unauthenticated);
+      assert.equal(await verdict('application/grpc', twoFrames, twoFrames.subarray(5)), String(Code.Unauthenticated));
     });
   });
 
@@ -385,6 +413,53 @@ describe('createHandler', () => {
       );
     } finally {
       await close();
+    }
+  });
+
+  // A provider server refuses a request whose method is not POST before everything else, the
+  // signature headers included: a call's message must be in its signed body. Not even a method that
+  // Connect serves over GET (NO_SIDE_EFFECTS) reaches its handler. The answer is a Connect unary
+  // error, whatever the Content-Type.
+  it('refuses every method but POST before anything else, so a GET never reaches its handler', async () => {
+    const { privateKeyHex, publicKeyHex } = newKeypair();
+    let calls = 0;
+    const server = http.createServer(
+      createHandler(publicKeyHex, (router) =>
+        router.service(QuoteService, {
+          getQuotes: () => {
+            calls++;
+            return create(GetQuotesResponseSchema);
+          },
+        }),
+      ),
+    );
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+    const getQuotes = `/${QuoteService.typeName}/GetQuotes`;
+    const query = '?connect=v1&encoding=proto&base64=1&message=';
+    const signed = signatureHeaders(privateKeyHex, new Uint8Array());
+    const cases: { name: string; method: string; path: string; headers: Record<string, string>; body?: Uint8Array }[] = [
+      { name: 'GET of a NO_SIDE_EFFECTS method', method: 'GET', path: getQuotes + query, headers: signed },
+      { name: 'GET of the health service', method: 'GET', path: `/${Health.typeName}/Check` + query, headers: signed },
+      { name: 'GET without signature headers', method: 'GET', path: getQuotes + query, headers: {} },
+      { name: 'GET with a gRPC content type', method: 'GET', path: getQuotes, headers: { ...signed, 'content-type': 'application/grpc' } },
+      { name: 'PUT', method: 'PUT', path: getQuotes, headers: { ...signed, 'content-type': 'application/proto' }, body: new Uint8Array() },
+      { name: 'DELETE', method: 'DELETE', path: getQuotes, headers: { ...signed, 'content-type': 'application/proto' }, body: new Uint8Array() },
+    ];
+    try {
+      for (const c of cases) {
+        const resp = await fetch(url + c.path, { method: c.method, headers: c.headers, body: c.body });
+        assert.equal(resp.status, 501, c.name);
+        assert.equal(resp.headers.get('content-type'), 'application/json', c.name);
+        assert.deepEqual(await resp.json(), { code: 'unimplemented', message: 'GET requests are not supported' }, c.name);
+        assert.equal(calls, 0, `${c.name}: the request reached its handler`);
+      }
+      // The same call, signed and sent with POST, reaches the handler.
+      await createClient(privateKeyHex, url, QuoteService).getQuotes({});
+      assert.equal(calls, 1);
+    } finally {
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
     }
   });
 

@@ -22,14 +22,15 @@ public static class SignatureVerifier
         CurveParams.H
     );
 
-    private const int PublicKeyLength = 65;
     private const int DigestLength = 32;
     private const int RsLength = 32;
 
     /// <summary>
     /// Verifies an ECDSA signature against a public key.
     /// </summary>
-    /// <param name="publicKey">65-byte uncompressed public key (0x04 + x[32] + y[32]).</param>
+    /// <param name="publicKey">The public key, parsed as the provider server parses the network key:
+    /// a 33-byte compressed (0x02/0x03 + x[32]) or 65-byte uncompressed (0x04 + x[32] + y[32])
+    /// point on secp256k1. Any other key, a hybrid one (0x06/0x07) among them, does not verify.</param>
     /// <param name="digest">32-byte hash that was signed.</param>
     /// <param name="signature">64 or 65 byte signature (r[32] + s[32] [+ v[1]]).</param>
     /// <returns>True if the signature is valid.</returns>
@@ -39,12 +40,14 @@ public static class SignatureVerifier
             return false;
         if (signature is null || (signature.Length != 64 && signature.Length != 65))
             return false;
-        if (publicKey is null || publicKey.Length != PublicKeyLength)
+        if (publicKey is null)
             return false;
 
         try
         {
-            var pubKeyPoint = DomainParams.Curve.DecodePoint(publicKey);
+            // Rule V2, by the server's parser: a refused key throws and does not verify.
+            var encoded = SignatureVerificationMiddleware.ParsePublicKeyBytes(publicKey);
+            var pubKeyPoint = DomainParams.Curve.DecodePoint(encoded);
             var pubKeyParams = new ECPublicKeyParameters(pubKeyPoint, DomainParams);
 
             var r = new BigInteger(1, signature[..RsLength]);

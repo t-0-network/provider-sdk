@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Hosting;
 
-namespace T0.ProviderSdk.Hosting;
+namespace MyProvider.Services;
 
 /// <summary>
 /// Base class for periodic quote publishing as an ASP.NET Core hosted service.

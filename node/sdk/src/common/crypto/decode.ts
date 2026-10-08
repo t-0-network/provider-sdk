@@ -1,12 +1,23 @@
 import type { DescMessage, MessageShape, Registry } from '@bufbuild/protobuf';
 import { fromJsonString, fromBinary, toJsonString, toBinary } from '@bufbuild/protobuf';
 import { createValidator } from '@bufbuild/protovalidate';
+import type { Violation as RuleViolation } from '@bufbuild/protovalidate';
+import { fieldPathString } from '../field-path.js';
 import { createRequestVerifier, rejectRequest } from './request.js';
 import type { CreateVerifierOptions, RejectedRequest } from './request.js';
 import NetworkHeaders from '../headers.js';
 import type { Logger } from '../logger.js';
 import type { WireFormat } from '../wire-format.js';
 import { defaultLogger } from '../logger.js';
+import { reportedVersion } from '../../version.js';
+import {
+  MALFORMED_REQUEST_BODY,
+  REQUEST_INVALID,
+  REQUEST_VALIDATION_ERROR,
+  RESPONSE_INVALID,
+  RESPONSE_VALIDATION_ERROR,
+  UNSUPPORTED_CONTENT_TYPE,
+} from '../messages.js';
 
 export interface CreateDecoderOptions extends CreateVerifierOptions {
   registry?: Registry;
@@ -96,12 +107,21 @@ function failResponse(status: number, code: string, message: string, error: Deco
   };
 }
 
+// The violations of a protovalidate result, as the wire body and the log carry them.
+function toViolations(violations: readonly RuleViolation[]): Violation[] {
+  return violations.map(v => ({
+    field: fieldPathString(v.field),
+    message: v.message,
+    ruleId: v.ruleId,
+  }));
+}
+
 export function createRequestDecoder(opts: CreateDecoderOptions): RequestDecoder {
   const verify = createRequestVerifier(opts);
   const validator = createValidator(opts.registry ? { registry: opts.registry } : undefined);
   const textDecoder = new TextDecoder('utf-8', { fatal: true });
   const logger: Logger = opts.logger ?? defaultLogger;
-  const version = opts.version;
+  const version = reportedVersion(opts.version);
 
   return <Desc extends DescMessage>(schema: Desc, req: IncomingRequest): DecodeRequestResult<Desc> => {
     const body = normalizeBody(req.body);
@@ -114,12 +134,12 @@ export function createRequestDecoder(opts: CreateDecoderOptions): RequestDecoder
     });
 
     if (!sigResult.valid) {
-      return { ok: false, error: rejectRequest(sigResult.reason) };
+      return { ok: false, error: rejectRequest(sigResult.reason, sigResult.message) };
     }
 
     const format = detectFormat(getHeader(req.headers, 'content-type'));
     if (!format) {
-      return { ok: false, error: failResponse(415, 'unsupported_content_type', 'Unsupported Content-Type', 'unsupported_content_type') };
+      return { ok: false, error: failResponse(415, 'unsupported_content_type', UNSUPPORTED_CONTENT_TYPE, 'unsupported_content_type') };
     }
 
     let message: MessageShape<Desc>;
@@ -130,19 +150,15 @@ export function createRequestDecoder(opts: CreateDecoderOptions): RequestDecoder
         message = fromBinary(schema, body) as MessageShape<Desc>;
       }
     } catch {
-      return { ok: false, error: failResponse(400, 'invalid_argument', 'Malformed request body', 'malformed_body') };
+      return { ok: false, error: failResponse(400, 'invalid_argument', MALFORMED_REQUEST_BODY, 'malformed_body') };
     }
 
     const valResult = validator.validate(schema, message);
     if (valResult.kind === 'invalid') {
-      const violations: Violation[] = valResult.violations.map(v => ({
-        field: v.field?.toString() ?? '',
-        message: v.message,
-        ruleId: v.ruleId,
-      }));
+      const violations = toViolations(valResult.violations);
       return {
         ok: false,
-        error: failResponse(400, 'invalid_argument', 'Request validation failed', 'invalid_request', violations),
+        error: failResponse(400, 'invalid_argument', REQUEST_INVALID, 'invalid_request', violations),
       };
     }
     if (valResult.kind === 'error') {
@@ -150,30 +166,26 @@ export function createRequestDecoder(opts: CreateDecoderOptions): RequestDecoder
         request_type: schema.typeName,
         error: valResult.error.message,
       };
-      if (version) fields.sdk_version = version;
+      fields.sdk_version = version;
       logger.error("request validation error", fields);
-      return { ok: false, error: failResponse(500, 'internal', `Validation error: ${valResult.error.message}`, 'validation_error') };
+      return { ok: false, error: failResponse(500, 'internal', REQUEST_VALIDATION_ERROR(valResult.error.message), 'validation_error') };
     }
 
     const encodeResponse = <R extends DescMessage>(respSchema: R, resp: MessageShape<R>): WireResponse => {
       const respVal = validator.validate(respSchema, resp);
       if (respVal.kind === 'invalid') {
-        const violations: Violation[] = respVal.violations.map(v => ({
-          field: v.field?.toString() ?? '',
-          message: v.message,
-          ruleId: v.ruleId,
-        }));
+        const violations = toViolations(respVal.violations);
         const details = violations.map(v => `${v.field}: ${v.message}`).join('; ');
         const fields: Record<string, unknown> = {
           response_type: respSchema.typeName,
           violations,
         };
-        if (version) fields.sdk_version = version;
+        fields.sdk_version = version;
         logger.error("response validation failed", fields);
         return {
           status: 500,
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code: 'internal', message: `response validation failed: ${details}`, violations }),
+          body: JSON.stringify({ code: 'internal', message: RESPONSE_INVALID(details), violations }),
           violations,
         };
       }
@@ -182,12 +194,12 @@ export function createRequestDecoder(opts: CreateDecoderOptions): RequestDecoder
           response_type: respSchema.typeName,
           error: respVal.error.message,
         };
-        if (version) fields.sdk_version = version;
+        fields.sdk_version = version;
         logger.error("response validation error", fields);
         return {
           status: 500,
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code: 'internal', message: `response validation error: ${respVal.error.message}` }),
+          body: JSON.stringify({ code: 'internal', message: RESPONSE_VALIDATION_ERROR(respVal.error.message) }),
         };
       }
       if (format === 'json') {

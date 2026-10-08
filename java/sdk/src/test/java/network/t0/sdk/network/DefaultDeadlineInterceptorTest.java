@@ -24,6 +24,7 @@ import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder;
 import io.grpc.protobuf.ProtoUtils;
 import io.grpc.stub.MetadataUtils;
 import io.grpc.stub.StreamObserver;
+import network.t0.sdk.common.Messages;
 import network.t0.sdk.crypto.Signer;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -105,17 +106,27 @@ class DefaultDeadlineInterceptorTest {
     }
 
     @Test
-    @DisplayName("A timeout must be a positive duration")
+    @DisplayName("A timeout must be a positive duration of at most 2147483647 ms")
     void timeoutsAreValidated() {
         Duration ok = Duration.ofSeconds(1);
-        for (Duration bad : new Duration[] {null, Duration.ZERO, Duration.ofMillis(-1)}) {
+        for (Duration bad : new Duration[] {null, Duration.ZERO, Duration.ofMillis(-1),
+                Duration.ofMillis(2147483648L), Duration.ofMillis(2147483647).plusNanos(1),
+                Duration.ofSeconds(Long.MAX_VALUE)}) {
             assertThatThrownBy(() -> new NetworkClient.DefaultDeadlineInterceptor(bad, ok))
                     .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessage("timeout must be a positive duration");
+                    .hasMessage(Messages.TIMEOUT_NOT_VALID);
             assertThatThrownBy(() -> new NetworkClient.DefaultDeadlineInterceptor(ok, bad))
                     .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessage("streamTimeout must be a positive duration");
+                    .hasMessage(Messages.STREAM_TIMEOUT_NOT_VALID);
         }
+    }
+
+    @Test
+    @DisplayName("The largest timeout, 2147483647 ms, is accepted")
+    void largestTimeoutIsAccepted() {
+        Duration max = Duration.ofMillis(2147483647);
+        assertThat(max).isEqualTo(NetworkClient.MAX_TIMEOUT);
+        new NetworkClient.DefaultDeadlineInterceptor(max, max);
     }
 
     @Test
@@ -126,15 +137,15 @@ class DefaultDeadlineInterceptorTest {
         assertThatThrownBy(() -> BlockingNetworkClient.create(endpoint, signer, HealthGrpc::newBlockingStub,
                 Duration.ZERO, Duration.ofMinutes(5)))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("timeout must be a positive duration");
+                .hasMessage(Messages.TIMEOUT_NOT_VALID);
         assertThatThrownBy(() -> AsyncNetworkClient.create(endpoint, signer, HealthGrpc::newStub,
                 Duration.ofSeconds(1), null))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("streamTimeout must be a positive duration");
+                .hasMessage(Messages.STREAM_TIMEOUT_NOT_VALID);
         assertThatThrownBy(() -> FutureNetworkClient.create(endpoint, signer, HealthGrpc::newFutureStub,
                 Duration.ofSeconds(1), Duration.ofSeconds(-1)))
                 .isInstanceOf(IllegalArgumentException.class)
-                .hasMessage("streamTimeout must be a positive duration");
+                .hasMessage(Messages.STREAM_TIMEOUT_NOT_VALID);
     }
 
     @Nested
@@ -180,7 +191,7 @@ class DefaultDeadlineInterceptorTest {
             assertThat(remainingMs.get("Watch")).hasValueSatisfying(ms -> assertThat(ms).isBetween(299_000L, 300_000L));
             assertThatThrownBy(() -> client.create(endpoint, signer, 0))
                     .isInstanceOf(IllegalArgumentException.class)
-                    .hasMessage("timeout must be a positive duration");
+                    .hasMessage(Messages.TIMEOUT_NOT_VALID);
         }
 
         @Test
@@ -240,22 +251,7 @@ class DefaultDeadlineInterceptorTest {
                     return next.startCall(call, headers);
                 }
             };
-            Server server = NettyServerBuilder.forPort(0)
-                    .addService(ServerInterceptors.intercept(new HealthGrpc.HealthImplBase() {
-                        @Override
-                        public void check(HealthCheckRequest request, StreamObserver<HealthCheckResponse> observer) {
-                            observer.onNext(HealthCheckResponse.getDefaultInstance());
-                            observer.onCompleted();
-                        }
-
-                        @Override
-                        public void watch(HealthCheckRequest request, StreamObserver<HealthCheckResponse> observer) {
-                            observer.onNext(HealthCheckResponse.getDefaultInstance());
-                            observer.onCompleted();
-                        }
-                    }, recorder))
-                    .build()
-                    .start();
+            Server server = answeringHealthServer(recorder);
             try (var client = BlockingNetworkClient.create("http://localhost:" + server.getPort(),
                     Signer.fromHex(PRIVATE_KEY_HEX), HealthGrpc::newBlockingStub)) {
                 withContextDeadline(Duration.ofSeconds(60), () -> tagged(client.stub(), "unary-longer")
@@ -300,6 +296,11 @@ class DefaultDeadlineInterceptorTest {
                     return next.startCall(call, headers);
                 }
             };
+            return answeringHealthServer(recorder);
+        }
+
+        /** Health service, behind interceptor, whose Check and Watch each answer one default response. */
+        private Server answeringHealthServer(ServerInterceptor interceptor) throws Exception {
             return NettyServerBuilder.forPort(0)
                     .addService(ServerInterceptors.intercept(new HealthGrpc.HealthImplBase() {
                         @Override
@@ -313,7 +314,7 @@ class DefaultDeadlineInterceptorTest {
                             observer.onNext(HealthCheckResponse.getDefaultInstance());
                             observer.onCompleted();
                         }
-                    }, recorder))
+                    }, interceptor))
                     .build()
                     .start();
         }

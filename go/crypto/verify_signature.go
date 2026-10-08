@@ -23,10 +23,12 @@ func VerifySignature(pubKey *secp256k1.PublicKey, digest []byte, signature []byt
 	rBytes := signature[:32]
 	sBytes := signature[32:64]
 
-	// Convert to ModNScalar
+	// Convert to ModNScalar. r and s must be in [1, n-1], as in every SDK: SetByteSlice reduces a
+	// value of n or more mod n and reports it, and Verify refuses zero.
 	var r, s secp256k1.ModNScalar
-	r.SetByteSlice(rBytes)
-	s.SetByteSlice(sBytes)
+	if r.SetByteSlice(rBytes) || s.SetByteSlice(sBytes) {
+		return false
+	}
 
 	// Create the signature
 	sig := dcrececdsa.NewSignature(&r, &s)

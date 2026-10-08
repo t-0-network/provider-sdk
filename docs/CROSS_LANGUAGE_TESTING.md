@@ -22,6 +22,10 @@ All SDKs share cross-language test infrastructure in `cross_test/` to verify cry
 
 `private_key_parsing` is the rule every SDK parses the private key a client signs with (S5 in [`CROSS_SDK_RULES.md`](CROSS_SDK_RULES.md)). Every SDK runs it from the files above.
 
+`signer_cases` is the exact output of each SDK's signer-from-hex factory for fixed digests. Every SDK runs it from the files above.
+
+`constants` holds the values every SDK defines as named constants, `messages` every error text an SDK raises itself, `max_body_size_cases` how a configured body limit is read, `server_cases` the answer every provider server gives to each request of a set, and `client_cases` what every client must do against a reference server. Each SDK compares its constants and messages with the file in a contract test, runs `go_helper probe` against its own server and `go_helper client-probe` against its own client, so a difference in any of them fails that SDK's CI. The tests are listed in [`CROSS_SDK_RULES.md`](CROSS_SDK_RULES.md#receiving-calls-from-the-network-provider-servers).
+
 ## Go helper
 
 A single Go binary at `cross_test/go_helper/` that all server-to-server tests share.
@@ -45,10 +49,12 @@ CI builds it automatically (each language's CI workflow sets up Go and builds it
 | `serve <port> <hex_public_key>` | Start a provider server (h2c, Connect + gRPC) |
 | `call-pay-out <url> <key> [--grpc]` | Signed PayOut RPC |
 | `call-health <url> <key> [--grpc]` | Signed health check |
+| `probe <url> --sdk <name> [--protocol connect\|grpc] [--vectors <path>]` | Sends every `server_cases` request to a provider server and checks each answer |
+| `client-probe --sdk <name> [--vectors <path>]` | Serves the `client_cases` on a free port (Connect over HTTP/1.1, gRPC over h2c) and prints `READY <base_url>`; checks the signature and deadline headers of every request an SDK client sends |
 
 `serve` also mounts `test.v1.StreamTest` ([`cross_test/stream_test.proto`](../cross_test/stream_test.proto), reference only — every SDK builds the two methods by hand on `google.protobuf.StringValue`). It is served behind the Go SDK's own signature verification, which checks a streaming request the way the T-0 Network does: the signature over the first envelope only (or, for gRPC, its payload without the prefix), before the handler reads the rest.
 
-A refused request fails with the code from [`CROSS_SDK_RULES.md`](CROSS_SDK_RULES.md#error-codes) and the reason as its message. Every reply to a verified request starts with the framing it was verified over (`envelope:` or `payload:`), so the streaming cross tests check both from the call itself. The helper also logs the verdict to stderr (`<path> verified over the first envelope|payload` or `<path> rejected: <reason>`); the cross tests still wait for that line to check that the request went out with its first message, and look for its absence when nothing may be sent, so its wording is a contract with those tests. `cd cross_test/go_helper && go test ./...` checks the helper's wiring with the Go client; the verifier is tested in `go/provider`. Step by step, with every refusal: [`cross_test/README.md`](../cross_test/README.md#commands).
+A refused request fails with the code from [`CROSS_SDK_RULES.md`](CROSS_SDK_RULES.md#error-codes-and-messages) and the reason as its message. Every reply to a verified request starts with the framing it was verified over (`envelope:` or `payload:`), so the streaming cross tests check both from the call itself. The helper also logs the verdict to stderr (`<path> verified over the first envelope|payload` or `<path> rejected: <reason>`); the cross tests still wait for that line to check that the request went out with its first message, and look for its absence when nothing may be sent, so its wording is a contract with those tests. `cd cross_test/go_helper && go test ./...` checks the helper's wiring with the Go client; the verifier is tested in `go/provider`. Step by step, with every refusal: [`cross_test/README.md`](../cross_test/README.md#commands).
 
 Default protocol is Connect (HTTP/1.1). Pass `--grpc` for gRPC protocol over h2c.
 
@@ -90,7 +96,7 @@ Each SDK's CI workflow:
 
 The Go workflow also runs the helper's own tests (`go test -race ./...` in `cross_test/go_helper`).
 
-Tests **fail** (not skip) if the Go helper binary is missing in CI.
+Tests **fail** (not skip) if the Go helper binary is missing in CI, and the shared `setup-go-helper` action fails the job when the binary was not built. The Go SDK's own tests (`cd go && go test ./...`) need no helper: the Go server and client run against the probes from the helper's tests.
 
 ## Adding a new SDK
 

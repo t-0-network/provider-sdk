@@ -33,8 +33,10 @@ func WithLogger(logger *slog.Logger) HttpHandlerOption {
 }
 
 // WithSDKVersion overrides the SDK version reported in health-check response
-// headers. Wrapping SDKs use this to stamp their own version instead of the
-// provider-sdk's built-in version.
+// headers and in the sdk_version field of the response-validation log line.
+// Wrapping SDKs use this to stamp their own version instead of the
+// provider-sdk's built-in version. A blank or whitespace-only version is
+// ignored.
 func WithSDKVersion(version string) HttpHandlerOption {
 	return func(o *providerHandlerOptions) {
 		if strings.TrimSpace(version) != "" {
@@ -95,14 +97,13 @@ func NewHttpHandlerWithOptions(
 	for _, o := range opts {
 		o(&scratch)
 	}
-	defaultOptions, err := newDefaultHandlerOptions(verifier, scratch.logger)
-	if err != nil {
-		return nil, err
-	}
-
 	sdkVer := scratch.sdkVersion
 	if sdkVer == "" {
 		sdkVer = sdkversion.Version
+	}
+	defaultOptions, err := newDefaultHandlerOptions(verifier, scratch.logger, sdkVer)
+	if err != nil {
+		return nil, err
 	}
 
 	mux := http.NewServeMux()
@@ -140,18 +141,19 @@ func NewHttpHandlerWithOptions(
 //
 // Handler calls the factory with connect options, and the factory must pass all
 // of them to every connect handler it builds. The options do the following:
-//   - refuse a request that failed the signature check
+//   - fail a call that has no signature verdict in its context
 //   - validate responses
 //   - limit the size of each stream message after the first
 //   - apply the options given with WithConnectHandlerOptions
 //
 // Handler wraps the factory's handler in a middleware that checks the signature
-// of every request and records the verdict in the context. Only the options
-// turn a rejected verdict into an error, so a factory that drops them serves
-// requests that failed the signature check. Generated factories pass the
-// options on, and cross_test/go_helper/stream.go has one written by hand. Add
-// your own connect options with WithConnectHandlerOptions, not inside the
-// factory.
+// of every request. The middleware answers a rejected request itself and puts
+// the verdict of an accepted one in the context. The factory must still pass
+// the options on: they carry the no-verdict check, response validation, the
+// per-message size limit and the options given with WithConnectHandlerOptions.
+// Generated factories pass them on, and cross_test/go_helper/stream.go has one
+// written by hand. Add your own connect options with WithConnectHandlerOptions,
+// not inside the factory.
 func Handler[T any](handler func(svc T, option ...connect.HandlerOption) (string, http.Handler), p T, options ...HandlerOption) BuildHandler {
 	return func(defaultOptions providerHandlerOptions) (string, http.Handler) {
 		for _, o := range options {

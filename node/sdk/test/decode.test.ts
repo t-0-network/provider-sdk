@@ -286,15 +286,6 @@ describe('createRequestDecoder (generic)', () => {
     assert.deepEqual(result.error, rejectRequest('invalid_timestamp'));
   });
 
-  it('throws at creation on a toleranceMs that is not in (0, 60000]', () => {
-    const { publicKeyHex } = newKeypair();
-    for (const toleranceMs of [Infinity, NaN, 0, -1, 60_001]) {
-      assert.throws(() => createGenericDecoder({ networkPublicKey: publicKeyHex, toleranceMs }), /toleranceMs must be/, String(toleranceMs));
-      assert.throws(() => createRequestDecoder({ networkPublicKey: publicKeyHex, toleranceMs }), /toleranceMs must be/, String(toleranceMs));
-    }
-    assert.doesNotThrow(() => createGenericDecoder({ networkPublicKey: publicKeyHex, toleranceMs: 60_000 }));
-  });
-
   it('rejects unsupported Content-Type with 415', () => {
     const { priv, publicKeyHex } = newKeypair();
     const decode = createGenericDecoder({ networkPublicKey: publicKeyHex });
@@ -457,7 +448,7 @@ describe('createRequestDecoder (generic)', () => {
     assert.ok(parsed.violations[0].ruleId !== undefined, 'ruleId present on request violations');
   });
 
-  it('omits sdk_version from log fields when version is undefined', () => {
+  it('logs SDK_VERSION as sdk_version when version is undefined or blank', () => {
     const { priv, publicKeyHex } = newKeypair();
     const { logger, calls } = spyLogger();
     const decode = createBaseDecoder({
@@ -479,7 +470,13 @@ describe('createRequestDecoder (generic)', () => {
     result.encodeResponse(DecimalSchema, badResponse);
 
     assert.equal(calls.length, 1);
-    assert.equal(calls[0].fields!.sdk_version, undefined, 'sdk_version omitted when version not set');
+    assert.equal(calls[0].fields!.sdk_version, SDK_VERSION, 'sdk_version defaults to SDK_VERSION');
+
+    const decodeBlank = createBaseDecoder({ networkPublicKey: publicKeyHex, registry: networkRegistry, logger, version: ' ' });
+    const blank = decodeBlank(DecimalSchema, { body: jsonBody, headers });
+    if (!blank.ok) assert.fail('decode should succeed');
+    blank.encodeResponse(DecimalSchema, badResponse);
+    assert.equal(calls[1].fields!.sdk_version, SDK_VERSION, 'a blank version reports SDK_VERSION');
   });
 });
 

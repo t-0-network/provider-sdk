@@ -17,13 +17,15 @@ from t0_provider_sdk.crypto.keys import (
     private_key_from_hex,
     public_key_from_bytes,
     public_key_from_hex,
+    public_key_from_private_key,
 )
 from t0_provider_sdk.crypto.signer import new_signer_from_hex
 from t0_provider_sdk.crypto.verifier import verify_signature
 from t0_provider_sdk.network import signing
 from t0_provider_sdk.network.signing import SigningClient, SigningSyncClient
-from t0_provider_sdk.provider.errors import InvalidHeaderEncodingError, MissingRequiredHeaderError
-from t0_provider_sdk.provider.middleware import _parse_timestamp
+from t0_provider_sdk.provider import NetworkPublicKeyRequiredError, new_asgi_app, new_wsgi_app
+from t0_provider_sdk.provider.errors import SignatureVerificationError
+from t0_provider_sdk.provider.middleware import _parse_timestamp, new_verify_signature
 
 VECTORS_PATH = Path(__file__).resolve().parents[4] / "cross_test" / "test_vectors.json"
 
@@ -116,16 +118,21 @@ def _hex_decodable(vec) -> bool:
     return True
 
 
+def _exactly(message: str) -> str:
+    """A pytest.raises match for this message and nothing else."""
+    return f"^{re.escape(message)}$"
+
+
 class TestCrossVectorsPublicKeyParsing:
     """The parser the server uses for the configured network key and the X-Public-Key header, and the
-    deprecated public helpers, which follow the same rule."""
+    deprecated public helpers, which follow the same rule. A refused key fails with the row's error."""
 
     @pytest.mark.parametrize("vec", VECTORS["public_key_parsing"], ids=lambda vec: vec["name"])
     def test_case(self, vec):
         if vec["valid"]:
             assert _parse_public_key(vec["input"]).format(compressed=False).hex() == vec["uncompressed"]
         else:
-            with pytest.raises(ValueError):
+            with pytest.raises(ValueError, match=_exactly(vec["error"])):
                 _parse_public_key(vec["input"])
 
     @pytest.mark.parametrize("vec", VECTORS["public_key_parsing"], ids=lambda vec: vec["name"])
@@ -134,21 +141,50 @@ class TestCrossVectorsPublicKeyParsing:
             if vec["valid"]:
                 assert public_key_from_hex(vec["input"]).format(compressed=False).hex() == vec["uncompressed"]
             else:
-                with pytest.raises(ValueError):
+                with pytest.raises(ValueError, match=_exactly(vec["error"])):
                     public_key_from_hex(vec["input"])
 
     @pytest.mark.parametrize(
         "vec", [vec for vec in VECTORS["public_key_parsing"] if _hex_decodable(vec)], ids=lambda vec: vec["name"]
     )
     def test_public_key_from_bytes(self, vec):
-        """The rows that are hex at all, decoded."""
+        """The rows that are hex at all, decoded. The others fail before there are bytes, so their
+        error is not one this helper can raise."""
         data = _decode_hex_strict(vec["input"])
         with pytest.deprecated_call():
             if vec["valid"]:
                 assert public_key_from_bytes(data).format(compressed=False).hex() == vec["uncompressed"]
             else:
-                with pytest.raises(ValueError):
+                with pytest.raises(ValueError, match=_exactly(vec["error"])):
                     public_key_from_bytes(data)
+
+
+class TestCrossVectorsNetworkPublicKey:
+    """Rule V1: the configured network key, checked when the server is set up. Surrounding whitespace
+    is trimmed; then a blank key fails with "network public key is not set" and any other refused key
+    with "invalid network public key: " and the row's error."""
+
+    @pytest.mark.parametrize(
+        "build",
+        [
+            pytest.param(new_asgi_app, id="new_asgi_app"),
+            pytest.param(new_wsgi_app, id="new_wsgi_app"),
+            pytest.param(new_verify_signature, id="new_verify_signature"),
+        ],
+    )
+    @pytest.mark.parametrize("pad", [pytest.param("", id="as is"), pytest.param(" ", id="padded")])
+    @pytest.mark.parametrize("vec", VECTORS["public_key_parsing"], ids=lambda vec: vec["name"])
+    def test_case(self, vec, pad, build):
+        key = f"{pad}{vec['input']}{pad}"
+        if vec["valid"]:
+            assert callable(build(key))
+        elif not vec["input"].strip():
+            with pytest.raises(NetworkPublicKeyRequiredError, match=_exactly("network public key is not set")):
+                build(key)
+        else:
+            with pytest.raises(ValueError, match=_exactly(f"invalid network public key: {vec['error']}")) as exc_info:
+                build(key)
+            assert not isinstance(exc_info.value, NetworkPublicKeyRequiredError)
 
 
 class TestCrossVectorsPrivateKeyParsing:
@@ -175,11 +211,8 @@ class TestCrossVectorsTimestampParsing:
         headers = {SIGNATURE_TIMESTAMP_HEADER.lower(): vec["input"]}
         if vec["valid"]:
             assert _parse_timestamp(headers) == (int(vec["value"]), struct.pack("<Q", int(vec["value"])))
-        elif vec["input"]:
-            with pytest.raises(InvalidHeaderEncodingError):
-                _parse_timestamp(headers)
         else:
-            with pytest.raises(MissingRequiredHeaderError):
+            with pytest.raises(SignatureVerificationError, match=f"^{re.escape(vec['error'])}$"):
                 _parse_timestamp(headers)
 
 
@@ -191,7 +224,13 @@ class TestCrossVectorsSignatureVerification:
         assert cases
 
         for vec in cases:
-            public_key = _public_key_from_bytes_strict(bytes.fromhex(vec["public_key"]))
+            # verify_signature takes a parsed key, so a key that rule V2 refuses (hybrid-key) fails
+            # here, as it fails the helper of every other SDK.
+            try:
+                public_key = _public_key_from_bytes_strict(bytes.fromhex(vec["public_key"]))
+            except ValueError:
+                assert not vec["valid"], f"{vec['name']}: the key of a case that verifies parses"
+                continue
             signature = bytes.fromhex(vec["signature"])
             result = verify_signature(public_key, _request_digest(vec), signature)
             assert result == vec["valid"], f"{vec['name']}: {vec['note']}"
@@ -290,3 +329,34 @@ class TestCrossVectorsStreamSigningCases:
                 pass
 
             _assert_signed_like_vector(vec, recorder)
+
+
+class TestCrossVectorsPublicKeyFromPrivateKey:
+    """public_key_from_private_key over every private_key_parsing row: "0x" and the lowercase
+    uncompressed key, or the private-key parser's error."""
+
+    @pytest.mark.parametrize("vec", VECTORS["private_key_parsing"], ids=lambda vec: vec["name"])
+    def test_case(self, vec):
+        if vec["valid"]:
+            assert public_key_from_private_key(vec["input"]) == "0x" + vec["public_key"].lower()
+            assert public_key_from_private_key(private_key_hex=vec["input"]) == "0x" + vec["public_key"].lower()
+        else:
+            with pytest.raises(ValueError, match=f"^{re.escape(vec['error'])}$"):
+                public_key_from_private_key(vec["input"])
+
+
+class TestCrossVectorsSignerCases:
+    """new_signer_from_hex's signer over fixed digests: 65 bytes r || s || v and the 65-byte
+    uncompressed key, or the error for a digest that is not 32 bytes (signer_cases)."""
+
+    @pytest.mark.parametrize("vec", VECTORS["signer_cases"], ids=lambda vec: vec["name"])
+    def test_case(self, vec):
+        sign = new_signer_from_hex(vec["private_key"])
+        digest = bytes.fromhex(vec["digest"])
+        if "error" in vec:
+            with pytest.raises(ValueError, match=f"^{re.escape(vec['error'])}$"):
+                sign(digest)
+        else:
+            signature, public_key = sign(digest)
+            assert signature.hex() == vec["signature"]
+            assert public_key.hex() == vec["public_key"]

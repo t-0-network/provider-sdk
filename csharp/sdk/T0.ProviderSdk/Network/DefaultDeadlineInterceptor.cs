@@ -1,5 +1,6 @@
 using Grpc.Core;
 using Grpc.Core.Interceptors;
+using T0.ProviderSdk.Common;
 
 namespace T0.ProviderSdk.Network;
 
@@ -52,7 +53,7 @@ internal sealed class DefaultDeadlineInterceptor : Interceptor
     public override AsyncDuplexStreamingCall<TRequest, TResponse> AsyncDuplexStreamingCall<TRequest, TResponse>(
         ClientInterceptorContext<TRequest, TResponse> context,
         AsyncDuplexStreamingCallContinuation<TRequest, TResponse> continuation) =>
-        throw new RpcException(new Status(StatusCode.Unimplemented, "bidirectional streams are not supported"));
+        throw new RpcException(new Status(StatusCode.Unimplemented, Messages.BidiNotSupported));
 
     // The caller's own deadline replaces the default, longer or shorter.
     private ClientInterceptorContext<TRequest, TResponse> WithDefaultDeadline<TRequest, TResponse>(
