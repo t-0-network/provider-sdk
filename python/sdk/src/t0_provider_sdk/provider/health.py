@@ -56,8 +56,7 @@ _CHECK_METHOD = MethodInfo(
     service_name=HEALTH_SERVICE_FQN,
     input=health_pb2.HealthCheckRequest,
     output=health_pb2.HealthCheckResponse,
-    # Not NO_SIDE_EFFECTS, which would serve Check over GET too: the signature covers the body, and a
-    # GET carries its message in the query instead. POST only, as in every SDK.
+    # POST only, as in every SDK: a call's message must be in its signed body.
     idempotency_level=IdempotencyLevel.UNKNOWN,
 )
 
