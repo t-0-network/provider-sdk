@@ -30,10 +30,8 @@ type CreatePaymentIntentResponse_Failure_Reason int32
 const (
 	CreatePaymentIntentResponse_Failure_FAILURE_REASON_UNSPECIFIED CreatePaymentIntentResponse_Failure_Reason = 0
 	// *
-	// No live quote covers the requested currency/amount. On first call this
-	// means the intent was never created. On an idempotent retry this means
-	// every stored offer has since lost its live quote; a subsequent retry
-	// may succeed once providers republish.
+	// No live quote covers the requested currency/amount, so the payment
+	// intent is not created. Final for this external_reference.
 	CreatePaymentIntentResponse_Failure_FAILURE_REASON_QUOTE_NOT_FOUND CreatePaymentIntentResponse_Failure_Reason = 10
 	// *
 	// Payment intent rejected.
@@ -477,6 +475,10 @@ func (x *GetQuotesResponse) GetQuotes() []*GetQuotesResponse_CurrencyQuote {
 
 // *
 // Represents pay-in details for a payment intent option.
+//
+// Carries no rate: for the current indicative rate and fix of an option, call
+// GetQuote with the intent's currency and amount and pay_in_provider_ids set to
+// its provider_id, and match the returned quote on payment_method.
 type PaymentIntentPayInDetails struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// *
@@ -484,30 +486,15 @@ type PaymentIntentPayInDetails struct {
 	// Determines which payment details format is provided.
 	PaymentMethod common.PaymentMethodType `protobuf:"varint,10,opt,name=payment_method,json=paymentMethod,proto3,enum=tzero.v1.common.PaymentMethodType" json:"payment_method,omitempty"`
 	// *
-	// The T-0 provider ID of the pay-in provider offering this quote.
+	// The T-0 provider ID of the pay-in provider offering this option.
 	ProviderId uint32 `protobuf:"varint,20,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"`
 	// *
 	// Payment details for the end-user to make the payment.
 	// Contains bank account info, mobile money details, etc. based on payment_method.
 	// This should be displayed to the end-user to complete their payment.
 	PaymentDetails *common.PaymentDetails `protobuf:"bytes,30,opt,name=payment_details,json=paymentDetails,proto3" json:"payment_details,omitempty"`
-	// *
-	// Indicative exchange rate USD/XXX (base currency is always USD).
-	//
-	// Reflects the current quote on every call,
-	// including idempotent retries. The binding rate is locked in at
-	// ConfirmFundsReceived and may differ.
-	IndicativeRate *common.Decimal `protobuf:"bytes,40,opt,name=indicative_rate,json=indicativeRate,proto3" json:"indicative_rate,omitempty"`
-	// *
-	// Indicative fixed charge in USD retained by the pay-in provider per transfer.
-	// Settlement is calculated as (amount / indicative_rate) - indicative_fix.
-	//
-	// Reflects the current quote on every call,
-	// including idempotent retries. The binding fix is locked in at
-	// ConfirmFundsReceived and may differ.
-	IndicativeFix *common.Decimal `protobuf:"bytes,50,opt,name=indicative_fix,json=indicativeFix,proto3" json:"indicative_fix,omitempty"`
-	unknownFields protoimpl.UnknownFields
-	sizeCache     protoimpl.SizeCache
+	unknownFields  protoimpl.UnknownFields
+	sizeCache      protoimpl.SizeCache
 }
 
 func (x *PaymentIntentPayInDetails) Reset() {
@@ -557,20 +544,6 @@ func (x *PaymentIntentPayInDetails) GetProviderId() uint32 {
 func (x *PaymentIntentPayInDetails) GetPaymentDetails() *common.PaymentDetails {
 	if x != nil {
 		return x.PaymentDetails
-	}
-	return nil
-}
-
-func (x *PaymentIntentPayInDetails) GetIndicativeRate() *common.Decimal {
-	if x != nil {
-		return x.IndicativeRate
-	}
-	return nil
-}
-
-func (x *PaymentIntentPayInDetails) GetIndicativeFix() *common.Decimal {
-	if x != nil {
-		return x.IndicativeFix
 	}
 	return nil
 }
@@ -1587,9 +1560,8 @@ type CreatePaymentIntentResponse_Success struct {
 	// Present these options to the end-user so they can choose how to pay.
 	// Each entry contains the payment details needed to complete the payment.
 	//
-	// Indicative rate/fix are resolved live on every call, including idempotent
-	// retries. The set of options is fixed at first call; individual options
-	// whose underlying quote has lapsed are omitted on retry.
+	// The set of options is fixed at first call and returned unchanged on every
+	// idempotent retry, whether or not a live quote still covers it.
 	PayInDetails  []*PaymentIntentPayInDetails `protobuf:"bytes,20,rep,name=pay_in_details,json=payInDetails,proto3" json:"pay_in_details,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1887,16 +1859,14 @@ const file_tzero_v1_payment_intent_network_proto_rawDesc = "" +
 	"\x04rate\x18\x14 \x01(\v2\x18.tzero.v1.common.DecimalB<\xbaH9\xba\x013\x12\x1erate must be greater than zero\x1a\x11this.unscaled > 0\xc8\x01\x01R\x04rate\x12c\n" +
 	"\x03fix\x18\x1e \x01(\v2\x18.tzero.v1.common.DecimalB7\xbaH4\xba\x01.\x12\x18fix must be non-negative\x1a\x12this.unscaled >= 0\xc8\x01\x01R\x03fix\x12A\n" +
 	"\n" +
-	"expires_at\x18( \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\texpiresAt\"\xf8\x03\n" +
+	"expires_at\x18( \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\texpiresAt\"\x92\x02\n" +
 	"\x19PaymentIntentPayInDetails\x12U\n" +
 	"\x0epayment_method\x18\n" +
 	" \x01(\x0e2\".tzero.v1.common.PaymentMethodTypeB\n" +
 	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\rpaymentMethod\x12\x1f\n" +
 	"\vprovider_id\x18\x14 \x01(\rR\n" +
 	"providerId\x12P\n" +
-	"\x0fpayment_details\x18\x1e \x01(\v2\x1f.tzero.v1.common.PaymentDetailsB\x06\xbaH\x03\xc8\x01\x01R\x0epaymentDetails\x12\x8a\x01\n" +
-	"\x0findicative_rate\x18( \x01(\v2\x18.tzero.v1.common.DecimalBG\xbaHD\xba\x01>\x12)indicative_rate must be greater than zero\x1a\x11this.unscaled > 0\xc8\x01\x01R\x0eindicativeRate\x12\x83\x01\n" +
-	"\x0eindicative_fix\x182 \x01(\v2\x18.tzero.v1.common.DecimalBB\xbaH?\xba\x019\x12#indicative_fix must be non-negative\x1a\x12this.unscaled >= 0\xc8\x01\x01R\rindicativeFix\"\xb0\x04\n" +
+	"\x0fpayment_details\x18\x1e \x01(\v2\x1f.tzero.v1.common.PaymentDetailsB\x06\xbaH\x03\xc8\x01\x01R\x0epaymentDetailsJ\x04\b(\x10)J\x04\b2\x103R\x0findicative_rateR\x0eindicative_fix\"\xb0\x04\n" +
 	"\x1aCreatePaymentIntentRequest\x129\n" +
 	"\x12external_reference\x18\n" +
 	" \x01(\tB\n" +
@@ -2024,58 +1994,56 @@ var file_tzero_v1_payment_intent_network_proto_depIdxs = []int32{
 	18, // 4: tzero.v1.payment_intent.GetQuotesResponse.quotes:type_name -> tzero.v1.payment_intent.GetQuotesResponse.CurrencyQuote
 	28, // 5: tzero.v1.payment_intent.PaymentIntentPayInDetails.payment_method:type_name -> tzero.v1.common.PaymentMethodType
 	29, // 6: tzero.v1.payment_intent.PaymentIntentPayInDetails.payment_details:type_name -> tzero.v1.common.PaymentDetails
-	27, // 7: tzero.v1.payment_intent.PaymentIntentPayInDetails.indicative_rate:type_name -> tzero.v1.common.Decimal
-	27, // 8: tzero.v1.payment_intent.PaymentIntentPayInDetails.indicative_fix:type_name -> tzero.v1.common.Decimal
-	27, // 9: tzero.v1.payment_intent.CreatePaymentIntentRequest.amount:type_name -> tzero.v1.common.Decimal
-	22, // 10: tzero.v1.payment_intent.CreatePaymentIntentRequest.travel_rule_data:type_name -> tzero.v1.payment_intent.CreatePaymentIntentRequest.TravelRuleData
-	23, // 11: tzero.v1.payment_intent.CreatePaymentIntentResponse.success:type_name -> tzero.v1.payment_intent.CreatePaymentIntentResponse.Success
-	24, // 12: tzero.v1.payment_intent.CreatePaymentIntentResponse.failure:type_name -> tzero.v1.payment_intent.CreatePaymentIntentResponse.Failure
-	28, // 13: tzero.v1.payment_intent.ConfirmFundsReceivedRequest.payment_method:type_name -> tzero.v1.common.PaymentMethodType
-	25, // 14: tzero.v1.payment_intent.ConfirmFundsReceivedResponse.accept:type_name -> tzero.v1.payment_intent.ConfirmFundsReceivedResponse.Accept
-	26, // 15: tzero.v1.payment_intent.ConfirmFundsReceivedResponse.reject:type_name -> tzero.v1.payment_intent.ConfirmFundsReceivedResponse.Reject
-	28, // 16: tzero.v1.payment_intent.UpdateQuoteRequest.Quote.payment_method:type_name -> tzero.v1.common.PaymentMethodType
-	14, // 17: tzero.v1.payment_intent.UpdateQuoteRequest.Quote.bands:type_name -> tzero.v1.payment_intent.UpdateQuoteRequest.Quote.Band
-	30, // 18: tzero.v1.payment_intent.UpdateQuoteRequest.Quote.expiration:type_name -> google.protobuf.Timestamp
-	30, // 19: tzero.v1.payment_intent.UpdateQuoteRequest.Quote.timestamp:type_name -> google.protobuf.Timestamp
-	27, // 20: tzero.v1.payment_intent.UpdateQuoteRequest.Quote.Band.max_amount:type_name -> tzero.v1.common.Decimal
-	27, // 21: tzero.v1.payment_intent.UpdateQuoteRequest.Quote.Band.rate:type_name -> tzero.v1.common.Decimal
-	27, // 22: tzero.v1.payment_intent.UpdateQuoteRequest.Quote.Band.fix:type_name -> tzero.v1.common.Decimal
-	17, // 23: tzero.v1.payment_intent.GetQuoteResponse.Success.best_quotes:type_name -> tzero.v1.payment_intent.GetQuoteResponse.Success.IndicativeQuote
-	17, // 24: tzero.v1.payment_intent.GetQuoteResponse.Success.all_quotes:type_name -> tzero.v1.payment_intent.GetQuoteResponse.Success.IndicativeQuote
-	28, // 25: tzero.v1.payment_intent.GetQuoteResponse.Success.IndicativeQuote.payment_method:type_name -> tzero.v1.common.PaymentMethodType
-	27, // 26: tzero.v1.payment_intent.GetQuoteResponse.Success.IndicativeQuote.indicative_rate:type_name -> tzero.v1.common.Decimal
-	27, // 27: tzero.v1.payment_intent.GetQuoteResponse.Success.IndicativeQuote.indicative_fix:type_name -> tzero.v1.common.Decimal
-	19, // 28: tzero.v1.payment_intent.GetQuotesResponse.CurrencyQuote.payment_method_quotes:type_name -> tzero.v1.payment_intent.GetQuotesResponse.CurrencyQuote.PaymentMethodQuote
-	28, // 29: tzero.v1.payment_intent.GetQuotesResponse.CurrencyQuote.PaymentMethodQuote.payment_method:type_name -> tzero.v1.common.PaymentMethodType
-	20, // 30: tzero.v1.payment_intent.GetQuotesResponse.CurrencyQuote.PaymentMethodQuote.provider_quotes:type_name -> tzero.v1.payment_intent.GetQuotesResponse.CurrencyQuote.PaymentMethodQuote.ProviderQuote
-	21, // 31: tzero.v1.payment_intent.GetQuotesResponse.CurrencyQuote.PaymentMethodQuote.ProviderQuote.quotes:type_name -> tzero.v1.payment_intent.GetQuotesResponse.CurrencyQuote.PaymentMethodQuote.ProviderQuote.Quote
-	27, // 32: tzero.v1.payment_intent.GetQuotesResponse.CurrencyQuote.PaymentMethodQuote.ProviderQuote.Quote.max_amount:type_name -> tzero.v1.common.Decimal
-	27, // 33: tzero.v1.payment_intent.GetQuotesResponse.CurrencyQuote.PaymentMethodQuote.ProviderQuote.Quote.rate:type_name -> tzero.v1.common.Decimal
-	27, // 34: tzero.v1.payment_intent.GetQuotesResponse.CurrencyQuote.PaymentMethodQuote.ProviderQuote.Quote.fix:type_name -> tzero.v1.common.Decimal
-	30, // 35: tzero.v1.payment_intent.GetQuotesResponse.CurrencyQuote.PaymentMethodQuote.ProviderQuote.Quote.expires_at:type_name -> google.protobuf.Timestamp
-	31, // 36: tzero.v1.payment_intent.CreatePaymentIntentRequest.TravelRuleData.beneficiary:type_name -> ivms101.Person
-	31, // 37: tzero.v1.payment_intent.CreatePaymentIntentRequest.TravelRuleData.payer:type_name -> ivms101.Person
-	8,  // 38: tzero.v1.payment_intent.CreatePaymentIntentResponse.Success.pay_in_details:type_name -> tzero.v1.payment_intent.PaymentIntentPayInDetails
-	0,  // 39: tzero.v1.payment_intent.CreatePaymentIntentResponse.Failure.reason:type_name -> tzero.v1.payment_intent.CreatePaymentIntentResponse.Failure.Reason
-	27, // 40: tzero.v1.payment_intent.ConfirmFundsReceivedResponse.Accept.settlement_amount:type_name -> tzero.v1.common.Decimal
-	27, // 41: tzero.v1.payment_intent.ConfirmFundsReceivedResponse.Accept.rate:type_name -> tzero.v1.common.Decimal
-	27, // 42: tzero.v1.payment_intent.ConfirmFundsReceivedResponse.Accept.fix:type_name -> tzero.v1.common.Decimal
-	1,  // 43: tzero.v1.payment_intent.ConfirmFundsReceivedResponse.Reject.reason:type_name -> tzero.v1.payment_intent.ConfirmFundsReceivedResponse.Reject.Reason
-	2,  // 44: tzero.v1.payment_intent.PaymentIntentService.UpdateQuote:input_type -> tzero.v1.payment_intent.UpdateQuoteRequest
-	4,  // 45: tzero.v1.payment_intent.PaymentIntentService.GetQuote:input_type -> tzero.v1.payment_intent.GetQuoteRequest
-	6,  // 46: tzero.v1.payment_intent.PaymentIntentService.GetQuotes:input_type -> tzero.v1.payment_intent.GetQuotesRequest
-	9,  // 47: tzero.v1.payment_intent.PaymentIntentService.CreatePaymentIntent:input_type -> tzero.v1.payment_intent.CreatePaymentIntentRequest
-	11, // 48: tzero.v1.payment_intent.PaymentIntentService.ConfirmFundsReceived:input_type -> tzero.v1.payment_intent.ConfirmFundsReceivedRequest
-	3,  // 49: tzero.v1.payment_intent.PaymentIntentService.UpdateQuote:output_type -> tzero.v1.payment_intent.UpdateQuoteResponse
-	5,  // 50: tzero.v1.payment_intent.PaymentIntentService.GetQuote:output_type -> tzero.v1.payment_intent.GetQuoteResponse
-	7,  // 51: tzero.v1.payment_intent.PaymentIntentService.GetQuotes:output_type -> tzero.v1.payment_intent.GetQuotesResponse
-	10, // 52: tzero.v1.payment_intent.PaymentIntentService.CreatePaymentIntent:output_type -> tzero.v1.payment_intent.CreatePaymentIntentResponse
-	12, // 53: tzero.v1.payment_intent.PaymentIntentService.ConfirmFundsReceived:output_type -> tzero.v1.payment_intent.ConfirmFundsReceivedResponse
-	49, // [49:54] is the sub-list for method output_type
-	44, // [44:49] is the sub-list for method input_type
-	44, // [44:44] is the sub-list for extension type_name
-	44, // [44:44] is the sub-list for extension extendee
-	0,  // [0:44] is the sub-list for field type_name
+	27, // 7: tzero.v1.payment_intent.CreatePaymentIntentRequest.amount:type_name -> tzero.v1.common.Decimal
+	22, // 8: tzero.v1.payment_intent.CreatePaymentIntentRequest.travel_rule_data:type_name -> tzero.v1.payment_intent.CreatePaymentIntentRequest.TravelRuleData
+	23, // 9: tzero.v1.payment_intent.CreatePaymentIntentResponse.success:type_name -> tzero.v1.payment_intent.CreatePaymentIntentResponse.Success
+	24, // 10: tzero.v1.payment_intent.CreatePaymentIntentResponse.failure:type_name -> tzero.v1.payment_intent.CreatePaymentIntentResponse.Failure
+	28, // 11: tzero.v1.payment_intent.ConfirmFundsReceivedRequest.payment_method:type_name -> tzero.v1.common.PaymentMethodType
+	25, // 12: tzero.v1.payment_intent.ConfirmFundsReceivedResponse.accept:type_name -> tzero.v1.payment_intent.ConfirmFundsReceivedResponse.Accept
+	26, // 13: tzero.v1.payment_intent.ConfirmFundsReceivedResponse.reject:type_name -> tzero.v1.payment_intent.ConfirmFundsReceivedResponse.Reject
+	28, // 14: tzero.v1.payment_intent.UpdateQuoteRequest.Quote.payment_method:type_name -> tzero.v1.common.PaymentMethodType
+	14, // 15: tzero.v1.payment_intent.UpdateQuoteRequest.Quote.bands:type_name -> tzero.v1.payment_intent.UpdateQuoteRequest.Quote.Band
+	30, // 16: tzero.v1.payment_intent.UpdateQuoteRequest.Quote.expiration:type_name -> google.protobuf.Timestamp
+	30, // 17: tzero.v1.payment_intent.UpdateQuoteRequest.Quote.timestamp:type_name -> google.protobuf.Timestamp
+	27, // 18: tzero.v1.payment_intent.UpdateQuoteRequest.Quote.Band.max_amount:type_name -> tzero.v1.common.Decimal
+	27, // 19: tzero.v1.payment_intent.UpdateQuoteRequest.Quote.Band.rate:type_name -> tzero.v1.common.Decimal
+	27, // 20: tzero.v1.payment_intent.UpdateQuoteRequest.Quote.Band.fix:type_name -> tzero.v1.common.Decimal
+	17, // 21: tzero.v1.payment_intent.GetQuoteResponse.Success.best_quotes:type_name -> tzero.v1.payment_intent.GetQuoteResponse.Success.IndicativeQuote
+	17, // 22: tzero.v1.payment_intent.GetQuoteResponse.Success.all_quotes:type_name -> tzero.v1.payment_intent.GetQuoteResponse.Success.IndicativeQuote
+	28, // 23: tzero.v1.payment_intent.GetQuoteResponse.Success.IndicativeQuote.payment_method:type_name -> tzero.v1.common.PaymentMethodType
+	27, // 24: tzero.v1.payment_intent.GetQuoteResponse.Success.IndicativeQuote.indicative_rate:type_name -> tzero.v1.common.Decimal
+	27, // 25: tzero.v1.payment_intent.GetQuoteResponse.Success.IndicativeQuote.indicative_fix:type_name -> tzero.v1.common.Decimal
+	19, // 26: tzero.v1.payment_intent.GetQuotesResponse.CurrencyQuote.payment_method_quotes:type_name -> tzero.v1.payment_intent.GetQuotesResponse.CurrencyQuote.PaymentMethodQuote
+	28, // 27: tzero.v1.payment_intent.GetQuotesResponse.CurrencyQuote.PaymentMethodQuote.payment_method:type_name -> tzero.v1.common.PaymentMethodType
+	20, // 28: tzero.v1.payment_intent.GetQuotesResponse.CurrencyQuote.PaymentMethodQuote.provider_quotes:type_name -> tzero.v1.payment_intent.GetQuotesResponse.CurrencyQuote.PaymentMethodQuote.ProviderQuote
+	21, // 29: tzero.v1.payment_intent.GetQuotesResponse.CurrencyQuote.PaymentMethodQuote.ProviderQuote.quotes:type_name -> tzero.v1.payment_intent.GetQuotesResponse.CurrencyQuote.PaymentMethodQuote.ProviderQuote.Quote
+	27, // 30: tzero.v1.payment_intent.GetQuotesResponse.CurrencyQuote.PaymentMethodQuote.ProviderQuote.Quote.max_amount:type_name -> tzero.v1.common.Decimal
+	27, // 31: tzero.v1.payment_intent.GetQuotesResponse.CurrencyQuote.PaymentMethodQuote.ProviderQuote.Quote.rate:type_name -> tzero.v1.common.Decimal
+	27, // 32: tzero.v1.payment_intent.GetQuotesResponse.CurrencyQuote.PaymentMethodQuote.ProviderQuote.Quote.fix:type_name -> tzero.v1.common.Decimal
+	30, // 33: tzero.v1.payment_intent.GetQuotesResponse.CurrencyQuote.PaymentMethodQuote.ProviderQuote.Quote.expires_at:type_name -> google.protobuf.Timestamp
+	31, // 34: tzero.v1.payment_intent.CreatePaymentIntentRequest.TravelRuleData.beneficiary:type_name -> ivms101.Person
+	31, // 35: tzero.v1.payment_intent.CreatePaymentIntentRequest.TravelRuleData.payer:type_name -> ivms101.Person
+	8,  // 36: tzero.v1.payment_intent.CreatePaymentIntentResponse.Success.pay_in_details:type_name -> tzero.v1.payment_intent.PaymentIntentPayInDetails
+	0,  // 37: tzero.v1.payment_intent.CreatePaymentIntentResponse.Failure.reason:type_name -> tzero.v1.payment_intent.CreatePaymentIntentResponse.Failure.Reason
+	27, // 38: tzero.v1.payment_intent.ConfirmFundsReceivedResponse.Accept.settlement_amount:type_name -> tzero.v1.common.Decimal
+	27, // 39: tzero.v1.payment_intent.ConfirmFundsReceivedResponse.Accept.rate:type_name -> tzero.v1.common.Decimal
+	27, // 40: tzero.v1.payment_intent.ConfirmFundsReceivedResponse.Accept.fix:type_name -> tzero.v1.common.Decimal
+	1,  // 41: tzero.v1.payment_intent.ConfirmFundsReceivedResponse.Reject.reason:type_name -> tzero.v1.payment_intent.ConfirmFundsReceivedResponse.Reject.Reason
+	2,  // 42: tzero.v1.payment_intent.PaymentIntentService.UpdateQuote:input_type -> tzero.v1.payment_intent.UpdateQuoteRequest
+	4,  // 43: tzero.v1.payment_intent.PaymentIntentService.GetQuote:input_type -> tzero.v1.payment_intent.GetQuoteRequest
+	6,  // 44: tzero.v1.payment_intent.PaymentIntentService.GetQuotes:input_type -> tzero.v1.payment_intent.GetQuotesRequest
+	9,  // 45: tzero.v1.payment_intent.PaymentIntentService.CreatePaymentIntent:input_type -> tzero.v1.payment_intent.CreatePaymentIntentRequest
+	11, // 46: tzero.v1.payment_intent.PaymentIntentService.ConfirmFundsReceived:input_type -> tzero.v1.payment_intent.ConfirmFundsReceivedRequest
+	3,  // 47: tzero.v1.payment_intent.PaymentIntentService.UpdateQuote:output_type -> tzero.v1.payment_intent.UpdateQuoteResponse
+	5,  // 48: tzero.v1.payment_intent.PaymentIntentService.GetQuote:output_type -> tzero.v1.payment_intent.GetQuoteResponse
+	7,  // 49: tzero.v1.payment_intent.PaymentIntentService.GetQuotes:output_type -> tzero.v1.payment_intent.GetQuotesResponse
+	10, // 50: tzero.v1.payment_intent.PaymentIntentService.CreatePaymentIntent:output_type -> tzero.v1.payment_intent.CreatePaymentIntentResponse
+	12, // 51: tzero.v1.payment_intent.PaymentIntentService.ConfirmFundsReceived:output_type -> tzero.v1.payment_intent.ConfirmFundsReceivedResponse
+	47, // [47:52] is the sub-list for method output_type
+	42, // [42:47] is the sub-list for method input_type
+	42, // [42:42] is the sub-list for extension type_name
+	42, // [42:42] is the sub-list for extension extendee
+	0,  // [0:42] is the sub-list for field type_name
 }
 
 func init() { file_tzero_v1_payment_intent_network_proto_init() }

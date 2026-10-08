@@ -130,18 +130,14 @@ class GetQuotesResponse(_message.Message):
     def __init__(self, quotes: _Optional[_Iterable[_Union[GetQuotesResponse.CurrencyQuote, _Mapping]]] = ...) -> None: ...
 
 class PaymentIntentPayInDetails(_message.Message):
-    __slots__ = ("payment_method", "provider_id", "payment_details", "indicative_rate", "indicative_fix")
+    __slots__ = ("payment_method", "provider_id", "payment_details")
     PAYMENT_METHOD_FIELD_NUMBER: _ClassVar[int]
     PROVIDER_ID_FIELD_NUMBER: _ClassVar[int]
     PAYMENT_DETAILS_FIELD_NUMBER: _ClassVar[int]
-    INDICATIVE_RATE_FIELD_NUMBER: _ClassVar[int]
-    INDICATIVE_FIX_FIELD_NUMBER: _ClassVar[int]
     payment_method: _payment_method_pb2.PaymentMethodType
     provider_id: int
     payment_details: _payment_method_pb2.PaymentDetails
-    indicative_rate: _common_pb2.Decimal
-    indicative_fix: _common_pb2.Decimal
-    def __init__(self, payment_method: _Optional[_Union[_payment_method_pb2.PaymentMethodType, str]] = ..., provider_id: _Optional[int] = ..., payment_details: _Optional[_Union[_payment_method_pb2.PaymentDetails, _Mapping]] = ..., indicative_rate: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ..., indicative_fix: _Optional[_Union[_common_pb2.Decimal, _Mapping]] = ...) -> None: ...
+    def __init__(self, payment_method: _Optional[_Union[_payment_method_pb2.PaymentMethodType, str]] = ..., provider_id: _Optional[int] = ..., payment_details: _Optional[_Union[_payment_method_pb2.PaymentDetails, _Mapping]] = ...) -> None: ...
 
 class CreatePaymentIntentRequest(_message.Message):
     __slots__ = ("external_reference", "currency", "amount", "travel_rule_data", "pay_in_provider_ids")

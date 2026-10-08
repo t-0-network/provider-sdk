@@ -144,7 +144,8 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
       ///*
       /// GetQuote returns available quotes for a given currency and amount.
       ///
-      /// Use this to check indicative rates before creating a payment intent.
+      /// Use this to check indicative rates before creating a payment intent, and for the
+      /// current rates of a created payment intent's options.
       /// The returned quotes show which providers can accept pay-ins and their current rates.
       ///
       /// Note: Quotes are indicative only. The actual rate used for settlement is determined
@@ -177,7 +178,8 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
       ///*
       /// CreatePaymentIntent initiates a new payment intent.
       ///
-      /// Returns the available payment options to present to the end-user.
+      /// Returns the available payment options to present to the end-user. Rates are
+      /// not part of the result: call GetQuote for the current indicative rates.
       ///
       /// The returned payment_intent_id must be stored by the beneficiary provider
       /// to correlate with the PaymentIntentUpdate notification received later.
@@ -296,7 +298,8 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
       ///*
       /// GetQuote returns available quotes for a given currency and amount.
       ///
-      /// Use this to check indicative rates before creating a payment intent.
+      /// Use this to check indicative rates before creating a payment intent, and for the
+      /// current rates of a created payment intent's options.
       /// The returned quotes show which providers can accept pay-ins and their current rates.
       ///
       /// Note: Quotes are indicative only. The actual rate used for settlement is determined
@@ -316,7 +319,8 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
       ///*
       /// GetQuote returns available quotes for a given currency and amount.
       ///
-      /// Use this to check indicative rates before creating a payment intent.
+      /// Use this to check indicative rates before creating a payment intent, and for the
+      /// current rates of a created payment intent's options.
       /// The returned quotes show which providers can accept pay-ins and their current rates.
       ///
       /// Note: Quotes are indicative only. The actual rate used for settlement is determined
@@ -334,7 +338,8 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
       ///*
       /// GetQuote returns available quotes for a given currency and amount.
       ///
-      /// Use this to check indicative rates before creating a payment intent.
+      /// Use this to check indicative rates before creating a payment intent, and for the
+      /// current rates of a created payment intent's options.
       /// The returned quotes show which providers can accept pay-ins and their current rates.
       ///
       /// Note: Quotes are indicative only. The actual rate used for settlement is determined
@@ -354,7 +359,8 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
       ///*
       /// GetQuote returns available quotes for a given currency and amount.
       ///
-      /// Use this to check indicative rates before creating a payment intent.
+      /// Use this to check indicative rates before creating a payment intent, and for the
+      /// current rates of a created payment intent's options.
       /// The returned quotes show which providers can accept pay-ins and their current rates.
       ///
       /// Note: Quotes are indicative only. The actual rate used for settlement is determined
@@ -428,7 +434,8 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
       ///*
       /// CreatePaymentIntent initiates a new payment intent.
       ///
-      /// Returns the available payment options to present to the end-user.
+      /// Returns the available payment options to present to the end-user. Rates are
+      /// not part of the result: call GetQuote for the current indicative rates.
       ///
       /// The returned payment_intent_id must be stored by the beneficiary provider
       /// to correlate with the PaymentIntentUpdate notification received later.
@@ -449,7 +456,8 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
       ///*
       /// CreatePaymentIntent initiates a new payment intent.
       ///
-      /// Returns the available payment options to present to the end-user.
+      /// Returns the available payment options to present to the end-user. Rates are
+      /// not part of the result: call GetQuote for the current indicative rates.
       ///
       /// The returned payment_intent_id must be stored by the beneficiary provider
       /// to correlate with the PaymentIntentUpdate notification received later.
@@ -468,7 +476,8 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
       ///*
       /// CreatePaymentIntent initiates a new payment intent.
       ///
-      /// Returns the available payment options to present to the end-user.
+      /// Returns the available payment options to present to the end-user. Rates are
+      /// not part of the result: call GetQuote for the current indicative rates.
       ///
       /// The returned payment_intent_id must be stored by the beneficiary provider
       /// to correlate with the PaymentIntentUpdate notification received later.
@@ -489,7 +498,8 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
       ///*
       /// CreatePaymentIntent initiates a new payment intent.
       ///
-      /// Returns the available payment options to present to the end-user.
+      /// Returns the available payment options to present to the end-user. Rates are
+      /// not part of the result: call GetQuote for the current indicative rates.
       ///
       /// The returned payment_intent_id must be stored by the beneficiary provider
       /// to correlate with the PaymentIntentUpdate notification received later.
