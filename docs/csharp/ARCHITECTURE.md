@@ -68,7 +68,7 @@ HTTP Request
   → ProviderService handler (business logic)
 ```
 
-The middleware runs before gRPC deserialization. If signature verification fails, a gRPC error frame is written directly, with the status code that every SDK uses for that failure ([`CROSS_SDK_RULES.md`](../CROSS_SDK_RULES.md#error-codes)).
+The middleware runs before gRPC deserialization. If signature verification fails, a gRPC error frame is written directly, with the status code that every SDK uses for that failure ([`CROSS_SDK_RULES.md`](../CROSS_SDK_RULES.md#error-codes-and-messages)).
 
 ### T0ProviderServer Builder
 

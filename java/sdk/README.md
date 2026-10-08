@@ -361,7 +361,7 @@ boolean valid = SignatureVerifier.verify(publicKey, digest, signature);
 
 ### Server-Side gRPC Status Codes
 
-The status code for each verification failure is the same in every SDK: [Cross-SDK rules, error codes](https://github.com/t-0-network/provider-sdk/blob/master/docs/CROSS_SDK_RULES.md#error-codes). A server misconfiguration or unexpected error is `INTERNAL`.
+The status code for each verification failure is the same in every SDK: [Cross-SDK rules, error codes](https://github.com/t-0-network/provider-sdk/blob/master/docs/CROSS_SDK_RULES.md#error-codes-and-messages). A server misconfiguration or unexpected error is `INTERNAL`.
 
 ### Client-Side Exceptions
 

@@ -47,7 +47,7 @@ check the network makes:
   stream as a whole has no size limit. Each message is limited by `WithMaxBodySize`, the first one
   before its signature is verified.
 - A rejected stream fails before its handler runs, under the factory condition in rule V8, with the
-  codes of [`CROSS_SDK_RULES.md`](CROSS_SDK_RULES.md#error-codes). A stream without a whole first
+  codes of [`CROSS_SDK_RULES.md`](CROSS_SDK_RULES.md#error-codes-and-messages). A stream without a whole first
   message is `unauthenticated` ("no first message", "truncated first message").
 - `provider.SignatureVerification(ctx)` tells a handler what was signed: `envelope` or `payload`.
 

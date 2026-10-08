@@ -308,7 +308,7 @@ pub_key = environ.get("X-Public-Key")  # None
 pub_key = environ.get("HTTP_X_PUBLIC_KEY")
 ```
 
-The `_parse_wsgi_headers()` function in `middleware_wsgi.py` converts all `HTTP_*` keys to lowercase-hyphenated format for compatibility with the shared `_verify_request()` logic.
+The `_parse_wsgi_headers()` function in `middleware_wsgi.py` converts all `HTTP_*` keys to lowercase-hyphenated format for the checks it shares with the ASGI middleware (`_check_headers()` and `_verify_body()`).
 
 ---
 

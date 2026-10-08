@@ -23,7 +23,7 @@ The rule is that each ecosystem consumes a published `grpc.health.v1` package ra
 | Ecosystem | Dependency | Registry |
 |---|---|---|
 | Go | `connectrpc.com/grpchealth` | Go module proxy — a hand-written library, so no generated code at all |
-| Node | **vendored** — [`node/sdk/src/service/health_pb.ts`](../node/sdk/src/service/health_pb.ts) | none; see below |
+| Node | **vendored** — [`node/sdk/src/common/health_pb.ts`](../node/sdk/src/common/health_pb.ts) | none; see below |
 | Python | `grpcio-health-checking` | PyPI |
 | Java | `io.grpc:grpc-services` | Maven Central |
 | C# | `Grpc.HealthCheck` | nuget.org |
@@ -79,7 +79,7 @@ The mount happens inside the server-construction wrapper the starter already cal
 | Language | Wrapper | Implementation | Registry it dumps |
 |---|---|---|---|
 | Go | `provider.NewHttpHandler` — [`go/provider/handler.go`](../go/provider/handler.go) | [`go/provider/health.go`](../go/provider/health.go) | `registered`, the path strings from each `BuildHandler`, trimmed of `/` |
-| Node | `createService` — [`node/sdk/src/service/service.ts`](../node/sdk/src/service/service.ts) | [`node/sdk/src/service/health.ts`](../node/sdk/src/service/health.ts) | `collected`, captured by wrapping the customer's `Router.service(desc, impl)` |
+| Node | `createService` — [`node/sdk/src/common/service.ts`](../node/sdk/src/common/service.ts) | [`node/sdk/src/common/health.ts`](../node/sdk/src/common/health.ts) | `collected`, captured by wrapping the customer's `Router.service(desc, impl)` |
 | Python | `new_asgi_app` / `new_wsgi_app` — [`python/sdk/src/t0_provider_sdk/provider/handler.py`](../python/sdk/src/t0_provider_sdk/provider/handler.py) | [`python/sdk/src/t0_provider_sdk/provider/health.py`](../python/sdk/src/t0_provider_sdk/provider/health.py) | `routes.keys()`, stripped of the leading `/` |
 | Java | `ProviderServer.Builder.buildGrpcServer` — [`ProviderServer.java`](../java/sdk/src/main/java/network/t0/sdk/provider/ProviderServer.java) | [`HealthServiceImpl.java`](../java/sdk/src/main/java/network/t0/sdk/provider/HealthServiceImpl.java) | `BindableService.bindService().getServiceDescriptor().getName()` |
 | C# | `T0ProviderServer.RunAsync` — [`T0ProviderServer.cs`](../csharp/sdk/T0.ProviderSdk/T0ProviderServer.cs) | [`Provider/HealthServiceImpl.cs`](../csharp/sdk/T0.ProviderSdk/Provider/HealthServiceImpl.cs) | the FQN list each `Map*Service` call appends to |
