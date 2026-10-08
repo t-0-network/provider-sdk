@@ -195,6 +195,26 @@ resp, err := stream.CloseAndReceive()
 
 Details: [`docs/STREAMING.md`](../docs/STREAMING.md).
 
+### KYC files
+
+`kycsharing.UploadFile` and `kycsharing.DownloadFile` run a `KycFileService` stream on a client the caller already built. They do not sign or retry. `upload_id` is sent as given.
+
+```go
+files, err := network.NewServiceClient(privateKey, kyc_sharingconnect.NewKycFileServiceClient,
+    network.WithBaseURL(kybURL),
+)
+data, err := os.ReadFile("passport.pdf")
+fileID, err := kycsharing.UploadFile(ctx, files, &kyc_sharing.UploadFileRequest_Metadata{
+    PayoutProviderId: providerID, ClientId: clientID, FileName: proto.String("passport.pdf"),
+}, data)
+
+md, data, err := kycsharing.DownloadFile(ctx, files, &kyc_sharing.DownloadFileRequest{
+    FileId: fileID, PayoutRequesterId: requesterID, PayoutProviderId: providerID, ClientId: clientID,
+})
+```
+
+A download holds up to twice the file in memory: the chunks and the joined bytes. A 50 MiB file can take 100 MiB. One transfer uses the stream timeout (5 minutes) unless the caller sets a longer deadline on the context, or a longer stream timeout on the client.
+
 ## Examples
 
 The [starter template](starter/template/) is a complete provider: the server and handlers in `internal/handler/`, network client calls in `internal/` and `cmd/main.go`.

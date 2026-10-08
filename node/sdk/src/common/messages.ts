@@ -23,6 +23,7 @@ export const STREAM_TIMEOUT_NOT_VALID = "stream timeout must be a positive durat
 export const SIGNING_FAILED = (cause: string) => `signing the request failed: ${cause}`;
 export const BIDI_NOT_SUPPORTED = "bidirectional streams are not supported";
 export const FIRST_MESSAGE_INCOMPLETE = "streaming request ends inside its first message";
+export const KYC_DOWNLOAD_SHAPE = "download stream must be one metadata message followed by chunks";
 export const FIRST_CHUNK_NOT_ONE_ENVELOPE = "the first request chunk is not one complete envelope";
 export const UNARY_BODY_NOT_ONE_CHUNK = "a unary request body must be one chunk";
 export const CALL_DEADLINE_PASSED = "the operation timed out";

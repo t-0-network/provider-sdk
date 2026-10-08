@@ -274,6 +274,25 @@ await client.updateQuote(request, { timeoutMs: 120_000 }); // this call only
 
 The streaming rules shared by every SDK: [`docs/STREAMING.md`](../../docs/STREAMING.md).
 
+### KYC files
+
+`uploadFile` and `downloadFile` run a `KycFileService` stream on a client the caller already built. They do not sign or retry. `uploadId` is sent as given.
+
+```ts
+import { createClient, downloadFile, KycFileService, uploadFile } from "@t-0/provider-sdk";
+import { readFile } from "node:fs/promises";
+
+const files = createClient(kybKey, kybUrl, KycFileService);
+const fileId = await uploadFile(files, {
+  payoutProviderId, clientId, fileName: "passport.pdf",
+}, await readFile("passport.pdf"));
+const { metadata, data } = await downloadFile(files, {
+  fileId, payoutRequesterId, payoutProviderId, clientId,
+});
+```
+
+A download holds up to twice the file in memory: the chunks and the joined bytes. A 50 MiB file can take 100 MiB. One transfer uses the stream timeout (5 minutes) unless the caller sets a longer `timeoutMs` on the call, or a longer `streamTimeoutMs` on the client.
+
 ## Development
 
 ```bash

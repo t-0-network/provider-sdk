@@ -67,6 +67,25 @@ through obsolete overloads that sign with the same checks. New code passes a `Si
 
 A client or server stream is signed over its first message and sent as soon as that message is written; bidirectional streams are refused. A timeout must be greater than zero and at most 2147483647 ms (`NetworkClientOptions.MaxTimeout`). The streaming rules shared by all SDKs: [`docs/STREAMING.md`](../docs/STREAMING.md).
 
+## KYC files
+
+`KycFiles.UploadFileAsync` and `KycFiles.DownloadFileAsync` run a `KycFileService` stream on a client the caller already built. They do not sign or retry. `UploadId` is sent as given.
+
+```csharp
+var files = NetworkClient.Create(new NetworkClientOptions { BaseUrl = kybUrl }, signer,
+    i => new KycFileService.KycFileServiceClient(i));
+long fileId = await KycFiles.UploadFileAsync(files, new UploadFileRequest.Types.Metadata
+{
+    PayoutProviderId = pid, ClientId = cid, FileName = "passport.pdf",
+}, await File.ReadAllBytesAsync(path));
+var (metadata, data) = await KycFiles.DownloadFileAsync(files, new DownloadFileRequest
+{
+    FileId = fileId, PayoutRequesterId = rid, PayoutProviderId = pid, ClientId = cid,
+});
+```
+
+A download holds up to twice the file in memory: the chunks and the joined bytes. A 50 MiB file can take 100 MiB. One transfer uses the stream timeout (5 minutes) unless the caller sets a longer `deadline` on the call, or a longer `StreamTimeout` on the client.
+
 ## Available Commands
 
 ```bash

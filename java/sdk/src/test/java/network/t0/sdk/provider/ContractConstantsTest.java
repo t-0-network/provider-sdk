@@ -5,6 +5,7 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 import network.t0.sdk.common.Headers;
 import network.t0.sdk.common.Messages;
+import network.t0.sdk.kycsharing.KycFiles;
 import network.t0.sdk.network.NetworkClient;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -49,7 +50,8 @@ class ContractConstantsTest {
                 "default_base_url", NetworkClient.DEFAULT_BASE_URL,
                 "default_timeout_ms", NetworkClient.DEFAULT_TIMEOUT.toMillis(),
                 "default_stream_timeout_ms", NetworkClient.DEFAULT_STREAM_TIMEOUT.toMillis(),
-                "max_timeout_ms", NetworkClient.MAX_TIMEOUT.toMillis());
+                "max_timeout_ms", NetworkClient.MAX_TIMEOUT.toMillis(),
+                "kyc_file_chunk_max_bytes", (long) KycFiles.KYC_FILE_CHUNK_MAX_BYTES);
 
         assertThat(new TreeSet<>(sdk.keySet())).as("every shared constant is defined")
                 .isEqualTo(new TreeSet<>(constants.keySet()));

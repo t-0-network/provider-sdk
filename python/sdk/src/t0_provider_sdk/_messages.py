@@ -29,6 +29,7 @@ GET_NOT_SUPPORTED = "GET requests are not supported"
 BIDI_NOT_SUPPORTED = "bidirectional streams are not supported"
 CALL_DEADLINE_PASSED = "the operation timed out"
 FIRST_MESSAGE_INCOMPLETE = "streaming request ends inside its first message"
+KYC_DOWNLOAD_SHAPE = "download stream must be one metadata message followed by chunks"
 FIRST_CHUNK_NOT_ONE_ENVELOPE = "the first request chunk is not one complete envelope"
 
 # Server setup

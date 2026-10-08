@@ -3,6 +3,7 @@ using System.Reflection;
 using System.Text.Json;
 using Buf.Validate;
 using T0.ProviderSdk.Common;
+using T0.ProviderSdk.KycSharing;
 using T0.ProviderSdk.Network;
 using T0.ProviderSdk.Provider;
 
@@ -34,6 +35,7 @@ public class ContractConstantsTests
             ["default_timeout_ms"] = (long)NetworkClientOptions.DefaultTimeout.TotalMilliseconds,
             ["default_stream_timeout_ms"] = (long)NetworkClientOptions.DefaultStreamTimeout.TotalMilliseconds,
             ["max_timeout_ms"] = (long)NetworkClientOptions.MaxTimeout.TotalMilliseconds,
+            ["kyc_file_chunk_max_bytes"] = KycFiles.KycFileChunkMaxBytes,
         };
 
         Assert.Equal(

@@ -1,0 +1,69 @@
+syntax = "proto3";
+
+package tzero.v1.manage.kyc_sharing;
+
+import "buf/validate/validate.proto";
+import "tzero/v1/manage/kyc_sharing/form.proto";
+
+/**
+ * The Payout Provider's KYB and KYC form definitions: set via SaveKybForm and
+ * SaveKycForm, read back via GetForms.
+ */
+service KycFormSetupService {
+  /**
+   * Full-definition replace of the KYB Form. The network
+   * picks no-op / in-place update / fork / first version.
+   */
+  rpc SaveKybForm(SaveKybFormRequest) returns (SaveKybFormResponse) {
+    option idempotency_level = IDEMPOTENT;
+  }
+
+  /**
+   * Full-definition replace of the KYC Form. Same
+   * no-op / in-place / fork / first-version branching as SaveKybForm.
+   */
+  rpc SaveKycForm(SaveKycFormRequest) returns (SaveKycFormResponse) {
+    option idempotency_level = IDEMPOTENT;
+  }
+
+  /**
+   * Returns the authenticated Payout Provider's current KYB and KYC forms, each
+   * at its latest version. A form type with no published form is returned absent.
+   */
+  rpc GetForms(GetFormsRequest) returns (GetFormsResponse) {
+    option idempotency_level = NO_SIDE_EFFECTS;
+  }
+}
+
+message SaveKybFormRequest {
+  KybForm form = 10 [(buf.validate.field).required = true];
+}
+
+message SaveKybFormResponse {}
+
+message SaveKycFormRequest {
+  KycForm form = 10 [(buf.validate.field).required = true];
+}
+
+message SaveKycFormResponse {}
+
+/** No parameters — returns the authenticated Payout Provider's own forms. */
+message GetFormsRequest {}
+
+/**
+ * The authenticated Payout Provider's current KYB and KYC forms. All fields are
+ * server-produced outputs and carry no validation.
+ */
+message GetFormsResponse {
+  /** The provider's current KYB form. Absent when no KYB form is published. */
+  optional KybForm kyb_form = 10;
+
+  /** Version of `kyb_form`; absent when `kyb_form` is absent. */
+  optional uint32 kyb_form_version = 20;
+
+  /** The provider's current KYC form. Absent when no KYC form is published. */
+  optional KycForm kyc_form = 30;
+
+  /** Version of `kyc_form`; absent when `kyc_form` is absent. */
+  optional uint32 kyc_form_version = 40;
+}

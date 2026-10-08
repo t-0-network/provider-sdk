@@ -881,7 +881,7 @@
       "error": "private key must be in range [1, n-1]"
     }
   ],
-  "constants_note": "The values every SDK defines, each as one named constant. Each SDK's contract test compares its constants with these. Durations are in milliseconds, sizes in bytes. default_base_url, default_timeout_ms and default_stream_timeout_ms are what a client uses when it is given no base URL, unary timeout or stream timeout. max_timeout_ms is the largest client timeout and stream timeout an SDK accepts; a larger one is refused when the client is built.",
+  "constants_note": "The values every SDK defines, each as one named constant. Each SDK's contract test compares its constants with these. Durations are in milliseconds, sizes in bytes. default_base_url, default_timeout_ms and default_stream_timeout_ms are what a client uses when it is given no base URL, unary timeout or stream timeout. max_timeout_ms is the largest client timeout and stream timeout an SDK accepts; a larger one is refused when the client is built. kyc_file_chunk_max_bytes is the largest chunk the KYC file helpers send.",
   "constants": {
     "default_max_body_size": 10485760,
     "timestamp_window_ms": 60000,
@@ -891,7 +891,8 @@
     "default_base_url": "https://api.t-0.network",
     "default_timeout_ms": 15000,
     "default_stream_timeout_ms": 300000,
-    "max_timeout_ms": 2147483647
+    "max_timeout_ms": 2147483647,
+    "kyc_file_chunk_max_bytes": 1048576
   },
   "messages_note": "Every message an SDK raises itself (DECISIONS §1), by name. Each SDK holds each message as one named constant in its own casing, and its constants test compares them with this section the way it compares `constants`: it defines exactly the names that apply to it, which is every name except those whose `messages_scope` entry does not list the SDK. A `{placeholder}` is filled in when the message is raised: `{reason}` is public_key_not_hex or public_key_not_a_point; `{cause}` is the message of the error underneath (for signing_failed, the message the custom signer's error carries, or the failed output check's message), with no type name in front; `{header}` a header name; `{limit}` the body limit in bytes; `{service}` the service asked for; `{violations}` each violation as `<field path>: <message>`, joined by `; `, the field path as field_path_cases writes it (field names joined by `.`, a list index in brackets, a map key in brackets and double quotes: `failed.details`, `limits[0].version`, `labels[\"key\"]`) and an empty path as nothing, so that such a violation reads `: <message>`; `{argument}` the parameter's name. For such a message the SDK holds the text around the placeholder as its constant (a format string or a function), and its test fills each placeholder with a sample value and compares the result. Setup messages are raised when a key, signer, client or server is built or given a bad value, as the language's argument error. The others are RPC errors: signing_failed is Internal, with a custom signer's error or a failed output check (signer_signature_invalid, signer_public_key_invalid) as its cause; get_not_supported, bidi_not_supported, compressed_not_supported and streaming_not_supported are Unimplemented; first_message_incomplete is InvalidArgument; call_deadline_passed is DeadlineExceeded (a per-call timeout of 0 or less, before anything is sent); stream_closed_early is Canceled; first_chunk_not_one_envelope, unary_body_not_one_chunk, first_message_read_failed, response_invalid, response_validation_error (protovalidate could not evaluate a rule) and no_signature_result are Internal; a server answers with the codes in server_cases and docs/CROSS_SDK_RULES.md, unknown_service with NotFound, request_body_read_failed (the request body could not be read while it was verified) with Unauthenticated, and get_not_supported to a request whose HTTP method is not POST, before every other check (server_cases). The request decoder's texts (unsupported_content_type, malformed_request_body, request_invalid, request_validation_error) are Node-only (DECISIONS §8). Texts that the RPC library or the language runtime writes (for example .NET's \"Value cannot be null.\" or a FormatException's text) are not SDK messages (DECISIONS §1), and deprecation warnings are not messages.",
   "messages": {
@@ -915,6 +916,7 @@
     "get_not_supported": "GET requests are not supported",
     "bidi_not_supported": "bidirectional streams are not supported",
     "first_message_incomplete": "streaming request ends inside its first message",
+    "kyc_download_shape": "download stream must be one metadata message followed by chunks",
     "first_chunk_not_one_envelope": "the first request chunk is not one complete envelope",
     "unary_body_not_one_chunk": "a unary request body must be one chunk",
     "compressed_not_supported": "compressed requests are not supported",

@@ -34,6 +34,8 @@ public final class Messages {
     /** {@code %s}: the message of the signer's error. */
     public static final String SIGNING_FAILED = "signing the request failed: %s";
     public static final String BIDI_NOT_SUPPORTED = "bidirectional streams are not supported";
+    public static final String KYC_DOWNLOAD_SHAPE =
+            "download stream must be one metadata message followed by chunks";
     public static final String COMPRESSED_NOT_SUPPORTED = "compressed requests are not supported";
     public static final String MESSAGE_SERIALIZATION_FAILED = "Failed to serialize message for signing";
     public static final String STREAM_READ_FAILED = "Failed to read bytes from stream";

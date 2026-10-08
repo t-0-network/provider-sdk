@@ -28,6 +28,7 @@ import (
 	"connectrpc.com/connect"
 	"connectrpc.com/grpchealth"
 	"github.com/t-0-network/provider-sdk/go/api/tzero/v1/common"
+	"github.com/t-0-network/provider-sdk/go/api/tzero/v1/manage/kyc_sharing/kyc_sharingconnect"
 	"github.com/t-0-network/provider-sdk/go/api/tzero/v1/payment"
 	"github.com/t-0-network/provider-sdk/go/api/tzero/v1/payment/paymentconnect"
 	"github.com/t-0-network/provider-sdk/go/crypto"
@@ -162,6 +163,7 @@ func newServeHandler(networkPublicKeyHex string) (http.Handler, error) {
 		provider.NetworkPublicKeyHexed(networkPublicKeyHex),
 		provider.Handler(paymentconnect.NewProviderServiceHandler, paymentconnect.ProviderServiceHandler(&testProviderService{})),
 		provider.Handler(newStreamTestHandler, streamTest{}),
+		provider.Handler(kyc_sharingconnect.NewKycFileServiceHandler, kyc_sharingconnect.KycFileServiceHandler(newKycFileService())),
 	)
 	if err != nil {
 		return nil, err

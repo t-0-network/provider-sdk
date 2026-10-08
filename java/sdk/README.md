@@ -12,6 +12,7 @@ This document provides detailed technical documentation for developers who need 
 - [Signature Format and Headers](#signature-format-and-headers)
 - [Accepted Signature Payload Formats](#accepted-signature-payload-formats)
 - [Streaming and timeouts](#streaming-and-timeouts)
+- [KYC files](#kyc-files)
 - [Thread Safety](#thread-safety)
 - [Usage Examples](#usage-examples)
 - [Error Handling](#error-handling)
@@ -226,6 +227,23 @@ try (var client = AsyncNetworkClient.create("https://api.t-0.network", signer,
 ```
 
 The streaming rules shared by every SDK: [`docs/STREAMING.md`](../../docs/STREAMING.md).
+
+---
+
+## KYC files
+
+`KycFiles.uploadFile` and `KycFiles.downloadFile` run a `KycFileService` stream on a blocking V2 stub the caller already built. They do not sign or retry. `upload_id` is sent as given. `downloadFile` returns `DownloadedFile`, the generated metadata and the bytes.
+
+```java
+var files = BlockingNetworkClient.create(KYB_URL, signer, KycFileServiceGrpc::newBlockingV2Stub);
+long fileId = KycFiles.uploadFile(files.stub(), UploadFileRequest.Metadata.newBuilder()
+        .setPayoutProviderId(pid).setClientId(cid).setFileName("passport.pdf").build(),
+        Files.readAllBytes(path));
+DownloadedFile file = KycFiles.downloadFile(files.stub(), DownloadFileRequest.newBuilder()
+        .setFileId(fileId).setPayoutRequesterId(rid).setPayoutProviderId(pid).setClientId(cid).build());
+```
+
+A download holds up to twice the file in memory: the chunks and the joined bytes. A 50 MiB file can take 100 MiB. One transfer uses the stream timeout (5 minutes) unless the caller sets a longer deadline on the stub (`withDeadlineAfter`), or a longer stream timeout on the client.
 
 ---
 

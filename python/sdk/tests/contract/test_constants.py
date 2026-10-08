@@ -13,6 +13,7 @@ import pytest
 from protobuf import Oneof
 from t0_provider_sdk import _messages
 from t0_provider_sdk.common import PUBLIC_KEY_HEADER, SIGNATURE_HEADER, SIGNATURE_TIMESTAMP_HEADER
+from t0_provider_sdk.kyc_sharing import KYC_FILE_CHUNK_MAX_BYTES
 from t0_provider_sdk.network import DEFAULT_BASE_URL, DEFAULT_STREAM_TIMEOUT, DEFAULT_TIMEOUT, MAX_TIMEOUT
 from t0_provider_sdk.provider import DEFAULT_MAX_BODY_SIZE, TIMESTAMP_WINDOW_MS, new_asgi_app, new_wsgi_app
 from t0_provider_sdk.provider.validate import _field_path
@@ -33,6 +34,7 @@ SDK = {
     "default_timeout_ms": round(DEFAULT_TIMEOUT * 1000),
     "default_stream_timeout_ms": round(DEFAULT_STREAM_TIMEOUT * 1000),
     "max_timeout_ms": round(MAX_TIMEOUT * 1000),
+    "kyc_file_chunk_max_bytes": KYC_FILE_CHUNK_MAX_BYTES,
 }
 
 # The messages Python raises: all but those whose messages_scope entry leaves Python out.
