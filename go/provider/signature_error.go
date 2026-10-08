@@ -6,9 +6,11 @@ import (
 	"connectrpc.com/connect"
 )
 
-// signatureErrorInterceptor fails a call whose request the signature verification middleware
-// rejected, before its handler runs. A streaming handler is not started, so it never receives a
-// message, and neither is a server stream's single request message read.
+// signatureErrorInterceptor fails a call that has no accepted signature verdict in its context,
+// before its handler runs. The signature verification middleware answers a rejected request
+// itself, so this is a call that did not pass through the middleware (ErrNoSignatureResult). A
+// streaming handler is not started, so it never receives a message, and neither is a server
+// stream's single request message read.
 type signatureErrorInterceptor struct{}
 
 func (signatureErrorInterceptor) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {

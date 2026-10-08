@@ -16,11 +16,9 @@ import (
 	"github.com/t-0-network/provider-sdk/go/internal/contract"
 )
 
-// validator is shared by every Validate call. protovalidate.New caches compiled
-// rule programs per message descriptor, so re-using one instance avoids
-// recompiling on each call. Construction is lazy because protovalidate.New can
-// fail at process startup and we don't want to penalize callers who never use
-// the helper.
+// validator is shared by Validate and the response-validation interceptor.
+// protovalidate.GlobalValidator compiles the rules of each message descriptor
+// once, on first use, and keeps them.
 var validator = sync.OnceValue(func() protovalidate.Validator {
 	// protovalidate.GlobalValidator falls back to a lazily-initialised default
 	// instance. Returning it here keeps the helper and the connect validate
@@ -57,8 +55,8 @@ func Validate[T proto.Message](msg T) (T, error) {
 }
 
 // asValidationError extracts a *protovalidate.ValidationError from err if one
-// is wrapped inside, returning nil otherwise. Exposed unexported so the
-// interceptor and tests can share the same extraction logic.
+// is wrapped inside, returning nil otherwise. Validate and the response-validation
+// interceptor both use it.
 func asValidationError(err error) *protovalidate.ValidationError {
 	var ve *protovalidate.ValidationError
 	if errors.As(err, &ve) {
