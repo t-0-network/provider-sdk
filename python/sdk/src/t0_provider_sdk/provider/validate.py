@@ -21,18 +21,9 @@ from t0_provider_sdk._messages import RESPONSE_INVALID, RESPONSE_VALIDATION_ERRO
 
 T = TypeVar("T", bound=Message)
 
-# What protovalidate raises for a rule it cannot compile or evaluate, as opposed to a message that
-# breaks its rules (ValidationError): CompilationError in every version; EvaluationError from 2.0;
-# before 2.0, cel-python's CELEvalError for a rule that fails while it is evaluated.
-_RULE_ERRORS: tuple[type[Exception], ...] = (protovalidate.CompilationError,)
-if hasattr(protovalidate, "EvaluationError"):
-    _RULE_ERRORS += (protovalidate.EvaluationError,)
-try:
-    from celpy import CELEvalError
-except ImportError:  # protovalidate 2.x does not use cel-python
-    pass
-else:
-    _RULE_ERRORS += (CELEvalError,)
+# What protovalidate raises for a rule it cannot compile (CompilationError) or evaluate
+# (EvaluationError), as opposed to a message that breaks its rules (ValidationError).
+_RULE_ERRORS: tuple[type[Exception], ...] = (protovalidate.CompilationError, protovalidate.EvaluationError)
 
 # Module-level validator instance, reused by both the helper and the
 # response-validation interceptor. ``protovalidate.Validator`` is safe to
@@ -56,10 +47,7 @@ def _violations(error: protovalidate.ValidationError) -> str:
 
 def _cause(error: Exception) -> str:
     """The message of an error in _RULE_ERRORS, with no type name in front (the {cause} of
-    RESPONSE_VALIDATION_ERROR). cel-python's CELEvalError carries the message first, then the
-    Python exception it stands for."""
-    if len(error.args) > 1 and isinstance(error.args[0], str):
-        return error.args[0]
+    RESPONSE_VALIDATION_ERROR)."""
     return str(error)
 
 
@@ -77,16 +65,9 @@ def _field_path(path: Any) -> str:
 
 def _subscript(element: Any) -> str | None:
     """The repeated index or map key of a FieldPathElement, if it has one."""
-    which_oneof = getattr(element, "WhichOneof", None)
-    if which_oneof is not None:  # protovalidate 1.x: google.protobuf messages
-        kind = which_oneof("subscript")
-        if kind is None:
-            return None
-        value = getattr(element, kind)
-    else:  # protovalidate 2.x: the oneof is a value of its own
-        if element.subscript is None:
-            return None
-        kind, value = element.subscript.field, element.subscript.value
+    if element.subscript is None:
+        return None
+    kind, value = element.subscript.field, element.subscript.value
     if kind == "string_key":
         # JSON string escaping (RFC 8259): \" and \\, \b \f \n \r \t, every other character below
         # U+0020 as \u00xx, and every other character as it is (DEL and all non-ASCII included).

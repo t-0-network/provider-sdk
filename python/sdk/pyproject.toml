@@ -15,7 +15,7 @@ dependencies = [
     "protobuf>=7.34.1",
     "coincurve>=21.0",
     "pycryptodome>=3.23",
-    "protovalidate>=0.3",
+    "protovalidate>=2.0",
     # grpc.health.v1 messages. Upstream publishes them under the top-level
     # grpc_health package precisely because a generated grpc.health.v1 would
     # collide with grpcio's regular grpc package in any customer venv that has it.

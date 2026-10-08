@@ -47,7 +47,5 @@ def cause() -> str:
     except protovalidate.ValidationError as e:
         raise AssertionError(f"protovalidate reported a violation for {TYPE_NAME}") from e
     except Exception as e:
-        # cel-python's CELEvalError (protovalidate 1.x) carries the message first, then the
-        # Python exception it stands for.
-        return e.args[0] if len(e.args) > 1 and isinstance(e.args[0], str) else str(e)
+        return str(e)
     raise AssertionError(f"protovalidate evaluated the rule of {TYPE_NAME}")

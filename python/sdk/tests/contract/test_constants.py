@@ -8,7 +8,9 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
+import protovalidate
 import pytest
+from protobuf import Oneof
 from t0_provider_sdk import _messages
 from t0_provider_sdk.common import PUBLIC_KEY_HEADER, SIGNATURE_HEADER, SIGNATURE_TIMESTAMP_HEADER
 from t0_provider_sdk.network import DEFAULT_BASE_URL, DEFAULT_STREAM_TIMEOUT, DEFAULT_TIMEOUT, MAX_TIMEOUT
@@ -106,15 +108,20 @@ def _element(e: dict[str, Any]) -> dict[str, Any]:
     return {k: int(v) if k in ("int_key", "uint_key") else v for k, v in e.items()}
 
 
-def _protobuf_path(elements: list[dict[str, Any]]) -> Any:
-    """A path as protovalidate before 2.0 gives it: a google.protobuf buf.validate.FieldPath."""
-    from buf.validate import validate_pb2  # importable once t0_provider_sdk is imported
+def _violation_path(elements: list[dict[str, Any]]) -> Any:
+    """A path as validate() reads it: the field of a protovalidate Violation, whose elements each
+    hold their subscript as a protobuf Oneof (field, value)."""
+    path = []
+    for e in elements:
+        fields = _element(e)
+        name = fields.pop("field_name")
+        subscript = next((Oneof(k, v) for k, v in fields.items()), None)
+        path.append(protovalidate.FieldPathElementPb(field_name=name, subscript=subscript))
+    return protovalidate.Violation(field=protovalidate.FieldPathPb(elements=path)).proto.field
 
-    return validate_pb2.FieldPath(elements=[validate_pb2.FieldPathElement(**_element(e)) for e in elements])
 
-
-def _protovalidate2_path(elements: list[dict[str, Any]]) -> Any:
-    """A path as protovalidate 2 gives it: an element's subscript is a (field, value) of its own."""
+def _namespace_path(elements: list[dict[str, Any]]) -> Any:
+    """The same path in plain objects: an element's subscript is a (field, value) of its own."""
     path = []
     for e in elements:
         fields = _element(e)
@@ -124,7 +131,7 @@ def _protovalidate2_path(elements: list[dict[str, Any]]) -> Any:
     return SimpleNamespace(elements=path)
 
 
-@pytest.mark.parametrize("build", [_protobuf_path, _protovalidate2_path], ids=["protobuf", "protovalidate2"])
+@pytest.mark.parametrize("build", [_violation_path, _namespace_path], ids=["violation", "namespace"])
 @pytest.mark.parametrize("case", VECTORS["field_path_cases"], ids=lambda case: case["name"])
 def test_field_path_cases(build: Callable[[list[dict[str, Any]]], Any], case: dict[str, Any]) -> None:
     """The field path of a violation, as the server and validate() write it, against field_path_cases."""
