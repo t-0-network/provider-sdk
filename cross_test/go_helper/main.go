@@ -21,6 +21,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"slices"
 	"strings"
 	"time"
 
@@ -169,12 +170,7 @@ func newServeHandler(networkPublicKeyHex string) (http.Handler, error) {
 }
 
 func hasFlag(flag string) bool {
-	for _, arg := range os.Args[2:] {
-		if arg == flag {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(os.Args[2:], flag)
 }
 
 func cmdCallPayOut() {

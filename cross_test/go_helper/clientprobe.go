@@ -224,7 +224,7 @@ func parseGRPCTimeout(value string) (time.Duration, error) {
 // a timestamp within the window, and as X-Signature exactly the bytes the signer returned, in
 // lowercase hex after 0x: the deterministic (RFC 6979) signature of privateKey over the digest of
 // the body and the timestamp, changed as a custom signer changes it. Over gRPC, Java may sign the
-// message without its 5-byte prefix (DECISIONS §10).
+// message without its 5-byte prefix (rule S3).
 func checkSignature(v *vectors, sdk, protocol, privateKey, publicKey, change string, header http.Header, body []byte, now time.Time) error {
 	wantKey := "0x" + publicKey
 	if got := header.Get("X-Public-Key"); got != wantKey {

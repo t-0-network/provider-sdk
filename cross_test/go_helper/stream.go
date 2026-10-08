@@ -3,7 +3,6 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"log"
 	"net/http"
 	"net/url"
@@ -26,9 +25,8 @@ type streamTest struct{}
 
 // newStreamTestHandler serves test.v1.StreamTest. Built with provider.Handler, it is behind the
 // SDK's signature verification, which checks a stream over its first envelope as the network does.
-// It passes opts to both connect handlers, and the opts carry the interceptor that fails a rejected
-// stream before its handler runs. The http.HandlerFunc it returns runs for a rejected request too,
-// so it can log the verdict. See cross_test/README.md.
+// It passes opts to both connect handlers, as a factory for provider.Handler must. A rejected
+// request never reaches it: the SDK answers it, and logRejections logs it. See cross_test/README.md.
 func newStreamTestHandler(svc streamTest, opts ...connect.HandlerOption) (string, http.Handler) {
 	mux := http.NewServeMux()
 	mux.Handle(streamTestClientStream, connect.NewClientStreamHandler(streamTestClientStream, svc.clientStream, opts...))
@@ -151,11 +149,4 @@ func (streamTest) serverStream(ctx context.Context, req *connect.Request[wrapper
 func signedPart(ctx context.Context) string {
 	part, _ := provider.SignatureVerification(ctx)
 	return string(part)
-}
-
-func connectMessage(err error) string {
-	if connectErr, ok := errors.AsType[*connect.Error](err); ok {
-		return connectErr.Message()
-	}
-	return err.Error()
 }

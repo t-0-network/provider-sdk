@@ -16,6 +16,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"time"
@@ -29,8 +30,8 @@ import (
 	"google.golang.org/protobuf/proto"
 )
 
-// The shared fixture: cross_test/test_vectors.json. probe reads its keys and server_cases,
-// client-probe its keys, constants and client_cases.
+// The shared fixture: cross_test/test_vectors.json. probe reads its keys, impostor_keys and
+// server_cases, client-probe its keys, impostor_keys, constants and client_cases.
 type vectors struct {
 	Keys struct {
 		PrivateKey string `json:"private_key"`
@@ -149,7 +150,7 @@ func runProbe(w io.Writer, v *vectors, baseURL, sdk string, protocols []string) 
 	failures := 0
 	for _, c := range v.ServerCases {
 		for _, protocol := range protocols {
-			if len(c.Protocols) > 0 && !contains(c.Protocols, protocol) {
+			if len(c.Protocols) > 0 && !slices.Contains(c.Protocols, protocol) {
 				continue
 			}
 			got, err := runCase(v, baseURL, protocol, c)
@@ -165,7 +166,7 @@ func runProbe(w io.Writer, v *vectors, baseURL, sdk string, protocols []string) 
 				wantMessage = c.Expect.MessagePrefix + "…"
 				messageOK = strings.HasPrefix(got.message, c.Expect.MessagePrefix)
 			}
-			checkMessage := c.Expect.Code != "ok" && !contains(c.Expect.LibraryMessage, sdk)
+			checkMessage := c.Expect.Code != "ok" && !slices.Contains(c.Expect.LibraryMessage, sdk)
 			if got.code != c.Expect.Code || (checkMessage && !messageOK) {
 				failures++
 				fmt.Fprintf(w, "FAIL %s: got %s %q, want %s %q\n", label, got.code, got.message, c.Expect.Code, wantMessage)
@@ -184,15 +185,6 @@ func runProbe(w io.Writer, v *vectors, baseURL, sdk string, protocols []string) 
 		}
 	}
 	return failures
-}
-
-func contains(list []string, s string) bool {
-	for _, x := range list {
-		if x == s {
-			return true
-		}
-	}
-	return false
 }
 
 // The requests of the `call` cases: valid, so a server that validates requests reaches its handler.

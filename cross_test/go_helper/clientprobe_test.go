@@ -127,6 +127,15 @@ func failLines(lines []string, name string) []string {
 	return fails
 }
 
+// connectMessage is the message of a connect error, without the "<code>: " that Error() adds, or
+// the whole text of any other error.
+func connectMessage(err error) string {
+	if connectErr, ok := errors.AsType[*connect.Error](err); ok {
+		return connectErr.Message()
+	}
+	return err.Error()
+}
+
 // The command SDK tests start: its READY line gives a base URL that serves the cases.
 func TestClientProbe_Command(t *testing.T) {
 	v, err := loadVectors("../test_vectors.json")
