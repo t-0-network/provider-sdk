@@ -295,7 +295,7 @@ ConnectRPC was chosen over gRPC for its HTTP/1.1 compatibility, simpler deployme
 | Protobuf | protobuf | `protobuf>=7.34.1` | `google.protobuf` | Standard Protocol Buffers runtime |
 | ECDSA Crypto | coincurve | `coincurve>=21.0` | `coincurve` | Python bindings for libsecp256k1 |
 | Keccak Hash | pycryptodome | `pycryptodome>=3.23` | `Crypto.Hash.keccak` | Legacy Keccak-256 implementation. Not `pysha3` (incompatible with Python 3.13) and not `hashlib.sha3_256` (NIST SHA-3, different padding) |
-| Validation | protovalidate | `protovalidate>=0.3` | `protovalidate` | Checks provider responses against the `buf.validate` rules in the protos |
+| Validation | protovalidate | `protovalidate>=2.0` | `protovalidate` | Checks provider responses against the `buf.validate` rules in the protos. Floor is 2.0: the SDK reads 2.0's error types and field paths |
 | Health | grpcio-health-checking | `grpcio-health-checking>=1.60` | `grpc_health.v1` | The `grpc.health.v1` messages of the health service |
 | Env Loading | python-dotenv | `python-dotenv>=1.0` | `dotenv` | Template .env file handling (template dependency) |
 

@@ -58,6 +58,7 @@ python/
 | protobuf | `google.protobuf` | Message serialization |
 | coincurve | `coincurve` | secp256k1 ECDSA |
 | pycryptodome | `Crypto.Hash.keccak` | Keccak256 |
+| protovalidate | `protovalidate` | Response validation against the `buf.validate` rules; 2.0 or newer, since the SDK reads 2.0's error types and field paths |
 
 Versions: `sdk/pyproject.toml`.
 

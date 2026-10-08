@@ -44,7 +44,7 @@ Generated protobuf code imports `from buf.validate import validate_pb2`. Resolvi
 ```bash
 uv add --package t0-provider-sdk protovalidate
 ```
-**Failed** — `protovalidate` itself needs `buf.validate` stubs, doesn't ship them.
+**Failed** — `protovalidate` itself needs `buf.validate` stubs, doesn't ship them. (From 2.0 it carries a private copy for its own use, `protovalidate._gen.buf.validate`, but still not the `buf.validate.validate_pb2` module that the generated code imports.)
 
 ### Attempt 2: BSR (Buf Schema Registry) generated SDK
 ```bash
@@ -65,7 +65,7 @@ url = "https://buf.build/gen/python"
 ### Solution: generate the stubs into `api/`
 `buf generate --include-imports` generates `buf/validate/validate_pb2.py` inside `api/` next to the SDK's own messages. The stubs are committed together with `api/buf/__init__.py` and `api/buf/validate/__init__.py`, and the SDK's `__init__.py` puts `api/` on `sys.path` (see pitfall #4). Regenerate from the repository root as [`python/CLAUDE.md`](../../python/CLAUDE.md#proto-code-generation) describes; `buf generate` keeps the committed stubs.
 
-**`protovalidate` stays a dependency:** `provider/validate.py` uses its validator, which imports `buf.validate` from these stubs, so `t0_provider_sdk` must be imported before `protovalidate`.
+**`protovalidate` stays a dependency:** `provider/validate.py` uses its validator. From 2.0 protovalidate carries its own copy of the `buf.validate` messages, so it does not need these stubs and the order of imports does not matter. The stubs in `api/` are for the SDK's generated `_pb2` code.
 
 ### buf.gen.yaml — managed.disable
 Add to prevent buf from managing third-party proto options:
