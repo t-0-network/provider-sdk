@@ -5,13 +5,7 @@ package tzero.v1.manage.kyc_sharing;
 import "buf/validate/validate.proto";
 import "tzero/v1/manage/kyc_sharing/common.proto";
 
-// Form definitions. Shared by:
-//   - the Payout Provider sets the form up in the T-0 dashboard (form_setup.proto,
-//     dashboard only).
-//   - applicant_requester.proto — the same form structure is referenced when an
-//     End Client's filled-in values are received.
-//   - applicant_provider.proto — the Payout Provider reads the bound form when it
-//     reviews a submitted applicant.
+// The Payout Provider sets the form up in the T-0 dashboard. That setup is dashboard only.
 
 /**
  * KYB form definition: the provider's selected standard fields, custom fields, and UBO sub-form. Every
