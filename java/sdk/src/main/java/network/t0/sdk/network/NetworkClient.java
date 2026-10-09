@@ -80,11 +80,11 @@ public abstract class NetworkClient implements Closeable {
 
     private static final Logger log = LoggerFactory.getLogger(NetworkClient.class);
 
-    /** The base URL used when the caller passes {@code null}. */
+    /** The network host a caller passes. The SDK does not apply it. */
     public static final String DEFAULT_BASE_URL = "https://api.t-0.network";
 
     /**
-     * The base URL used when the caller passes {@code null}.
+     * The network host a caller passes. The SDK does not apply it.
      *
      * @deprecated Use {@link #DEFAULT_BASE_URL}.
      */
@@ -136,7 +136,7 @@ public abstract class NetworkClient implements Closeable {
     /**
      * Creates a channel pair for the given endpoint with the signing and default-deadline interceptors.
      *
-     * @param endpoint      the T-0 Network endpoint (e.g., "https://api.t-0.network" or "api.t-0.network:443"), or {@code null} for "https://api.t-0.network";
+     * @param endpoint      the T-0 Network endpoint (e.g., "https://api.t-0.network" or "api.t-0.network:443"); {@code null} is "base URL is not set";
      *                      a path in it prefixes every call (see {@link #parseBaseUrl(String)})
      * @param signer        the signer to use for signing requests
      * @param timeout       the default deadline for unary calls
@@ -275,7 +275,7 @@ public abstract class NetworkClient implements Closeable {
      * Parses a base URL into its components.
      *
      * @param endpoint the endpoint (e.g., "https://api.t-0.network" or "api.t-0.network:443"), or
-     *                 {@code null} for {@value #DEFAULT_BASE_URL}; see {@link #parseBaseUrl(String)}
+     *                 {@code null} is "base URL is not set"; see {@link #parseBaseUrl(String)}
      * @return the parsed endpoint information
      * @throws IllegalArgumentException if the base URL is empty or not valid
      */
@@ -289,15 +289,12 @@ public abstract class NetworkClient implements Closeable {
      * @param endpoint an http or https URL with a host, an optional port from 1 to 65535 and an optional
      *                 path, and no whitespace or control character, user info, query or fragment; never
      *                 trimmed; without {@code ://} it is read as https
-     *                 ({@code "api.t-0.network:443"}); {@code null} for {@value #DEFAULT_BASE_URL}. The path
+     *                 ({@code "api.t-0.network:443"}); {@code null} is "base URL is not set". The path
      *                 prefixes every call ({@code https://host/v1} calls {@code https://host/v1/<service>/<method>})
      * @throws IllegalArgumentException if the base URL is empty or not valid
      */
     static BaseUrl parseBaseUrl(String endpoint) {
-        if (endpoint == null) {
-            endpoint = DEFAULT_BASE_URL;
-        }
-        if (endpoint.isEmpty()) {
+        if (endpoint == null || endpoint.isEmpty()) {
             throw new IllegalArgumentException(Messages.BASE_URL_NOT_SET);
         }
         if (!endpoint.contains("://")) {

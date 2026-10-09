@@ -1,4 +1,3 @@
-using System.Diagnostics.CodeAnalysis;
 using T0.ProviderSdk.Common;
 
 namespace T0.ProviderSdk.Network;
@@ -8,7 +7,7 @@ namespace T0.ProviderSdk.Network;
 /// </summary>
 public sealed class NetworkClientOptions
 {
-    /// <summary>The base URL a client uses when it is given none.</summary>
+    /// <summary>The network host a caller passes. The SDK does not apply it.</summary>
     public const string DefaultBaseUrl = "https://api.t-0.network";
 
     /// <summary>The unary timeout a client uses when it is given none: 15 seconds.</summary>
@@ -20,23 +19,29 @@ public sealed class NetworkClientOptions
     /// <summary>The largest <see cref="Timeout"/> and <see cref="StreamTimeout"/>: 2147483647 ms.</summary>
     public static readonly TimeSpan MaxTimeout = TimeSpan.FromMilliseconds(int.MaxValue);
 
-    private string _baseUrl = DefaultBaseUrl;
+    private string? _baseUrl;
     private TimeSpan _timeout = DefaultTimeout;
     private TimeSpan _streamTimeout = DefaultStreamTimeout;
 
     /// <summary>
-    /// Base URL of the T-0 Network API, <c>https://api.t-0.network</c> by default or when set to null.
+    /// Base URL of the T-0 Network API. A caller passes <see cref="DefaultBaseUrl"/>
+    /// (<c>https://api.t-0.network</c>) to use that host. Left unset, or set to null, it is
+    /// "base URL is not set".
     /// A path in it prefixes every call: <c>https://host/v1</c> calls <c>https://host/v1/&lt;service&gt;/&lt;method&gt;</c>.
     /// </summary>
     /// <exception cref="ArgumentException">
-    /// The value is empty ("base URL is not set") or not a valid base URL ("base URL is not valid"),
+    /// The value is null or empty ("base URL is not set") or not a valid base URL ("base URL is not valid"),
     /// which includes a value with whitespace or a control character anywhere.
     /// </exception>
-    [AllowNull]
-    public string BaseUrl
+    public string? BaseUrl
     {
         get => _baseUrl;
-        set => (_baseUrl, PathPrefix) = value is null ? (DefaultBaseUrl, "") : ValidateBaseUrl(value);
+        set
+        {
+            if (value is null)
+                throw new ArgumentException(Messages.BaseUrlNotSet);
+            (_baseUrl, PathPrefix) = ValidateBaseUrl(value);
+        }
     }
 
     /// <summary>

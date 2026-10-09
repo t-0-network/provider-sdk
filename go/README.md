@@ -136,7 +136,9 @@ import (
 
 privateKey := network.PrivateKeyHexed("0x7795db2f...")
 
-networkClient, err := network.NewServiceClient(privateKey, paymentconnect.NewNetworkServiceClient)
+networkClient, err := network.NewServiceClient(privateKey, paymentconnect.NewNetworkServiceClient,
+    network.WithBaseURL(network.DefaultBaseURL),
+)
 if err != nil {
     log.Fatalf("Failed to create network service client: %v", err)
 }
@@ -151,7 +153,7 @@ _, err = networkClient.GetQuote(ctx, connect.NewRequest(&networkproto.GetQuoteRe
 _, err = networkClient.CreatePayment(ctx, connect.NewRequest(&networkproto.CreatePaymentRequest{ /* ... */ }))
 ```
 
-**Client options:** `WithBaseURL` (default: `network.DefaultBaseURL`, `https://api.t-0.network`), `WithTimeout` (unary calls, default: `network.DefaultTimeout`, 15s), `WithStreamTimeout` (streaming calls, default: `network.DefaultStreamTimeout`, 5 min), `WithWireFormat` (`WireFormatBinary` default, `WireFormatJSON`), `WithProtocol` (`ProtocolConnect` default, `ProtocolGRPC`), `WithSignatureFunction` (a custom signer, below), `WithHTTPTransport` (for tests: sends the signed requests through a mock `http.RoundTripper` or a test server's transport). A timeout must be positive and at most `network.MaxTimeout` (2147483647 ms).
+**Client options:** `WithBaseURL` (pass `network.DefaultBaseURL`, `https://api.t-0.network`; a missing URL is "base URL is not set"), `WithTimeout` (unary calls, default: `network.DefaultTimeout`, 15s), `WithStreamTimeout` (streaming calls, default: `network.DefaultStreamTimeout`, 5 min), `WithWireFormat` (`WireFormatBinary` default, `WireFormatJSON`), `WithProtocol` (`ProtocolConnect` default, `ProtocolGRPC`), `WithSignatureFunction` (a custom signer, below), `WithHTTPTransport` (for tests: sends the signed requests through a mock `http.RoundTripper` or a test server's transport). A timeout must be positive and at most `network.MaxTimeout` (2147483647 ms).
 
 #### Custom signer
 
@@ -163,6 +165,7 @@ var signer crypto.SignFn = func(digest []byte) (signature, publicKey []byte, err
 }
 
 networkClient, err := network.NewServiceClient("", paymentconnect.NewNetworkServiceClient,
+    network.WithBaseURL(network.DefaultBaseURL),
     network.WithSignatureFunction(signer),
 )
 ```
@@ -181,6 +184,7 @@ upload := func(httpClient connect.HTTPClient, baseURL string, opts ...connect.Cl
     return connect.NewClient[wrapperspb.StringValue, wrapperspb.StringValue](httpClient, baseURL+"/example.v1.UploadService/Upload", opts...)
 }
 uploadClient, err := network.NewServiceClient(privateKey, upload,
+    network.WithBaseURL(network.DefaultBaseURL),
     network.WithStreamTimeout(30*time.Minute), // every stream of this client may run up to 30 minutes
 )
 if err != nil {

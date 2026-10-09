@@ -454,8 +454,8 @@ app = new_wsgi_app(
     handler_sync(ProviderServiceWSGIApplication, my_sync_impl),
 )
 
-client = new_service_client(private_key, NetworkServiceClient)            # async
-client_sync = new_service_client_sync(private_key, NetworkServiceClientSync)  # sync
+client = new_service_client(private_key, NetworkServiceClient, base_url=DEFAULT_BASE_URL)
+client_sync = new_service_client_sync(private_key, NetworkServiceClientSync, base_url=DEFAULT_BASE_URL)
 ```
 
 ### 3.6 Error Hierarchy Design
@@ -681,7 +681,7 @@ def new_service_client(
     private_key: str,           # Hex-encoded secp256k1 private key
     client_class: type[T],      # Generated ConnectRPC client class
     *,
-    base_url: str | None = DEFAULT_BASE_URL,        # None means the default
+    base_url: str | None = None,                    # omitted or None is "base URL is not set"
     timeout: float = DEFAULT_TIMEOUT,               # Unary calls, seconds
     stream_timeout: float = DEFAULT_STREAM_TIMEOUT,  # Client-/server-streaming calls, seconds
     wire_format: WireFormat = WireFormat.BINARY,    # or WireFormat.JSON
@@ -693,7 +693,7 @@ def new_service_client_sync(
     private_key: str,
     client_class: type[T],
     *,
-    base_url: str | None = DEFAULT_BASE_URL,
+    base_url: str | None = None,                    # omitted or None is "base URL is not set"
     timeout: float = DEFAULT_TIMEOUT,
     stream_timeout: float = DEFAULT_STREAM_TIMEOUT,
     wire_format: WireFormat = WireFormat.BINARY,
@@ -948,8 +948,8 @@ Commit the regenerated `api/` directory (the `generate-clients.yaml` workflow do
    ```
 4. **Client side:** Create a signed client using the generated client class:
    ```python
-   client = new_service_client(private_key, NewServiceClient)        # async
-   client = new_service_client_sync(private_key, NewServiceClientSync)  # sync
+   client = new_service_client(private_key, NewServiceClient, base_url=DEFAULT_BASE_URL)
+   client = new_service_client_sync(private_key, NewServiceClientSync, base_url=DEFAULT_BASE_URL)
    ```
 
 No SDK changes are required -- the generic handler and client factories work with any generated service.

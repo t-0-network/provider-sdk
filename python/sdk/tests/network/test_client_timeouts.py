@@ -16,7 +16,13 @@ from connectrpc.errors import ConnectError
 from connectrpc.method import IdempotencyLevel, MethodInfo
 from google.protobuf.wrappers_pb2 import StringValue
 from t0_provider_sdk._messages import STREAM_TIMEOUT_NOT_VALID, TIMEOUT_NOT_VALID
-from t0_provider_sdk.network import MAX_TIMEOUT, Protocol, new_service_client, new_service_client_sync
+from t0_provider_sdk.network import (
+    DEFAULT_BASE_URL,
+    MAX_TIMEOUT,
+    Protocol,
+    new_service_client,
+    new_service_client_sync,
+)
 
 PRIVATE_KEY = "0x6b30303de7b26bfb1222b317a52113357f8bb06de00160b4261a2fef9c8b9bd8"
 BASE_URL = "http://example.test"
@@ -287,10 +293,10 @@ class TestTimeoutOptions:
     def test_value_outside_the_bounds_is_refused(self, factory, option: str, value: float) -> None:
         """Greater than zero and at most 2147483647 ms, the same message in every SDK."""
         with pytest.raises(ValueError) as exc_info:
-            factory(PRIVATE_KEY, _Client, **{option: value})
+            factory(PRIVATE_KEY, _Client, base_url=DEFAULT_BASE_URL, **{option: value})
         assert str(exc_info.value) == OPTION_MESSAGES[option]
 
     @pytest.mark.parametrize("option", ["timeout", "stream_timeout"])
     @pytest.mark.parametrize("factory", [new_service_client, new_service_client_sync])
     def test_the_maximum_is_accepted(self, factory, option: str) -> None:
-        assert factory(PRIVATE_KEY, _Client, **{option: MAX_TIMEOUT}) is not None
+        assert factory(PRIVATE_KEY, _Client, base_url=DEFAULT_BASE_URL, **{option: MAX_TIMEOUT}) is not None

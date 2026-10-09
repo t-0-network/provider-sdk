@@ -26,13 +26,14 @@ class NetworkClientFactoryTest {
             Signer.fromHex("6b30303de7b26bfb1222b317a52113357f8bb06de00160b4261a2fef9c8b9bd8");
 
     @Test
-    @DisplayName("A null base URL selects https://api.t-0.network")
-    void nullBaseUrlSelectsTheDefault() {
-        assertThat(NetworkClient.parseEndpoint(null))
-                .isEqualTo(new NetworkClient.EndpointInfo("api.t-0.network", 443, false));
-        try (var client = BlockingNetworkClient.create(null, SIGNER, HealthGrpc::newBlockingStub)) {
-            assertThat(client.getChannel().authority()).isEqualTo("api.t-0.network:443");
-        }
+    @DisplayName("A null base URL is \"base URL is not set\", before a null signer")
+    void nullBaseUrlIsNotSet() {
+        assertThatThrownBy(() -> NetworkClient.parseEndpoint(null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("base URL is not set");
+        assertThatThrownBy(() -> BlockingNetworkClient.create(null, null, HealthGrpc::newBlockingStub))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("base URL is not set");
     }
 
     /** The {@code base_url_parsing} rows of cross_test/test_vectors.json: name, input, valid, error. */
