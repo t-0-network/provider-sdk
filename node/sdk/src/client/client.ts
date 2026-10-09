@@ -2,7 +2,7 @@ import { createClient as createClientCommon, type ClientOptions, type Signature 
 import type { DescService } from "@bufbuild/protobuf";
 import { BASE_URL_NOT_SET, BASE_URL_NOT_VALID } from "../common/messages.js";
 
-/** The base URL a client uses when it is given none. */
+/** The network host a caller passes. The SDK does not apply it. */
 export const DEFAULT_BASE_URL = "https://api.t-0.network";
 
 /** @deprecated Use DEFAULT_BASE_URL. */
@@ -11,9 +11,9 @@ export const DEFAULT_ENDPOINT = DEFAULT_BASE_URL;
 export { DEFAULT_STREAM_TIMEOUT_MS, DEFAULT_TIMEOUT_MS, MAX_TIMEOUT_MS } from "../common/client/client.js";
 
 /**
- * @param baseUrl the network's base URL; undefined or null for DEFAULT_BASE_URL.
+ * @param baseUrl the network's base URL. undefined, null and "" are "base URL is not set".
  */
-export function createClient<T extends DescService>(signer: string | Buffer | ((data: Buffer) => Promise<Signature>) | Buffer<ArrayBufferLike>, baseUrl: string | undefined, svc: T, opts?: ClientOptions) {
+export function createClient<T extends DescService>(signer: string | Buffer | ((data: Buffer) => Promise<Signature>) | Buffer<ArrayBufferLike>, baseUrl: string | undefined | null, svc: T, opts?: ClientOptions) {
     return createClientCommon(signer, parseBaseUrl(baseUrl), svc, opts);
 }
 
@@ -23,10 +23,7 @@ const SPACE_OR_CONTROL = /[\x00-\x20\x7f\x85\xa0\u1680\u2000-\u200a\u2028\u2029\
 
 // The rule every SDK shares: docs/CROSS_SDK_RULES.md (C2). A path in the base URL prefixes every call.
 function parseBaseUrl(baseUrl: string | undefined | null): string {
-    if (baseUrl === undefined || baseUrl === null) {
-        return DEFAULT_BASE_URL;
-    }
-    if (baseUrl === "") {
+    if (baseUrl === undefined || baseUrl === null || baseUrl === "") {
         throw new Error(BASE_URL_NOT_SET);
     }
     // A value without "://" is read as https.

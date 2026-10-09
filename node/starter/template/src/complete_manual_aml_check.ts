@@ -1,5 +1,5 @@
 import {type Client, NetworkService} from "@t-0/provider-sdk";
-import {decimalToString} from "./lib";
+import {decimalToString} from "./lib.js";
 
 export default async function completeManualAmlCheck(
     networkClient: Client<typeof NetworkService>,

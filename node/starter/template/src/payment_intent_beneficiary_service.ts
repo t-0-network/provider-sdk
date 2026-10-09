@@ -2,7 +2,7 @@ import {
     HandlerContext,
     PaymentIntentBeneficiary,
 } from "@t-0/provider-sdk";
-import {decimalToString} from "./lib";
+import {decimalToString} from "./lib.js";
 
 /*
   Payment Intent Flow — Beneficiary Provider role.

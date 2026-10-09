@@ -1,19 +1,16 @@
 package main
 
 import (
-	"cmp"
 	"context"
 	"errors"
-	"io/fs"
+	"fmt"
 	"log"
 	"log/slog"
 	"os"
 	"os/signal"
-	"strconv"
 	"syscall"
 	"time"
 
-	"github.com/joho/godotenv"
 	"github.com/t-0-network/provider-sdk/go/api/tzero/v1/payment/paymentconnect"
 	"github.com/t-0-network/provider-sdk/go/api/tzero/v1/payment_intent/payment_intentconnect"
 	"github.com/t-0-network/provider-sdk/go/network"
@@ -22,33 +19,38 @@ import (
 	"github.com/t-0-network/provider-sdk/go/starter/template/internal/handler"
 )
 
-type Config struct {
-	NetworkPublicKey        provider.NetworkPublicKeyHexed
-	ProviderPrivateKey      network.PrivateKeyHexed
-	TZeroEndpoint           string
-	ServerAddr              string
-	QuotePublishingInterval time.Duration
-}
-
 func main() {
-	config := loadConfig()
+	config, err := loadConfig()
+	if err != nil {
+		exitFailure(err)
+	}
 
-	networkClient := initNetworkClient(config)
-	paymentIntentClient := initPaymentIntentClient(config)
+	networkClient, err := initNetworkClient(config)
+	if err != nil {
+		exitFailure(err)
+	}
+	paymentIntentClient, err := initPaymentIntentClient(config)
+	if err != nil {
+		exitFailure(err)
+	}
 
-	shutdownFunc := startProviderServer(config, networkClient, paymentIntentClient)
-	defer shutdownFunc()
+	shutdown, err := startProviderServer(config, networkClient, paymentIntentClient)
+	if err != nil {
+		exitFailure(err)
+	}
 
 	// ✅ Step 1.1 is done. You successfully initialised starter template
 
 	// TODO: Step 1.2 Share the generated public key from .env with t-0 team
 
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	quoteTicker := time.NewTicker(config.QuotePublishingInterval)
+	paymentIntentTicker := time.NewTicker(config.QuotePublishingInterval)
+
 	// TODO: Step 1.3 Replace publishQuotes with your own quote publishing logic
-
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-
-	go internal.PublishQuotes(ctx, networkClient, config.QuotePublishingInterval)
+	go internal.PublishQuotes(ctx, networkClient, quoteTicker)
 
 	// TODO: Step 1.4 Verify that quotes for target currency are successfully received
 	go internal.GetQuote(ctx, networkClient)
@@ -61,7 +63,7 @@ func main() {
 
 	// Phase 3A — Pay-In Provider role. Comment out if you are only a beneficiary.
 	// TODO: Step 3A.1 Replace with your own pay-in quote publishing logic
-	go internal.PublishPaymentIntentQuotes(ctx, paymentIntentClient, config.QuotePublishingInterval)
+	go internal.PublishPaymentIntentQuotes(ctx, paymentIntentClient, paymentIntentTicker)
 
 	// Phase 3B — Beneficiary Provider role. Comment out if you are only a pay-in provider.
 	// TODO: Step 3B.1 Check that indicative quotes are being returned
@@ -69,7 +71,14 @@ func main() {
 	// TODO: Step 3B.2 Create a payment intent for a real end-user when they want to pay
 	// internal.CreatePaymentIntent(ctx, paymentIntentClient)
 
-	waitForShutdownSignal(cancel, shutdownFunc)
+	<-ctx.Done()
+
+	log.Println("Shutting down...")
+	quoteTicker.Stop()
+	paymentIntentTicker.Stop()
+	if err := shutdown(context.Background()); err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to shutdown provider service: %s\n", err.Error())
+	}
 
 	// TODO: Step 2.2 Deploy your integration and provide t-0 team with the base URL
 	// TODO: Step 2.3 Test payment submission
@@ -79,56 +88,27 @@ func main() {
 	// internal.CompleteManualAmlCheck(ctx, networkClient, paymentId)
 }
 
-func loadConfig() Config {
-	// .env is optional: without it, the values come from the environment.
-	if err := godotenv.Load(".env"); err != nil && !errors.Is(err, fs.ErrNotExist) {
-		log.Fatalf("Failed to load .env file: %v", err)
-	}
-
-	// Anything but an integer in 1..2147483647 gives the default of 5000 ms.
-	intervalMs, err := strconv.ParseInt(os.Getenv("QUOTE_PUBLISHING_INTERVAL"), 10, 32)
-	if err != nil || intervalMs <= 0 {
-		intervalMs = 5000
-	}
-
-	return Config{
-		NetworkPublicKey:        provider.NetworkPublicKeyHexed(os.Getenv("NETWORK_PUBLIC_KEY")),
-		ProviderPrivateKey:      network.PrivateKeyHexed(os.Getenv("PROVIDER_PRIVATE_KEY")),
-		TZeroEndpoint:           cmp.Or(os.Getenv("TZERO_ENDPOINT"), "https://api-sandbox.t-0.network"),
-		ServerAddr:              ":" + cmp.Or(os.Getenv("PORT"), "8080"),
-		QuotePublishingInterval: time.Duration(intervalMs) * time.Millisecond,
-	}
-}
-
-func initNetworkClient(config Config) paymentconnect.NetworkServiceClient {
-	networkClient, err := network.NewServiceClient(
+func initNetworkClient(config Config) (paymentconnect.NetworkServiceClient, error) {
+	return network.NewServiceClient(
 		config.ProviderPrivateKey,
 		paymentconnect.NewNetworkServiceClient,
 		network.WithBaseURL(config.TZeroEndpoint),
 	)
-	if err != nil {
-		log.Fatalf("Failed to create network service client: %v", err)
-	}
-	return networkClient
 }
 
-func initPaymentIntentClient(config Config) payment_intentconnect.PaymentIntentServiceClient {
-	paymentIntentClient, err := network.NewServiceClient(
+func initPaymentIntentClient(config Config) (payment_intentconnect.PaymentIntentServiceClient, error) {
+	return network.NewServiceClient(
 		config.ProviderPrivateKey,
 		payment_intentconnect.NewPaymentIntentServiceClient,
 		network.WithBaseURL(config.TZeroEndpoint),
 	)
-	if err != nil {
-		log.Fatalf("Failed to create payment intent service client: %v", err)
-	}
-	return paymentIntentClient
 }
 
 func startProviderServer(
 	config Config,
 	networkClient paymentconnect.NetworkServiceClient,
 	paymentIntentClient payment_intentconnect.PaymentIntentServiceClient,
-) func() {
+) (provider.ServerShutdownFn, error) {
 	// Replace slog.Default() with your own *slog.Logger (e.g. JSON to a file,
 	// or an slog.Handler bridge to zap / zerolog) to route SDK diagnostics
 	// such as response-validation failures into your log pipeline.
@@ -147,33 +127,27 @@ func startProviderServer(
 			payment_intentconnect.BeneficiaryServiceHandler(handler.NewBeneficiaryServiceImplementation())),
 	)
 	if err != nil {
-		log.Fatalf("Failed to create provider service handler: %v", err)
+		return nil, asConfigurationError(err)
 	}
 
-	shutdownFunc, err := provider.StartServer(
+	shutdown, err := provider.StartServer(
 		providerServiceHandler,
 		provider.WithAddr(config.ServerAddr),
 	)
 	if err != nil {
-		log.Fatalf("Failed to start provider server: %v", err)
+		return nil, err
 	}
 
 	log.Printf("✅ Step 1.1: Provider server initialized on %s\n", config.ServerAddr)
-
-	return func() {
-		if err := shutdownFunc(context.Background()); err != nil {
-			log.Fatalf("Failed to shutdown provider service: %v", err)
-		}
-	}
+	return shutdown, nil
 }
 
-func waitForShutdownSignal(cancel context.CancelFunc, shutdownFunc func()) {
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer stop()
-
-	<-ctx.Done()
-
-	log.Println("Shutting down...")
-	cancel()
-	shutdownFunc()
+func exitFailure(err error) {
+	var ce *configurationError
+	if errors.As(err, &ce) {
+		fmt.Fprintf(os.Stderr, "ERROR: %s\n%s\n", ce.msg, ce.help)
+	} else {
+		fmt.Fprintf(os.Stderr, "Provider failed to start: %s\n", err.Error())
+	}
+	os.Exit(1)
 }

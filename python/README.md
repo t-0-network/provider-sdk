@@ -129,8 +129,11 @@ The first argument of `new_service_client()` and `new_service_client_sync()` is 
 
 ```python
 from t0_provider_sdk.crypto import new_signer_from_hex
+from t0_provider_sdk.network import DEFAULT_BASE_URL, new_service_client
 
-network_client = new_service_client(new_signer_from_hex(config.provider_private_key), NetworkServiceClient)
+network_client = new_service_client(
+    new_signer_from_hex(config.provider_private_key), NetworkServiceClient, base_url=DEFAULT_BASE_URL,
+)
 ```
 
 Before a request is sent, the client checks what a `SignFn` returned: a signature of 64 or 65 bytes, sent as it is, then the 65-byte uncompressed public key. A failed check, or an exception of the function, fails the call with `INTERNAL` "signing the request failed: <cause>". The `sign_fn=` keyword still works, with `None` or `""` as the first argument; a key and a signer given together raise `ValueError`.

@@ -1,6 +1,5 @@
 package network.t0.provider;
 
-import io.github.cdimascio.dotenv.Dotenv;
 import network.t0.provider.handler.PaymentHandler;
 import network.t0.provider.handler.PaymentIntentBeneficiaryHandler;
 import network.t0.provider.handler.PaymentIntentPayInHandler;
@@ -15,11 +14,17 @@ import network.t0.sdk.proto.tzero.v1.payment_intent.PaymentIntentServiceGrpc;
 import network.t0.sdk.provider.ProviderServer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.slf4j.bridge.SLF4JBridgeHandler;
+import sun.misc.Signal;
 
 import java.io.IOException;
+import java.io.PrintStream;
+import java.nio.file.Path;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Main entry point for the T-0 Network Provider.
@@ -31,21 +36,36 @@ public class Main {
 
     private static final Logger log = LoggerFactory.getLogger(Main.class);
 
+    private static final AtomicBoolean DRAINING = new AtomicBoolean();
+
     public static void main(String[] args) {
+        // grpc-java logs through java.util.logging. The bridge is what makes the
+        // io.grpc level in logback.xml apply, and dropping the JDK handler keeps
+        // those records from also printing in raw JUL form.
+        SLF4JBridgeHandler.removeHandlersForRootLogger();
+        SLF4JBridgeHandler.install();
+
         try {
             run();
-        } catch (ConfigurationException e) {
-            log.error(e.getMessage());
-            log.error(e.getHelpMessage());
+        } catch (EnvConfig.ConfigurationException e) {
+            if (e.missingEnvNotice() != null) {
+                System.err.println(e.missingEnvNotice());
+            }
+            writeConfigError(e, System.err);
             System.exit(1);
         } catch (Exception e) {
-            log.error("Failed to start provider", e);
+            writeStartupError(e, System.err);
             System.exit(1);
         }
     }
 
-    private static void run() {
-        Config config = loadConfig();
+    private static void run() throws Exception {
+        Path workingDirectory = Path.of("").toAbsolutePath().normalize();
+        EnvConfig.Loaded loaded = EnvConfig.load(workingDirectory, System.getenv());
+        if (loaded.missingEnvNotice() != null) {
+            System.err.println(loaded.missingEnvNotice());
+        }
+        Config config = loaded.config();
         Signer signer = Signer.fromHex(config.providerPrivateKey());
 
         log.info("Provider public key: {}", signer.getPublicKeyHexPrefixed());
@@ -66,6 +86,9 @@ public class Main {
         // TODO: Step 1.3 Replace publishQuotes with your own quote publishing logic
 
         ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(2);
+        // A shutdown hook cannot change 130 or 143. INT and TERM call close() and exit 0.
+        installSignals(server, scheduler, networkClient, paymentIntentClient);
+
         scheduler.scheduleAtFixedRate(
                 () -> PublishQuotes.publish(networkClient.stub()),
                 0, config.quotePublishingIntervalMs(), TimeUnit.MILLISECONDS);
@@ -91,141 +114,96 @@ public class Main {
         // TODO: Step 3B.2 Create a payment intent for a real end-user when they want to pay
         // CreatePaymentIntent.create(paymentIntentClient.stub());
 
-        waitForShutdown(server, scheduler, networkClient, paymentIntentClient);
-
         // TODO: Step 2.2 Deploy your integration and provide t-0 team with the base URL
         // TODO: Step 2.3 Test payment submission (see SubmitPayment.java)
         // TODO: Step 2.5 Ask t-0 team to submit a payment to test your payOut endpoint
         // TODO: Step 2.6 (optional) Complete manual AML checks if your payOut returns manual_aml_check (see CompleteManualAmlCheck.java)
-    }
 
-    private static Config loadConfig() {
-        Dotenv dotenv = Dotenv.configure()
-                .ignoreIfMissing()
-                .load();
-
-        // An empty value counts as unset; the keys are trimmed.
-        String privateKey = dotenv.get("PROVIDER_PRIVATE_KEY", "").strip();
-        String networkPublicKey = dotenv.get("NETWORK_PUBLIC_KEY", "").strip();
-        String endpoint = orDefault(dotenv.get("TZERO_ENDPOINT"), "https://api-sandbox.t-0.network");
-        int port = parsePort(orDefault(dotenv.get("PORT"), "8080"));
-        long quoteInterval = parseQuoteInterval(dotenv.get("QUOTE_PUBLISHING_INTERVAL"));
-
-        if (privateKey.isEmpty()) {
-            throw new ConfigurationException(
-                    "PROVIDER_PRIVATE_KEY not set in .env file",
-                    "Generate a keypair with: t0-init keygen");
-        }
-
-        if (networkPublicKey.isEmpty()) {
-            throw new ConfigurationException(
-                    "NETWORK_PUBLIC_KEY not set in .env file",
-                    "Contact T-0 team to get the network public key");
-        }
-
-        return new Config(privateKey, networkPublicKey, endpoint, port, quoteInterval);
-    }
-
-    private static String orDefault(String value, String defaultValue) {
-        return value == null || value.isEmpty() ? defaultValue : value;
-    }
-
-    // Decimal digits only, 1 to 65535.
-    private static int parsePort(String value) {
-        if (value.matches("[0-9]{1,5}")) {
-            int port = Integer.parseInt(value);
-            if (port >= 1 && port <= 65535) {
-                return port;
-            }
-        }
-        throw new ConfigurationException(
-                "PORT must be an integer from 1 to 65535 (got \"" + value + "\")",
-                "Set PORT in .env to a port number, or remove it to use 8080");
-    }
-
-    // In milliseconds; anything but an integer from 1 to 2147483647 gives 5000.
-    private static long parseQuoteInterval(String value) {
-        try {
-            long interval = Long.parseLong(value);
-            if (interval >= 1 && interval <= Integer.MAX_VALUE) {
-                return interval;
-            }
-        } catch (NumberFormatException e) {
-            // falls back below
-        }
-        return 5000;
+        // The signal handler exits the process. Park here so main does not return first.
+        new CountDownLatch(1).await();
     }
 
     private static ProviderServer startProviderServer(
             Config config,
             BlockingNetworkClient<NetworkServiceGrpc.NetworkServiceBlockingStub> networkClient,
-            BlockingNetworkClient<PaymentIntentServiceGrpc.PaymentIntentServiceBlockingStub> paymentIntentClient) {
+            BlockingNetworkClient<PaymentIntentServiceGrpc.PaymentIntentServiceBlockingStub> paymentIntentClient)
+            throws IOException {
+        PaymentHandler paymentHandler = new PaymentHandler(networkClient.stub());
+        PaymentIntentPayInHandler payInHandler = new PaymentIntentPayInHandler(paymentIntentClient.stub());
+        PaymentIntentBeneficiaryHandler beneficiaryHandler = new PaymentIntentBeneficiaryHandler();
+
+        ProviderServer.Builder builder;
         try {
-            PaymentHandler paymentHandler = new PaymentHandler(networkClient.stub());
-            PaymentIntentPayInHandler payInHandler = new PaymentIntentPayInHandler(paymentIntentClient.stub());
-            PaymentIntentBeneficiaryHandler beneficiaryHandler = new PaymentIntentBeneficiaryHandler();
-
-            ProviderServer server = ProviderServer.create(config.port(), config.networkPublicKey())
-                    .withService(paymentHandler)
-                    // Phase 3A — Pay-In Provider role. Remove if you are only a beneficiary.
-                    .withService(payInHandler)
-                    // Phase 3B — Beneficiary Provider role. Remove if you are only a pay-in provider.
-                    .withService(beneficiaryHandler)
-                    // SDK safety-net log line for response-validation failures routes through this
-                    // SLF4J logger. Swap for your own logger to integrate with your logging stack.
-                    .withLogger(LoggerFactory.getLogger("provider"))
-                    .start();
-
-            log.info("Step 1.1: Provider server initialized on port {}", server.getPort());
-
-            return server;
-
-        } catch (IOException e) {
-            throw new RuntimeException("Failed to start provider server", e);
+            builder = ProviderServer.create(config.port(), config.networkPublicKey());
+        } catch (IllegalArgumentException e) {
+            EnvConfig.rethrowNetworkKey(e);
+            throw e;
         }
+
+        ProviderServer server = builder
+                .withService(paymentHandler)
+                // Phase 3A — Pay-In Provider role. Remove if you are only a beneficiary.
+                .withService(payInHandler)
+                // Phase 3B — Beneficiary Provider role. Remove if you are only a pay-in provider.
+                .withService(beneficiaryHandler)
+                // SDK safety-net log line for response-validation failures routes through this
+                // SLF4J logger. Swap for your own logger to integrate with your logging stack.
+                .withLogger(LoggerFactory.getLogger("provider"))
+                .start();
+
+        log.info("Step 1.1: Provider server initialized on port {}", server.getPort());
+        return server;
     }
 
-    private static void waitForShutdown(
+    private static void installSignals(
             ProviderServer server,
             ScheduledExecutorService scheduler,
             BlockingNetworkClient<NetworkServiceGrpc.NetworkServiceBlockingStub> networkClient,
             BlockingNetworkClient<PaymentIntentServiceGrpc.PaymentIntentServiceBlockingStub> paymentIntentClient) {
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-            log.info("Shutting down...");
-            scheduler.shutdown();
-            server.shutdown();
-            networkClient.shutdown();
-            paymentIntentClient.shutdown();
-            try {
-                scheduler.awaitTermination(10, TimeUnit.SECONDS);
-                server.awaitTermination(10, TimeUnit.SECONDS);
-                networkClient.awaitTermination(10, TimeUnit.SECONDS);
-                paymentIntentClient.awaitTermination(10, TimeUnit.SECONDS);
-            } catch (InterruptedException e) {
-                Thread.currentThread().interrupt();
-            }
-        }));
-
-        try {
-            server.awaitTermination();
-        } catch (InterruptedException e) {
-            Thread.currentThread().interrupt();
-        }
+        sun.misc.SignalHandler handler = signal ->
+                drainAndExit(server, scheduler, networkClient, paymentIntentClient);
+        Signal.handle(new Signal("INT"), handler);
+        Signal.handle(new Signal("TERM"), handler);
     }
 
-    /**
-     * Exception thrown when configuration is invalid or missing.
-     */
-    private static class ConfigurationException extends RuntimeException {
-        private final String helpMessage;
-
-        ConfigurationException(String message, String helpMessage) {
-            super(message);
-            this.helpMessage = helpMessage;
+    private static void drainAndExit(
+            ProviderServer server,
+            ScheduledExecutorService scheduler,
+            BlockingNetworkClient<NetworkServiceGrpc.NetworkServiceBlockingStub> networkClient,
+            BlockingNetworkClient<PaymentIntentServiceGrpc.PaymentIntentServiceBlockingStub> paymentIntentClient) {
+        if (!DRAINING.compareAndSet(false, true)) {
+            return;
         }
-
-        String getHelpMessage() {
-            return helpMessage;
+        try {
+            scheduler.shutdown();
+            // close() is the shutdown the server already owns: 5s graceful, then shutdownNow.
+            server.close();
+            networkClient.shutdown();
+            paymentIntentClient.shutdown();
+        } catch (Exception e) {
+            System.err.println("Provider failed to shut down: " + causeText(e));
         }
+        System.exit(0);
+    }
+
+    static void writeConfigError(EnvConfig.ConfigurationException error, PrintStream err) {
+        err.println("ERROR: " + error.getMessage());
+        err.println(error.getHelpMessage());
+    }
+
+    static void writeStartupError(Throwable error, PrintStream err) {
+        err.println("Provider failed to start: " + causeText(error));
+    }
+
+    private static String causeText(Throwable error) {
+        Throwable current = error;
+        while (current != null) {
+            String message = current.getMessage();
+            if (message != null && !message.isBlank()) {
+                return message.replace('\n', ' ').replace('\r', ' ').strip();
+            }
+            current = current.getCause();
+        }
+        return error.getClass().getSimpleName();
     }
 }

@@ -229,42 +229,50 @@ func TestNewServiceClient_ValidationErrors(t *testing.T) {
 		return stubClient{}
 	}
 
-	t.Run("a key that is not 64 hex characters is refused", func(t *testing.T) {
+	url := WithBaseURL("http://localhost")
+
+	t.Run("a missing base URL is refused, before the key", func(t *testing.T) {
 		_, err := NewServiceClient("0x1234", factory)
+		require.ErrorIs(t, err, ErrEmptyBaseURL)
+		require.EqualError(t, err, "base URL is not set")
+	})
+
+	t.Run("a key that is not 64 hex characters is refused", func(t *testing.T) {
+		_, err := NewServiceClient("0x1234", factory, url)
 		require.EqualError(t, err, "private key must be 32 bytes (64 hex characters)")
 	})
 
 	t.Run("a timeout of zero, or over 2147483647 ms, is refused", func(t *testing.T) {
 		for _, timeout := range []time.Duration{0, -time.Millisecond, 2147483648 * time.Millisecond} {
-			_, err := NewServiceClient("", factory, WithSignatureFunction(testSignFn(t)), WithTimeout(timeout))
+			_, err := NewServiceClient("", factory, WithSignatureFunction(testSignFn(t)), url, WithTimeout(timeout))
 			require.ErrorIs(t, err, ErrInvalidTimeOut)
 			require.EqualError(t, err, "timeout must be a positive duration of at most 2147483647 ms")
 
-			_, err = NewServiceClient("", factory, WithSignatureFunction(testSignFn(t)), WithStreamTimeout(timeout))
+			_, err = NewServiceClient("", factory, WithSignatureFunction(testSignFn(t)), url, WithStreamTimeout(timeout))
 			require.ErrorIs(t, err, ErrInvalidStreamTimeout)
 			require.EqualError(t, err, "stream timeout must be a positive duration of at most 2147483647 ms")
 		}
 	})
 
 	t.Run("a timeout of 2147483647 ms is accepted", func(t *testing.T) {
-		_, err := NewServiceClient("", factory, WithSignatureFunction(testSignFn(t)),
+		_, err := NewServiceClient("", factory, WithSignatureFunction(testSignFn(t)), url,
 			WithTimeout(2147483647*time.Millisecond), WithStreamTimeout(2147483647*time.Millisecond))
 		require.NoError(t, err)
 	})
 
 	t.Run("a nil signer is refused", func(t *testing.T) {
-		_, err := NewServiceClient("", factory, WithSignatureFunction(nil))
+		_, err := NewServiceClient("", factory, WithSignatureFunction(nil), url)
 		require.EqualError(t, err, "signer must not be null")
 	})
 
 	t.Run("a key and a signer together are refused", func(t *testing.T) {
 		_, err := NewServiceClient("6b30303de7b26bfb1222b317a52113357f8bb06de00160b4261a2fef9c8b9bd8", factory,
-			WithSignatureFunction(testSignFn(t)))
+			WithSignatureFunction(testSignFn(t)), url)
 		require.EqualError(t, err, "a private key and a signer must not both be given")
 	})
 
 	t.Run("empty key and no signFn", func(t *testing.T) {
-		_, err := NewServiceClient("", factory)
+		_, err := NewServiceClient("", factory, url)
 		require.ErrorIs(t, err, ErrEmptyPrivateKey)
 		require.EqualError(t, err, "private key must not be null or empty")
 	})

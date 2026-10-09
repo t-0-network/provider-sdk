@@ -31,6 +31,10 @@ public static class NetworkClient
     {
         if (options is null)
             throw new ArgumentNullException(null, Messages.ArgumentNull("options"));
+        // Before the signer, so a missing URL is reported even when the signer is missing too.
+        var baseUrl = options.BaseUrl;
+        if (string.IsNullOrEmpty(baseUrl))
+            throw new ArgumentException(Messages.BaseUrlNotSet);
         if (signer is null)
             throw new ArgumentNullException(null, Messages.SignerNull);
         if (newClient is null)
@@ -40,7 +44,7 @@ public static class NetworkClient
         GrpcChannel channel;
         try
         {
-            channel = GrpcChannel.ForAddress(options.BaseUrl, new GrpcChannelOptions
+            channel = GrpcChannel.ForAddress(baseUrl, new GrpcChannelOptions
             {
                 HttpClient = httpClient,
                 DisposeHttpClient = true
