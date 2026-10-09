@@ -17,6 +17,8 @@ runs:
 
     - uses: ./.github/actions/setup-go-helper
 
+    - uses: ./.github/actions/buf-generate
+
     - name: Install dependencies
       shell: bash
       working-directory: python

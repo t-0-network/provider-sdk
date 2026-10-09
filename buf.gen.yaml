@@ -41,6 +41,10 @@ managed:
 plugins:
   # Plugin versions are pinned. When upgrading a runtime SDK, bump the matching
   # plugin pin here in the same PR and run `buf generate`.
+  #
+  # Only go/api/ is committed. The Node, Python and C# outputs are generated in
+  # every checkout by scripts/buf-generate.sh, which the Git hooks and CI run
+  # (CONTRIBUTING.md, "Generated code").
 
   # --- Go ---
   - remote: buf.build/protocolbuffers/go:v1.36.11
@@ -59,10 +63,15 @@ plugins:
       - import_extension=js
 
   # --- Python ---
+  # include_imports also generates the buf.validate stubs: the generated code
+  # imports `buf.validate.validate_pb2`, and no PyPI package ships that module
+  # (docs/python/PITFALLS.md, "buf.validate Dependency").
   - remote: buf.build/protocolbuffers/python:v34.1
     out: python/sdk/src/t0_provider_sdk/api
+    include_imports: true
   - remote: buf.build/protocolbuffers/pyi:v34.1
     out: python/sdk/src/t0_provider_sdk/api
+    include_imports: true
   # connectrpc >= 0.11 rewrote protoc-gen-connectrpc in Python and no longer
   # publishes it as a BSR remote plugin (buf.build/connectrpc/python stops at
   # v0.10.1), so it runs from the Python workspace's dev dependencies. Its pin

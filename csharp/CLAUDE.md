@@ -22,6 +22,8 @@ cd csharp/sdk/T0.ProviderSdk && dotnet build           # Build SDK
 cd csharp/sdk/T0.ProviderSdk.Tests && dotnet test       # Run tests
 ```
 
+`Api/` is generated, not committed. Run `scripts/buf-generate.sh` from the repository root before building; the Git hooks run it after every pull ([CONTRIBUTING.md, "Generated code"](../CONTRIBUTING.md#generated-code)).
+
 ## Project Structure
 
 ```
@@ -31,7 +33,7 @@ csharp/
 │   ├── Network/                  # NetworkClient, SigningDelegatingHandler
 │   ├── Provider/                 # SignatureVerificationMiddleware
 │   ├── Common/                   # Headers, HexUtils
-│   ├── Api/                      # Generated protobuf + gRPC code (committed)
+│   ├── Api/                      # Generated protobuf + gRPC code (not committed; scripts/buf-generate.sh)
 │   ├── T0Config.cs               # Typed config the server is built from
 │   └── T0ProviderServer.cs       # Server builder (wraps ASP.NET Core)
 ├── sdk/T0.ProviderSdk.Tests/     # Unit tests (xUnit)

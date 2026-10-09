@@ -6,6 +6,12 @@ on:
     paths:
       - "cli/**"
       - "go/**"                       # the Go scaffold builds against this tree's SDK
+      - "proto/**"                    # the Node, Python and C# SDK packs generate from these
+      - "buf.yaml"
+      - "buf.lock"
+      - "buf.gen.yaml"
+      - ".github/actions/buf-generate/**"
+      - "scripts/buf-generate.sh"
       - ".github/tools/sumtool/**"
       - "node/starter/template/**"
       - "node/sdk/**"
@@ -27,6 +33,12 @@ on:
     paths:
       - "cli/**"
       - "go/**"                       # the Go scaffold builds against this tree's SDK
+      - "proto/**"                    # the Node, Python and C# SDK packs generate from these
+      - "buf.yaml"
+      - "buf.lock"
+      - "buf.gen.yaml"
+      - ".github/actions/buf-generate/**"
+      - "scripts/buf-generate.sh"
       - ".github/tools/sumtool/**"
       - "node/starter/template/**"
       - "node/sdk/**"
@@ -102,6 +114,8 @@ jobs:
       - name: Run tests
         working-directory: cli
         run: go test -v ./...
+
+      - uses: ./.github/actions/buf-generate
 
       - name: Pack Node SDK for scaffold test
         working-directory: node/sdk
