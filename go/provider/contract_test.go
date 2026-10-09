@@ -18,6 +18,7 @@ import (
 
 	"github.com/t-0-network/provider-sdk/go/common"
 	"github.com/t-0-network/provider-sdk/go/internal/contract"
+	"github.com/t-0-network/provider-sdk/go/kycsharing"
 	"github.com/t-0-network/provider-sdk/go/network"
 )
 
@@ -51,6 +52,7 @@ func TestContract_Constants(t *testing.T) {
 		"default_timeout_ms":         float64(network.DefaultTimeout.Milliseconds()),
 		"default_stream_timeout_ms":  float64(network.DefaultStreamTimeout.Milliseconds()),
 		"max_timeout_ms":             float64(network.MaxTimeout.Milliseconds()),
+		"kyc_file_chunk_max_bytes":   float64(kycsharing.KycFileChunkMaxBytes),
 	}
 	require.Equal(t, keys(v.Constants), keys(sdk), "every shared constant is defined")
 	for name, value := range v.Constants {
@@ -86,6 +88,7 @@ func TestContract_Messages(t *testing.T) {
 		"bidi_not_supported":            contract.BidiNotSupported,
 		"first_message_incomplete":      contract.FirstMessageIncomplete,
 		"first_message_read_failed":     contract.FirstMessageReadFailed,
+		"kyc_download_shape":            contract.KycDownloadShape,
 		"service_null":                  contract.ServiceNull,
 		"port_not_valid":                contract.PortNotValid,
 		"shutdown_context_done":         contract.ShutdownContextDone,

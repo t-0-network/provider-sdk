@@ -79,6 +79,15 @@ Every message an SDK raises itself is the same in every SDK, byte for byte. A me
 | health Check for an unknown service | NotFound | "unknown service '<name>'" |
 | a response that fails validation | Internal | "response validation failed: <field path>: <message>" |
 
+## KYC files
+
+`KycFileService` upload and download. The caller builds the client. The helper does not sign, retry, or check the file's size or type. How a helper cancels a partial upload is the abort rule in [`STREAMING.md`](STREAMING.md), not a separate rule.
+
+| # | Rule | Checked by |
+|---|---|---|
+| K1 | Upload sends metadata, then chunks of at most `kyc_file_chunk_max_bytes`, never an empty chunk, and returns `file_id`. No retry. `upload_id` is unchanged. The client checks no size. A server error is the call's error, including mid-upload. | KYC file cross tests 1 and 4 |
+| K2 | Download returns metadata and all bytes. A stream that is not one metadata followed by chunks cancels, fails with `kyc_download_shape` (`InvalidArgument`), and returns no bytes. A server error is the call's error. | KYC file cross tests 1, 2, and 3 |
+
 ## Approved exceptions
 
 Differences the owner approved. A new one needs the same approval, and is added here.
@@ -90,6 +99,7 @@ Differences the owner approved. A new one needs the same approval, and is added 
 - **Header-constant names.** The three signature-header constants have the same values everywhere, but Go and Python define them as standalone constants (`SignatureHeader`, `SIGNATURE_HEADER`) while Node, Java and C# put them on one holder (`Headers.Signature`).
 - **Deprecated, not removed:** C#'s `ISigner` stays as an obsolete compatibility path next to the `SignFn` delegate (S7): `Signer` implements it, the server registers it for dependency injection, and every factory has an obsolete `ISigner` overload. Java's `DigestSigner` stays and is now a functional interface.
 - **Request validation.** Only the Go and Node servers validate incoming requests; tracked in [#401](https://github.com/t-0-network/provider-sdk/issues/401).
+- **KYC download result.** Java returns `DownloadedFile` (the generated metadata and the bytes) because it has no tuples. Java also maps a checked `StatusException` to `StatusRuntimeException` with the same code and description, which is what the classic blocking stub throws.
 - **Removed in this standardization (approved breaks):** Node's `toleranceMs` option and `DEFAULT_TOLERANCE_MS`; the timestamp-window constants Java `Headers.TIMESTAMP_VALIDITY_WINDOW_MS`, C# `Headers.TimestampValidityWindow`, Node `REQUEST_VALIDITY_MILLIS` and Python `TIMESTAMP_TOLERANCE_MS` (the window is `timestamp_window_ms` in every SDK); C#'s `T0Config.FromEnvironment` and `QuotePublisherService`, which moved to the C# starter.
 
 ## Where each SDK implements the server rules

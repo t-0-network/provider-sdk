@@ -97,6 +97,32 @@ network_client = new_service_client(
 
 The streaming rules shared by every SDK: [`docs/STREAMING.md`](../docs/STREAMING.md).
 
+## KYC files
+
+`upload_file` and `download_file` (and the `_sync` pair) run a `KycFileService` stream on a client the caller already built. They are not re-exported from the package root. They do not sign or retry. `upload_id` is sent as given. Pass `timeout_ms` to set this call's deadline.
+
+```python
+from pathlib import Path
+
+from t0_provider_sdk.kyc_sharing import download_file, upload_file
+from t0_provider_sdk.network import new_service_client
+from tzero.v1.manage.kyc_sharing.file_connect import KycFileServiceClient
+from tzero.v1.manage.kyc_sharing.file_pb2 import DownloadFileRequest, UploadFileRequest
+
+files = new_service_client(kyb_key, KycFileServiceClient, base_url=KYB_URL)
+file_id = await upload_file(
+    files,
+    UploadFileRequest.Metadata(payout_provider_id=pid, client_id=cid, file_name="passport.pdf"),
+    Path("passport.pdf").read_bytes(),
+)
+metadata, data = await download_file(
+    files,
+    DownloadFileRequest(file_id=file_id, payout_requester_id=rid, payout_provider_id=pid, client_id=cid),
+)
+```
+
+A download holds up to twice the file in memory: the chunks and the joined bytes. A 50 MiB file can take 100 MiB. One transfer uses the stream timeout (5 minutes) unless the caller sets a longer `timeout_ms` on the call, or a longer `stream_timeout` on the client.
+
 ## Signer
 
 The first argument of `new_service_client()` and `new_service_client_sync()` is the signer: the hex private key, or a `SignFn`. A `SignFn` takes the 32-byte digest of a request and returns `(signature, public_key)`, for example by signing with a key held in a KMS; `new_signer_from_hex()` builds one from a hex key.

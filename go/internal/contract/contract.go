@@ -31,6 +31,7 @@ const (
 	BidiNotSupported       = "bidirectional streams are not supported"
 	FirstMessageIncomplete = "streaming request ends inside its first message"
 	FirstMessageReadFailed = "reading first request message: %w" // the read error
+	KycDownloadShape       = "download stream must be one metadata message followed by chunks"
 )
 
 // Server setup.

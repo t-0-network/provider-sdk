@@ -23,6 +23,9 @@ managed:
       path: tzero/v1/payment
       value: T0.ProviderSdk.Api.Tzero.V1.Payment
     - file_option: csharp_namespace
+      path: tzero/v1/manage/kyc_sharing
+      value: T0.ProviderSdk.Api.Tzero.V1.Manage.KycSharing
+    - file_option: csharp_namespace
       path: tzero/v1/payment_intent
       value: T0.ProviderSdk.Api.Tzero.V1.PaymentIntent
     - file_option: csharp_namespace

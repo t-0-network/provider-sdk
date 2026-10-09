@@ -274,6 +274,27 @@ await client.updateQuote(request, { timeoutMs: 120_000 }); // this call only
 
 The streaming rules shared by every SDK: [`docs/STREAMING.md`](../../docs/STREAMING.md).
 
+### KYC files
+
+The `tzero.v1.manage.kyc_sharing` messages and services, and the two file helpers, are exported under the `KycSharing` namespace.
+
+`KycSharing.uploadFile` and `KycSharing.downloadFile` run a `KycFileService` stream on a client the caller already built. They do not sign or retry. `uploadId` is sent as given.
+
+```ts
+import { createClient, KycSharing } from "@t-0/provider-sdk";
+import { readFile } from "node:fs/promises";
+
+const files = createClient(kybKey, kybUrl, KycSharing.KycFileService);
+const fileId = await KycSharing.uploadFile(files, {
+  payoutProviderId, clientId, fileName: "passport.pdf",
+}, await readFile("passport.pdf"));
+const { metadata, data } = await KycSharing.downloadFile(files, {
+  fileId, payoutRequesterId, payoutProviderId, clientId,
+});
+```
+
+A download holds up to twice the file in memory: the chunks and the joined bytes. A 50 MiB file can take 100 MiB. One transfer uses the stream timeout (5 minutes) unless the caller sets a longer `timeoutMs` on the call, or a longer `streamTimeoutMs` on the client.
+
 ## Development
 
 ```bash

@@ -29,6 +29,7 @@ internal static class Messages
     internal static string SigningFailed(string cause) => $"signing the request failed: {cause}";
     internal const string BidiNotSupported = "bidirectional streams are not supported";
     internal const string FirstMessageIncomplete = "streaming request ends inside its first message";
+    internal const string KycDownloadShape = "download stream must be one metadata message followed by chunks";
     internal const string ClientStreamAborted =
         "The request body of a streaming call cannot be sent: the request was aborted.";
     internal const string ClientStreamResend =
