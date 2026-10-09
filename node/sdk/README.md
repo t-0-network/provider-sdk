@@ -276,17 +276,19 @@ The streaming rules shared by every SDK: [`docs/STREAMING.md`](../../docs/STREAM
 
 ### KYC files
 
-`uploadFile` and `downloadFile` run a `KycFileService` stream on a client the caller already built. They do not sign or retry. `uploadId` is sent as given.
+The `tzero.v1.manage.kyc_sharing` messages and services, and the two file helpers, are exported under the `KycSharing` namespace.
+
+`KycSharing.uploadFile` and `KycSharing.downloadFile` run a `KycFileService` stream on a client the caller already built. They do not sign or retry. `uploadId` is sent as given.
 
 ```ts
-import { createClient, downloadFile, KycFileService, uploadFile } from "@t-0/provider-sdk";
+import { createClient, KycSharing } from "@t-0/provider-sdk";
 import { readFile } from "node:fs/promises";
 
-const files = createClient(kybKey, kybUrl, KycFileService);
-const fileId = await uploadFile(files, {
+const files = createClient(kybKey, kybUrl, KycSharing.KycFileService);
+const fileId = await KycSharing.uploadFile(files, {
   payoutProviderId, clientId, fileName: "passport.pdf",
 }, await readFile("passport.pdf"));
-const { metadata, data } = await downloadFile(files, {
+const { metadata, data } = await KycSharing.downloadFile(files, {
   fileId, payoutRequesterId, payoutProviderId, clientId,
 });
 ```

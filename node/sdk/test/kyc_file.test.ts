@@ -6,7 +6,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import type { AddressInfo } from 'node:net';
 import { Code, ConnectError } from '@connectrpc/connect';
-import { createClient, downloadFile, KycFileService, uploadFile } from '../src/index.js';
+import { createClient, KycSharing } from '../src/index.js';
 
 const GO_HELPER = path.resolve(import.meta.dirname, '..', '..', '..', 'cross_test', 'go_helper', 'go_helper');
 const CLIENT_PRIVATE_KEY = '0x6b30303de7b26bfb1222b317a52113357f8bb06de00160b4261a2fef9c8b9bd8';
@@ -79,9 +79,9 @@ describe('KYC file helpers: Node client → Go server', { skip: !goAvailable() ?
   const options = { timeoutMs: 30_000 };
 
   it('uploads 2.5 MiB and downloads the same bytes', async () => {
-    const client = createClient(CLIENT_PRIVATE_KEY, url, KycFileService);
+    const client = createClient(CLIENT_PRIVATE_KEY, url, KycSharing.KycFileService);
     const data = patterned(2621440);
-    const fileId = await uploadFile(client, {
+    const fileId = await KycSharing.uploadFile(client, {
       payoutProviderId: 7,
       clientId: 'applicant-1',
       fileName: 'passport.pdf',
@@ -89,7 +89,7 @@ describe('KYC file helpers: Node client → Go server', { skip: !goAvailable() ?
       uploadId: 'upload-1',
     }, data, options);
     assert.ok(fileId > 0n);
-    const downloaded = await downloadFile(client, {
+    const downloaded = await KycSharing.downloadFile(client, {
       fileId, payoutRequesterId: 3, payoutProviderId: 7, clientId: 'applicant-1',
     }, options);
     assert.equal(downloaded.metadata.contentType, 'application/pdf');
@@ -98,17 +98,17 @@ describe('KYC file helpers: Node client → Go server', { skip: !goAvailable() ?
   });
 
   it('download of an unknown id fails with not found', async () => {
-    const client = createClient(CLIENT_PRIVATE_KEY, url, KycFileService);
+    const client = createClient(CLIENT_PRIVATE_KEY, url, KycSharing.KycFileService);
     await assert.rejects(
-      downloadFile(client, { fileId: 42n, payoutRequesterId: 3, payoutProviderId: 7, clientId: 'applicant-1' }, options),
+      KycSharing.downloadFile(client, { fileId: 42n, payoutRequesterId: 3, payoutProviderId: 7, clientId: 'applicant-1' }, options),
       (err: unknown) => err instanceof ConnectError && err.code === Code.NotFound,
     );
   });
 
   it('a chunk before metadata fails with the shared shape message', async () => {
-    const client = createClient(CLIENT_PRIVATE_KEY, url, KycFileService);
+    const client = createClient(CLIENT_PRIVATE_KEY, url, KycSharing.KycFileService);
     await assert.rejects(
-      downloadFile(client, {
+      KycSharing.downloadFile(client, {
         fileId: 9223372036854775807n, payoutRequesterId: 3, payoutProviderId: 7, clientId: 'applicant-1',
       }, options),
       (err: unknown) => err instanceof ConnectError && err.code === Code.InvalidArgument && err.rawMessage === SHAPE,
@@ -116,9 +116,9 @@ describe('KYC file helpers: Node client → Go server', { skip: !goAvailable() ?
   });
 
   it('a denied upload fails with permission denied, not a write error', async () => {
-    const client = createClient(CLIENT_PRIVATE_KEY, url, KycFileService);
+    const client = createClient(CLIENT_PRIVATE_KEY, url, KycSharing.KycFileService);
     await assert.rejects(
-      uploadFile(client, {
+      KycSharing.uploadFile(client, {
         payoutProviderId: 7, clientId: 'kyc-file-permission-denied',
       }, patterned(8388608), options),
       (err: unknown) => err instanceof ConnectError && err.code === Code.PermissionDenied,

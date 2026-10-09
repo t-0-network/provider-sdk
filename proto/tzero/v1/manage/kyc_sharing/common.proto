@@ -34,7 +34,7 @@ extend google.protobuf.EnumValueOptions {
 }
 
 // Network catalogues + closed value sets for select-type standard fields.
-// Imported by form_setup.proto. A member's number is its stable identity: it is never reassigned
+// Imported by form.proto. A member's number is its stable identity: it is never reassigned
 // or reused, and it does not change when the member's tier changes. Tier is carried by
 // (network_mandatory) alone, so the Network Mandatory Fields are not necessarily the
 // lowest-numbered members. A form presents its standard fields in ascending number order.

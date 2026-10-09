@@ -315,9 +315,9 @@ type UploadFileRequest_Metadata struct {
 	// The Payout Requester's own reference for the end client (applicant),
 	// the same value as the applicant's client_id.
 	ClientId string `protobuf:"bytes,20,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
-	// Original uploaded filename, kept for provenance/display. The download
-	// filename is set at download time (generated, or passed by the client on the
-	// download request), not derived from this field. Optional — API clients may omit it.
+	// Original uploaded filename, kept for provenance/display. The caller chooses the
+	// download filename at download time; it is not derived from this field.
+	// Optional — API clients may omit it.
 	FileName *string `protobuf:"bytes,30,opt,name=file_name,json=fileName,proto3,oneof" json:"file_name,omitempty"`
 	// Advisory only; the effective content type is determined server-side.
 	DeclaredContentType *string `protobuf:"bytes,40,opt,name=declared_content_type,json=declaredContentType,proto3,oneof" json:"declared_content_type,omitempty"`

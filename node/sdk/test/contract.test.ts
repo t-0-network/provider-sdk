@@ -2,7 +2,7 @@ import { describe, it } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import path from 'node:path';
-import { DEFAULT_MAX_BODY_SIZE, KYC_FILE_CHUNK_MAX_BYTES, NetworkHeaders, TIMESTAMP_WINDOW_MS, createService, newSignerFromHex } from '../src/index.js';
+import { DEFAULT_MAX_BODY_SIZE, KycSharing, NetworkHeaders, TIMESTAMP_WINDOW_MS, createService, newSignerFromHex } from '../src/index.js';
 import type { PathItem } from '@bufbuild/protobuf/reflect';
 import * as messages from '../src/common/messages.js';
 import { fieldPathString } from '../src/common/field-path.js';
@@ -25,7 +25,7 @@ const sdk: Record<string, unknown> = {
   default_timeout_ms: DEFAULT_TIMEOUT_MS,
   default_stream_timeout_ms: DEFAULT_STREAM_TIMEOUT_MS,
   max_timeout_ms: MAX_TIMEOUT_MS,
-  kyc_file_chunk_max_bytes: KYC_FILE_CHUNK_MAX_BYTES,
+  kyc_file_chunk_max_bytes: KycSharing.KYC_FILE_CHUNK_MAX_BYTES,
 };
 
 describe('shared constants', () => {

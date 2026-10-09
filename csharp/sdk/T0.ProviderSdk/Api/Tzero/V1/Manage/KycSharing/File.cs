@@ -470,9 +470,9 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Manage.KycSharing {
 
         private string fileName_;
         /// <summary>
-        /// Original uploaded filename, kept for provenance/display. The download
-        /// filename is set at download time (generated, or passed by the client on the
-        /// download request), not derived from this field. Optional — API clients may omit it.
+        /// Original uploaded filename, kept for provenance/display. The caller chooses the
+        /// download filename at download time; it is not derived from this field.
+        /// Optional — API clients may omit it.
         /// </summary>
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
