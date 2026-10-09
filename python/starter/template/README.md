@@ -9,6 +9,8 @@ uv sync
 uv run python -m provider.main
 ```
 
+The process listens on all interfaces and serves HTTP/1.1 only. SIGINT (Ctrl+C) or SIGTERM stops it: it stops accepting calls, waits up to 15 seconds for calls already in progress, stops the quote tasks, and exits with status 0.
+
 Share the provider public key (printed by the initializer; also on the comment line under `# Your provider's public key` in `.env`) with the T-0 team so t-0 can verify the requests you sign.
 
 ## Generated Project Structure
@@ -53,6 +55,12 @@ my-provider/
 | `TZERO_ENDPOINT` | No | `https://api-sandbox.t-0.network` | T-0 Network API endpoint |
 | `PORT` | No | `8080` | Server port |
 | `QUOTE_PUBLISHING_INTERVAL` | No | `5000` | Quote publishing frequency in milliseconds |
+
+Whitespace around `PROVIDER_PRIVATE_KEY`, `NETWORK_PUBLIC_KEY`, `TZERO_ENDPOINT`, and `PORT` is trimmed. An empty `TZERO_ENDPOINT`, `PORT`, or `QUOTE_PUBLISHING_INTERVAL` counts as unset.
+
+`.env` is read from the working directory when that file exists. If it does not, the process says so on stderr and takes configuration from the environment. A variable set in the environment wins over the same variable in `.env`.
+
+python-dotenv reads `PYTHON_DOTENV_DISABLED`. Set it to `1`, `true`, `t`, `yes`, or `y` (any case) to skip `.env`.
 
 ## Getting Started
 

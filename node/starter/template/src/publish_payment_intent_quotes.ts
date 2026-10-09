@@ -1,11 +1,12 @@
 import {type Client, PaymentIntentNetwork, PaymentMethodType} from "@t-0/provider-sdk";
-import {decimalFromString} from "./lib";
+import {decimalFromString, type Publishing} from "./lib.js";
 import {randomUUID} from "node:crypto";
 import {timestampFromDate} from "@bufbuild/protobuf/wkt";
 
 export default async function publishPaymentIntentQuotes(
     paymentIntentClient: Client<typeof PaymentIntentNetwork.PaymentIntentService>,
     quotePublishingInterval: number,
+    publishing: Publishing,
 ): Promise<void> {
   // TODO: Step 3A.1 replace this with fetching pay-in quotes from your systems and publishing them into t-0 Network.
   // We recommend publishing at least once per 5 seconds, but not more than once per second.
@@ -36,6 +37,11 @@ export default async function publishPaymentIntentQuotes(
     console.log("payment intent quote published")
   }
 
-  await tick()
-  setInterval(tick, quotePublishingInterval);
+  if (publishing.shuttingDown) {
+    return;
+  }
+  await tick();
+  if (!publishing.shuttingDown) {
+    publishing.timers.push(setInterval(tick, quotePublishingInterval));
+  }
 }

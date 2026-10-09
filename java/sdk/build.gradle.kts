@@ -90,6 +90,12 @@ java {
     withSourcesJar()
 }
 
+// The build runs on JDK 21 because the starter template compiles for 21.
+// --release 17 keeps the SDK on the Java 17 API, not only on Java 17 bytecode.
+tasks.withType<JavaCompile>().configureEach {
+    options.release.set(17)
+}
+
 tasks.withType<Javadoc> {
     // Suppress warnings for generated protobuf code
     (options as StandardJavadocDocletOptions).addStringOption("Xdoclint:none", "-quiet")

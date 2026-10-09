@@ -1,5 +1,5 @@
 import {type Client, NetworkService, PaymentMethodType, QuoteType} from "@t-0/provider-sdk";
-import {decimalFromString, decimalToString} from "./lib";
+import {decimalFromString, decimalToString} from "./lib.js";
 
 export default async function getQuote(networkClient: Client<typeof NetworkService>) {
   const usdgbp = await networkClient.getQuote({

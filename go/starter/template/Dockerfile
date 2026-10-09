@@ -9,16 +9,18 @@ RUN go mod download
 
 COPY . .
 
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build \
+RUN CGO_ENABLED=0 GOOS=linux go build \
     -ldflags="-w -s" \
     -o /service \
-    ./cmd/main.go
+    ./cmd
 
 # Runtime stage
-FROM gcr.io/distroless/base:latest-amd64
+FROM gcr.io/distroless/base:nonroot
 
 COPY --from=builder /service /service
 
 WORKDIR /app
+
+EXPOSE 8080
 
 ENTRYPOINT ["/service"]

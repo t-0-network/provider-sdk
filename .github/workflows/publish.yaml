@@ -64,7 +64,7 @@ jobs:
       - name: Setup Java
         uses: actions/setup-java@v6
         with:
-          java-version: "17"
+          java-version: "21"
           distribution: "temurin"
 
       - name: Setup Gradle
@@ -296,7 +296,7 @@ jobs:
       - name: Setup Java
         uses: actions/setup-java@v6
         with:
-          java-version: "17"
+          java-version: "21"
           distribution: "temurin"
 
       - name: Setup Gradle

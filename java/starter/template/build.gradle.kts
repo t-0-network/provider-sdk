@@ -37,16 +37,21 @@ dependencies {
     // dotenv for loading .env files
     implementation("io.github.cdimascio:dotenv-java:3.2.0")
 
-    // Logging
+    // Logging. jul-to-slf4j matches the SLF4J version logback-classic 1.6.5 uses,
+    // so grpc-java's java.util.logging records follow the io.grpc level.
     implementation("ch.qos.logback:logback-classic:1.6.5")
+    implementation("org.slf4j:jul-to-slf4j:2.0.19")
 
     // javax.annotation for generated code
     compileOnly("javax.annotation:javax.annotation-api:1.3.2")
+
+    testImplementation("org.junit.jupiter:junit-jupiter:6.1.3")
+    testRuntimeOnly("org.junit.platform:junit-platform-launcher")
 }
 
 java {
-    sourceCompatibility = JavaVersion.VERSION_17
-    targetCompatibility = JavaVersion.VERSION_17
+    sourceCompatibility = JavaVersion.VERSION_21
+    targetCompatibility = JavaVersion.VERSION_21
 }
 
 application {
@@ -56,6 +61,10 @@ application {
 
 tasks.withType<JavaCompile> {
     options.encoding = "UTF-8"
+}
+
+tasks.withType<Test> {
+    useJUnitPlatform()
 }
 
 // Task to run the application

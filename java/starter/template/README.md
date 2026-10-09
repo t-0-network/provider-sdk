@@ -4,16 +4,22 @@ T-0 Network provider implementation generated from the official Java starter.
 
 ## Prerequisites
 
-- Java 17 or later
+- Java 21 or later
 - Gradle (or use the Gradle wrapper)
 
 ## Quick Start
 
-1. **Review `.env`** (written with a fresh keypair during init):
-   - `PROVIDER_PRIVATE_KEY` - Your provider's private key (generated during init)
-   - `TZERO_ENDPOINT` - API endpoint (default: sandbox)
-   - `PORT` - Port for your provider server (default: 8080)
-   - `QUOTE_PUBLISHING_INTERVAL` - Quote publishing frequency in milliseconds (default: 5000)
+1. **Review `.env`.** Init writes it with a fresh keypair. The process environment wins over the file. An empty value counts as unset.
+
+   | Variable | What it sets |
+   | --- | --- |
+   | `PROVIDER_PRIVATE_KEY` | Private key used to sign calls. Required. Init generates it. |
+   | `NETWORK_PUBLIC_KEY` | Network public key used to verify incoming calls. Required. Ask the t-0 team for it. |
+   | `TZERO_ENDPOINT` | API host. Default `https://api-sandbox.t-0.network`. |
+   | `PORT` | Port the gRPC server listens on. Default `8080`. |
+   | `QUOTE_PUBLISHING_INTERVAL` | Milliseconds between quote updates. Default `5000`. |
+
+   The provider serves gRPC.
 
 2. **Run the application:**
    ```bash
@@ -175,8 +181,7 @@ The JSON encoder picks up the SLF4J `KeyValuePair`s emitted by the SDK
 (`rpc_method`, `response_type`, `violations`, `sdk_version`) as top-level
 fields, so they are directly indexable by your log aggregator.
 
-If you do not configure SLF4J yourself, logback's default config writes plain
-text to stderr — same as the rest of the application.
+The shipped `src/main/resources/logback.xml` writes plain text to stderr. The `network.t0` logger is at INFO, and `io.grpc` is at WARN. grpc-java logs with `java.util.logging`, so `Main` installs `SLF4JBridgeHandler` and the `io.grpc` level in that file applies.
 
 ## Testing
 

@@ -1,5 +1,5 @@
 import {type Client, NetworkService, PaymentMethodType} from "@t-0/provider-sdk";
-import {decimalFromString, decimalToString} from "./lib";
+import {decimalFromString, decimalToString} from "./lib.js";
 import {randomUUID} from "node:crypto";
 
 export default async function submitPayment(networkClient: Client<typeof NetworkService>): Promise<void> {
