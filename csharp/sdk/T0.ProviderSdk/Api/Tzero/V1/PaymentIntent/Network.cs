@@ -100,95 +100,90 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
             "b21tb24uRGVjaW1hbEI3ukg0ugEuEhhmaXggbXVzdCBiZSBub24tbmVnYXRp",
             "dmUaEnRoaXMudW5zY2FsZWQgPj0gMMgBAVIDZml4EkEKCmV4cGlyZXNfYXQY",
             "KCABKAsyGi5nb29nbGUucHJvdG9idWYuVGltZXN0YW1wQga6SAPIAQFSCWV4",
-            "cGlyZXNBdCL4AwoZUGF5bWVudEludGVudFBheUluRGV0YWlscxJVCg5wYXlt",
+            "cGlyZXNBdCKSAgoZUGF5bWVudEludGVudFBheUluRGV0YWlscxJVCg5wYXlt",
             "ZW50X21ldGhvZBgKIAEoDjIiLnR6ZXJvLnYxLmNvbW1vbi5QYXltZW50TWV0",
             "aG9kVHlwZUIKukgHggEEEAEgAFINcGF5bWVudE1ldGhvZBIfCgtwcm92aWRl",
             "cl9pZBgUIAEoDVIKcHJvdmlkZXJJZBJQCg9wYXltZW50X2RldGFpbHMYHiAB",
             "KAsyHy50emVyby52MS5jb21tb24uUGF5bWVudERldGFpbHNCBrpIA8gBAVIO",
-            "cGF5bWVudERldGFpbHMSigEKD2luZGljYXRpdmVfcmF0ZRgoIAEoCzIYLnR6",
-            "ZXJvLnYxLmNvbW1vbi5EZWNpbWFsQke6SES6AT4SKWluZGljYXRpdmVfcmF0",
-            "ZSBtdXN0IGJlIGdyZWF0ZXIgdGhhbiB6ZXJvGhF0aGlzLnVuc2NhbGVkID4g",
-            "MMgBAVIOaW5kaWNhdGl2ZVJhdGUSgwEKDmluZGljYXRpdmVfZml4GDIgASgL",
-            "MhgudHplcm8udjEuY29tbW9uLkRlY2ltYWxCQrpIP7oBORIjaW5kaWNhdGl2",
-            "ZV9maXggbXVzdCBiZSBub24tbmVnYXRpdmUaEnRoaXMudW5zY2FsZWQgPj0g",
-            "MMgBAVINaW5kaWNhdGl2ZUZpeCKwBAoaQ3JlYXRlUGF5bWVudEludGVudFJl",
-            "cXVlc3QSOQoSZXh0ZXJuYWxfcmVmZXJlbmNlGAogASgJQgq6SAdyBRABGIAC",
-            "UhFleHRlcm5hbFJlZmVyZW5jZRIwCghjdXJyZW5jeRgUIAEoCUIUukgRcg8y",
-            "Cl5bQS1aXXszfSSYAQNSCGN1cnJlbmN5EnAKBmFtb3VudBgeIAEoCzIYLnR6",
-            "ZXJvLnYxLmNvbW1vbi5EZWNpbWFsQj66SDu6ATUSIGFtb3VudCBtdXN0IGJl",
-            "IGdyZWF0ZXIgdGhhbiB6ZXJvGhF0aGlzLnVuc2NhbGVkID4gMMgBAVIGYW1v",
-            "dW50EnQKEHRyYXZlbF9ydWxlX2RhdGEYKCABKAsyQi50emVyby52MS5wYXlt",
-            "ZW50X2ludGVudC5DcmVhdGVQYXltZW50SW50ZW50UmVxdWVzdC5UcmF2ZWxS",
-            "dWxlRGF0YUIGukgDyAEBUg50cmF2ZWxSdWxlRGF0YRI3ChNwYXlfaW5fcHJv",
-            "dmlkZXJfaWRzGDIgAygNQgi6SAWSAQIQZFIQcGF5SW5Qcm92aWRlcklkcxqD",
-            "AQoOVHJhdmVsUnVsZURhdGESOwoLYmVuZWZpY2lhcnkYCiADKAsyDy5pdm1z",
-            "MTAxLlBlcnNvbkIIukgFkgECCAFSC2JlbmVmaWNpYXJ5EioKBXBheWVyGCgg",
-            "ASgLMg8uaXZtczEwMS5QZXJzb25IAFIFcGF5ZXKIAQFCCAoGX3BheWVyItsE",
-            "ChtDcmVhdGVQYXltZW50SW50ZW50UmVzcG9uc2USWAoHc3VjY2VzcxgKIAEo",
-            "CzI8LnR6ZXJvLnYxLnBheW1lbnRfaW50ZW50LkNyZWF0ZVBheW1lbnRJbnRl",
-            "bnRSZXNwb25zZS5TdWNjZXNzSABSB3N1Y2Nlc3MSWAoHZmFpbHVyZRgUIAEo",
-            "CzI8LnR6ZXJvLnYxLnBheW1lbnRfaW50ZW50LkNyZWF0ZVBheW1lbnRJbnRl",
-            "bnRSZXNwb25zZS5GYWlsdXJlSABSB2ZhaWx1cmUamAEKB1N1Y2Nlc3MSMwoR",
-            "cGF5bWVudF9pbnRlbnRfaWQYCiABKARCB7pIBDICIABSD3BheW1lbnRJbnRl",
-            "bnRJZBJYCg5wYXlfaW5fZGV0YWlscxgUIAMoCzIyLnR6ZXJvLnYxLnBheW1l",
-            "bnRfaW50ZW50LlBheW1lbnRJbnRlbnRQYXlJbkRldGFpbHNSDHBheUluRGV0",
-            "YWlscxrbAQoHRmFpbHVyZRJlCgZyZWFzb24YCiABKA4yQy50emVyby52MS5w",
-            "YXltZW50X2ludGVudC5DcmVhdGVQYXltZW50SW50ZW50UmVzcG9uc2UuRmFp",
-            "bHVyZS5SZWFzb25CCLpIBYIBAiAAUgZyZWFzb24iaQoGUmVhc29uEh4KGkZB",
-            "SUxVUkVfUkVBU09OX1VOU1BFQ0lGSUVEEAASIgoeRkFJTFVSRV9SRUFTT05f",
-            "UVVPVEVfTk9UX0ZPVU5EEAoSGwoXRkFJTFVSRV9SRUFTT05fUkVKRUNURUQQ",
-            "FEIPCgZyZXN1bHQSBbpIAggBIqYDChtDb25maXJtRnVuZHNSZWNlaXZlZFJl",
-            "cXVlc3QSMwoRcGF5bWVudF9pbnRlbnRfaWQYCiABKARCB7pIBDICIABSD3Bh",
-            "eW1lbnRJbnRlbnRJZBI2ChFjb25maXJtYXRpb25fY29kZRgUIAEoCUIJukgG",
-            "cgQQARhAUhBjb25maXJtYXRpb25Db2RlElUKDnBheW1lbnRfbWV0aG9kGB4g",
-            "ASgOMiIudHplcm8udjEuY29tbW9uLlBheW1lbnRNZXRob2RUeXBlQgq6SAeC",
-            "AQQQASAAUg1wYXltZW50TWV0aG9kEj8KFXRyYW5zYWN0aW9uX3JlZmVyZW5j",
-            "ZRgoIAEoCUIKukgHcgUQARiAAlIUdHJhbnNhY3Rpb25SZWZlcmVuY2USWgoj",
-            "b3JpZ2luYXRvcl9wcm92aWRlcl9sZWdhbF9lbnRpdHlfaWQYMiABKA1CB7pI",
-            "BCoCIABIAFIfb3JpZ2luYXRvclByb3ZpZGVyTGVnYWxFbnRpdHlJZIgBAUIm",
-            "CiRfb3JpZ2luYXRvcl9wcm92aWRlcl9sZWdhbF9lbnRpdHlfaWQi3wcKHENv",
-            "bmZpcm1GdW5kc1JlY2VpdmVkUmVzcG9uc2USVgoGYWNjZXB0GAogASgLMjwu",
-            "dHplcm8udjEucGF5bWVudF9pbnRlbnQuQ29uZmlybUZ1bmRzUmVjZWl2ZWRS",
-            "ZXNwb25zZS5BY2NlcHRIAFIGYWNjZXB0ElYKBnJlamVjdBgUIAEoCzI8LnR6",
-            "ZXJvLnYxLnBheW1lbnRfaW50ZW50LkNvbmZpcm1GdW5kc1JlY2VpdmVkUmVz",
-            "cG9uc2UuUmVqZWN0SABSBnJlamVjdBrsAgoGQWNjZXB0EpABChFzZXR0bGVt",
-            "ZW50X2Ftb3VudBgKIAEoCzIYLnR6ZXJvLnYxLmNvbW1vbi5EZWNpbWFsQkm6",
-            "SEa6AUASK3NldHRsZW1lbnRfYW1vdW50IG11c3QgYmUgZ3JlYXRlciB0aGFu",
-            "IHplcm8aEXRoaXMudW5zY2FsZWQgPiAwyAEBUhBzZXR0bGVtZW50QW1vdW50",
-            "EmoKBHJhdGUYFCABKAsyGC50emVyby52MS5jb21tb24uRGVjaW1hbEI8ukg5",
-            "ugEzEh5yYXRlIG11c3QgYmUgZ3JlYXRlciB0aGFuIHplcm8aEXRoaXMudW5z",
-            "Y2FsZWQgPiAwyAEBUgRyYXRlEmMKA2ZpeBgeIAEoCzIYLnR6ZXJvLnYxLmNv",
-            "bW1vbi5EZWNpbWFsQje6SDS6AS4SGGZpeCBtdXN0IGJlIG5vbi1uZWdhdGl2",
-            "ZRoSdGhpcy51bnNjYWxlZCA+PSAwyAEBUgNmaXgajgMKBlJlamVjdBJlCgZy",
-            "ZWFzb24YCiABKA4yQy50emVyby52MS5wYXltZW50X2ludGVudC5Db25maXJt",
-            "RnVuZHNSZWNlaXZlZFJlc3BvbnNlLlJlamVjdC5SZWFzb25CCLpIBYIBAiAA",
-            "UgZyZWFzb24inAIKBlJlYXNvbhIdChlSRUpFQ1RfUkVBU09OX1VOU1BFQ0lG",
-            "SUVEEAASLAooUkVKRUNUX1JFQVNPTl9DT05GSVJNQVRJT05fQ09ERV9NSVNN",
-            "QVRDSBAKEiEKHVJFSkVDVF9SRUFTT05fTk9fQUNUSVZFX1FVT1RFEBQSJgoi",
-            "UkVKRUNUX1JFQVNPTl9QUk9WSURFUl9OT1RfQUxMT1dFRBAeEiIKHlJFSkVD",
-            "VF9SRUFTT05fQU1PVU5UX1RPT19TTUFMTBAoEiAKHFJFSkVDVF9SRUFTT05f",
-            "Tk9fVkFMSURfT0ZGRVIQMhI0CjBSRUpFQ1RfUkVBU09OX1RSQU5TQUNUSU9O",
-            "X1JFRkVSRU5DRV9BTFJFQURZX1VTRUQQPEIPCgZyZXN1bHQSBbpIAggBMucE",
-            "ChRQYXltZW50SW50ZW50U2VydmljZRJtCgtVcGRhdGVRdW90ZRIrLnR6ZXJv",
-            "LnYxLnBheW1lbnRfaW50ZW50LlVwZGF0ZVF1b3RlUmVxdWVzdBosLnR6ZXJv",
-            "LnYxLnBheW1lbnRfaW50ZW50LlVwZGF0ZVF1b3RlUmVzcG9uc2UiA5ACAhJk",
-            "CghHZXRRdW90ZRIoLnR6ZXJvLnYxLnBheW1lbnRfaW50ZW50LkdldFF1b3Rl",
-            "UmVxdWVzdBopLnR6ZXJvLnYxLnBheW1lbnRfaW50ZW50LkdldFF1b3RlUmVz",
-            "cG9uc2UiA5ACAhJnCglHZXRRdW90ZXMSKS50emVyby52MS5wYXltZW50X2lu",
-            "dGVudC5HZXRRdW90ZXNSZXF1ZXN0GioudHplcm8udjEucGF5bWVudF9pbnRl",
-            "bnQuR2V0UXVvdGVzUmVzcG9uc2UiA5ACARKFAQoTQ3JlYXRlUGF5bWVudElu",
-            "dGVudBIzLnR6ZXJvLnYxLnBheW1lbnRfaW50ZW50LkNyZWF0ZVBheW1lbnRJ",
-            "bnRlbnRSZXF1ZXN0GjQudHplcm8udjEucGF5bWVudF9pbnRlbnQuQ3JlYXRl",
-            "UGF5bWVudEludGVudFJlc3BvbnNlIgOQAgISiAEKFENvbmZpcm1GdW5kc1Jl",
-            "Y2VpdmVkEjQudHplcm8udjEucGF5bWVudF9pbnRlbnQuQ29uZmlybUZ1bmRz",
-            "UmVjZWl2ZWRSZXF1ZXN0GjUudHplcm8udjEucGF5bWVudF9pbnRlbnQuQ29u",
-            "ZmlybUZ1bmRzUmVjZWl2ZWRSZXNwb25zZSIDkAICQvwBChtjb20udHplcm8u",
-            "djEucGF5bWVudF9pbnRlbnRCDE5ldHdvcmtQcm90b1ABWkJnaXRodWIuY29t",
-            "L3QtMC1uZXR3b3JrL3Byb3ZpZGVyLXNkay9nby9hcGkvdHplcm8vdjEvcGF5",
-            "bWVudF9pbnRlbnSiAgNUVlCqAilUMC5Qcm92aWRlclNkay5BcGkuVHplcm8u",
-            "VjEuUGF5bWVudEludGVudMoCFlR6ZXJvXFYxXFBheW1lbnRJbnRlbnTiAiJU",
-            "emVyb1xWMVxQYXltZW50SW50ZW50XEdQQk1ldGFkYXRh6gIYVHplcm86OlYx",
-            "OjpQYXltZW50SW50ZW50YgZwcm90bzM="));
+            "cGF5bWVudERldGFpbHNKBAgoEClKBAgyEDNSD2luZGljYXRpdmVfcmF0ZVIO",
+            "aW5kaWNhdGl2ZV9maXgisAQKGkNyZWF0ZVBheW1lbnRJbnRlbnRSZXF1ZXN0",
+            "EjkKEmV4dGVybmFsX3JlZmVyZW5jZRgKIAEoCUIKukgHcgUQARiAAlIRZXh0",
+            "ZXJuYWxSZWZlcmVuY2USMAoIY3VycmVuY3kYFCABKAlCFLpIEXIPMgpeW0Et",
+            "Wl17M30kmAEDUghjdXJyZW5jeRJwCgZhbW91bnQYHiABKAsyGC50emVyby52",
+            "MS5jb21tb24uRGVjaW1hbEI+ukg7ugE1EiBhbW91bnQgbXVzdCBiZSBncmVh",
+            "dGVyIHRoYW4gemVybxoRdGhpcy51bnNjYWxlZCA+IDDIAQFSBmFtb3VudBJ0",
+            "ChB0cmF2ZWxfcnVsZV9kYXRhGCggASgLMkIudHplcm8udjEucGF5bWVudF9p",
+            "bnRlbnQuQ3JlYXRlUGF5bWVudEludGVudFJlcXVlc3QuVHJhdmVsUnVsZURh",
+            "dGFCBrpIA8gBAVIOdHJhdmVsUnVsZURhdGESNwoTcGF5X2luX3Byb3ZpZGVy",
+            "X2lkcxgyIAMoDUIIukgFkgECEGRSEHBheUluUHJvdmlkZXJJZHMagwEKDlRy",
+            "YXZlbFJ1bGVEYXRhEjsKC2JlbmVmaWNpYXJ5GAogAygLMg8uaXZtczEwMS5Q",
+            "ZXJzb25CCLpIBZIBAggBUgtiZW5lZmljaWFyeRIqCgVwYXllchgoIAEoCzIP",
+            "Lml2bXMxMDEuUGVyc29uSABSBXBheWVyiAEBQggKBl9wYXllciLbBAobQ3Jl",
+            "YXRlUGF5bWVudEludGVudFJlc3BvbnNlElgKB3N1Y2Nlc3MYCiABKAsyPC50",
+            "emVyby52MS5wYXltZW50X2ludGVudC5DcmVhdGVQYXltZW50SW50ZW50UmVz",
+            "cG9uc2UuU3VjY2Vzc0gAUgdzdWNjZXNzElgKB2ZhaWx1cmUYFCABKAsyPC50",
+            "emVyby52MS5wYXltZW50X2ludGVudC5DcmVhdGVQYXltZW50SW50ZW50UmVz",
+            "cG9uc2UuRmFpbHVyZUgAUgdmYWlsdXJlGpgBCgdTdWNjZXNzEjMKEXBheW1l",
+            "bnRfaW50ZW50X2lkGAogASgEQge6SAQyAiAAUg9wYXltZW50SW50ZW50SWQS",
+            "WAoOcGF5X2luX2RldGFpbHMYFCADKAsyMi50emVyby52MS5wYXltZW50X2lu",
+            "dGVudC5QYXltZW50SW50ZW50UGF5SW5EZXRhaWxzUgxwYXlJbkRldGFpbHMa",
+            "2wEKB0ZhaWx1cmUSZQoGcmVhc29uGAogASgOMkMudHplcm8udjEucGF5bWVu",
+            "dF9pbnRlbnQuQ3JlYXRlUGF5bWVudEludGVudFJlc3BvbnNlLkZhaWx1cmUu",
+            "UmVhc29uQgi6SAWCAQIgAFIGcmVhc29uImkKBlJlYXNvbhIeChpGQUlMVVJF",
+            "X1JFQVNPTl9VTlNQRUNJRklFRBAAEiIKHkZBSUxVUkVfUkVBU09OX1FVT1RF",
+            "X05PVF9GT1VORBAKEhsKF0ZBSUxVUkVfUkVBU09OX1JFSkVDVEVEEBRCDwoG",
+            "cmVzdWx0EgW6SAIIASKmAwobQ29uZmlybUZ1bmRzUmVjZWl2ZWRSZXF1ZXN0",
+            "EjMKEXBheW1lbnRfaW50ZW50X2lkGAogASgEQge6SAQyAiAAUg9wYXltZW50",
+            "SW50ZW50SWQSNgoRY29uZmlybWF0aW9uX2NvZGUYFCABKAlCCbpIBnIEEAEY",
+            "QFIQY29uZmlybWF0aW9uQ29kZRJVCg5wYXltZW50X21ldGhvZBgeIAEoDjIi",
+            "LnR6ZXJvLnYxLmNvbW1vbi5QYXltZW50TWV0aG9kVHlwZUIKukgHggEEEAEg",
+            "AFINcGF5bWVudE1ldGhvZBI/ChV0cmFuc2FjdGlvbl9yZWZlcmVuY2UYKCAB",
+            "KAlCCrpIB3IFEAEYgAJSFHRyYW5zYWN0aW9uUmVmZXJlbmNlEloKI29yaWdp",
+            "bmF0b3JfcHJvdmlkZXJfbGVnYWxfZW50aXR5X2lkGDIgASgNQge6SAQqAiAA",
+            "SABSH29yaWdpbmF0b3JQcm92aWRlckxlZ2FsRW50aXR5SWSIAQFCJgokX29y",
+            "aWdpbmF0b3JfcHJvdmlkZXJfbGVnYWxfZW50aXR5X2lkIt8HChxDb25maXJt",
+            "RnVuZHNSZWNlaXZlZFJlc3BvbnNlElYKBmFjY2VwdBgKIAEoCzI8LnR6ZXJv",
+            "LnYxLnBheW1lbnRfaW50ZW50LkNvbmZpcm1GdW5kc1JlY2VpdmVkUmVzcG9u",
+            "c2UuQWNjZXB0SABSBmFjY2VwdBJWCgZyZWplY3QYFCABKAsyPC50emVyby52",
+            "MS5wYXltZW50X2ludGVudC5Db25maXJtRnVuZHNSZWNlaXZlZFJlc3BvbnNl",
+            "LlJlamVjdEgAUgZyZWplY3Qa7AIKBkFjY2VwdBKQAQoRc2V0dGxlbWVudF9h",
+            "bW91bnQYCiABKAsyGC50emVyby52MS5jb21tb24uRGVjaW1hbEJJukhGugFA",
+            "EitzZXR0bGVtZW50X2Ftb3VudCBtdXN0IGJlIGdyZWF0ZXIgdGhhbiB6ZXJv",
+            "GhF0aGlzLnVuc2NhbGVkID4gMMgBAVIQc2V0dGxlbWVudEFtb3VudBJqCgRy",
+            "YXRlGBQgASgLMhgudHplcm8udjEuY29tbW9uLkRlY2ltYWxCPLpIOboBMxIe",
+            "cmF0ZSBtdXN0IGJlIGdyZWF0ZXIgdGhhbiB6ZXJvGhF0aGlzLnVuc2NhbGVk",
+            "ID4gMMgBAVIEcmF0ZRJjCgNmaXgYHiABKAsyGC50emVyby52MS5jb21tb24u",
+            "RGVjaW1hbEI3ukg0ugEuEhhmaXggbXVzdCBiZSBub24tbmVnYXRpdmUaEnRo",
+            "aXMudW5zY2FsZWQgPj0gMMgBAVIDZml4Go4DCgZSZWplY3QSZQoGcmVhc29u",
+            "GAogASgOMkMudHplcm8udjEucGF5bWVudF9pbnRlbnQuQ29uZmlybUZ1bmRz",
+            "UmVjZWl2ZWRSZXNwb25zZS5SZWplY3QuUmVhc29uQgi6SAWCAQIgAFIGcmVh",
+            "c29uIpwCCgZSZWFzb24SHQoZUkVKRUNUX1JFQVNPTl9VTlNQRUNJRklFRBAA",
+            "EiwKKFJFSkVDVF9SRUFTT05fQ09ORklSTUFUSU9OX0NPREVfTUlTTUFUQ0gQ",
+            "ChIhCh1SRUpFQ1RfUkVBU09OX05PX0FDVElWRV9RVU9URRAUEiYKIlJFSkVD",
+            "VF9SRUFTT05fUFJPVklERVJfTk9UX0FMTE9XRUQQHhIiCh5SRUpFQ1RfUkVB",
+            "U09OX0FNT1VOVF9UT09fU01BTEwQKBIgChxSRUpFQ1RfUkVBU09OX05PX1ZB",
+            "TElEX09GRkVSEDISNAowUkVKRUNUX1JFQVNPTl9UUkFOU0FDVElPTl9SRUZF",
+            "UkVOQ0VfQUxSRUFEWV9VU0VEEDxCDwoGcmVzdWx0EgW6SAIIATLnBAoUUGF5",
+            "bWVudEludGVudFNlcnZpY2USbQoLVXBkYXRlUXVvdGUSKy50emVyby52MS5w",
+            "YXltZW50X2ludGVudC5VcGRhdGVRdW90ZVJlcXVlc3QaLC50emVyby52MS5w",
+            "YXltZW50X2ludGVudC5VcGRhdGVRdW90ZVJlc3BvbnNlIgOQAgISZAoIR2V0",
+            "UXVvdGUSKC50emVyby52MS5wYXltZW50X2ludGVudC5HZXRRdW90ZVJlcXVl",
+            "c3QaKS50emVyby52MS5wYXltZW50X2ludGVudC5HZXRRdW90ZVJlc3BvbnNl",
+            "IgOQAgISZwoJR2V0UXVvdGVzEikudHplcm8udjEucGF5bWVudF9pbnRlbnQu",
+            "R2V0UXVvdGVzUmVxdWVzdBoqLnR6ZXJvLnYxLnBheW1lbnRfaW50ZW50Lkdl",
+            "dFF1b3Rlc1Jlc3BvbnNlIgOQAgEShQEKE0NyZWF0ZVBheW1lbnRJbnRlbnQS",
+            "My50emVyby52MS5wYXltZW50X2ludGVudC5DcmVhdGVQYXltZW50SW50ZW50",
+            "UmVxdWVzdBo0LnR6ZXJvLnYxLnBheW1lbnRfaW50ZW50LkNyZWF0ZVBheW1l",
+            "bnRJbnRlbnRSZXNwb25zZSIDkAICEogBChRDb25maXJtRnVuZHNSZWNlaXZl",
+            "ZBI0LnR6ZXJvLnYxLnBheW1lbnRfaW50ZW50LkNvbmZpcm1GdW5kc1JlY2Vp",
+            "dmVkUmVxdWVzdBo1LnR6ZXJvLnYxLnBheW1lbnRfaW50ZW50LkNvbmZpcm1G",
+            "dW5kc1JlY2VpdmVkUmVzcG9uc2UiA5ACAkL8AQobY29tLnR6ZXJvLnYxLnBh",
+            "eW1lbnRfaW50ZW50QgxOZXR3b3JrUHJvdG9QAVpCZ2l0aHViLmNvbS90LTAt",
+            "bmV0d29yay9wcm92aWRlci1zZGsvZ28vYXBpL3R6ZXJvL3YxL3BheW1lbnRf",
+            "aW50ZW50ogIDVFZQqgIpVDAuUHJvdmlkZXJTZGsuQXBpLlR6ZXJvLlYxLlBh",
+            "eW1lbnRJbnRlbnTKAhZUemVyb1xWMVxQYXltZW50SW50ZW504gIiVHplcm9c",
+            "VjFcUGF5bWVudEludGVudFxHUEJNZXRhZGF0YeoCGFR6ZXJvOjpWMTo6UGF5",
+            "bWVudEludGVudGIGcHJvdG8z"));
       descriptor = pbr::FileDescriptor.FromGeneratedCode(descriptorData,
           new pbr::FileDescriptor[] { global::Buf.Validate.ValidateReflection.Descriptor, global::Google.Protobuf.WellKnownTypes.TimestampReflection.Descriptor, global::T0.ProviderSdk.Api.Ivms101.V1.Ivms.Ivms101Reflection.Descriptor, global::T0.ProviderSdk.Api.Tzero.V1.Common.CommonReflection.Descriptor, global::T0.ProviderSdk.Api.Tzero.V1.Common.PaymentMethodReflection.Descriptor, },
           new pbr::GeneratedClrTypeInfo(null, null, new pbr::GeneratedClrTypeInfo[] {
@@ -199,7 +194,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
             new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.GetQuoteResponse.Types.QuoteNotFound), global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.GetQuoteResponse.Types.QuoteNotFound.Parser, null, null, null, null, null)}),
             new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.GetQuotesRequest), global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.GetQuotesRequest.Parser, null, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.GetQuotesResponse), global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.GetQuotesResponse.Parser, new[]{ "Quotes" }, null, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.GetQuotesResponse.Types.CurrencyQuote), global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.GetQuotesResponse.Types.CurrencyQuote.Parser, new[]{ "Currency", "PaymentMethodQuotes" }, null, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.GetQuotesResponse.Types.CurrencyQuote.Types.PaymentMethodQuote), global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.GetQuotesResponse.Types.CurrencyQuote.Types.PaymentMethodQuote.Parser, new[]{ "PaymentMethod", "ProviderQuotes" }, null, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.GetQuotesResponse.Types.CurrencyQuote.Types.PaymentMethodQuote.Types.ProviderQuote), global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.GetQuotesResponse.Types.CurrencyQuote.Types.PaymentMethodQuote.Types.ProviderQuote.Parser, new[]{ "ProviderId", "Quotes" }, null, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.GetQuotesResponse.Types.CurrencyQuote.Types.PaymentMethodQuote.Types.ProviderQuote.Types.Quote), global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.GetQuotesResponse.Types.CurrencyQuote.Types.PaymentMethodQuote.Types.ProviderQuote.Types.Quote.Parser, new[]{ "MaxAmount", "Rate", "Fix", "ExpiresAt" }, null, null, null, null)})})})}),
-            new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.PaymentIntentPayInDetails), global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.PaymentIntentPayInDetails.Parser, new[]{ "PaymentMethod", "ProviderId", "PaymentDetails", "IndicativeRate", "IndicativeFix" }, null, null, null, null),
+            new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.PaymentIntentPayInDetails), global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.PaymentIntentPayInDetails.Parser, new[]{ "PaymentMethod", "ProviderId", "PaymentDetails" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.CreatePaymentIntentRequest), global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.CreatePaymentIntentRequest.Parser, new[]{ "ExternalReference", "Currency", "Amount", "TravelRuleData", "PayInProviderIds" }, null, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.CreatePaymentIntentRequest.Types.TravelRuleData), global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.CreatePaymentIntentRequest.Types.TravelRuleData.Parser, new[]{ "Beneficiary", "Payer" }, new[]{ "Payer" }, null, null, null)}),
             new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.CreatePaymentIntentResponse), global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.CreatePaymentIntentResponse.Parser, new[]{ "Success", "Failure" }, new[]{ "Result" }, null, null, new pbr::GeneratedClrTypeInfo[] { new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.CreatePaymentIntentResponse.Types.Success), global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.CreatePaymentIntentResponse.Types.Success.Parser, new[]{ "PaymentIntentId", "PayInDetails" }, null, null, null, null),
             new pbr::GeneratedClrTypeInfo(typeof(global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.CreatePaymentIntentResponse.Types.Failure), global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.CreatePaymentIntentResponse.Types.Failure.Parser, new[]{ "Reason" }, null, new[]{ typeof(global::T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.CreatePaymentIntentResponse.Types.Failure.Types.Reason) }, null, null)}),
@@ -4102,6 +4097,10 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
   /// <summary>
   ///*
   /// Represents pay-in details for a payment intent option.
+  ///
+  /// Carries no rate: for the current indicative rate and fix of an option, call
+  /// GetQuote with the intent's currency and amount and pay_in_provider_ids set to
+  /// its provider_id, and match the returned quote on payment_method.
   /// </summary>
   [global::System.Diagnostics.DebuggerDisplayAttribute("{ToString(),nq}")]
   public sealed partial class PaymentIntentPayInDetails : pb::IMessage<PaymentIntentPayInDetails>
@@ -4141,8 +4140,6 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
       paymentMethod_ = other.paymentMethod_;
       providerId_ = other.providerId_;
       paymentDetails_ = other.paymentDetails_ != null ? other.paymentDetails_.Clone() : null;
-      indicativeRate_ = other.indicativeRate_ != null ? other.indicativeRate_.Clone() : null;
-      indicativeFix_ = other.indicativeFix_ != null ? other.indicativeFix_.Clone() : null;
       _unknownFields = pb::UnknownFieldSet.Clone(other._unknownFields);
     }
 
@@ -4174,7 +4171,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
     private uint providerId_;
     /// <summary>
     ///*
-    /// The T-0 provider ID of the pay-in provider offering this quote.
+    /// The T-0 provider ID of the pay-in provider offering this option.
     /// </summary>
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -4203,47 +4200,6 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
       }
     }
 
-    /// <summary>Field number for the "indicative_rate" field.</summary>
-    public const int IndicativeRateFieldNumber = 40;
-    private global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal indicativeRate_;
-    /// <summary>
-    ///*
-    /// Indicative exchange rate USD/XXX (base currency is always USD).
-    ///
-    /// Reflects the current quote on every call,
-    /// including idempotent retries. The binding rate is locked in at
-    /// ConfirmFundsReceived and may differ.
-    /// </summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal IndicativeRate {
-      get { return indicativeRate_; }
-      set {
-        indicativeRate_ = value;
-      }
-    }
-
-    /// <summary>Field number for the "indicative_fix" field.</summary>
-    public const int IndicativeFixFieldNumber = 50;
-    private global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal indicativeFix_;
-    /// <summary>
-    ///*
-    /// Indicative fixed charge in USD retained by the pay-in provider per transfer.
-    /// Settlement is calculated as (amount / indicative_rate) - indicative_fix.
-    ///
-    /// Reflects the current quote on every call,
-    /// including idempotent retries. The binding fix is locked in at
-    /// ConfirmFundsReceived and may differ.
-    /// </summary>
-    [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
-    [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
-    public global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal IndicativeFix {
-      get { return indicativeFix_; }
-      set {
-        indicativeFix_ = value;
-      }
-    }
-
     [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
     [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
     public override bool Equals(object other) {
@@ -4262,8 +4218,6 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
       if (PaymentMethod != other.PaymentMethod) return false;
       if (ProviderId != other.ProviderId) return false;
       if (!object.Equals(PaymentDetails, other.PaymentDetails)) return false;
-      if (!object.Equals(IndicativeRate, other.IndicativeRate)) return false;
-      if (!object.Equals(IndicativeFix, other.IndicativeFix)) return false;
       return Equals(_unknownFields, other._unknownFields);
     }
 
@@ -4274,8 +4228,6 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
       if (PaymentMethod != global::T0.ProviderSdk.Api.Tzero.V1.Common.PaymentMethodType.Unspecified) hash ^= PaymentMethod.GetHashCode();
       if (ProviderId != 0) hash ^= ProviderId.GetHashCode();
       if (paymentDetails_ != null) hash ^= PaymentDetails.GetHashCode();
-      if (indicativeRate_ != null) hash ^= IndicativeRate.GetHashCode();
-      if (indicativeFix_ != null) hash ^= IndicativeFix.GetHashCode();
       if (_unknownFields != null) {
         hash ^= _unknownFields.GetHashCode();
       }
@@ -4306,14 +4258,6 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
         output.WriteRawTag(242, 1);
         output.WriteMessage(PaymentDetails);
       }
-      if (indicativeRate_ != null) {
-        output.WriteRawTag(194, 2);
-        output.WriteMessage(IndicativeRate);
-      }
-      if (indicativeFix_ != null) {
-        output.WriteRawTag(146, 3);
-        output.WriteMessage(IndicativeFix);
-      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(output);
       }
@@ -4336,14 +4280,6 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
         output.WriteRawTag(242, 1);
         output.WriteMessage(PaymentDetails);
       }
-      if (indicativeRate_ != null) {
-        output.WriteRawTag(194, 2);
-        output.WriteMessage(IndicativeRate);
-      }
-      if (indicativeFix_ != null) {
-        output.WriteRawTag(146, 3);
-        output.WriteMessage(IndicativeFix);
-      }
       if (_unknownFields != null) {
         _unknownFields.WriteTo(ref output);
       }
@@ -4362,12 +4298,6 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
       }
       if (paymentDetails_ != null) {
         size += 2 + pb::CodedOutputStream.ComputeMessageSize(PaymentDetails);
-      }
-      if (indicativeRate_ != null) {
-        size += 2 + pb::CodedOutputStream.ComputeMessageSize(IndicativeRate);
-      }
-      if (indicativeFix_ != null) {
-        size += 2 + pb::CodedOutputStream.ComputeMessageSize(IndicativeFix);
       }
       if (_unknownFields != null) {
         size += _unknownFields.CalculateSize();
@@ -4392,18 +4322,6 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
           PaymentDetails = new global::T0.ProviderSdk.Api.Tzero.V1.Common.PaymentDetails();
         }
         PaymentDetails.MergeFrom(other.PaymentDetails);
-      }
-      if (other.indicativeRate_ != null) {
-        if (indicativeRate_ == null) {
-          IndicativeRate = new global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal();
-        }
-        IndicativeRate.MergeFrom(other.IndicativeRate);
-      }
-      if (other.indicativeFix_ != null) {
-        if (indicativeFix_ == null) {
-          IndicativeFix = new global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal();
-        }
-        IndicativeFix.MergeFrom(other.IndicativeFix);
       }
       _unknownFields = pb::UnknownFieldSet.MergeFrom(_unknownFields, other._unknownFields);
     }
@@ -4439,20 +4357,6 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
             input.ReadMessage(PaymentDetails);
             break;
           }
-          case 322: {
-            if (indicativeRate_ == null) {
-              IndicativeRate = new global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal();
-            }
-            input.ReadMessage(IndicativeRate);
-            break;
-          }
-          case 402: {
-            if (indicativeFix_ == null) {
-              IndicativeFix = new global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal();
-            }
-            input.ReadMessage(IndicativeFix);
-            break;
-          }
         }
       }
     #endif
@@ -4485,20 +4389,6 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
               PaymentDetails = new global::T0.ProviderSdk.Api.Tzero.V1.Common.PaymentDetails();
             }
             input.ReadMessage(PaymentDetails);
-            break;
-          }
-          case 322: {
-            if (indicativeRate_ == null) {
-              IndicativeRate = new global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal();
-            }
-            input.ReadMessage(IndicativeRate);
-            break;
-          }
-          case 402: {
-            if (indicativeFix_ == null) {
-              IndicativeFix = new global::T0.ProviderSdk.Api.Tzero.V1.Common.Decimal();
-            }
-            input.ReadMessage(IndicativeFix);
             break;
           }
         }
@@ -5532,9 +5422,8 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
         /// Present these options to the end-user so they can choose how to pay.
         /// Each entry contains the payment details needed to complete the payment.
         ///
-        /// Indicative rate/fix are resolved live on every call, including idempotent
-        /// retries. The set of options is fixed at first call; individual options
-        /// whose underlying quote has lapsed are omitted on retry.
+        /// The set of options is fixed at first call and returned unchanged on every
+        /// idempotent retry, whether or not a live quote still covers it.
         /// </summary>
         [global::System.Diagnostics.DebuggerNonUserCodeAttribute]
         [global::System.CodeDom.Compiler.GeneratedCode("protoc", null)]
@@ -5910,10 +5799,8 @@ namespace T0.ProviderSdk.Api.Tzero.V1.PaymentIntent {
             [pbr::OriginalName("FAILURE_REASON_UNSPECIFIED")] FailureReasonUnspecified = 0,
             /// <summary>
             ///*
-            /// No live quote covers the requested currency/amount. On first call this
-            /// means the intent was never created. On an idempotent retry this means
-            /// every stored offer has since lost its live quote; a subsequent retry
-            /// may succeed once providers republish.
+            /// No live quote covers the requested currency/amount, so the payment
+            /// intent is not created. Final for this external_reference.
             /// </summary>
             [pbr::OriginalName("FAILURE_REASON_QUOTE_NOT_FOUND")] FailureReasonQuoteNotFound = 10,
             /// <summary>

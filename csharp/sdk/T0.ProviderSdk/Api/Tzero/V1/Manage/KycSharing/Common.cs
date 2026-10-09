@@ -4422,7 +4422,7 @@ namespace T0.ProviderSdk.Api.Tzero.V1.Manage.KycSharing {
 
   /// <summary>
   /// Submission value for a Payout-Provider-declared custom field — the filled-in
-  /// counterpart of FormField (form.proto). Reused by KYB (main + UBO) and KYC
+  /// counterpart of FormField. Reused by KYB (main + UBO) and KYC
   /// submissions. Typed by the field's declared FormField type; the server checks
   /// the value arm matches the definition.
   /// </summary>
