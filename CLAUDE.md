@@ -22,6 +22,8 @@ java/sdk/           Java SDK (network.t-0:provider-sdk-java)
 java/starter/       Java starter template
 csharp/             C# SDK + starter template
 cross_test/         Cross-language test vectors + shared Go helper
+scripts/            buf-generate.sh: generates the Node, Python and C# protobuf code
+.githooks/          Runs scripts/buf-generate.sh after checkout, pull and rebase
 .github/workflows/  CI, Release, Publish workflows
 ```
 
@@ -34,13 +36,23 @@ All SDKs share a unified version managed via git tags (`vX.Y.Z`). The version li
 - **release.yaml** — Triggered manually. Bumps version, creates tags + GitHub Release.
 - **publish.yaml** — Triggered by tag push. Publishes to npm, PyPI, Maven Central, Go Module Proxy.
 - **proto_sync.yaml** — Syncs proto files from upstream proto source.
-- **generate-clients.yaml** — Regenerates language-specific code from protos.
+- **generate-clients.yaml** — Regenerates `go/api/` from the protos and commits it.
 
 ## Starter Templates
 
 All starter templates are buildable standalone projects using `my-provider` as the literal project name (and `MyProvider` as PascalCase). The unified CLI (`cli/`) replaces these literals with the actual project name during scaffolding. Go's module path is read from `go.mod.tmpl` at scaffold time and replaced with the `--module` value. Each template ships `dot-gitignore` which the scaffolder renames to `.gitignore`.
 
 `cli/` is also the scaffolder of other products: `cli_sync.yaml` copies the files listed in `.github/workflows/cli-sync-config/<product>.yaml` into each product repo as a PR, overwriting them there. `config.go` is deliberately not in that list — it is where a product describes itself (`CLIConfig`: name and `Description` for usage, languages, roles, `JavaRepositories`/`JavaSDKArtifacts` for the Java template's registry choice and version pin, `NextSteps` printed after `init`, `RunSteps` for product-specific run commands, `PostScaffold` for anything else). Flags and usage text follow that config: a product without Go gets no `--module`, without `JavaRepositories` no `--repository`, without roles no `--role`. Keep the synced files free of product specifics and everything product-shaped behind `CLIConfig`; a downstream `config.go` that stops compiling after a sync is a breaking change of that contract.
+
+## Generated code
+
+Only `go/api/` is committed. The Node, Python and C# protobuf code is generated in each checkout by `scripts/buf-generate.sh`.
+
+- After cloning, and in a new worktree, run `scripts/buf-generate.sh` once. It generates the code and turns on the Git hooks in `.githooks/`, which then run it after every checkout, pull and rebase.
+- Before building or testing the Node, Python or C# SDK, run `scripts/buf-generate.sh` if you are not sure the code is current; it does nothing when no proto changed.
+- Never edit or commit the generated files. After changing a proto, regenerate the committed `go/api/` with `buf generate` from the root.
+
+Prerequisites and details: [CONTRIBUTING.md, "Generated code"](CONTRIBUTING.md#generated-code).
 
 ## Build & Test (all languages)
 

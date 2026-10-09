@@ -13,12 +13,14 @@ cd sdk && npm ci && npm run build      # Build SDK
 cd sdk && npm test                     # Run SDK tests
 ```
 
+`sdk/src/common/gen/` is generated, not committed. Run `scripts/buf-generate.sh` from the repository root (or `npm run buf:generate` in `sdk/`) before building; the Git hooks run it after every pull ([CONTRIBUTING.md, "Generated code"](../CONTRIBUTING.md#generated-code)).
+
 ## Project Structure
 
 ```
 node/
 ├── sdk/                  # @t-0/provider-sdk (published to npm)
-│   ├── src/              # TypeScript source
+│   ├── src/              # TypeScript source (src/common/gen/ is generated, not committed)
 │   ├── lib/              # Build output (ESM + CJS dual publish)
 │   └── test/             # Tests
 └── starter/template/     # Starter template (scaffolded by the unified CLI)

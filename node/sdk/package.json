@@ -55,7 +55,7 @@
     "typescript": "^7.0.2"
   },
   "scripts": {
-    "buf:generate": "buf generate",
+    "buf:generate": "sh ../../scripts/buf-generate.sh",
     "build": "npm run build:esm && npm run build:cjs && npm run build:post",
     "build:esm": "tsc -p tsconfig.esm.json",
     "build:cjs": "tsc -p tsconfig.cjs.json",

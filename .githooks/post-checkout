@@ -1,0 +1,4 @@
+#!/bin/sh
+# Runs .githooks/run.sh; scripts/buf-generate.sh turns these hooks on.
+# shellcheck source=.githooks/run.sh
+. "$(dirname "$0")/run.sh"

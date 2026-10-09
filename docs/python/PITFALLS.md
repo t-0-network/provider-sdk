@@ -63,7 +63,7 @@ url = "https://buf.build/gen/python"
 **Failed** — `uv sync` hangs indefinitely. BSR's package index is apparently not fully compatible with PEP 503 / uv's resolver.
 
 ### Solution: generate the stubs into `api/`
-`buf generate --include-imports` generates `buf/validate/validate_pb2.py` inside `api/` next to the SDK's own messages. The stubs are committed together with `api/buf/__init__.py` and `api/buf/validate/__init__.py`, and the SDK's `__init__.py` puts `api/` on `sys.path` (see pitfall #4). Regenerate from the repository root as [`python/CLAUDE.md`](../../python/CLAUDE.md#proto-code-generation) describes; `buf generate` keeps the committed stubs.
+The Python plugins in the root `buf.gen.yaml` set `include_imports: true`, so `buf generate` writes `buf/validate/validate_pb2.py` inside `api/` next to the SDK's own messages, from the protovalidate version `buf.lock` pins. Like the rest of `api/` the stubs are not committed; `api/buf/__init__.py` and `api/buf/validate/__init__.py` are handwritten and committed, and the SDK's `__init__.py` puts `api/` on `sys.path` (see pitfall #4). [`python/CLAUDE.md`](../../python/CLAUDE.md#proto-code-generation) describes how the code is generated.
 
 **`protovalidate` stays a dependency:** `provider/validate.py` uses its validator. From 2.0 protovalidate carries its own copy of the `buf.validate` messages, so it does not need these stubs and the order of imports does not matter. The stubs in `api/` are for the SDK's generated `_pb2` code.
 
@@ -261,16 +261,9 @@ Go's `VerifySignature()` uses only `signature[:64]` (strips v). Python verificat
 
 ---
 
-## 12. `buf generate` Without `--include-imports`
+## 12. Python Plugins Without `include_imports`
 
-Running `buf generate` without `--include-imports` does NOT generate stubs for dependencies like `buf.validate`; without the committed `api/buf/validate/` stubs you get a runtime `ModuleNotFoundError`. To regenerate those stubs too, run from the repository root:
-
-```bash
-uv sync --project python --all-packages
-buf generate --include-imports
-```
-
-Must also create `__init__.py` files for generated namespace packages (`api/buf/__init__.py`, `api/buf/validate/__init__.py`).
+Without `include_imports: true` on the Python plugins in `buf.gen.yaml`, `buf generate` does NOT generate stubs for dependencies like `buf.validate`, and the SDK fails at import with `ModuleNotFoundError: No module named 'buf.validate'`. Keep the option, and keep the committed `__init__.py` files that make `api/buf/` and `api/buf/validate/` regular packages.
 
 ---
 
@@ -318,5 +311,5 @@ The `_parse_wsgi_headers()` function in `middleware_wsgi.py` converts all `HTTP_
 |------|-----------|-------------|-----|
 | Keccak256 | `pysha3`, `hashlib.sha3_256` | `pycryptodome` (`Crypto.Hash.keccak`) | py3.13 compat, correct padding |
 | ConnectRPC | `connectrpc<0.11.1` | `connectrpc>=0.11.1` | Generated stubs target the `google.protobuf` compat codec introduced in v0.11; older runtimes lack it, and pre-0.11 stubs break on newer runtimes |
-| buf.validate stubs | the `protovalidate` package (ships no stubs), BSR index | `buf generate --include-imports`, committed under `api/` | Self-contained, no external index |
+| buf.validate stubs | the `protovalidate` package (ships no stubs), BSR index | `include_imports: true` on the Python plugins in `buf.gen.yaml`, generated under `api/` | Self-contained, no external index |
 | Async subprocess | `subprocess.run()` | `asyncio.create_subprocess_exec()` | Non-blocking in event loop |

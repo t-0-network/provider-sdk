@@ -46,6 +46,8 @@ jobs:
           cache: npm
           cache-dependency-path: node/sdk/package-lock.json
 
+      - uses: ./.github/actions/buf-generate
+
       - name: Build SDK
         working-directory: node/sdk
         run: |
@@ -96,6 +98,8 @@ jobs:
           enable-cache: true
           cache-dependency-glob: python/uv.lock
 
+      - uses: ./.github/actions/buf-generate
+
       - name: Build
         working-directory: python
         run: |
@@ -115,6 +119,8 @@ jobs:
         uses: actions/setup-dotnet@v6
         with:
           dotnet-version: "10.0.x"
+
+      - uses: ./.github/actions/buf-generate
 
       - name: Build
         working-directory: csharp
@@ -236,6 +242,8 @@ jobs:
           [ "$PKG" = "$VERSION" ]     || { echo "::error::node/sdk/package.json has $PKG, tag is v$VERSION"; exit 1; }
           echo "Node SDK runtime + package version $VERSION matches tag"
 
+      - uses: ./.github/actions/buf-generate
+
       - name: Build
         working-directory: node/sdk
         run: |
@@ -273,6 +281,8 @@ jobs:
           [ "$RUNTIME" = "$VERSION" ] || { echo "::error::python/sdk/.../t0_provider_sdk/_version.py has $RUNTIME, tag is v$VERSION"; exit 1; }
           [ "$PKG" = "$VERSION" ]     || { echo "::error::python/sdk/pyproject.toml has $PKG, tag is v$VERSION"; exit 1; }
           echo "Python SDK runtime + package version $VERSION matches tag"
+
+      - uses: ./.github/actions/buf-generate
 
       - name: Build
         working-directory: python
@@ -351,6 +361,8 @@ jobs:
           SDK_VER=$(grep '<Version>' csharp/sdk/T0.ProviderSdk/T0.ProviderSdk.csproj | sed 's/.*<Version>\(.*\)<\/Version>.*/\1/')
           [ "$SDK_VER" = "$VERSION" ] || { echo "::error::C# SDK csproj has $SDK_VER, tag is v$VERSION"; exit 1; }
           echo "C# SDK version $VERSION matches tag"
+
+      - uses: ./.github/actions/buf-generate
 
       - name: Pack SDK
         working-directory: csharp
