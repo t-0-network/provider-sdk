@@ -49,7 +49,7 @@ my-provider/
 
 ## Environment Variables
 
-`t0-init` creates `.env` from `.env.example` and writes a new private key into it. The other values in that file are for the sandbox. For production, the T-0 team gives you the network public key and the endpoint.
+`t0-init` creates `.env` from `.env.example` and writes a new private key into it. The other values in that file are for the sandbox.
 
 | Variable | In `.env` after `t0-init` | If unset or empty | Description |
 |----------|---------------------------|-------------------|-------------|
@@ -57,21 +57,23 @@ my-provider/
 | `NETWORK_PUBLIC_KEY` | The sandbox network key | The provider does not start | T-0 Network public key for signature verification |
 | `TZERO_ENDPOINT` | `https://api-sandbox.t-0.network` | `https://api-sandbox.t-0.network` | T-0 Network API endpoint |
 | `PORT` | `8080` | `8080` | Server port |
-| `QUOTE_PUBLISHING_INTERVAL` | not set | `5000` | Quote publishing frequency in milliseconds; a value that is not an integer from 1 to 2147483647 gives 5000 |
+| `QUOTE_PUBLISHING_INTERVAL` | not set | `5000` | Quote publishing interval in milliseconds |
 
-An empty value counts as unset.
+The process reads `.env` from the working directory. A variable set in the process environment wins over `.env`, even when its value is empty, and an empty value counts as unset. For example, if `.env` has `PORT=9000` and the environment has `PORT=`, the server listens on 8080. To use the value from `.env`, unset the variable. If `.env` is missing, the process prints one notice on stderr and continues with the process environment.
+
+For production, set both `NETWORK_PUBLIC_KEY` and `TZERO_ENDPOINT` to the values the T-0 team gives you. If `TZERO_ENDPOINT` is unset, the provider connects to the sandbox. `.env` holds your private key, so keep it out of Git. Use a separate private key in production.
+
+If a key is missing, or `PORT` is not a port number, the process prints `ERROR: <message>` and one help line on stderr and exits with status 1. Any other startup failure, for example a malformed key or a port already in use, prints `Provider failed to start: <cause>` and exits with status 1. On SIGINT or SIGTERM, the provider stops publishing quotes and waits for the calls in progress. Then it exits with status 0.
 
 The process serves Connect on HTTP/1.1 only.
 
-`.env` is read from the working directory. A missing file is not a failure: the process prints one notice on stderr and continues. The starter calls `dotenv` with `quiet: true` and `override: false`, so dotenv does not print its own line and the process environment wins over the file. dotenv reads the variables below. Each falls back to the matching `DOTENV_CONFIG_*` name when the `DOTENV_*` name is unset.
+dotenv reads the variables below. Each falls back to the matching `DOTENV_CONFIG_*` name when the `DOTENV_*` name is unset.
 
 | Variable | Fallback | What it does |
 |----------|----------|----------------|
 | `DOTENV_PATH` | `DOTENV_CONFIG_PATH` | File to read, instead of `.env` in the working directory |
 | `DOTENV_ENCODING` | `DOTENV_CONFIG_ENCODING` | Encoding of that file |
-| `DOTENV_QUIET` | `DOTENV_CONFIG_QUIET` | Suppress dotenv's own line |
 | `DOTENV_DEBUG` | `DOTENV_CONFIG_DEBUG` | Debug output |
-| `DOTENV_OVERRIDE` | `DOTENV_CONFIG_OVERRIDE` | The switch for letting the file win over the process environment. This starter passes `override: false`, so the process environment wins |
 | `DOTENV_FAST` | `DOTENV_CONFIG_FAST` | Use dotenv's faster parser |
 
 ## Getting Started

@@ -174,7 +174,7 @@ Steps, in the order they run and print:
 3. **`.env`** — `[INFO] Creating .env file...` / `[OK] Environment configured`. `.env.example` is read from the project; the first active `PROVIDER_PRIVATE_KEY=` line (or `PRIVATE_KEY=`) is replaced whole with the private key, and the marker line `# your_public_key_here` is replaced with `# <public key>`. A template with no marker gets `# Public key for the line above (share it with t-0): <public key>` inserted under the key line. The result is written to `.env` and `chmod 0600`. `.env` is written only when the template ships `.env.example`. An `.env.example` with no active key line fails `init` with `[ERROR] writing .env: .env.example has no active PROVIDER_PRIVATE_KEY or PRIVATE_KEY line` (exit 1) and writes no `.env`.
 4. **Completion output**.
 
-The generated `.env` for every language (Node's template sets `PORT=3000`, the others `PORT=8080`):
+The generated `.env`, the same for every language:
 
 ```
 # T-0 Network Provider Configuration
@@ -187,10 +187,12 @@ PROVIDER_PRIVATE_KEY=0x<64 hex characters>
 # Your provider's public key (share with the T-0 team to register your provider)
 # 0x04<128 hex characters>
 
-# T-0 Network's public key (used to verify incoming request signatures)
+# T-0 Network's public key, used to verify incoming request signatures.
+# This is the sandbox key. For production, use the key the T-0 team gives you.
 NETWORK_PUBLIC_KEY=0x041b6acf3e830b593aaa992f2f1543dc8063197acfeecefd65135259327ef3166acaca83d62db19eb4fecb3d04e44094378839b8c13a2af26bf78fed56a4af935b
 
-# T-0 Network API endpoint
+# T-0 Network API endpoint.
+# This is the sandbox endpoint. For production, use the endpoint the T-0 team gives you.
 TZERO_ENDPOINT=https://api-sandbox.t-0.network
 
 # Port for your provider server

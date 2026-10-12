@@ -127,7 +127,7 @@ func startProviderServer(
 			payment_intentconnect.BeneficiaryServiceHandler(handler.NewBeneficiaryServiceImplementation())),
 	)
 	if err != nil {
-		return nil, asConfigurationError(err)
+		return nil, err
 	}
 
 	shutdown, err := provider.StartServer(

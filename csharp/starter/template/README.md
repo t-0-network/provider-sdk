@@ -39,17 +39,21 @@ my-provider/
 
 ## Environment Variables
 
-`t0-init` creates `.env` from `.env.example` and writes a new private key into it. The other values in that file are for the sandbox. For production, the T-0 team gives you the network public key and the endpoint.
-
-The process environment wins over `.env`. An empty value counts as unset. A missing `.env` is not a failure: the process prints one notice on stderr and continues with the environment.
+`t0-init` creates `.env` from `.env.example` and writes a new private key into it. The other values in that file are for the sandbox.
 
 | Variable | In `.env` after `t0-init` | If unset or empty | Description |
 |----------|---------------------------|-------------------|-------------|
-| `PROVIDER_PRIVATE_KEY` | A new key generated for this project | The provider does not start | Your secp256k1 private key (64-char hex). Surrounding whitespace is ignored. |
-| `NETWORK_PUBLIC_KEY` | The sandbox network key | The provider does not start | T-0 Network public key for signature verification. Surrounding whitespace is ignored. |
+| `PROVIDER_PRIVATE_KEY` | A new key generated for this project | The provider does not start | Your secp256k1 private key (hex) |
+| `NETWORK_PUBLIC_KEY` | The sandbox network key | The provider does not start | T-0 Network public key for signature verification |
 | `TZERO_ENDPOINT` | `https://api-sandbox.t-0.network` | `https://api-sandbox.t-0.network` | T-0 Network API endpoint |
-| `PORT` | `8080` | `8080` | Provider server port, an integer from 1 to 65535 |
+| `PORT` | `8080` | `8080` | Server port |
 | `QUOTE_PUBLISHING_INTERVAL` | not set | `5000` | Quote publishing interval in milliseconds |
+
+The process reads `.env` from the working directory. A variable set in the process environment wins over `.env`, even when its value is empty, and an empty value counts as unset. For example, if `.env` has `PORT=9000` and the environment has `PORT=`, the server listens on 8080. To use the value from `.env`, unset the variable. If `.env` is missing, the process prints one notice on stderr and continues with the process environment.
+
+For production, set both `NETWORK_PUBLIC_KEY` and `TZERO_ENDPOINT` to the values the T-0 team gives you. If `TZERO_ENDPOINT` is unset, the provider connects to the sandbox. `.env` holds your private key, so keep it out of Git. Use a separate private key in production.
+
+If a key is missing, or `PORT` is not a port number, the process prints `ERROR: <message>` and one help line on stderr and exits with status 1. Any other startup failure, for example a malformed key or a port already in use, prints `Provider failed to start: <cause>` and exits with status 1. On SIGINT or SIGTERM, the provider stops publishing quotes and waits for the calls in progress. Then it exits with status 0.
 
 ASP.NET Core also reads configuration from the environment. `Kestrel__Endpoints__*` replaces the address `PORT` selects, rather than listening beside it. The server speaks gRPC over cleartext HTTP/2 only.
 

@@ -3,7 +3,6 @@ import { mkdtempSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import test from "node:test";
-import { publicKeyFromPrivateKey } from "@t-0/provider-sdk";
 import { ConfigurationError, loadConfig } from "./config.js";
 
 const PRIVATE_KEY = "6b30303de7b26bfb1222b317a52113357f8bb06de00160b4261a2fef9c8b9bd8";
@@ -17,24 +16,7 @@ const PRIVATE_KEY_HELP_TAIL =
   "Only a project with no .env at all starts one from .env.example — an existing .env holds the key " +
   "generated for you, and its private half is not recoverable.";
 
-const MANAGED = [
-  "PROVIDER_PRIVATE_KEY",
-  "NETWORK_PUBLIC_KEY",
-  "TZERO_ENDPOINT",
-  "PORT",
-  "DOTENV_PATH",
-  "DOTENV_CONFIG_PATH",
-  "DOTENV_ENCODING",
-  "DOTENV_CONFIG_ENCODING",
-  "DOTENV_QUIET",
-  "DOTENV_CONFIG_QUIET",
-  "DOTENV_DEBUG",
-  "DOTENV_CONFIG_DEBUG",
-  "DOTENV_OVERRIDE",
-  "DOTENV_CONFIG_OVERRIDE",
-  "DOTENV_FAST",
-  "DOTENV_CONFIG_FAST",
-] as const;
+const MANAGED = ["PROVIDER_PRIVATE_KEY", "NETWORK_PUBLIC_KEY", "TZERO_ENDPOINT", "PORT"] as const;
 
 interface Row {
   name: string;
@@ -49,14 +31,6 @@ interface Row {
 }
 
 test("configuration", () => {
-  let sdkMessage = "";
-  try {
-    publicKeyFromPrivateKey("not-a-key");
-  } catch (error) {
-    sdkMessage = error instanceof Error ? error.message : String(error);
-  }
-  assert.notEqual(sdkMessage, "");
-
   const dir = mkdtempSync(join(tmpdir(), "provider-config-"));
   const keys = {
     PROVIDER_PRIVATE_KEY: PRIVATE_KEY,
@@ -88,12 +62,6 @@ test("configuration", () => {
       help: NETWORK_HELP,
     },
     {
-      name: "bad private key",
-      env: { ...keys, PROVIDER_PRIVATE_KEY: "not-a-key" },
-      error: `PROVIDER_PRIVATE_KEY is not usable: ${sdkMessage}`,
-      help: "Any 32 random bytes will do: openssl rand -hex 32.",
-    },
-    {
       name: "PORT blank",
       env: { ...keys, PORT: "" },
       port: 8080,
@@ -118,6 +86,12 @@ test("configuration", () => {
       name: "PORT http",
       env: { ...keys, PORT: "http" },
       error: "PORT is not a valid port number: http",
+      help: PORT_HELP,
+    },
+    {
+      name: "PORT 65536",
+      env: { ...keys, PORT: "65536" },
+      error: "PORT is not a valid port number: 65536",
       help: PORT_HELP,
     },
     {
@@ -184,7 +158,6 @@ test("configuration", () => {
           const config = loadConfig();
           if (row.privateKey !== undefined) {
             assert.equal(config.privateKey, row.privateKey, row.name);
-            assert.equal(config.publicKey, publicKeyFromPrivateKey(row.privateKey), row.name);
           }
           if (row.networkPublicKey !== undefined) {
             assert.equal(config.networkPublicKey, row.networkPublicKey, row.name);

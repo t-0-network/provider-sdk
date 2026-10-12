@@ -48,9 +48,6 @@ public class Main {
         try {
             run();
         } catch (EnvConfig.ConfigurationException e) {
-            if (e.missingEnvNotice() != null) {
-                System.err.println(e.missingEnvNotice());
-            }
             writeConfigError(e, System.err);
             System.exit(1);
         } catch (Exception e) {
@@ -60,12 +57,7 @@ public class Main {
     }
 
     private static void run() throws Exception {
-        Path workingDirectory = Path.of("").toAbsolutePath().normalize();
-        EnvConfig.Loaded loaded = EnvConfig.load(workingDirectory, System.getenv());
-        if (loaded.missingEnvNotice() != null) {
-            System.err.println(loaded.missingEnvNotice());
-        }
-        Config config = loaded.config();
+        Config config = EnvConfig.load(Path.of("").toAbsolutePath().normalize());
         Signer signer = Signer.fromHex(config.providerPrivateKey());
 
         log.info("Provider public key: {}", signer.getPublicKeyHexPrefixed());
@@ -132,15 +124,7 @@ public class Main {
         PaymentIntentPayInHandler payInHandler = new PaymentIntentPayInHandler(paymentIntentClient.stub());
         PaymentIntentBeneficiaryHandler beneficiaryHandler = new PaymentIntentBeneficiaryHandler();
 
-        ProviderServer.Builder builder;
-        try {
-            builder = ProviderServer.create(config.port(), config.networkPublicKey());
-        } catch (IllegalArgumentException e) {
-            EnvConfig.rethrowNetworkKey(e);
-            throw e;
-        }
-
-        ProviderServer server = builder
+        ProviderServer server = ProviderServer.create(config.port(), config.networkPublicKey())
                 .withService(paymentHandler)
                 // Phase 3A — Pay-In Provider role. Remove if you are only a beneficiary.
                 .withService(payInHandler)
@@ -195,15 +179,12 @@ public class Main {
         err.println("Provider failed to start: " + causeText(error));
     }
 
+    // The message on one line, or the class name when there is no message.
     private static String causeText(Throwable error) {
-        Throwable current = error;
-        while (current != null) {
-            String message = current.getMessage();
-            if (message != null && !message.isBlank()) {
-                return message.replace('\n', ' ').replace('\r', ' ').strip();
-            }
-            current = current.getCause();
+        String message = error.getMessage();
+        if (message == null || message.isBlank()) {
+            return error.getClass().getSimpleName();
         }
-        return error.getClass().getSimpleName();
+        return message.replace('\n', ' ').replace('\r', ' ').strip();
     }
 }

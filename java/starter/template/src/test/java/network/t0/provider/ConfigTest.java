@@ -1,6 +1,6 @@
 package network.t0.provider;
 
-import network.t0.sdk.crypto.Signer;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
@@ -10,25 +10,21 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertAll;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 /**
- * Configuration only. This does not start a server.
+ * Configuration only. This does not start a server. Each case writes a {@code .env}
+ * to its own directory, so none of the five variables may be set in the environment.
  */
 class ConfigTest {
 
     private static final String PRIVATE_KEY =
             "6b30303de7b26bfb1222b317a52113357f8bb06de00160b4261a2fef9c8b9bd8";
-    private static final String OTHER_PRIVATE_KEY =
-            "0000000000000000000000000000000000000000000000000000000000000001";
     private static final String NETWORK_KEY =
             "0x041b6acf3e830b593aaa992f2f1543dc8063197acfeecefd65135259327ef3166acaca83d62db19eb4fecb3d04e44094378839b8c13a2af26bf78fed56a4af935b";
 
@@ -36,162 +32,97 @@ class ConfigTest {
             "Ask the t-0 team for the network public key and put it in .env.";
     private static final String PORT_HELP =
             "Set PORT to an integer between 1 and 65535, or leave it unset for 8080.";
-    private static final String UNUSABLE_HELP =
-            "Any 32 random bytes will do: openssl rand -hex 32.";
+
+    private static final String KEYS =
+            "PROVIDER_PRIVATE_KEY=" + PRIVATE_KEY + "\n" + "NETWORK_PUBLIC_KEY=" + NETWORK_KEY + "\n";
 
     @TempDir
     Path root;
 
+    @BeforeAll
+    static void environmentIsClean() {
+        for (String name : List.of("PROVIDER_PRIVATE_KEY", "NETWORK_PUBLIC_KEY", "TZERO_ENDPOINT", "PORT",
+                "QUOTE_PUBLISHING_INTERVAL")) {
+            assumeTrue(System.getenv(name) == null, name + " is set in the environment");
+        }
+    }
+
     @Test
     void config() {
         List<org.junit.jupiter.api.function.Executable> cases = new ArrayList<>();
-        cases.add(() -> trimsBothKeysFromFile());
-        cases.add(() -> trimsBothKeysFromEnvironment());
-        cases.add(() -> environmentWinsOverFile());
+        cases.add(() -> trimsBothKeys());
         cases.add(() -> blankPrivateKeyIsNotSet());
         cases.add(() -> blankNetworkKeyIsNotSet());
-        cases.add(() -> badPrivateKeyIsNotUsable());
         cases.add(() -> portAccepted("blank", "", 8080));
-        cases.add(() -> portAccepted("8080", "8080", 8080));
-        cases.add(() -> portAccepted("padded 8080", " 8080 ", 8080));
-        cases.add(() -> portAccepted("whitespace", "   ", 8080));
+        cases.add(() -> portAccepted("9000", "9000", 9000));
+        cases.add(() -> portAccepted("padded", "\" 9000 \"", 9000));
         cases.add(() -> portRejected("0"));
         cases.add(() -> portRejected("http"));
-        cases.add(() -> portRejected("0x1F90"));
-        cases.add(() -> portRejected("1e3"));
-        cases.add(() -> portRejected("+8080"));
-        cases.add(() -> blankEndpointUsesSandbox(""));
-        cases.add(() -> blankEndpointUsesSandbox("   "));
-        cases.add(() -> missingEnvNotice());
+        cases.add(() -> portRejected("65536"));
+        cases.add(() -> blankEndpointUsesSandbox("blank", ""));
+        cases.add(() -> blankEndpointUsesSandbox("whitespace", "\"   \""));
+        cases.add(() -> missingEnvIsNotAFailure());
         assertAll(cases);
     }
 
-    private void trimsBothKeysFromFile() throws Exception {
-        Path dir = caseDir("trim-file");
-        Files.writeString(dir.resolve(".env"),
-                "PROVIDER_PRIVATE_KEY=\"" + "  " + PRIVATE_KEY + "  " + "\"\n"
-                        + "NETWORK_PUBLIC_KEY=\"" + "  " + NETWORK_KEY + "  " + "\"\n");
-        EnvConfig.Loaded loaded = EnvConfig.load(dir, Map.of());
-        assertEquals(PRIVATE_KEY, loaded.config().providerPrivateKey(), "trim-file private");
-        assertEquals(NETWORK_KEY, loaded.config().networkPublicKey(), "trim-file network");
-        assertNull(loaded.missingEnvNotice(), "trim-file notice");
-    }
-
-    private void trimsBothKeysFromEnvironment() throws Exception {
-        Path dir = caseDir("trim-env");
-        Files.writeString(dir.resolve(".env"), "PORT=8080\n");
-        Map<String, String> environment = new HashMap<>();
-        environment.put("PROVIDER_PRIVATE_KEY", "  " + PRIVATE_KEY + "  ");
-        environment.put("NETWORK_PUBLIC_KEY", "\t" + NETWORK_KEY + "\t");
-        EnvConfig.Loaded loaded = EnvConfig.load(dir, environment);
-        assertEquals(PRIVATE_KEY, loaded.config().providerPrivateKey(), "trim-env private");
-        assertEquals(NETWORK_KEY, loaded.config().networkPublicKey(), "trim-env network");
-    }
-
-    private void environmentWinsOverFile() throws Exception {
-        Path dir = caseDir("env-wins");
-        Files.writeString(dir.resolve(".env"),
-                "PROVIDER_PRIVATE_KEY=" + OTHER_PRIVATE_KEY + "\n"
-                        + "NETWORK_PUBLIC_KEY=" + NETWORK_KEY + "\n");
-        Map<String, String> environment = keys();
-        EnvConfig.Loaded loaded = EnvConfig.load(dir, environment);
-        assertEquals(PRIVATE_KEY, loaded.config().providerPrivateKey(), "env wins");
+    private void trimsBothKeys() throws Exception {
+        Path dir = withEnv("trim",
+                "PROVIDER_PRIVATE_KEY=\"  " + PRIVATE_KEY + "  \"\n"
+                        + "NETWORK_PUBLIC_KEY=\"  " + NETWORK_KEY + "  \"\n");
+        Config config = EnvConfig.load(dir);
+        assertEquals(PRIVATE_KEY, config.providerPrivateKey(), "trim private");
+        assertEquals(NETWORK_KEY, config.networkPublicKey(), "trim network");
     }
 
     private void blankPrivateKeyIsNotSet() throws Exception {
-        Path dir = caseDir("blank-private");
-        Files.writeString(dir.resolve(".env"), "NETWORK_PUBLIC_KEY=" + NETWORK_KEY + "\n");
-        Map<String, String> environment = new HashMap<>();
-        environment.put("PROVIDER_PRIVATE_KEY", "   ");
-        expectConfig(dir, environment,
-                "PROVIDER_PRIVATE_KEY is not set",
-                privateKeyHelp(dir));
+        Path dir = withEnv("blank-private",
+                "PROVIDER_PRIVATE_KEY=\"   \"\nNETWORK_PUBLIC_KEY=" + NETWORK_KEY + "\n");
+        expectConfig(dir, "PROVIDER_PRIVATE_KEY is not set", privateKeyHelp(dir));
     }
 
     private void blankNetworkKeyIsNotSet() throws Exception {
-        Path dir = caseDir("blank-network");
-        Files.writeString(dir.resolve(".env"), "PROVIDER_PRIVATE_KEY=" + PRIVATE_KEY + "\n");
-        Map<String, String> environment = new HashMap<>();
-        environment.put("NETWORK_PUBLIC_KEY", "");
-        expectConfig(dir, environment, "NETWORK_PUBLIC_KEY is not set", NETWORK_HELP);
-    }
-
-    private void badPrivateKeyIsNotUsable() throws Exception {
-        Path dir = caseDir("bad-private");
-        Files.writeString(dir.resolve(".env"), "");
-        String sdkMessage;
-        try {
-            Signer.fromHex("zzzz");
-            fail("the SDK parser should reject zzzz");
-            return;
-        } catch (IllegalArgumentException e) {
-            sdkMessage = e.getMessage();
-        }
-        expectConfig(dir, Map.of("PROVIDER_PRIVATE_KEY", "zzzz", "NETWORK_PUBLIC_KEY", NETWORK_KEY),
-                "PROVIDER_PRIVATE_KEY is not usable: " + sdkMessage,
-                UNUSABLE_HELP);
+        Path dir = withEnv("blank-network", "PROVIDER_PRIVATE_KEY=" + PRIVATE_KEY + "\nNETWORK_PUBLIC_KEY=\n");
+        expectConfig(dir, "NETWORK_PUBLIC_KEY is not set", NETWORK_HELP);
     }
 
     private void portAccepted(String name, String raw, int expected) throws Exception {
-        Path dir = caseDir("port-ok-" + name.replace(' ', '-'));
-        Files.writeString(dir.resolve(".env"), "");
-        Map<String, String> environment = keys();
-        environment.put("PORT", raw);
-        EnvConfig.Loaded loaded = EnvConfig.load(dir, environment);
-        assertEquals(expected, loaded.config().port(), name);
+        Path dir = withEnv("port-ok-" + name, KEYS + "PORT=" + raw + "\n");
+        assertEquals(expected, EnvConfig.load(dir).port(), name);
     }
 
     private void portRejected(String raw) throws Exception {
-        Path dir = caseDir("port-bad-" + raw.replace('+', 'p'));
-        Files.writeString(dir.resolve(".env"), "");
-        Map<String, String> environment = keys();
-        environment.put("PORT", raw);
-        expectConfig(dir, environment, "PORT is not a valid port number: " + raw.strip(), PORT_HELP);
+        Path dir = withEnv("port-bad-" + raw, KEYS + "PORT=" + raw + "\n");
+        expectConfig(dir, "PORT is not a valid port number: " + raw, PORT_HELP);
     }
 
-    private void blankEndpointUsesSandbox(String raw) throws Exception {
-        Path dir = caseDir("endpoint-" + raw.length());
-        Files.writeString(dir.resolve(".env"), "");
-        Map<String, String> environment = keys();
-        environment.put("TZERO_ENDPOINT", raw);
-        EnvConfig.Loaded loaded = EnvConfig.load(dir, environment);
-        assertEquals(EnvConfig.SANDBOX_ENDPOINT, loaded.config().tzeroEndpoint(), "endpoint " + raw.length());
+    private void blankEndpointUsesSandbox(String name, String raw) throws Exception {
+        Path dir = withEnv("endpoint-" + name, KEYS + "TZERO_ENDPOINT=" + raw + "\n");
+        assertEquals(EnvConfig.SANDBOX_ENDPOINT, EnvConfig.load(dir).tzeroEndpoint(), "endpoint " + name);
     }
 
-    private void missingEnvNotice() throws Exception {
-        Path dir = caseDir("missing-env");
-        EnvConfig.Loaded loaded = EnvConfig.load(dir, keys());
-        String path = dir.resolve(".env").toAbsolutePath().normalize().toString();
-        assertEquals(
-                "No .env at " + path + " — taking configuration from the environment instead",
-                loaded.missingEnvNotice());
-        assertEquals(EnvConfig.SANDBOX_ENDPOINT, loaded.config().tzeroEndpoint());
-        assertEquals(8080, loaded.config().port());
+    // With no .env and none of the variables set, the only failure is the missing key.
+    private void missingEnvIsNotAFailure() throws Exception {
+        Path dir = Files.createDirectory(root.resolve("missing-env"));
+        expectConfig(dir, "PROVIDER_PRIVATE_KEY is not set", privateKeyHelp(dir));
     }
 
-    private void expectConfig(Path dir, Map<String, String> environment, String message, String help) {
+    private void expectConfig(Path dir, String message, String help) {
         EnvConfig.ConfigurationException error = assertThrows(
                 EnvConfig.ConfigurationException.class,
-                () -> EnvConfig.load(dir, environment));
+                () -> EnvConfig.load(dir));
         assertEquals(message, error.getMessage());
         assertEquals(help, error.getHelpMessage());
         ByteArrayOutputStream buffer = new ByteArrayOutputStream();
         Main.writeConfigError(error, new PrintStream(buffer, true, StandardCharsets.UTF_8));
-        String printed = buffer.toString(StandardCharsets.UTF_8);
         assertEquals(
                 "ERROR: " + message + System.lineSeparator() + help + System.lineSeparator(),
-                printed);
+                buffer.toString(StandardCharsets.UTF_8));
     }
 
-    private Map<String, String> keys() {
-        Map<String, String> environment = new HashMap<>();
-        environment.put("PROVIDER_PRIVATE_KEY", PRIVATE_KEY);
-        environment.put("NETWORK_PUBLIC_KEY", NETWORK_KEY);
-        return environment;
-    }
-
-    private Path caseDir(String name) throws Exception {
-        return Files.createDirectory(root.resolve(name));
+    private Path withEnv(String name, String contents) throws Exception {
+        Path dir = Files.createDirectory(root.resolve(name));
+        Files.writeString(dir.resolve(".env"), contents);
+        return dir;
     }
 
     private static String privateKeyHelp(Path dir) {

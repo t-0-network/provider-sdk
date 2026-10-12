@@ -1,6 +1,6 @@
 """Payment intent quote publishing to the T-0 Network.
 
-Pay-In Provider role — Step 3A.1. Publishes sample pay-in quotes every 5 seconds.
+Pay-In Provider role — Step 3A.1. Publishes sample pay-in quotes every 5 seconds by default.
 Replace the hardcoded values with quotes from your own pricing systems.
 """
 

@@ -29,12 +29,6 @@ catch (MyProvider.ConfigException ex)
     Console.Error.WriteLine(ex.Help);
     Environment.Exit(1);
 }
-catch (Exception ex) when (MyProvider.Config.IsInvalidNetworkKey(ex))
-{
-    Console.Error.WriteLine($"ERROR: {ex.Message}");
-    Console.Error.WriteLine(MyProvider.Config.NetworkKeyHelp);
-    Environment.Exit(1);
-}
 catch (OperationCanceledException)
 {
     // SIGINT/SIGTERM: the host already drained.

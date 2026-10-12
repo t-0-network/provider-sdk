@@ -1,6 +1,6 @@
 """Quote publishing to the T-0 Network.
 
-Publishes sample PayOut (off-ramp) quotes every 5 seconds.
+Publishes sample PayOut (off-ramp) quotes every 5 seconds by default.
 TODO: Step 1.3 Replace this with fetching quotes from your systems and publishing them.
 We recommend publishing at least once per 5 seconds, but not more than once per second.
 """

@@ -7,22 +7,27 @@ export default async function getPaymentIntentQuote(
   // Beneficiary Provider role — Step 3B.1.
   // Use this to check available rates before creating a payment intent. The actual
   // settlement rate is determined when the pay-in provider confirms funds received.
-  const response = await paymentIntentClient.getQuote({
-    currency: "EUR",
-    amount: decimalFromString("500"), // end-user pays 500 EUR
-  })
+  try {
+    const response = await paymentIntentClient.getQuote({
+      currency: "EUR",
+      amount: decimalFromString("500"), // end-user pays 500 EUR
+    })
 
-  switch (response.result.case) {
-    case 'success':
-      console.log(
-          `Got ${response.result.value.bestQuotes.length} best pay-in quotes`,
-          `and ${response.result.value.allQuotes.length} total quotes`,
-      )
-      break;
-    case 'quoteNotFound':
-      console.log("No pay-in quotes available for this currency/amount")
-      break;
-    default:
-      console.error("unexpected result type")
+    switch (response.result.case) {
+      case 'success':
+        console.log(
+            `Got ${response.result.value.bestQuotes.length} best pay-in quotes`,
+            `and ${response.result.value.allQuotes.length} total quotes`,
+        )
+        break;
+      case 'quoteNotFound':
+        console.log("No pay-in quotes available for this currency/amount")
+        break;
+      default:
+        console.error("unexpected result type")
+    }
+  } catch (error) {
+    // A failed call is logged, and the provider keeps serving.
+    console.error(`Error getting payment intent quote: ${error instanceof Error ? error.message : String(error)}`)
   }
 }

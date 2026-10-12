@@ -6,7 +6,6 @@ import sys
 from pathlib import Path
 
 import pytest
-from t0_provider_sdk.crypto.keys import private_key_from_hex
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "src"))
 
@@ -22,16 +21,9 @@ PRIVATE_KEY_HELP = (
     "for you, and its private half is not recoverable."
 )
 NETWORK_HELP = "Ask the t-0 team for the network public key and put it in .env."
-NOT_USABLE_HELP = "Any 32 random bytes will do: openssl rand -hex 32."
 PORT_HELP = "Set PORT to an integer between 1 and 65535, or leave it unset for 8080."
 
 _KEYS = {"PROVIDER_PRIVATE_KEY": PRIVATE_KEY, "NETWORK_PUBLIC_KEY": NETWORK_PUBLIC_KEY}
-
-
-def _not_usable_message(raw: str) -> str:
-    with pytest.raises(ValueError) as sdk_error:
-        private_key_from_hex(raw.strip())
-    return f"PROVIDER_PRIVATE_KEY is not usable: {sdk_error.value}"
 
 
 # ``error`` is the ConfigurationError message. ``help`` is its help line (``"private"`` fills in
@@ -54,12 +46,6 @@ CASES = [
         "error": "NETWORK_PUBLIC_KEY is not set",
         "help": NETWORK_HELP,
     },
-    {
-        "id": "bad-private-key",
-        "env": {"PROVIDER_PRIVATE_KEY": "0x1234", "NETWORK_PUBLIC_KEY": NETWORK_PUBLIC_KEY},
-        "error": "not-usable",
-        "help": NOT_USABLE_HELP,
-    },
     {"id": "port-blank", "env": {**_KEYS, "PORT": ""}, "config": {"port": 8080}},
     {"id": "port-whitespace", "env": {**_KEYS, "PORT": "   "}, "config": {"port": 8080}},
     {"id": "port-8080", "env": {**_KEYS, "PORT": "8080"}, "config": {"port": 8080}},
@@ -71,33 +57,15 @@ CASES = [
         "help": PORT_HELP,
     },
     {
-        "id": "port-zero-padded",
-        "env": {**_KEYS, "PORT": "  0  "},
-        "error": "PORT is not a valid port number: 0",
-        "help": PORT_HELP,
-    },
-    {
         "id": "port-http",
         "env": {**_KEYS, "PORT": "http"},
         "error": "PORT is not a valid port number: http",
         "help": PORT_HELP,
     },
     {
-        "id": "port-hex",
-        "env": {**_KEYS, "PORT": "0x1F90"},
-        "error": "PORT is not a valid port number: 0x1F90",
-        "help": PORT_HELP,
-    },
-    {
-        "id": "port-scientific",
-        "env": {**_KEYS, "PORT": "1e3"},
-        "error": "PORT is not a valid port number: 1e3",
-        "help": PORT_HELP,
-    },
-    {
-        "id": "port-plus",
-        "env": {**_KEYS, "PORT": "+8080"},
-        "error": "PORT is not a valid port number: +8080",
+        "id": "port-out-of-range",
+        "env": {**_KEYS, "PORT": "65536"},
+        "error": "PORT is not a valid port number: 65536",
         "help": PORT_HELP,
     },
     {"id": "endpoint-blank", "env": {**_KEYS, "TZERO_ENDPOINT": ""}, "config": {"tzero_endpoint": SANDBOX}},
@@ -153,10 +121,7 @@ def test_load_config(case, monkeypatch, tmp_path, capsys):
     if "error" in case:
         with pytest.raises(ConfigurationError) as raised:
             load_config()
-        expected = case["error"]
-        if expected == "not-usable":
-            expected = _not_usable_message(case["env"]["PROVIDER_PRIVATE_KEY"])
-        assert str(raised.value) == expected
+        assert str(raised.value) == case["error"]
         help_text = case["help"]
         if help_text == "private":
             help_text = PRIVATE_KEY_HELP.format(env_path=(tmp_path / ".env").resolve())

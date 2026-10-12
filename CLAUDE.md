@@ -6,7 +6,17 @@ Sign and verify the raw wire bytes, never a re-encoded protobuf message. Rule S2
 
 ## One behavior in every SDK
 
-All five implementations (Go, Java, Node, Python, C#) are kept as alike as the languages allow. Every default, input check, SDK-raised error code and message, public helper and option exists in every SDK, with the same value, under one name in each language's casing. Each value is one named constant per SDK, and the cross-language tests check it against `cross_test/test_vectors.json`; where it is a behavior, they run it against every server. A change to one SDK is made in all five in the same PR, together with `cross_test/test_vectors.json`. A difference is allowed only as an exception the user approved, stated in [`docs/CROSS_SDK_RULES.md`](docs/CROSS_SDK_RULES.md). Values that come from the underlying stack and that the SDK does not set itself are not differences.
+The five SDKs (Go, Java, Node, Python, C#) are kept as alike as the languages allow. Every default, input check, SDK-raised error code and message, public helper and option exists in every SDK, with the same value, under one name in each language's casing. Each value is one named constant per SDK, and the cross-language tests check it against `cross_test/test_vectors.json`; where it is a behavior, they run it against every server. A change to one SDK is made in all five in the same PR, together with `cross_test/test_vectors.json`. A difference is allowed only as an exception the user approved, stated in [`docs/CROSS_SDK_RULES.md`](docs/CROSS_SDK_RULES.md). Values that come from the underlying stack and that the SDK does not set itself are not differences.
+
+## The same structure in every starter
+
+The five starter templates follow the same steps, not the same bytes:
+
+- The same variables and defaults (sandbox endpoint, `8080`, `5000`). The process environment wins over `.env`. A missing `.env` prints one notice and startup continues.
+- A missing key, or a `PORT` that is not a port number, prints `ERROR: <message>` and one help line on stderr and exits 1. Any other startup failure prints `Provider failed to start: <cause>` and exits 1. Neither prints a stack trace.
+- The server binds before any startup call, and the listening line comes after the bind. SIGINT and SIGTERM stop the timers, drain the server and exit 0.
+
+Inside those steps each starter uses its platform's standard parser and library behavior. Do not add code that makes parsing, messages or edge cases identical across languages. Add a check only where the platform default causes a real failure, for example Node `PORT=abc` listening on a Unix socket, or `PORT=0` binding a random port. Write the least code that keeps the steps. The READMEs describe the shared steps and defaults, not per-language parsing. A change to these steps is made in all five starters in the same PR. A difference in parsing or wording between starters is not a defect.
 
 ## Repository Layout
 

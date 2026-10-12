@@ -4,13 +4,11 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"regexp"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/joho/godotenv"
-	"github.com/t-0-network/provider-sdk/go/crypto"
 	"github.com/t-0-network/provider-sdk/go/network"
 	"github.com/t-0-network/provider-sdk/go/provider"
 )
@@ -18,15 +16,9 @@ import (
 const (
 	sandboxEndpoint = "https://api-sandbox.t-0.network"
 
-	// invalidNetworkPublicKeyPrefix is the text the SDK puts in front of a rejected network key.
-	invalidNetworkPublicKeyPrefix = "invalid network public key: "
-
-	networkPublicKeyHelp   = "Ask the t-0 team for the network public key and put it in .env."
-	privateKeyUnusableHelp = "Any 32 random bytes will do: openssl rand -hex 32."
-	portHelp               = "Set PORT to an integer between 1 and 65535, or leave it unset for 8080."
+	networkPublicKeyHelp = "Ask the t-0 team for the network public key and put it in .env."
+	portHelp             = "Set PORT to an integer between 1 and 65535, or leave it unset for 8080."
 )
-
-var portPattern = regexp.MustCompile(`^[0-9]+$`)
 
 type Config struct {
 	NetworkPublicKey        provider.NetworkPublicKeyHexed
@@ -49,18 +41,15 @@ func loadConfig() (Config, error) {
 		return Config{}, err
 	}
 
-	if _, err := os.Stat(envPath); err != nil {
+	// godotenv does not override variables already set in the process environment.
+	if err := godotenv.Load(envPath); err != nil {
 		if !os.IsNotExist(err) {
 			return Config{}, err
 		}
 		fmt.Fprintf(os.Stderr, "No .env at %s — taking configuration from the environment instead\n", envPath)
-	} else if err := godotenv.Load(envPath); err != nil && !os.IsNotExist(err) {
-		// A missing file was handled above. godotenv does not override variables
-		// already set in the process environment.
-		return Config{}, err
 	}
 
-	// Anything but an integer in 1..2147483647 gives the default of 5000 ms.
+	// An unset or invalid value gives the default of 5000 ms.
 	intervalMs, err := strconv.ParseInt(os.Getenv("QUOTE_PUBLISHING_INTERVAL"), 10, 32)
 	if err != nil || intervalMs <= 0 {
 		intervalMs = 5000
@@ -77,12 +66,6 @@ func loadConfig() (Config, error) {
 		return Config{}, &configurationError{
 			msg:  "PROVIDER_PRIVATE_KEY is not set",
 			help: privateKeyMissingHelp(envPath),
-		}
-	}
-	if _, err := crypto.GetPrivateKeyFromHex(privateKey); err != nil {
-		return Config{}, &configurationError{
-			msg:  "PROVIDER_PRIVATE_KEY is not usable: " + err.Error(),
-			help: privateKeyUnusableHelp,
 		}
 	}
 	if networkKey == "" {
@@ -118,21 +101,11 @@ func parsePort(raw string) (int, error) {
 		return 8080, nil
 	}
 	port, err := strconv.Atoi(portStr)
-	if err != nil || !portPattern.MatchString(portStr) || port < 1 || port > 65535 {
+	if err != nil || port < 1 || port > 65535 {
 		return 0, &configurationError{
 			msg:  "PORT is not a valid port number: " + portStr,
 			help: portHelp,
 		}
 	}
 	return port, nil
-}
-
-// asConfigurationError maps a server-setup failure whose text is the SDK's
-// invalid-network-key error onto the configuration help. Any other error is
-// returned unchanged.
-func asConfigurationError(err error) error {
-	if err != nil && strings.HasPrefix(err.Error(), invalidNetworkPublicKeyPrefix) {
-		return &configurationError{msg: err.Error(), help: networkPublicKeyHelp}
-	}
-	return err
 }
