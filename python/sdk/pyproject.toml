@@ -39,5 +39,13 @@ dev = [
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
+[tool.hatch.build]
+# The generated code (scripts/buf-generate.sh) is ignored by the root .gitignore. Hatch reads only
+# python/.gitignore, which does not ignore it; this keeps it in the wheel and sdist if that changes.
+artifacts = [
+    "src/t0_provider_sdk/api/**/*.py",
+    "src/t0_provider_sdk/api/**/*.pyi",
+]
+
 [tool.hatch.build.targets.wheel]
 packages = ["src/t0_provider_sdk"]

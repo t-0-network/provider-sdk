@@ -41,6 +41,8 @@ runs:
       working-directory: node/sdk
       run: npm ls --omit=dev --all
 
+    - uses: ./.github/actions/buf-generate
+
     - name: Build
       shell: bash
       working-directory: node/sdk

@@ -101,3 +101,5 @@ All SDKs share a unified version, managed via git tags (`vX.Y.Z`). See [`docs/VE
 ## Contributing
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for development setup, testing, protobuf code generation, and release process.
+
+After cloning, run `scripts/buf-generate.sh` once from the repository root. The Node, Python and C# protobuf code is generated, not committed, and the script also turns on the Git hooks that keep it current.

@@ -38,6 +38,5 @@ Thumbs.db
 .env
 .env.local
 
-# Generated (but we commit api/ generated code)
-# sdk/src/t0_provider_sdk/api/ is committed
+# The generated code under sdk/src/t0_provider_sdk/api/ is ignored in the root .gitignore.
 
