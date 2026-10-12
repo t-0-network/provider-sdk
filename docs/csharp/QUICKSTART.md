@@ -38,12 +38,15 @@ The overload that takes `NetworkClientOptions` in place of the base URL also set
 
 ## Environment Variables
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `PROVIDER_PRIVATE_KEY` | Yes | — | secp256k1 private key (hex) |
-| `NETWORK_PUBLIC_KEY` | Yes | — | T-0 Network's public key (hex) |
-| `TZERO_ENDPOINT` | No | `https://api-sandbox.t-0.network` | API endpoint |
-| `PORT` | No | `8080` | Server port |
+`t0-init` creates `.env` from `.env.example` and writes a new private key into it. The other values in that file are for the sandbox. For production, the T-0 team gives you the network public key and the endpoint.
+
+| Variable | In `.env` after `t0-init` | If unset or empty | Description |
+|----------|---------------------------|-------------------|-------------|
+| `PROVIDER_PRIVATE_KEY` | A new key generated for this project | The provider does not start | secp256k1 private key (hex) |
+| `NETWORK_PUBLIC_KEY` | The sandbox network key | The provider does not start | T-0 Network's public key (hex) |
+| `TZERO_ENDPOINT` | `https://api-sandbox.t-0.network` | `https://api-sandbox.t-0.network` | API endpoint |
+| `PORT` | `8080` | `8080` | Server port |
+| `QUOTE_PUBLISHING_INTERVAL` | not set | `5000` | Quote publishing interval in milliseconds |
 
 ## Integration Steps
 

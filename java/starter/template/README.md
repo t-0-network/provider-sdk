@@ -9,15 +9,15 @@ T-0 Network provider implementation generated from the official Java starter.
 
 ## Quick Start
 
-1. **Review `.env`.** Init writes it with a fresh keypair. The process environment wins over the file. An empty value counts as unset.
+1. **Review `.env`.** `t0-init` creates it from `.env.example` and writes a new private key into it. The other values in that file are for the sandbox. For production, the T-0 team gives you the network public key and the endpoint. The process environment wins over the file. An empty value counts as unset.
 
-   | Variable | What it sets |
-   | --- | --- |
-   | `PROVIDER_PRIVATE_KEY` | Private key used to sign calls. Required. Init generates it. |
-   | `NETWORK_PUBLIC_KEY` | Network public key used to verify incoming calls. Required. Ask the t-0 team for it. |
-   | `TZERO_ENDPOINT` | API host. Default `https://api-sandbox.t-0.network`. |
-   | `PORT` | Port the gRPC server listens on. Default `8080`. |
-   | `QUOTE_PUBLISHING_INTERVAL` | Milliseconds between quote updates. Default `5000`. |
+   | Variable | In `.env` after `t0-init` | If unset or empty | Description |
+   | --- | --- | --- | --- |
+   | `PROVIDER_PRIVATE_KEY` | A new key generated for this project | The provider does not start | Private key used to sign calls |
+   | `NETWORK_PUBLIC_KEY` | The sandbox network key | The provider does not start | Network public key used to verify incoming calls |
+   | `TZERO_ENDPOINT` | `https://api-sandbox.t-0.network` | `https://api-sandbox.t-0.network` | API host |
+   | `PORT` | `8080` | `8080` | Port the gRPC server listens on |
+   | `QUOTE_PUBLISHING_INTERVAL` | not set | `5000` | Milliseconds between quote updates |
 
    The provider serves gRPC.
 

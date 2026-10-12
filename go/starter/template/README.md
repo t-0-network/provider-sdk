@@ -46,17 +46,17 @@ my-provider/
 
 ## Environment Variables
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `PROVIDER_PRIVATE_KEY` | Yes | none | Your secp256k1 private key (hex) |
-| `NETWORK_PUBLIC_KEY` | Yes | none | T-0 Network public key for signature verification |
-| `TZERO_ENDPOINT` | No | `https://api-sandbox.t-0.network` | T-0 Network API endpoint |
-| `PORT` | No | `8080` | TCP port, an integer from 1 to 65535 |
-| `QUOTE_PUBLISHING_INTERVAL` | No | `5000` | Quote publishing frequency in milliseconds, 1 to 2147483647; any other value gives the default |
+`t0-init` creates `.env` from `.env.example` and writes a new private key into it. The other values in that file are for the sandbox. For production, the T-0 team gives you the network public key and the endpoint.
+
+| Variable | In `.env` after `t0-init` | If unset or empty | Description |
+|----------|---------------------------|-------------------|-------------|
+| `PROVIDER_PRIVATE_KEY` | A new key generated for this project | The provider does not start | Your secp256k1 private key (hex) |
+| `NETWORK_PUBLIC_KEY` | The sandbox network key | The provider does not start | T-0 Network public key for signature verification |
+| `TZERO_ENDPOINT` | `https://api-sandbox.t-0.network` | `https://api-sandbox.t-0.network` | T-0 Network API endpoint |
+| `PORT` | `8080` | `8080` | TCP port, an integer from 1 to 65535 |
+| `QUOTE_PUBLISHING_INTERVAL` | not set | `5000` | Quote publishing frequency in milliseconds, 1 to 2147483647; any other value gives 5000 |
 
 An empty value counts as unset. `PROVIDER_PRIVATE_KEY`, `NETWORK_PUBLIC_KEY`, `TZERO_ENDPOINT`, and `PORT` are trimmed first, so a whitespace-only value counts as unset too.
-
-`PROVIDER_PRIVATE_KEY` and `NETWORK_PUBLIC_KEY` have no fallback, so an empty value is an error. The starter CLI writes a private key into `.env`, and `.env.example` carries the sandbox network key. Those are file contents, not runtime defaults.
 
 The process reads `.env` from the working directory when that file exists. A variable already set in the environment keeps its value. When `.env` is absent, stderr gets `No .env at <path> — taking configuration from the environment instead` and startup continues.
 

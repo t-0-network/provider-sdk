@@ -48,17 +48,17 @@ Each generated project contains numbered `TODO` comments that guide you through 
 
 ## Environment Variables
 
-All platforms use the same environment variables:
+All starters read the same variables, from the process environment and from `.env` in the working directory. A variable set in the environment wins over `.env`. An empty value counts as unset.
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `PROVIDER_PRIVATE_KEY` | Yes | none | Your secp256k1 private key (hex) |
-| `NETWORK_PUBLIC_KEY` | Yes | none | T-0 Network public key for signature verification |
-| `TZERO_ENDPOINT` | No | `https://api-sandbox.t-0.network` | T-0 Network API URL |
-| `PORT` | No | `8080` | Server listen port |
-| `QUOTE_PUBLISHING_INTERVAL` | No | `5000` | Quote publishing interval (ms) |
+`t0-init` creates `.env` from `.env.example` and writes a new private key into it. The other values in that file are for the sandbox. For production, the T-0 team gives you the network public key and the endpoint.
 
-`PROVIDER_PRIVATE_KEY` and `NETWORK_PUBLIC_KEY` have no fallback, so an empty value is an error. The starter CLI writes a private key into `.env`, and `.env.example` carries the sandbox network key. Those are file contents, not runtime defaults.
+| Variable | In `.env` after `t0-init` | If unset or empty | Description |
+|----------|---------------------------|-------------------|-------------|
+| `PROVIDER_PRIVATE_KEY` | A new key generated for this project | The provider does not start | Your secp256k1 private key (hex) |
+| `NETWORK_PUBLIC_KEY` | The sandbox network key | The provider does not start | T-0 Network public key for signature verification |
+| `TZERO_ENDPOINT` | `https://api-sandbox.t-0.network` | `https://api-sandbox.t-0.network` | T-0 Network API URL |
+| `PORT` | `8080` | `8080` | Server listen port |
+| `QUOTE_PUBLISHING_INTERVAL` | not set | `5000` | Quote publishing interval (ms) |
 
 ## SDK Packages
 

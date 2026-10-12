@@ -39,17 +39,17 @@ my-provider/
 
 ## Environment Variables
 
-An empty value counts as unset. `PORT` and `TZERO_ENDPOINT` then use the defaults below. `PROVIDER_PRIVATE_KEY` and `NETWORK_PUBLIC_KEY` have no fallback, so an empty value is an error. The starter CLI writes a private key into `.env`, and `.env.example` carries the sandbox network key. Those are file contents, not runtime defaults.
+`t0-init` creates `.env` from `.env.example` and writes a new private key into it. The other values in that file are for the sandbox. For production, the T-0 team gives you the network public key and the endpoint.
 
-The process environment wins over `.env`. A missing `.env` is not a failure: the process prints one notice on stderr and continues with the environment.
+The process environment wins over `.env`. An empty value counts as unset. A missing `.env` is not a failure: the process prints one notice on stderr and continues with the environment.
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `PROVIDER_PRIVATE_KEY` | Yes | none | Your secp256k1 private key (64-char hex). Surrounding whitespace is ignored. |
-| `NETWORK_PUBLIC_KEY` | Yes | none | T-0 Network public key for signature verification. Surrounding whitespace is ignored. |
-| `TZERO_ENDPOINT` | No | `https://api-sandbox.t-0.network` | T-0 Network API endpoint |
-| `PORT` | No | `8080` | Provider server port, an integer from 1 to 65535 |
-| `QUOTE_PUBLISHING_INTERVAL` | No | `5000` | Quote publishing interval in milliseconds |
+| Variable | In `.env` after `t0-init` | If unset or empty | Description |
+|----------|---------------------------|-------------------|-------------|
+| `PROVIDER_PRIVATE_KEY` | A new key generated for this project | The provider does not start | Your secp256k1 private key (64-char hex). Surrounding whitespace is ignored. |
+| `NETWORK_PUBLIC_KEY` | The sandbox network key | The provider does not start | T-0 Network public key for signature verification. Surrounding whitespace is ignored. |
+| `TZERO_ENDPOINT` | `https://api-sandbox.t-0.network` | `https://api-sandbox.t-0.network` | T-0 Network API endpoint |
+| `PORT` | `8080` | `8080` | Provider server port, an integer from 1 to 65535 |
+| `QUOTE_PUBLISHING_INTERVAL` | not set | `5000` | Quote publishing interval in milliseconds |
 
 ASP.NET Core also reads configuration from the environment. `Kestrel__Endpoints__*` replaces the address `PORT` selects, rather than listening beside it. The server speaks gRPC over cleartext HTTP/2 only.
 
