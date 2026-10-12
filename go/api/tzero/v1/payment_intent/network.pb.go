@@ -1617,7 +1617,11 @@ type CreatePaymentIntentResponse_Failure struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// *
 	// The reason for failure.
-	Reason        CreatePaymentIntentResponse_Failure_Reason `protobuf:"varint,10,opt,name=reason,proto3,enum=tzero.v1.payment_intent.CreatePaymentIntentResponse_Failure_Reason" json:"reason,omitempty"`
+	Reason CreatePaymentIntentResponse_Failure_Reason `protobuf:"varint,10,opt,name=reason,proto3,enum=tzero.v1.payment_intent.CreatePaymentIntentResponse_Failure_Reason" json:"reason,omitempty"`
+	// *
+	// Human-readable explanation of the failure, for display or logging. Free text, not a stable
+	// code; branch on `reason`.
+	Details       string `protobuf:"bytes,20,opt,name=details,proto3" json:"details,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1657,6 +1661,13 @@ func (x *CreatePaymentIntentResponse_Failure) GetReason() CreatePaymentIntentRes
 		return x.Reason
 	}
 	return CreatePaymentIntentResponse_Failure_FAILURE_REASON_UNSPECIFIED
+}
+
+func (x *CreatePaymentIntentResponse_Failure) GetDetails() string {
+	if x != nil {
+		return x.Details
+	}
+	return ""
 }
 
 // *
@@ -1880,7 +1891,7 @@ const file_tzero_v1_payment_intent_network_proto_rawDesc = "" +
 	"\vbeneficiary\x18\n" +
 	" \x03(\v2\x0f.ivms101.PersonB\b\xbaH\x05\x92\x01\x02\b\x01R\vbeneficiary\x12*\n" +
 	"\x05payer\x18( \x01(\v2\x0f.ivms101.PersonH\x00R\x05payer\x88\x01\x01B\b\n" +
-	"\x06_payer\"\xdb\x04\n" +
+	"\x06_payer\"\xff\x04\n" +
 	"\x1bCreatePaymentIntentResponse\x12X\n" +
 	"\asuccess\x18\n" +
 	" \x01(\v2<.tzero.v1.payment_intent.CreatePaymentIntentResponse.SuccessH\x00R\asuccess\x12X\n" +
@@ -1888,10 +1899,11 @@ const file_tzero_v1_payment_intent_network_proto_rawDesc = "" +
 	"\aSuccess\x123\n" +
 	"\x11payment_intent_id\x18\n" +
 	" \x01(\x04B\a\xbaH\x042\x02 \x00R\x0fpaymentIntentId\x12X\n" +
-	"\x0epay_in_details\x18\x14 \x03(\v22.tzero.v1.payment_intent.PaymentIntentPayInDetailsR\fpayInDetails\x1a\xdb\x01\n" +
+	"\x0epay_in_details\x18\x14 \x03(\v22.tzero.v1.payment_intent.PaymentIntentPayInDetailsR\fpayInDetails\x1a\xff\x01\n" +
 	"\aFailure\x12e\n" +
 	"\x06reason\x18\n" +
-	" \x01(\x0e2C.tzero.v1.payment_intent.CreatePaymentIntentResponse.Failure.ReasonB\b\xbaH\x05\x82\x01\x02 \x00R\x06reason\"i\n" +
+	" \x01(\x0e2C.tzero.v1.payment_intent.CreatePaymentIntentResponse.Failure.ReasonB\b\xbaH\x05\x82\x01\x02 \x00R\x06reason\x12\"\n" +
+	"\adetails\x18\x14 \x01(\tB\b\xbaH\x05r\x03\x18\x80\bR\adetails\"i\n" +
 	"\x06Reason\x12\x1e\n" +
 	"\x1aFAILURE_REASON_UNSPECIFIED\x10\x00\x12\"\n" +
 	"\x1eFAILURE_REASON_QUOTE_NOT_FOUND\x10\n" +
