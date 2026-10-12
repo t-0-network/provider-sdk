@@ -1,13 +1,13 @@
 plugins {
     `java-library`
-    id("build.buf") version "0.11.1"
+    id("build.buf") version "0.11.2"
     id("me.champeau.jmh") version "0.7.3"
     `maven-publish`
     signing
     id("com.gradleup.nmcp")
 }
 
-val grpcVersion = "1.84.0"
+val grpcVersion = "1.84.2"
 val protobufVersion = "4.36.2"
 val bouncyCastleVersion = "1.85.2"
 
