@@ -1,0 +1,34 @@
+name: Generate protobuf code
+description: >-
+  Installs Buf and uv and generates the Node, Python and C# protobuf code with
+  scripts/buf-generate.sh. Run it before building one of those SDKs: their
+  generated code is not committed (CONTRIBUTING.md, "Generated code").
+
+runs:
+  using: composite
+  steps:
+    # The Buf CLI version the backend's proto CI uses (its tools/go.mod).
+    - name: Setup buf
+      uses: bufbuild/buf-setup-action@v1
+      with:
+        version: "1.64.0"
+        github_token: ${{ github.token }}
+
+    # The Python connect plugin runs through `uv run` (see buf.gen.yaml): the
+    # BSR has no remote plugin for connectrpc >= 0.11. uv fetches the Python
+    # the workspace needs. Jobs that set up uv themselves keep their setup.
+    - name: Check for uv
+      id: uv
+      shell: bash
+      run: echo "found=$(command -v uv > /dev/null && echo true || echo false)" >> "$GITHUB_OUTPUT"
+
+    - name: Setup uv
+      if: steps.uv.outputs.found != 'true'
+      uses: astral-sh/setup-uv@v7
+
+    - name: Generate code
+      shell: bash
+      # Never rewrite python/uv.lock here; the Python job's `uv sync --locked` checks it.
+      env:
+        UV_FROZEN: "1"
+      run: scripts/buf-generate.sh

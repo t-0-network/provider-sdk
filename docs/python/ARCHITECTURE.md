@@ -333,7 +333,7 @@ graph TB
         end
     end
 
-    PROTO -->|"buf generate"| API
+    PROTO -->|"scripts/buf-generate.sh"| API
 ```
 
 | Directory | Purpose |
@@ -523,11 +523,11 @@ When porting changes from Go to Python (or vice versa), use this table to locate
 
 ### 3.8 Protobuf Code Generation Pipeline
 
-Proto definitions are the source of truth and live in the repository's root `proto/`. The `buf` tool generates Python code from the root `buf.gen.yaml` into `sdk/src/t0_provider_sdk/api/`. Generated code is committed to the repository to avoid requiring the `buf` toolchain at runtime or install time.
+Proto definitions are the source of truth and live in the repository's root `proto/`. The `buf` tool generates Python code from the root `buf.gen.yaml` into `sdk/src/t0_provider_sdk/api/`. The generated code is not committed: `scripts/buf-generate.sh` writes it in every checkout, and the wheel and sdist include it, so installing the SDK does not need the `buf` toolchain.
 
 ```mermaid
 flowchart LR
-    P["proto/<br/>Source definitions<br/>(.proto files)"] -->|"buf generate"| A["api/<br/>Generated code"]
+    P["proto/<br/>Source definitions<br/>(.proto files)"] -->|"scripts/buf-generate.sh"| A["api/<br/>Generated code"]
     A --> PB["*_pb2.py<br/>Message classes"]
     A --> PBI["*_pb2.pyi<br/>Type stubs"]
     A --> CON["*_connect.py<br/>Service protocols,<br/>ASGI apps, clients"]
@@ -537,12 +537,7 @@ flowchart LR
 
 Generated code uses absolute imports like `from tzero.v1.payment import provider_pb2`. To make these imports resolve, the SDK's `__init__.py` adds the `api/` directory to `sys.path` at import time.
 
-**Regeneration:** When proto definitions change, regenerate from the repository root:
-
-```bash
-uv sync --project python --all-packages   # the Python connect plugin is a dev dependency
-buf generate
-```
+**Regeneration:** The Git hooks regenerate the code after a pull that changes the protos. To run it yourself, see [CONTRIBUTING.md, "Generated code"](../../CONTRIBUTING.md#generated-code).
 
 ### 3.9 Starter Template
 
@@ -843,7 +838,7 @@ Both routers use simple path-prefix matching. ConnectRPC request paths follow th
 
 ### 4.5 Generated Code (`api/`)
 
-The `api/` directory contains buf/protobuf-generated Python code. It is committed to the repository and should not be manually edited.
+The `api/` directory contains buf/protobuf-generated Python code. It is generated in each checkout, ignored by Git apart from the two handwritten `__init__.py` files under `buf/`, and never edited by hand.
 
 **Directory structure:**
 
@@ -917,21 +912,12 @@ uv run ruff check .
 
 #### 4.8.1 Regenerating Proto Code
 
-When `.proto` files change:
-
-From the repository root:
-
-```bash
-uv sync --project python --all-packages   # the Python connect plugin is a dev dependency
-buf generate
-```
-
-Commit the regenerated `api/` directory (the `generate-clients.yaml` workflow does the same).
+When `.proto` files change, run `scripts/buf-generate.sh` from the repository root; the Git hooks do it after a pull. Do not commit `api/` (see [CONTRIBUTING.md, "Generated code"](../../CONTRIBUTING.md#generated-code)).
 
 #### 4.8.2 Adding a New Service
 
 1. Add the `.proto` file to the repository's root `proto/`
-2. Run `buf generate` to create the generated code
+2. Run `scripts/buf-generate.sh` to create the generated code
 3. **Server side (ASGI):** Implement the generated service Protocol, then register with `handler()`:
    ```python
    app = new_asgi_app(

@@ -19,7 +19,7 @@ Triggered by `gh workflow run release.yaml -f bump=<patch|minor|major> --ref mas
 
 Steps in order:
 
-1. **Build gate** — `build-go`, `build-node`, `build-java`, `build-python`, `build-csharp`, `build-cli` all compile in parallel against the current commit. If any fails, the release is aborted and nothing changes.
+1. **Build gate** — `build-go`, `build-node`, `build-java`, `build-python`, `build-csharp`, `build-cli` all compile in parallel against the current commit. If any fails, the release is aborted and nothing changes. Only `go/api/` of the generated protobuf code is committed, so every job that builds the Node, Python or C# SDK, here and in `publish.yaml`, first runs `.github/actions/buf-generate`.
 
 2. **`release` job** runs only after the gate. Steps:
 
@@ -116,10 +116,10 @@ Inlined per-job (rather than as a single shared `validate-versions` job) so each
 | Job | Runner | Validates | Then |
 |---|---|---|---|
 | `publish-go` | blacksmith | `go/sdkversion/version.go` matches tag | Creates + pushes the Go module tag (`go/vX.Y.Z`). The tag is created here (not in `release.yaml`) so that nothing running on the release commit can race a public-proxy lookup ahead of it (see "Things not to do here" above). The job itself never queries `proxy.golang.org` for the SDK and does **not** warm it; the proxy indexes the tag on its own once GitHub has replicated it. Then it rebuilds the `file://` layout with `sumtool` from the tagged tree and runs `go build -mod=readonly ./...` in `go/starter/template` behind the same gate + chain as `release.yaml`, verifying that the `go.sum` entry `release.yaml` precomputed matches the tagged tree. `-mod=readonly` fails on a missing line as well as a wrong hash. This job pushes tags, never commits. No artifact upload — Go modules are served from the git tag itself. |
-| `publish-node-sdk` | **`ubuntu-latest`** (npm provenance requires GitHub-hosted) | `node/sdk/src/version.ts` + `node/sdk/package.json` match tag | `npm publish --provenance --access public`. |
-| `publish-python-sdk` | blacksmith, env `pypi-sdk` | `_version.py` + `pyproject.toml` match tag | `uv build --package t0-provider-sdk` then `uv publish --trusted-publishing always`. |
+| `publish-node-sdk` | **`ubuntu-latest`** (npm provenance requires GitHub-hosted) | `node/sdk/src/version.ts` + `node/sdk/package.json` match tag | Generates the protobuf code, builds, then `npm publish --provenance --access public`. |
+| `publish-python-sdk` | blacksmith, env `pypi-sdk` | `_version.py` + `pyproject.toml` match tag | Generates the protobuf code, then `uv build --package t0-provider-sdk` and `uv publish --trusted-publishing always`. |
 | `publish-java` | blacksmith (2vcpu — most time is Maven Central polling) | `META-INF/sdk-version.properties` + `gradle.properties` match tag | `./gradlew publishAggregationToCentralPortal`. |
-| `publish-csharp` | blacksmith, env `nuget` | sdk csproj `<Version>` matches tag | `dotnet pack` for sdk; `dotnet nuget push` to `nuget.org`. Auth via `NuGet/login@v1` OIDC → temporary key (no long-lived token). |
+| `publish-csharp` | blacksmith, env `nuget` | sdk csproj `<Version>` matches tag | Generates the protobuf code, then `dotnet pack` for sdk; `dotnet nuget push` to `nuget.org`. Auth via `NuGet/login@v1` OIDC → temporary key (no long-lived token). |
 | `publish-cli` | blacksmith | — (waits for all builds + all SDK publishes) | Cross-compiles `t0-init` for linux/darwin/windows × amd64/arm64, uploads binaries to the GitHub Release. |
 
 ### Post-publish verification

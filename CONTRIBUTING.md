@@ -11,6 +11,16 @@ This repository holds the T-0 Network provider SDKs for Go, TypeScript, Python, 
 - [Java](https://adoptium.net/) 17+ (the Gradle wrapper is included)
 - [.NET](https://dotnet.microsoft.com/download) 10 SDK
 
+## After cloning
+
+Run this once from the repository root:
+
+```sh
+scripts/buf-generate.sh
+```
+
+It generates the Node, Python and C# protobuf code, which is not committed, and turns on the Git hooks that keep it current after every checkout, pull and rebase. See [Generated code](#generated-code).
+
 ## Repository layout
 
 ```
@@ -25,12 +35,14 @@ java/sdk/       Java SDK (network.t-0:provider-sdk-java)
 java/starter/   Java starter template
 csharp/         C# SDK + starter template
 cross_test/     Cross-language test vectors + shared Go helper
+scripts/        buf-generate.sh: generates the Node, Python and C# protobuf code
+.githooks/      Runs scripts/buf-generate.sh after checkout, pull and rebase
 docs/           Design and process documentation
 ```
 
 ## Build and test
 
-These are the checks CI runs. Run them for every area you change:
+These are the checks CI runs. Run them for every area you change, after generating the code (see [Generated code](#generated-code)):
 
 ```sh
 cd go && go vet ./... && go test -race ./...
@@ -80,16 +92,27 @@ Before you open a pull request, check that:
 - **Dependencies follow [docs/DEPENDENCY_UPDATES.md](docs/DEPENDENCY_UPDATES.md).** Dependabot batches ordinary updates. Dependencies on the signing path get their own pull request and an audit.
 - **`cli/` is copied into other product repositories.** Keep product-specific values in `config.go`. See [docs/CLI.md](docs/CLI.md).
 
-## Protobuf code generation
+## Generated code
 
-`proto/` is the source of truth. The `proto_sync.yaml` workflow syncs it from the backend, and `generate-clients.yaml` then regenerates the committed code. To regenerate locally, run this from the repository root:
+`proto/` is the source of truth. The backend's proto sync updates it, and `generate-clients.yaml` then regenerates `go/api/` and commits it. Only `go/api/` is committed, because a tagged Go module is the repository's source. The Node, Python and C# code is generated in every checkout and ignored by Git:
+
+- `node/sdk/src/common/gen/`
+- `python/sdk/src/t0_provider_sdk/api/`, apart from the handwritten `buf/__init__.py` and `buf/validate/__init__.py`
+- `csharp/sdk/T0.ProviderSdk/Api/`
+
+`scripts/buf-generate.sh` generates them from the root `buf.gen.yaml`; it leaves `go/api/` alone. It needs `buf`, `uv` (the Python connect plugin runs through it) and access to buf.build. After cloning, run it once:
 
 ```sh
-uv sync --project python --all-packages   # the Python connect plugin runs from this workspace
-buf generate
+scripts/buf-generate.sh
 ```
 
-This writes `go/api/`, `node/sdk/src/common/gen/`, `python/sdk/src/t0_provider_sdk/api/` and `csharp/sdk/T0.ProviderSdk/Api/`. Java generates its code at build time. For language-specific details, see [docs/python/PITFALLS.md](docs/python/PITFALLS.md) and [docs/java/PROTO_SCHEMA_MANAGEMENT.md](docs/java/PROTO_SCHEMA_MANAGEMENT.md).
+The first run also turns on the repository's Git hooks in `.githooks/` (`git config core.hooksPath .githooks`); Git does not let a repository turn its hooks on by itself. The hooks run the script after every checkout, pull and rebase, and then the hooks Git ran before, from `.git/hooks/` and a global `core.hooksPath`. The script generates only when the protos, the Buf configuration or `python/uv.lock` changed since its last run, and then it replaces the previous output, so a removed proto leaves no generated file behind. A failed run leaves the previous output in place. `scripts/buf-generate.sh --force` generates anyway. CI runs the same script before it builds an SDK (`.github/actions/buf-generate`).
+
+When you change a proto yourself, also regenerate `go/api/` and commit it: run `buf generate` from the repository root, which writes every language's output.
+
+Without a login, buf.build allows 10 generations an hour from one IP address. `buf registry login` raises the limit.
+
+The published npm, PyPI and NuGet packages contain the generated code, so installing them needs neither Buf nor protoc. Java generates its code during its Gradle build. For language-specific details, see [docs/python/PITFALLS.md](docs/python/PITFALLS.md) and [docs/java/PROTO_SCHEMA_MANAGEMENT.md](docs/java/PROTO_SCHEMA_MANAGEMENT.md).
 
 ## Pull requests
 

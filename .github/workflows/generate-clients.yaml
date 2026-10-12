@@ -47,7 +47,9 @@ jobs:
       - name: Install Python codegen plugin
         run: uv sync --project python --all-packages
 
-      # Generate Go, Node, Python, C# from root buf.gen.yaml
+      # Generates every SDK's code from the root buf.gen.yaml. Only go/api/ is
+      # committed; the Node, Python and C# code is generated in each checkout
+      # (CONTRIBUTING.md, "Generated code").
       - name: Generate clients
         run: buf generate
 
@@ -55,4 +57,4 @@ jobs:
         uses: stefanzweifel/git-auto-commit-action@v7
         with:
           commit_message: "Auto-generate gRPC clients"
-          file_pattern: "go/api/** node/sdk/src/common/gen/** python/sdk/src/t0_provider_sdk/api/** csharp/sdk/T0.ProviderSdk/Api/**"
+          file_pattern: "go/api/**"
