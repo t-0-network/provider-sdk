@@ -588,7 +588,7 @@
       "error": "missing required header: X-Signature-Timestamp"
     }
   ],
-  "base_url_parsing_note": "Every SDK client checks its base URL with this rule: empty is 'base URL is not set'; a value without '://' is read as 'https://' + value; then the language's standard URL parser, plus: no whitespace or control character anywhere, scheme http or https, a host, no user info, no query, no fragment, a port (if any) in 1..65535. Anything else is 'base URL is not valid'. A whitespace or control character is U+0000..U+0020, U+007F, or another Unicode White_Space character: U+0085, U+00A0, U+1680, U+2000..U+200A, U+2028, U+2029, U+202F, U+205F, U+3000. Nothing is trimmed, so a value with one of them anywhere, or of whitespace only, is 'base URL is not valid'. path-nbsp has U+00A0 (NO-BREAK SPACE) in its path, and path-del U+007F (DELETE). A path prefixes every call. Inputs outside these rows may differ between SDKs, by their URL parsers.",
+  "base_url_parsing_note": "A missing value is the same error as empty: Go omits WithBaseURL, Node passes undefined or null, Python omits the keyword or passes None, Java passes null, and C# leaves BaseUrl unset or sets it to null. Every SDK client checks its base URL with this rule: empty is 'base URL is not set'; a value without '://' is read as 'https://' + value; then the language's standard URL parser, plus: no whitespace or control character anywhere, scheme http or https, a host, no user info, no query, no fragment, a port (if any) in 1..65535. Anything else is 'base URL is not valid'. A whitespace or control character is U+0000..U+0020, U+007F, or another Unicode White_Space character: U+0085, U+00A0, U+1680, U+2000..U+200A, U+2028, U+2029, U+202F, U+205F, U+3000. Nothing is trimmed, so a value with one of them anywhere, or of whitespace only, is 'base URL is not valid'. path-nbsp has U+00A0 (NO-BREAK SPACE) in its path, and path-del U+007F (DELETE). A path prefixes every call. Inputs outside these rows may differ between SDKs, by their URL parsers.",
   "base_url_parsing": [
     {
       "name": "plain",
@@ -881,7 +881,7 @@
       "error": "private key must be in range [1, n-1]"
     }
   ],
-  "constants_note": "The values every SDK defines, each as one named constant. Each SDK's contract test compares its constants with these. Durations are in milliseconds, sizes in bytes. default_base_url, default_timeout_ms and default_stream_timeout_ms are what a client uses when it is given no base URL, unary timeout or stream timeout. max_timeout_ms is the largest client timeout and stream timeout an SDK accepts; a larger one is refused when the client is built. kyc_file_chunk_max_bytes is the largest chunk the KYC file helpers send.",
+  "constants_note": "The values every SDK defines, each as one named constant. Each SDK's contract test compares its constants with these. Durations are in milliseconds, sizes in bytes. default_timeout_ms and default_stream_timeout_ms are what a client uses when it is given no unary timeout or stream timeout. default_base_url is the network host a caller passes; the SDK does not apply it when no base URL is given. max_timeout_ms is the largest client timeout and stream timeout an SDK accepts; a larger one is refused when the client is built. kyc_file_chunk_max_bytes is the largest chunk the KYC file helpers send.",
   "constants": {
     "default_max_body_size": 10485760,
     "timestamp_window_ms": 60000,

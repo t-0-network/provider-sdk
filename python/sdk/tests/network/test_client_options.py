@@ -16,7 +16,6 @@ from google.protobuf.wrappers_pb2 import StringValue
 from t0_provider_sdk.common.headers import PUBLIC_KEY_HEADER, SIGNATURE_HEADER
 from t0_provider_sdk.crypto.signer import new_signer_from_hex
 from t0_provider_sdk.network import (
-    DEFAULT_BASE_URL,
     Protocol,
     new_service_client,
     new_service_client_sync,
@@ -106,9 +105,14 @@ class TestBaseURL:
     @pytest.mark.parametrize(
         ("factory", "client_class"), [(new_service_client, _Client), (new_service_client_sync, _SyncClient)]
     )
-    def test_none_means_the_default(self, factory, client_class) -> None:
-        client = factory(PRIVATE_KEY, client_class, base_url=None)
-        assert client._address == DEFAULT_BASE_URL
+    def test_missing_base_url_is_not_set(self, factory, client_class) -> None:
+        """Omitting the keyword and None are the same error as an empty base URL, before the key."""
+        with pytest.raises(ValueError, match="^base URL is not set$"):
+            factory(PRIVATE_KEY, client_class)
+        with pytest.raises(ValueError, match="^base URL is not set$"):
+            factory(PRIVATE_KEY, client_class, base_url=None)
+        with pytest.raises(ValueError, match="^base URL is not set$"):
+            factory("not-a-key", client_class)
 
     @pytest.mark.parametrize("vec", BASE_URL_VECTORS, ids=lambda vec: vec["name"])
     @pytest.mark.parametrize("factory", FACTORIES)
@@ -209,12 +213,12 @@ class TestSigner:
     def test_key_and_sign_fn_together_are_refused(self, factory, key) -> None:
         """Neither is silently dropped for the other."""
         with pytest.raises(ValueError, match="^a private key and a signer must not both be given$"):
-            factory(key, _Client, sign_fn=new_signer_from_hex(OTHER_PRIVATE_KEY))
+            factory(key, _Client, base_url="http://example.test", sign_fn=new_signer_from_hex(OTHER_PRIVATE_KEY))
 
     @pytest.mark.parametrize("factory", FACTORIES)
     def test_none_signer_is_refused(self, factory) -> None:
         with pytest.raises(ValueError, match="^signer must not be null$"):
-            factory(None, _Client)
+            factory(None, _Client, base_url="http://example.test")
 
     @pytest.mark.asyncio
     @pytest.mark.parametrize(
@@ -270,7 +274,7 @@ class TestSigner:
     @pytest.mark.parametrize("factory", FACTORIES)
     def test_key_is_checked_without_sign_fn(self, factory) -> None:
         with pytest.raises(ValueError, match="^private key must not be null or empty$"):
-            factory("", _Client)
+            factory("", _Client, base_url="http://example.test")
 
 
 class TestTransport:

@@ -407,21 +407,23 @@ describe('createClient routes unary and streaming calls to their own transport',
     });
   }
 
-  it('a base URL that is not given, undefined or null, is the default one', () => {
+  it('a base URL that is undefined or null is not set', () => {
     const key = newKeypair().privateKeyHex;
-    assert.doesNotThrow(() => createClient(key, undefined, StreamTest));
-    assert.doesNotThrow(() => createClient(key, null as unknown as string, StreamTest));
+    assert.throws(() => createClient(key, undefined, StreamTest), { message: 'base URL is not set' });
+    assert.throws(() => createClient(key, null, StreamTest), { message: 'base URL is not set' });
   });
 
   it('checks the base URL, then the timeouts, then the key, as every SDK does', () => {
+    const url = 'http://127.0.0.1:9';
     assert.throws(() => createClient('bad key', ' ', StreamTest, { timeoutMs: 0 }), { message: 'base URL is not valid' });
-    assert.throws(() => createClient('bad key', undefined, StreamTest, { timeoutMs: 0 }), {
+    assert.throws(() => createClient('bad key', undefined, StreamTest, { timeoutMs: 0 }), { message: 'base URL is not set' });
+    assert.throws(() => createClient('bad key', url, StreamTest, { timeoutMs: 0 }), {
       message: 'timeout must be a positive duration of at most 2147483647 ms',
     });
-    assert.throws(() => createClient('bad key', undefined, StreamTest, { streamTimeoutMs: 0 }), {
+    assert.throws(() => createClient('bad key', url, StreamTest, { streamTimeoutMs: 0 }), {
       message: 'stream timeout must be a positive duration of at most 2147483647 ms',
     });
-    assert.throws(() => createClient('bad key', undefined, StreamTest), { message: 'private key must be 32 bytes (64 hex characters)' });
+    assert.throws(() => createClient('bad key', url, StreamTest), { message: 'private key must be 32 bytes (64 hex characters)' });
   });
 
   it('a path in the base URL prefixes every call, with or without a trailing "/"; the signature is unchanged', async () => {

@@ -12,8 +12,9 @@ import (
 	"github.com/t-0-network/provider-sdk/go/internal/contract"
 )
 
-// What a client uses when it is given no base URL, unary timeout or stream timeout, and the
-// largest timeout and stream timeout it accepts. The same values in every SDK.
+// DefaultBaseURL is the network host a caller passes with WithBaseURL. The SDK does not apply it.
+// DefaultTimeout and DefaultStreamTimeout are what a client uses when it is given no unary timeout
+// or stream timeout, and MaxTimeout is the largest of either it accepts. The same values in every SDK.
 const (
 	DefaultBaseURL       = "https://api.t-0.network"
 	DefaultTimeout       = 15 * time.Second
@@ -96,7 +97,7 @@ func isSpaceOrControl(r rune) bool {
 }
 
 var defaultClientOptions = clientOptions{
-	baseURL:       DefaultBaseURL,
+	baseURL:       "",
 	signFn:        nil,
 	timeout:       DefaultTimeout,
 	streamTimeout: DefaultStreamTimeout,

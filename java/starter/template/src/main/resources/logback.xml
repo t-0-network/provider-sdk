@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <configuration>
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
+        <target>System.err</target>
         <encoder>
             <pattern>%d{HH:mm:ss.SSS} [%thread] %-5level %logger{36} - %msg%n</pattern>
         </encoder>
@@ -12,7 +13,7 @@
     </root>
 
     <!-- Application logging -->
-    <logger name="network.t0" level="DEBUG"/>
+    <logger name="network.t0" level="INFO"/>
 
     <!-- gRPC logging (set to WARN to reduce noise) -->
     <logger name="io.grpc" level="WARN"/>

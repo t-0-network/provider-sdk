@@ -1,9 +1,9 @@
 import {type Client, NetworkService, PaymentMethodType} from "@t-0/provider-sdk";
-import {decimalFromString} from "./lib";
+import {decimalFromString, type Publishing} from "./lib.js";
 import {randomUUID} from "node:crypto";
 import {timestampFromDate} from "@bufbuild/protobuf/wkt";
 
-export default async function publishQuotes(networkClient: Client<typeof NetworkService>, quotePublishingInterval: number): Promise<void> {
+export default async function publishQuotes(networkClient: Client<typeof NetworkService>, quotePublishingInterval: number, publishing: Publishing): Promise<void> {
   // TODO: Step 1.3 replace this with receiving quotes from you systems and publishing them into t-0 Network. We recommend publishing at least once per 5 seconds, but not more than once per second
   const sampleRate = decimalFromString("0.873");
   const sampleMaxAmount = decimalFromString("25000");
@@ -35,6 +35,11 @@ export default async function publishQuotes(networkClient: Client<typeof Network
     console.log("quote published")
   }
 
-  await tick()
-  setInterval(tick, quotePublishingInterval);
+  if (publishing.shuttingDown) {
+    return;
+  }
+  await tick();
+  if (!publishing.shuttingDown) {
+    publishing.timers.push(setInterval(tick, quotePublishingInterval));
+  }
 }

@@ -79,3 +79,10 @@ export const quotePublishingInterval = (value: string | undefined): number => {
   const ms = /^[+-]?[0-9]+$/.test(value ?? "") ? Number(value) : NaN;
   return ms >= 1 && ms <= 2_147_483_647 ? ms : 5000;
 };
+
+// Shared by both quote loops. shuttingDown is set before their first await returns
+// into setInterval, so a signal during that await does not start a timer while draining.
+export interface Publishing {
+  shuttingDown: boolean;
+  timers: ReturnType<typeof setInterval>[];
+}

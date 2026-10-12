@@ -11,10 +11,16 @@ public class NetworkClientOptionsTests
     private const string OtherKey = "4c0883a69102937d6231471b5dbb6204fe5129617082792ae468d01a3f362318";
 
     [Fact]
-    public void BaseUrl_DefaultsToTheNetwork_AlsoWhenSetToNull()
+    public void BaseUrl_UnsetOrNull_IsNotSet()
     {
-        Assert.Equal("https://api.t-0.network", new NetworkClientOptions().BaseUrl);
-        Assert.Equal("https://api.t-0.network", new NetworkClientOptions { BaseUrl = null }.BaseUrl);
+        Assert.Null(new NetworkClientOptions().BaseUrl);
+        Assert.Equal("base URL is not set",
+            Assert.Throws<ArgumentException>(() => new NetworkClientOptions { BaseUrl = null }).Message);
+        Assert.Equal("base URL is not set",
+            Assert.Throws<ArgumentException>(() => new NetworkClientOptions { BaseUrl = "" }).Message);
+        // A missing URL is reported even when the signer is missing too.
+        Assert.Equal("base URL is not set", Assert.Throws<ArgumentException>(
+            () => NetworkClient.Create<CallInvoker>(new NetworkClientOptions(), null!, invoker => invoker)).Message);
     }
 
     // The base_url_parsing vectors say which values are valid, not which scheme one without a scheme gets.
@@ -63,7 +69,7 @@ public class NetworkClientOptionsTests
     public void NullArguments_AreRefused_WithoutAParameterSuffix()
     {
         var signer = Signer.FromHex(Key);
-        var options = new NetworkClientOptions();
+        var options = new NetworkClientOptions { BaseUrl = "https://api.t-0.network" };
 
         Assert.Equal("options must not be null", Assert.Throws<ArgumentNullException>(
             () => NetworkClient.Create<CallInvoker>(null!, signer, invoker => invoker)).Message);

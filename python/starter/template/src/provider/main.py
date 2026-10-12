@@ -36,6 +36,7 @@ from __future__ import annotations
 import asyncio
 import logging
 import signal
+import sys
 
 import uvicorn
 from t0_provider_sdk.api.tzero.v1.payment.network_connect import NetworkServiceClient
@@ -47,7 +48,7 @@ from t0_provider_sdk.network.client import new_service_client
 from t0_provider_sdk.provider.handler import handler, new_asgi_app
 
 from provider.complete_manual_aml_check import complete_manual_aml_check  # noqa: F401
-from provider.config import Config, load_config
+from provider.config import NETWORK_PUBLIC_KEY_HELP, Config, ConfigurationError, load_config
 from provider.create_payment_intent import create_payment_intent  # noqa: F401
 from provider.get_payment_intent_quote import get_payment_intent_quote
 from provider.get_quote import get_quote
@@ -102,72 +103,163 @@ def create_provider_app(
     )
 
 
+async def serve(server: uvicorn.Server) -> None:
+    """``server.serve()``, with a failed bind raised as its ``OSError``.
+
+    uvicorn logs a failed bind and calls ``sys.exit()`` inside its ``except OSError``, so the
+    ``SystemExit`` carries the ``OSError`` as its context. Left alone, the ``SystemExit`` would
+    end the process with uvicorn's exit code before ``main()`` could report the failure.
+    """
+    try:
+        await server.serve()
+    except SystemExit as e:
+        if isinstance(e.__context__, Exception):
+            raise e.__context__ from None
+        raise RuntimeError(f"the provider server exited with status {e.code}") from None
+
+
+def stop(server: uvicorn.Server) -> None:
+    """SIGINT / SIGTERM: stop accepting calls, then drain."""
+    server.should_exit = True
+
+
+def _report_shutdown(error: BaseException, reported: list[bool]) -> None:
+    """A drain error is one stderr line. The process still exits 0."""
+    if reported:
+        return
+    reported.append(True)
+    print(f"Shutdown: {error}", file=sys.stderr)
+
+
+async def _stop_background(
+    tasks: list[asyncio.Task[None]],
+    shutdown_event: asyncio.Event | None,
+    reported: list[bool],
+) -> None:
+    """Cancel the quote tasks and wait for them. One stderr line on a drain error."""
+    if shutdown_event is not None:
+        shutdown_event.set()
+    for task in tasks:
+        task.cancel()
+    if not tasks:
+        return
+    try:
+        done, _pending = await asyncio.wait(tasks)
+    except Exception as error:
+        _report_shutdown(error, reported)
+        return
+    for task in done:
+        if task.cancelled():
+            continue
+        try:
+            error = task.exception()
+        except asyncio.CancelledError:
+            continue
+        if error is not None:
+            _report_shutdown(error, reported)
+            return
+
+
 async def main() -> None:
     config = load_config()
 
     network_client = init_network_client(config)
     payment_intent_client = init_payment_intent_client(config)
 
-    app = create_provider_app(config, network_client, payment_intent_client)
-
-    # Step 1.1 is done. You successfully initialised starter template
-    logger.info("Step 1.1: Provider server initialized on :%d", config.port)
-
-    # TODO: Step 1.2 Share the generated public key from .env with t-0 team
-
-    # TODO: Step 1.3 Replace publish_quotes with your own quote publishing logic
-    shutdown_event = asyncio.Event()
-
-    loop = asyncio.get_event_loop()
-    for sig in (signal.SIGINT, signal.SIGTERM):
-        loop.add_signal_handler(sig, shutdown_event.set)
-
-    publish_task = asyncio.create_task(
-        publish_quotes(network_client, shutdown_event, config.quote_publishing_interval_ms / 1000)
-    )
-
-    # TODO: Step 1.4 Verify that quotes for target currency are successfully received
-    quote_task = asyncio.create_task(get_quote(network_client))
-
-    # ──────────────────────────────────────────────────────────────
-    # Payment Intent Flow — Phase 3
-    #
-    # Implement the role that applies to you. See the README for details.
-    # ──────────────────────────────────────────────────────────────
-
-    # Phase 3A — Pay-In Provider role. Comment out if you are only a beneficiary.
-    # TODO: Step 3A.1 Replace with your own pay-in quote publishing logic
-    intent_publish_task = asyncio.create_task(
-        publish_payment_intent_quotes(
-            payment_intent_client, shutdown_event, config.quote_publishing_interval_ms / 1000
-        ),
-    )
-
-    # Phase 3B — Beneficiary Provider role. Comment out if you are only a pay-in provider.
-    # TODO: Step 3B.1 Check that indicative quotes are being returned
-    intent_quote_task = asyncio.create_task(get_payment_intent_quote(payment_intent_client))
-    # TODO: Step 3B.2 Create a payment intent for a real end-user when they want to pay
-    # await create_payment_intent(payment_intent_client)
+    # The SDK parses NETWORK_PUBLIC_KEY while building the server. A malformed key is a
+    # configuration error; anything else is a startup failure.
+    try:
+        app = create_provider_app(config, network_client, payment_intent_client)
+    except ValueError as e:
+        if not str(e).startswith("invalid network public key: "):
+            raise
+        raise ConfigurationError(str(e), NETWORK_PUBLIC_KEY_HELP) from None
 
     # Run ASGI server. host="" listens on all interfaces, IPv4 and IPv6 (where the host has it).
-    server_config = uvicorn.Config(app, host="", port=config.port, log_level="info")
+    # A shutdown waits up to 15 s for calls in flight.
+    server_config = uvicorn.Config(app, host="", port=config.port, log_level="info", timeout_graceful_shutdown=15)
     server = uvicorn.Server(server_config)
 
-    # TODO: Step 2.2 Deploy your integration and provide t-0 team with the base URL
-    # TODO: Step 2.3 Test payment submission
-    # TODO: Step 2.5 Ask t-0 team to submit a payment to test your payOut endpoint
-    # TODO: Step 2.6 (optional) Complete manual AML checks if your pay_out returns manual_aml_check
-    # await complete_manual_aml_check(network_client, payment_id)
+    # uvicorn re-raises SIGINT / SIGTERM once serve() returns, to whatever handler was
+    # installed before it started. Installing this one first makes that re-raise land
+    # here instead of on the default, which would end the process with 130 or 143.
+    loop = asyncio.get_running_loop()
+    for sig in (signal.SIGINT, signal.SIGTERM):
+        loop.add_signal_handler(sig, stop, server)
 
-    await server.serve()
+    serving = asyncio.create_task(serve(server))
+    background: list[asyncio.Task[None]] = []
+    shutdown_event: asyncio.Event | None = None
+    reported: list[bool] = []
+    try:
+        while not server.started:
+            if serving.done():
+                await serving  # raises why the server could not start
+                return
+            await asyncio.sleep(0.05)
 
-    # Clean up background tasks
-    shutdown_event.set()
-    publish_task.cancel()
-    quote_task.cancel()
-    intent_publish_task.cancel()
-    intent_quote_task.cancel()
+        # Step 1.1 is done. You successfully initialised starter template
+        logger.info("Step 1.1: Provider server listening on port %d", config.port)
+
+        # TODO: Step 1.2 Share the generated public key from .env with t-0 team
+
+        # TODO: Step 1.3 Replace publish_quotes with your own quote publishing logic
+        shutdown_event = asyncio.Event()
+        interval_seconds = config.quote_publishing_interval_ms / 1000
+
+        # TODO: Step 1.4 Verify that quotes for target currency are successfully received
+        # ──────────────────────────────────────────────────────────────
+        # Payment Intent Flow — Phase 3
+        #
+        # Implement the role that applies to you. See the README for details.
+        # ──────────────────────────────────────────────────────────────
+
+        # Phase 3A — Pay-In Provider role. Comment out if you are only a beneficiary.
+        # TODO: Step 3A.1 Replace with your own pay-in quote publishing logic
+
+        # Phase 3B — Beneficiary Provider role. Comment out if you are only a pay-in provider.
+        # TODO: Step 3B.1 Check that indicative quotes are being returned
+        # TODO: Step 3B.2 Create a payment intent for a real end-user when they want to pay
+        # await create_payment_intent(payment_intent_client)
+
+        background = [
+            asyncio.create_task(publish_quotes(network_client, shutdown_event, interval_seconds)),
+            asyncio.create_task(get_quote(network_client)),
+            asyncio.create_task(publish_payment_intent_quotes(payment_intent_client, shutdown_event, interval_seconds)),
+            asyncio.create_task(get_payment_intent_quote(payment_intent_client)),
+        ]
+
+        # TODO: Step 2.2 Deploy your integration and provide t-0 team with the base URL
+        # TODO: Step 2.3 Test payment submission
+        # TODO: Step 2.5 Ask t-0 team to submit a payment to test your payOut endpoint
+        # TODO: Step 2.6 (optional) Complete manual AML checks if your pay_out returns manual_aml_check
+        # await complete_manual_aml_check(network_client, payment_id)
+
+        await serving
+    except Exception as error:
+        # The server had started: this is a drain error, not a failed start.
+        if not server.started:
+            raise
+        _report_shutdown(error, reported)
+    finally:
+        await _stop_background(background, shutdown_event, reported)
+
+
+def run() -> int:
+    """Run the provider; returns the process exit code."""
+    try:
+        asyncio.run(main())
+    except ConfigurationError as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+        print(e.help_text, file=sys.stderr)
+        return 1
+    except Exception as e:
+        print(f"Provider failed to start: {e}", file=sys.stderr)
+        return 1
+    except KeyboardInterrupt:
+        pass
+    return 0
 
 
 if __name__ == "__main__":
-    asyncio.run(main())
+    sys.exit(run())

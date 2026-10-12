@@ -1,5 +1,5 @@
 import {type Client, PaymentIntentNetwork} from "@t-0/provider-sdk";
-import {decimalFromString} from "./lib";
+import {decimalFromString} from "./lib.js";
 import {randomUUID} from "node:crypto";
 
 export default async function createPaymentIntent(

@@ -13,11 +13,10 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func PublishQuotes(ctx context.Context, networkClient paymentconnect.NetworkServiceClient, interval time.Duration) {
+func PublishQuotes(ctx context.Context, networkClient paymentconnect.NetworkServiceClient, ticker *time.Ticker) {
 	// TODO: Step 1.3 replace this with fetching quotes from your systems and publishing them into t-0 Network.
 	// We recommend publishing at least once per 5 seconds, but not more than once per second
 
-	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
 
 	for {

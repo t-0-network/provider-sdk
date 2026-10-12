@@ -1,5 +1,5 @@
 # Build stage
-FROM eclipse-temurin:17-jdk-noble AS build
+FROM eclipse-temurin:21-jdk-noble AS build
 
 WORKDIR /app
 
@@ -18,12 +18,17 @@ COPY src ./src
 RUN ./gradlew installDist --no-daemon -x test
 
 # Runtime stage
-FROM eclipse-temurin:17-jre-noble
+FROM eclipse-temurin:21-jre-noble
 
 WORKDIR /app
 
+RUN groupadd --system --gid 999 provider \
+    && useradd --system --gid 999 --uid 999 --create-home provider
+
 # Copy the installed distribution (includes all dependencies)
-COPY --from=build /app/build/install/provider/ ./
+COPY --from=build --chown=provider:provider /app/build/install/provider/ ./
+
+USER provider
 
 # Expose the provider server port
 EXPOSE 8080

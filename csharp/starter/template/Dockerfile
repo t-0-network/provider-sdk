@@ -14,4 +14,6 @@ COPY --from=build /app .
 
 EXPOSE 8080
 
+USER app
+
 ENTRYPOINT ["dotnet", "my-provider.dll"]

@@ -27,7 +27,6 @@ from t0_provider_sdk._messages import (
 )
 from t0_provider_sdk.crypto.signer import SignFn, new_signer_from_hex
 from t0_provider_sdk.network.options import (
-    DEFAULT_BASE_URL,
     DEFAULT_STREAM_TIMEOUT,
     DEFAULT_TIMEOUT,
     MAX_TIMEOUT,
@@ -54,7 +53,7 @@ def new_service_client(
     private_key: str | SignFn | None,
     client_class: type[T],
     *,
-    base_url: str | None = DEFAULT_BASE_URL,
+    base_url: str | None = None,
     timeout: float = DEFAULT_TIMEOUT,
     stream_timeout: float = DEFAULT_STREAM_TIMEOUT,
     wire_format: WireFormat = WireFormat.BINARY,
@@ -73,9 +72,9 @@ def new_service_client(
             signs with a key held elsewhere. None (with no sign_fn) raises ValueError ("signer must
             not be null"). With sign_fn, it must be None or "": both given raise ValueError.
         client_class: Generated ConnectRPC async client class (e.g. NetworkServiceClient).
-        base_url: Base URL of the T-0 Network API. None means the default,
-            https://api.t-0.network; an empty or malformed value, or one with whitespace or a
-            control character anywhere, raises ValueError.
+        base_url: Base URL of the T-0 Network API. Omitting it, None and "" raise ValueError
+            ("base URL is not set"); a malformed value, or one with whitespace or a control
+            character anywhere, raises ValueError ("base URL is not valid").
         timeout: Timeout of unary calls in seconds, 15 by default.
         stream_timeout: Timeout of client- and server-streaming calls in seconds, including the
             wait for the first request message, 300 by default.
@@ -110,7 +109,7 @@ def new_service_client_sync(
     private_key: str | SignFn | None,
     client_class: type[T],
     *,
-    base_url: str | None = DEFAULT_BASE_URL,
+    base_url: str | None = None,
     timeout: float = DEFAULT_TIMEOUT,
     stream_timeout: float = DEFAULT_STREAM_TIMEOUT,
     wire_format: WireFormat = WireFormat.BINARY,
@@ -164,9 +163,7 @@ _SPACE_OR_CONTROL = re.compile(r"[\x00-\x20\x7f\x85\xa0\u1680\u2000-\u200a\u2028
 
 
 def _checked_base_url(base_url: str | None) -> str:
-    if base_url is None:
-        return DEFAULT_BASE_URL
-    if base_url == "":
+    if base_url is None or base_url == "":
         raise ValueError(BASE_URL_NOT_SET)
     if "://" not in base_url:  # a value without a scheme is read as https
         base_url = "https://" + base_url

@@ -27,4 +27,6 @@ ENV PATH="/app/.venv/bin:$PATH" \
 USER app
 WORKDIR /app
 
+EXPOSE 8080
+
 ENTRYPOINT ["python", "-m", "provider.main"]

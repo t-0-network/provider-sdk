@@ -18,7 +18,7 @@ my-provider/
 │   ├── PaymentHandler.cs        # ProviderService implementation (modify this)
 │   ├── QuotePublisher.cs        # Quote publishing logic (modify this)
 │   ├── QuotePublisherService.cs # Periodic timer that calls QuotePublisher
-│   ├── GetQuote.cs              # Quote fetching utility
+│   ├── GetQuote.cs              # Quote sample; runs after the server is listening
 │   ├── SubmitPayment.cs         # Payment submission utility
 │   └── CompleteManualAmlCheck.cs # Manual AML check completion utility
 ├── Program.cs                   # Entry point
@@ -39,13 +39,19 @@ my-provider/
 
 ## Environment Variables
 
+An empty value counts as unset. `PORT` and `TZERO_ENDPOINT` then use the defaults below. `PROVIDER_PRIVATE_KEY` and `NETWORK_PUBLIC_KEY` have no fallback, so an empty value is an error. The starter CLI writes a private key into `.env`, and `.env.example` carries the sandbox network key. Those are file contents, not runtime defaults.
+
+The process environment wins over `.env`. A missing `.env` is not a failure: the process prints one notice on stderr and continues with the environment.
+
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `PROVIDER_PRIVATE_KEY` | Yes | Auto-generated | Your secp256k1 private key (64-char hex) |
-| `NETWORK_PUBLIC_KEY` | Yes | Sandbox key | T-0 Network public key for signature verification |
+| `PROVIDER_PRIVATE_KEY` | Yes | none | Your secp256k1 private key (64-char hex). Surrounding whitespace is ignored. |
+| `NETWORK_PUBLIC_KEY` | Yes | none | T-0 Network public key for signature verification. Surrounding whitespace is ignored. |
 | `TZERO_ENDPOINT` | No | `https://api-sandbox.t-0.network` | T-0 Network API endpoint |
-| `PORT` | No | `8080` | Provider server port |
+| `PORT` | No | `8080` | Provider server port, an integer from 1 to 65535 |
 | `QUOTE_PUBLISHING_INTERVAL` | No | `5000` | Quote publishing interval in milliseconds |
+
+ASP.NET Core also reads configuration from the environment. `Kestrel__Endpoints__*` replaces the address `PORT` selects, rather than listening beside it. The server speaks gRPC over cleartext HTTP/2 only.
 
 ## Getting Started
 
@@ -84,7 +90,7 @@ docker run -p 8080:8080 --env-file .env my-provider
 
 | Issue | Solution |
 |-------|----------|
-| `PROVIDER_PRIVATE_KEY is not set. Check your .env file.` | `.env` is generated with a fresh key next to the `.csproj`; run from that directory. To generate a new key, run `t0-init keygen` and set `PROVIDER_PRIVATE_KEY` to the private key it prints. |
+| `PROVIDER_PRIVATE_KEY is not set` | Run from the directory that holds `.env`, or set `PROVIDER_PRIVATE_KEY` in the environment. An existing `.env` already has the generated key; its private half cannot be recovered from the public key. |
 | Signature verification failures | Ensure system clock is synchronized (NTP). Tolerance is +/- 60 seconds. |
 | gRPC connection refused | Verify `TZERO_ENDPOINT` is correct and reachable. |
 | Port already in use | Change `PORT` in `.env` or stop the conflicting process. |

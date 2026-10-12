@@ -91,7 +91,7 @@ public class ISignerCompatibilityTests
     public void NullISigner_IsRefusedByEveryOverload()
     {
         ISigner? signer = null;
-        var options = new NetworkClientOptions();
+        var options = new NetworkClientOptions { BaseUrl = Unreachable };
         var creates = new (string Factory, Action Create)[]
         {
             ("Create", () => NetworkClient.Create(options, signer!, invoker => invoker)),

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {create} from "@bufbuild/protobuf";
 import {Decimal, DecimalSchema} from "@t-0/provider-sdk";
-import {decimalFromString, decimalToString, quotePublishingInterval} from "./lib";
+import {decimalFromString, decimalToString, quotePublishingInterval} from "./lib.js";
 
 const MIN_INT64 = -(1n << 63n);
 const MAX_INT64 = (1n << 63n) - 1n;

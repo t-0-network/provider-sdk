@@ -19,6 +19,7 @@ Share the provider public key (printed by the initializer; also on the comment l
 my-provider/
 ├── src/
 │   ├── index.ts                                  # Entry point
+│   ├── config.ts                                 # Environment and startup checks
 │   ├── service.ts                                # Phase 2: ProviderService handlers
 │   ├── payment_intent_pay_in_service.ts          # Phase 3A: PayInProviderService handler
 │   ├── payment_intent_beneficiary_service.ts     # Phase 3B: BeneficiaryService handler
@@ -55,6 +56,21 @@ my-provider/
 | `TZERO_ENDPOINT` | No | `https://api-sandbox.t-0.network` | T-0 Network API endpoint |
 | `PORT` | No | `8080` | Server port |
 | `QUOTE_PUBLISHING_INTERVAL` | No | `5000` | Quote publishing frequency in milliseconds; a value that is not an integer from 1 to 2147483647 gives 5000 |
+
+An empty value counts as unset.
+
+The process serves Connect on HTTP/1.1 only.
+
+`.env` is read from the working directory. A missing file is not a failure: the process prints one notice on stderr and continues. The starter calls `dotenv` with `quiet: true` and `override: false`, so dotenv does not print its own line and the process environment wins over the file. dotenv reads the variables below. Each falls back to the matching `DOTENV_CONFIG_*` name when the `DOTENV_*` name is unset.
+
+| Variable | Fallback | What it does |
+|----------|----------|----------------|
+| `DOTENV_PATH` | `DOTENV_CONFIG_PATH` | File to read, instead of `.env` in the working directory |
+| `DOTENV_ENCODING` | `DOTENV_CONFIG_ENCODING` | Encoding of that file |
+| `DOTENV_QUIET` | `DOTENV_CONFIG_QUIET` | Suppress dotenv's own line |
+| `DOTENV_DEBUG` | `DOTENV_CONFIG_DEBUG` | Debug output |
+| `DOTENV_OVERRIDE` | `DOTENV_CONFIG_OVERRIDE` | The switch for letting the file win over the process environment. This starter passes `override: false`, so the process environment wins |
+| `DOTENV_FAST` | `DOTENV_CONFIG_FAST` | Use dotenv's faster parser |
 
 ## Getting Started
 
@@ -100,7 +116,7 @@ If you only play one role, delete the files for the other role and remove the co
 npm run dev        # Run src/index.ts with tsx (no type check; use npm run build for that)
 npm run build      # Compile TypeScript to dist/
 npm start          # Run compiled production build
-npm test           # Build, then run dist/lib.test.js with node --test
+npm test           # Run src/*.test.ts under tsx
 ```
 
 ## Configuring logging

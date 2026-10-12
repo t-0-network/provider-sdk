@@ -60,7 +60,7 @@ public final class AsyncNetworkClient<S extends AbstractAsyncStub<S>> extends Ne
      *
      * <p>Default deadlines: 15 seconds for unary calls, 5 minutes for client- and server-streaming calls.
      *
-     * @param endpoint    the T-0 Network endpoint (e.g., "https://api.t-0.network" or "api.t-0.network:443"), or {@code null} for "https://api.t-0.network"
+     * @param endpoint    the T-0 Network endpoint (e.g., "https://api.t-0.network" or "api.t-0.network:443"); {@code null} is "base URL is not set"
      * @param signer      the signer to use for signing requests
      * @param stubFactory the stub factory (e.g., {@code NetworkServiceGrpc::newStub})
      * @param <S>         the async stub type
@@ -78,7 +78,7 @@ public final class AsyncNetworkClient<S extends AbstractAsyncStub<S>> extends Ne
      * Creates a new AsyncNetworkClient with a default deadline in seconds for unary calls; streaming calls
      * get the default stream timeout of 5 minutes.
      *
-     * @param endpoint       the T-0 Network endpoint (e.g., "https://api.t-0.network" or "api.t-0.network:443"), or {@code null} for "https://api.t-0.network"
+     * @param endpoint       the T-0 Network endpoint (e.g., "https://api.t-0.network" or "api.t-0.network:443"); {@code null} is "base URL is not set"
      * @param signer         the signer to use for signing requests
      * @param stubFactory    the stub factory (e.g., {@code NetworkServiceGrpc::newStub})
      * @param timeoutSeconds the default deadline for unary calls, in seconds
@@ -103,7 +103,7 @@ public final class AsyncNetworkClient<S extends AbstractAsyncStub<S>> extends Ne
      *
      * <p>See {@code docs/STREAMING.md}.
      *
-     * @param endpoint      the T-0 Network endpoint (e.g., "https://api.t-0.network" or "api.t-0.network:443"), or {@code null} for "https://api.t-0.network"
+     * @param endpoint      the T-0 Network endpoint (e.g., "https://api.t-0.network" or "api.t-0.network:443"); {@code null} is "base URL is not set"
      * @param signer        the signer to use for signing requests
      * @param stubFactory   the stub factory (e.g., {@code NetworkServiceGrpc::newStub})
      * @param timeout       the default deadline for unary calls

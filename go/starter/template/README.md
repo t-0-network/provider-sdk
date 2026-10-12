@@ -15,7 +15,8 @@ Share the provider public key (printed by the initializer; also on the comment l
 ```
 my-provider/
 ├── cmd/
-│   └── main.go                                # Entry point
+│   ├── main.go                                # Entry point
+│   └── config.go                              # Configuration loading
 ├── internal/
 │   ├── handler/
 │   │   ├── payment.go                         # Phase 2: ProviderService handler
@@ -50,10 +51,16 @@ my-provider/
 | `PROVIDER_PRIVATE_KEY` | Yes | Auto-generated | Your secp256k1 private key (hex) |
 | `NETWORK_PUBLIC_KEY` | Yes | Sandbox key | T-0 Network public key for signature verification |
 | `TZERO_ENDPOINT` | No | `https://api-sandbox.t-0.network` | T-0 Network API endpoint |
-| `PORT` | No | `8080` | Server port |
+| `PORT` | No | `8080` | TCP port, an integer from 1 to 65535 |
 | `QUOTE_PUBLISHING_INTERVAL` | No | `5000` | Quote publishing frequency in milliseconds, 1 to 2147483647; any other value gives the default |
 
-The starter reads `.env` when it exists; without it, the values come from the environment (for example `docker run --env-file`).
+An empty value counts as unset. `PROVIDER_PRIVATE_KEY`, `NETWORK_PUBLIC_KEY`, `TZERO_ENDPOINT`, and `PORT` are trimmed first, so a whitespace-only value counts as unset too.
+
+The process reads `.env` from the working directory when that file exists. A variable already set in the environment keeps its value. When `.env` is absent, stderr gets `No .env at <path> — taking configuration from the environment instead` and startup continues.
+
+A missing key, a private key the SDK rejects, or a `PORT` that is not an integer from 1 to 65535 prints two lines on stderr and exits 1: `ERROR: <message>`, then one help line. Any other failure while starting, including a port already in use, prints `Provider failed to start: <cause>` on stderr and exits 1.
+
+The server listens on `PORT` and serves Connect and gRPC over HTTP/1.1 and HTTP/2 cleartext (h2c).
 
 ## Getting Started
 

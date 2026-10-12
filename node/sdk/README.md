@@ -207,7 +207,7 @@ The input is 64 hex characters, with an optional `0x` or `0X` prefix; output is 
 
 ### Network Client
 
-Use `createClient` to call T-0 Network APIs. The client handles request signing automatically. It speaks the Connect protocol. Its second argument is the network's base URL; `undefined` or `null` means `DEFAULT_BASE_URL`, `https://api.t-0.network`. A value without `://` is read as `https://`, and a path in it prefixes every call. Surrounding whitespace is refused, not trimmed. The rule every SDK shares: [`docs/CROSS_SDK_RULES.md`](../../docs/CROSS_SDK_RULES.md).
+Use `createClient` to call T-0 Network APIs. The client handles request signing automatically. It speaks the Connect protocol. Its second argument is the network's base URL. `undefined`, `null` and `""` are "base URL is not set". Pass `DEFAULT_BASE_URL`, `https://api.t-0.network`, to use that host. A value without `://` is read as `https://`, and a path in it prefixes every call. Surrounding whitespace is refused, not trimmed. The rule every SDK shares: [`docs/CROSS_SDK_RULES.md`](../../docs/CROSS_SDK_RULES.md).
 
 ```ts
 import { createClient, NetworkService, PaymentMethodType, QuoteType } from "@t-0/provider-sdk";
