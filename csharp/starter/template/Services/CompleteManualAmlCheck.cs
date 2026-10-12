@@ -33,9 +33,9 @@ public static class CompleteManualAmlCheck
                     break;
             }
         }
-        catch (Grpc.Core.RpcException ex)
+        catch (Exception ex)
         {
-            Console.WriteLine($"Error completing manual AML check: {ex.Status.StatusCode} - {ex.Message}");
+            Console.Error.WriteLine($"Error completing manual AML check: {ex.Message}");
         }
     }
 }

@@ -60,7 +60,7 @@ The process reads `.env` from the working directory. A variable set in the proce
 
 For production, set both `NETWORK_PUBLIC_KEY` and `TZERO_ENDPOINT` to the values the T-0 team gives you. If `TZERO_ENDPOINT` is unset, the provider connects to the sandbox. `.env` holds your private key, so keep it out of Git. Use a separate private key in production.
 
-If a key is missing, or `PORT` is not a port number, the process prints `ERROR: <message>` and one help line on stderr and exits with status 1. Any other startup failure, for example a malformed key or a port already in use, prints `Provider failed to start: <cause>` and exits with status 1. On SIGINT or SIGTERM, the provider stops publishing quotes and waits for the calls in progress. Then it exits with status 0.
+If a key is missing, or `PORT` is not a port number, the process prints `ERROR: <message>` and one help line on stderr and exits with status 1. Any other startup failure, for example a malformed key or a port already in use, prints `Provider failed to start: <cause>` and exits with status 1. After startup, a failed call to the network is logged as one line, and the provider keeps running. On SIGINT or SIGTERM, the provider stops publishing quotes and waits for the calls in progress. Then it exits with status 0.
 
 The server listens on `PORT` and serves Connect and gRPC over HTTP/1.1 and HTTP/2 cleartext (h2c).
 
@@ -99,7 +99,7 @@ Implement **one** of the two sub-phases below depending on your role. If you par
 2. **Step 3B.2** Create payment intents for your end-users via `CreatePaymentIntent` (see `internal/create_payment_intent.go`).
 3. **Step 3B.3** Implement `PaymentIntentUpdate` in `internal/handler/payment_intent_beneficiary.go` to receive notifications when funds are received.
 
-If you only play one role, delete the files for the other role and remove the corresponding handler registration in `cmd/main.go`.
+If you only play one role, delete the files for the other role. In `cmd/main.go`, also remove that role's handler registration, and that role's quote publishing and sample calls.
 
 ## Available Commands
 

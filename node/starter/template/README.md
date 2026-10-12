@@ -63,7 +63,7 @@ The process reads `.env` from the working directory. A variable set in the proce
 
 For production, set both `NETWORK_PUBLIC_KEY` and `TZERO_ENDPOINT` to the values the T-0 team gives you. If `TZERO_ENDPOINT` is unset, the provider connects to the sandbox. `.env` holds your private key, so keep it out of Git. Use a separate private key in production.
 
-If a key is missing, or `PORT` is not a port number, the process prints `ERROR: <message>` and one help line on stderr and exits with status 1. Any other startup failure, for example a malformed key or a port already in use, prints `Provider failed to start: <cause>` and exits with status 1. On SIGINT or SIGTERM, the provider stops publishing quotes and waits for the calls in progress. Then it exits with status 0.
+If a key is missing, or `PORT` is not a port number, the process prints `ERROR: <message>` and one help line on stderr and exits with status 1. Any other startup failure, for example a malformed key or a port already in use, prints `Provider failed to start: <cause>` and exits with status 1. After startup, a failed call to the network is logged as one line, and the provider keeps running. On SIGINT or SIGTERM, the provider stops publishing quotes and waits for the calls in progress. Then it exits with status 0.
 
 The process serves Connect on HTTP/1.1 only.
 
@@ -112,7 +112,7 @@ Implement **one** of the two sub-phases below depending on your role. If you par
 2. **Step 3B.2** Create payment intents for your end-users via `createPaymentIntent` (see `src/create_payment_intent.ts`).
 3. **Step 3B.3** Implement `paymentIntentUpdate` in `src/payment_intent_beneficiary_service.ts` to receive notifications when funds are received.
 
-If you only play one role, delete the files for the other role and remove the corresponding `r.service(...)` registration in `src/index.ts`.
+If you only play one role, delete the files for the other role. In `src/index.ts`, also remove that role's `r.service(...)` registration, and that role's quote publishing and sample calls.
 
 ## Available Commands
 
@@ -163,7 +163,10 @@ The same `logger` object is accepted by `createRequestDecoder`, so standalone in
 
 ## Deployment
 
+The Dockerfile runs `npm ci`, which needs `package-lock.json`. Run `npm install` once before you build the image, so that the file exists.
+
 ```bash
+npm install
 docker build -t my-provider .
 docker run -p 8080:8080 --env-file .env my-provider
 ```

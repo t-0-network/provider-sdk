@@ -46,5 +46,5 @@ async def complete_manual_aml_check(
         elif response.HasField("rejected"):
             # Pay-in provider rejected the updated quotes — do NOT proceed with the payout.
             logger.info("Updated quotes rejected for payment %d, do not proceed with the payout", payment_id)
-    except Exception:
-        logger.exception("Error completing manual AML check")
+    except Exception as e:
+        logger.error("Error completing manual AML check: %s", e)

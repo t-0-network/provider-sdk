@@ -51,18 +51,22 @@ class ProviderServiceSyncImplementation:
 
         # TODO: FinalizePayout should be called when your system notifies
         # that payout has been made successfully
-        self._network_client.finalize_payout(
-            FinalizePayoutRequest(
-                payment_id=request.payment_id,
-                success=FinalizePayoutRequest.Success(
-                    receipt=PaymentReceipt(
-                        sepa=PaymentReceipt.Sepa(
-                            banking_transaction_reference_id="123456",
+        try:
+            self._network_client.finalize_payout(
+                FinalizePayoutRequest(
+                    payment_id=request.payment_id,
+                    success=FinalizePayoutRequest.Success(
+                        receipt=PaymentReceipt(
+                            sepa=PaymentReceipt.Sepa(
+                                banking_transaction_reference_id="123456",
+                            ),
                         ),
                     ),
                 ),
-            ),
-        )
+            )
+        except Exception as e:
+            logger.error("Error finalizing payout: %s", e)
+            raise
 
         # optional: if your provider has multiple legal entities, set beneficiary_provider_legal_entity_id
         return validate(PayoutResponse(accepted=PayoutResponse.Accepted()))

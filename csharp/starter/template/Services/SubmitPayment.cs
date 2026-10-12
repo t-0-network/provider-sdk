@@ -40,9 +40,9 @@ public static class SubmitPayment
                     break;
             }
         }
-        catch (Grpc.Core.RpcException ex)
+        catch (Exception ex)
         {
-            Console.WriteLine($"Error submitting payment: {ex.Status.StatusCode} - {ex.Message}");
+            Console.Error.WriteLine($"Error submitting payment: {ex.Message}");
         }
     }
 }

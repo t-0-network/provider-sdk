@@ -61,7 +61,6 @@ export function loadConfig(): Config {
   const networkPublicKey = (process.env.NETWORK_PUBLIC_KEY ?? "").trim();
   const endpointRaw = (process.env.TZERO_ENDPOINT ?? "").trim();
   const endpoint = endpointRaw === "" ? SANDBOX_ENDPOINT : endpointRaw;
-  const port = parsePort(process.env.PORT);
 
   if (privateKey === "") {
     throw new ConfigurationError("PROVIDER_PRIVATE_KEY is not set", privateKeyHelp(envPath));
@@ -69,6 +68,7 @@ export function loadConfig(): Config {
   if (networkPublicKey === "") {
     throw new ConfigurationError("NETWORK_PUBLIC_KEY is not set", NETWORK_PUBLIC_KEY_HELP);
   }
+  const port = parsePort(process.env.PORT);
 
   return { privateKey, networkPublicKey, endpoint, port };
 }

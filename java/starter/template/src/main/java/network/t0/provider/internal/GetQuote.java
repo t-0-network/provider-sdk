@@ -50,9 +50,8 @@ public class GetQuote {
                 log.info("This may be expected if no matching quotes are available yet");
             }
 
-        } catch (io.grpc.StatusRuntimeException e) {
-            log.error("Error getting quote: {} - {}", e.getStatus().getCode(), e.getMessage());
-            log.info("Make sure the T-0 Network endpoint is accessible and quotes have been published");
+        } catch (RuntimeException e) {
+            log.error("Error getting quote: {}", e.getMessage());
         }
     }
 }

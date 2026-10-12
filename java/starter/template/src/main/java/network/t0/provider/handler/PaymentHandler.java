@@ -102,7 +102,7 @@ public class PaymentHandler extends ProviderServiceGrpc.ProviderServiceImplBase 
                                 .build())
                         .build());
             } catch (Exception e) {
-                log.error("Failed to finalize payout for payment {}", request.getPaymentId(), e);
+                log.error("Failed to finalize payout for payment {}: {}", request.getPaymentId(), e.getMessage());
             }
         }).start();
     }

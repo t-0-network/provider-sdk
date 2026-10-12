@@ -35,5 +35,5 @@ async def get_payment_intent_quote(payment_intent_client: PaymentIntentServiceCl
             logger.info("No pay-in quotes available for this currency/amount")
         else:
             logger.info("Unknown response type")
-    except Exception:
-        logger.exception("Error getting payment intent quote")
+    except Exception as e:
+        logger.error("Error getting payment intent quote: %s", e)

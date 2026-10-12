@@ -47,3 +47,17 @@ jobs:
           show-progress: false
 
       - uses: ./.github/actions/test-csharp
+
+      # The template pins the published T0.ProviderSdk, and a release commit pins a
+      # version that is not on nuget.org yet. A copy of the template is tested against
+      # this tree's SDK instead, packed as 0.0.0-local into a local feed.
+      - name: Test starter template against this tree's SDK
+        run: |
+          dotnet pack csharp/sdk/T0.ProviderSdk -c Release -p:Version=0.0.0-local -o "${RUNNER_TEMP}/nupkg" --nologo -v quiet
+          cp -r csharp/starter/template "${RUNNER_TEMP}/starter"
+          cd "${RUNNER_TEMP}/starter"
+          dotnet new nugetconfig > /dev/null
+          dotnet nuget add source "${RUNNER_TEMP}/nupkg" --name tree-sdk --configfile nuget.config > /dev/null
+          dotnet add package T0.ProviderSdk --version 0.0.0-local > /dev/null
+          grep 'Version="0.0.0-local"' my-provider.csproj
+          dotnet test --nologo

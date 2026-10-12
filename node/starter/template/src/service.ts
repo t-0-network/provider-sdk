@@ -54,7 +54,7 @@ const CreateProviderService = (networkClient: Client<typeof NetworkService>) => 
                             },
                         },
                     }
-                }).catch((err) => console.error(`finalizePayout failed for ${req.paymentId}:`, err))
+                }).catch((err) => console.error(`finalizePayout failed for ${req.paymentId}: ${err instanceof Error ? err.message : String(err)}`))
             }, 2000);
             // optional: if your provider has multiple legal entities, set beneficiaryProviderLegalEntityId
             // `validate(...)` checks the response against buf.validate rules and surfaces
@@ -77,7 +77,7 @@ const CreateProviderService = (networkClient: Client<typeof NetworkService>) => 
 
         async appendLedgerEntries(req: AppendLedgerEntriesRequest, _: HandlerContext) {
             // TODO: optionally implement handling of new ledger transactions and new ledger entries
-            console.log(`Received ledger entries for ${req.transactions} transaction(s)`)
+            console.log(`Received ledger entries for ${req.transactions.length} transaction(s)`)
             return {} as AppendLedgerEntriesResponse
         },
 

@@ -118,8 +118,9 @@ async def serve(server: uvicorn.Server) -> None:
         raise RuntimeError(f"the provider server exited with status {e.code}") from None
 
 
-def stop(server: uvicorn.Server) -> None:
-    """SIGINT / SIGTERM: stop accepting calls, then drain."""
+def stop(server: uvicorn.Server, shutdown_event: asyncio.Event) -> None:
+    """SIGINT / SIGTERM: stop publishing quotes and accepting calls, then drain."""
+    shutdown_event.set()
     server.should_exit = True
 
 
@@ -135,17 +136,17 @@ async def main() -> None:
     # A shutdown waits up to 15 s for calls in flight.
     server_config = uvicorn.Config(app, host="", port=config.port, log_level="info", timeout_graceful_shutdown=15)
     server = uvicorn.Server(server_config)
+    shutdown_event = asyncio.Event()
 
     # uvicorn re-raises SIGINT / SIGTERM once serve() returns, to whatever handler was
     # installed before it started. Installing this one first makes that re-raise land
     # here instead of on the default, which would end the process with 130 or 143.
     loop = asyncio.get_running_loop()
     for sig in (signal.SIGINT, signal.SIGTERM):
-        loop.add_signal_handler(sig, stop, server)
+        loop.add_signal_handler(sig, stop, server, shutdown_event)
 
     serving = asyncio.create_task(serve(server))
     background: list[asyncio.Task[None]] = []
-    shutdown_event: asyncio.Event | None = None
     drain_error: Exception | None = None
     try:
         while not server.started:
@@ -160,7 +161,6 @@ async def main() -> None:
         # TODO: Step 1.2 Share the generated public key from .env with t-0 team
 
         # TODO: Step 1.3 Replace publish_quotes with your own quote publishing logic
-        shutdown_event = asyncio.Event()
         interval_seconds = config.quote_publishing_interval_ms / 1000
 
         # TODO: Step 1.4 Verify that quotes for target currency are successfully received
@@ -200,8 +200,7 @@ async def main() -> None:
     finally:
         # Stop the quote tasks and wait for them. A drain error is one stderr line, and the
         # process still exits 0. A cancelled task returns CancelledError, which is not reported.
-        if shutdown_event is not None:
-            shutdown_event.set()
+        shutdown_event.set()
         for task in background:
             task.cancel()
         results = await asyncio.gather(*background, return_exceptions=True)

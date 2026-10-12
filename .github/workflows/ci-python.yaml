@@ -52,6 +52,18 @@ jobs:
 
       - uses: ./.github/actions/test-python
 
+      # The template is not a workspace member, so it runs as a generated project
+      # would, from a copy. `uv add <wheel>` makes it use the SDK wheel built above
+      # from this tree instead of the one on PyPI.
+      - name: Test starter template against this tree's SDK
+        working-directory: python
+        run: |
+          wheel=$(ls "$PWD"/dist/t0_provider_sdk-*.whl)
+          cp -r starter/template "$RUNNER_TEMP/starter"
+          cd "$RUNNER_TEMP/starter"
+          uv add --no-sync "$wheel" -q
+          uv run pytest
+
       - name: Lint
         working-directory: python
         run: uv run ruff check .

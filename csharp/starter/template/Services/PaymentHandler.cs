@@ -32,20 +32,28 @@ public class PaymentHandler(
         // return new PayoutResponse { ManualAmlCheck = new PayoutResponse.Types.ManualAmlCheck() };
 
         // TODO: FinalizePayout should be called when your system completes the payout
-        await networkClient.FinalizePayoutAsync(new FinalizePayoutRequest
+        try
         {
-            PaymentId = request.PaymentId,
-            Success = new FinalizePayoutRequest.Types.Success
+            await networkClient.FinalizePayoutAsync(new FinalizePayoutRequest
             {
-                Receipt = new PaymentReceipt
+                PaymentId = request.PaymentId,
+                Success = new FinalizePayoutRequest.Types.Success
                 {
-                    Sepa = new PaymentReceipt.Types.Sepa
+                    Receipt = new PaymentReceipt
                     {
-                        BankingTransactionReferenceId = "123456"
+                        Sepa = new PaymentReceipt.Types.Sepa
+                        {
+                            BankingTransactionReferenceId = "123456"
+                        }
                     }
                 }
-            }
-        });
+            });
+        }
+        catch (Exception ex)
+        {
+            Console.Error.WriteLine($"Error finalizing payout: {ex.Message}");
+            throw;
+        }
 
         // optional: if your provider has multiple legal entities, set BeneficiaryProviderLegalEntityId
         // Validate.Check(...) checks the response against its buf.validate rules here, in your own

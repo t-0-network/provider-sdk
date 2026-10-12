@@ -11,23 +11,33 @@ public abstract class QuotePublisherService(TimeSpan interval) : BackgroundServi
 {
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        using var timer = new PeriodicTimer(interval);
-        while (await timer.WaitForNextTickAsync(stoppingToken))
+        try
         {
-            try
+            // The first publish waits for the server to bind. Then one runs on every tick.
+            await Listening.Started.WaitAsync(stoppingToken);
+            using var timer = new PeriodicTimer(interval);
+            do
             {
-                await PublishQuotesAsync(stoppingToken);
+                try
+                {
+                    await PublishQuotesAsync(stoppingToken);
+                }
+                catch (Exception ex)
+                {
+                    OnError(ex);
+                }
             }
-            catch (Exception ex)
-            {
-                OnError(ex);
-            }
+            while (await timer.WaitForNextTickAsync(stoppingToken));
+        }
+        catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+        {
+            // Stopping, or the server never started. Neither is a failure of this service.
         }
     }
 
     /// <summary>
     /// Implement this method to publish quotes to the T-0 Network.
-    /// Called periodically at the configured interval.
+    /// Called once the server has started, then at the configured interval.
     /// </summary>
     protected abstract Task PublishQuotesAsync(CancellationToken cancellationToken);
 

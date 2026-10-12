@@ -23,7 +23,7 @@ T-0 Network provider implementation generated from the official Java starter.
 
    For production, set both `NETWORK_PUBLIC_KEY` and `TZERO_ENDPOINT` to the values the T-0 team gives you. If `TZERO_ENDPOINT` is unset, the provider connects to the sandbox. `.env` holds your private key, so keep it out of Git. Use a separate private key in production.
 
-   If a key is missing, or `PORT` is not a port number, the process prints `ERROR: <message>` and one help line on stderr and exits with status 1. Any other startup failure, for example a malformed key or a port already in use, prints `Provider failed to start: <cause>` and exits with status 1. On SIGINT or SIGTERM, the provider stops publishing quotes and waits for the calls in progress. Then it exits with status 0.
+   If a key is missing, or `PORT` is not a port number, the process prints `ERROR: <message>` and one help line on stderr and exits with status 1. Any other startup failure, for example a malformed key or a port already in use, prints `Provider failed to start: <cause>` and exits with status 1. After startup, a failed call to the network is logged as one line, and the provider keeps running. On SIGINT or SIGTERM, the provider stops publishing quotes and waits for the calls in progress. Then it exits with status 0.
 
    The provider serves gRPC.
 
@@ -47,7 +47,7 @@ Follow these steps in order to complete your integration:
 
 1. **Step 2.1** Implement `updatePayment` in `PaymentHandler.java`
 2. **Step 2.2** Deploy and share your base URL with the T-0 team
-3. **Step 2.3** Test payment submission (uncomment in `Main.java`)
+3. **Step 2.3** Test payment submission: call `SubmitPayment.submit(...)` from `Main.java` (see `internal/SubmitPayment.java`)
 4. **Step 2.4** Implement `payOut` in `PaymentHandler.java`
 5. **Step 2.5** Ask T-0 team to submit a test payment
 6. **Step 2.6** *(optional)* If your `payOut` responds with `manual_aml_check`, report the outcome via `internal/CompleteManualAmlCheck.java`
@@ -70,7 +70,7 @@ Implement **one** of the two sub-phases below depending on your role. If you par
 2. **Step 3B.2** Create payment intents for your end-users via `CreatePaymentIntent.create(...)` (see `internal/CreatePaymentIntent.java`).
 3. **Step 3B.3** Implement `paymentIntentUpdate` in `handler/PaymentIntentBeneficiaryHandler.java` to receive notifications when funds are received.
 
-If you only play one role, delete the files for the other role and remove the corresponding `.withService(...)` call in `Main.java`.
+If you only play one role, delete the files for the other role. In `Main.java`, also remove that role's handler and its `.withService(...)` call, and that role's quote publishing and sample calls.
 
 ## Project Structure
 
@@ -78,6 +78,7 @@ If you only play one role, delete the files for the other role and remove the co
 src/main/java/network/t0/provider/
 ├── Main.java                                # Entry point with integration steps
 ├── Config.java                              # Configuration record
+├── EnvConfig.java                           # Reads .env and the environment into Config
 ├── handler/
 │   ├── PaymentHandler.java                  # Phase 2: ProviderService handler
 │   ├── PaymentIntentPayInHandler.java       # Phase 3A: PayInProviderService handler

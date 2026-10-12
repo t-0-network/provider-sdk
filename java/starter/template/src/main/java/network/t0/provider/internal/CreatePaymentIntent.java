@@ -42,8 +42,8 @@ public class CreatePaymentIntent {
                         response.getFailure().getReason());
                 default -> log.info("Unknown response type");
             }
-        } catch (io.grpc.StatusRuntimeException e) {
-            log.error("Error creating payment intent: {} - {}", e.getStatus().getCode(), e.getMessage());
+        } catch (RuntimeException e) {
+            log.error("Error creating payment intent: {}", e.getMessage());
         }
     }
 }

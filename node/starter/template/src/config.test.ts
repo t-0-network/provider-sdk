@@ -95,6 +95,17 @@ test("configuration", () => {
       help: PORT_HELP,
     },
     {
+      name: "PORT abc with no private key reports the key",
+      env: { NETWORK_PUBLIC_KEY: NETWORK_KEY, PORT: "abc" },
+      error: "PROVIDER_PRIVATE_KEY is not set",
+    },
+    {
+      name: "PORT abc with no network key reports the key",
+      env: { PROVIDER_PRIVATE_KEY: PRIVATE_KEY, PORT: "abc" },
+      error: "NETWORK_PUBLIC_KEY is not set",
+      help: NETWORK_HELP,
+    },
+    {
       name: "blank TZERO_ENDPOINT",
       env: { ...keys, TZERO_ENDPOINT: "   " },
       endpoint: SANDBOX,

@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"log"
 
 	"connectrpc.com/connect"
 	"github.com/t-0-network/provider-sdk/go/api/tzero/v1/common"
@@ -62,6 +63,7 @@ func (s *ProviderServiceImplementation) PayOut(ctx context.Context, req *connect
 	}))
 
 	if err != nil {
+		log.Printf("Error finalizing payout: %s\n", err.Error())
 		return nil, err
 	}
 	// optional: if your provider has multiple legal entities, set BeneficiaryProviderLegalEntityId
