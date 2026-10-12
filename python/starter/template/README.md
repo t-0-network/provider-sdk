@@ -50,13 +50,15 @@ my-provider/
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `PROVIDER_PRIVATE_KEY` | Yes | Auto-generated | Your secp256k1 private key (hex) |
-| `NETWORK_PUBLIC_KEY` | Yes | Sandbox key | T-0 Network public key for signature verification |
+| `PROVIDER_PRIVATE_KEY` | Yes | none | Your secp256k1 private key (hex) |
+| `NETWORK_PUBLIC_KEY` | Yes | none | T-0 Network public key for signature verification |
 | `TZERO_ENDPOINT` | No | `https://api-sandbox.t-0.network` | T-0 Network API endpoint |
 | `PORT` | No | `8080` | Server port |
 | `QUOTE_PUBLISHING_INTERVAL` | No | `5000` | Quote publishing frequency in milliseconds |
 
 Whitespace around `PROVIDER_PRIVATE_KEY`, `NETWORK_PUBLIC_KEY`, `TZERO_ENDPOINT`, and `PORT` is trimmed. An empty `TZERO_ENDPOINT`, `PORT`, or `QUOTE_PUBLISHING_INTERVAL` counts as unset.
+
+`PROVIDER_PRIVATE_KEY` and `NETWORK_PUBLIC_KEY` have no fallback, so an empty value is an error. The starter CLI writes a private key into `.env`, and `.env.example` carries the sandbox network key. Those are file contents, not runtime defaults.
 
 `.env` is read from the working directory when that file exists. If it does not, the process says so on stderr and takes configuration from the environment. A variable set in the environment wins over the same variable in `.env`.
 

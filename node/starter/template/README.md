@@ -51,13 +51,13 @@ my-provider/
 
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
-| `PROVIDER_PRIVATE_KEY` | Yes | Auto-generated | Your secp256k1 private key (hex) |
-| `NETWORK_PUBLIC_KEY` | Yes | Sandbox key | T-0 Network public key for signature verification |
+| `PROVIDER_PRIVATE_KEY` | Yes | none | Your secp256k1 private key (hex) |
+| `NETWORK_PUBLIC_KEY` | Yes | none | T-0 Network public key for signature verification |
 | `TZERO_ENDPOINT` | No | `https://api-sandbox.t-0.network` | T-0 Network API endpoint |
 | `PORT` | No | `8080` | Server port |
 | `QUOTE_PUBLISHING_INTERVAL` | No | `5000` | Quote publishing frequency in milliseconds; a value that is not an integer from 1 to 2147483647 gives 5000 |
 
-An empty value counts as unset.
+An empty value counts as unset. `PROVIDER_PRIVATE_KEY` and `NETWORK_PUBLIC_KEY` have no fallback, so an empty value is an error. The starter CLI writes a private key into `.env`, and `.env.example` carries the sandbox network key. Those are file contents, not runtime defaults.
 
 The process serves Connect on HTTP/1.1 only.
 
