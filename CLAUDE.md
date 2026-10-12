@@ -92,7 +92,7 @@ cd go && go vet ./... && go test -race ./...          # Go
 cd node/sdk && npm ci && npm run build && npm test    # Node (includes cross-tests)
 cd python && uv run pytest tests/cross_test/ -v       # Python ↔ Go
 cd csharp && dotnet test --filter "CrossServerTests"  # C# ↔ Go
-cd java && ./gradlew test --tests "*.CrossServerTests" # Java ↔ Go
+cd java && ./gradlew :sdk:test --tests "*.CrossServerTests" # Java ↔ Go
 ```
 
 ## Signature Protocol
