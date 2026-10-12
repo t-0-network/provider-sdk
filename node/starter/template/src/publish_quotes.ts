@@ -29,7 +29,7 @@ export default async function publishQuotes(networkClient: Client<typeof Network
         }]
       })
     } catch (error) {
-      console.error(error);
+      console.error(`Error updating quote: ${error instanceof Error ? error.message : String(error)}`);
       return
     }
     console.log("quote published")
