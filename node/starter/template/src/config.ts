@@ -53,7 +53,7 @@ export function loadConfig(): Config {
     if (loaded.error.code !== "ENOENT") {
       throw loaded.error;
     }
-    envPath = resolve((loaded.error as NodeJS.ErrnoException).path ?? ".env");
+    envPath = resolve("path" in loaded.error && typeof loaded.error.path === "string" ? loaded.error.path : ".env");
     console.error(`No .env at ${envPath} — taking configuration from the environment instead`);
   }
 

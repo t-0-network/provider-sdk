@@ -1,18 +1,18 @@
+import {create} from "@bufbuild/protobuf";
 import {
     AppendLedgerEntriesRequest,
-    AppendLedgerEntriesResponse,
+    AppendLedgerEntriesResponseSchema,
     ApprovePaymentQuoteRequest,
-    ApprovePaymentQuoteResponse,
+    ApprovePaymentQuoteResponseSchema,
     type Client,
     HandlerContext,
     NetworkService,
     PayoutRequest,
-    PayoutResponse,
     PayoutResponseSchema,
     UpdateLimitRequest,
-    UpdateLimitResponse,
+    UpdateLimitResponseSchema,
     UpdatePaymentRequest,
-    UpdatePaymentResponse,
+    UpdatePaymentResponseSchema,
     validate,
 } from "@t-0/provider-sdk";
 
@@ -24,7 +24,7 @@ const CreateProviderService = (networkClient: Client<typeof NetworkService>) => 
         async updatePayment(req: UpdatePaymentRequest, _: HandlerContext) {
             // TODO: Step 2.1 implement how you handle updates of payment initiated by you
             console.log(`Received payment update for ${req.paymentId}, payment ${req.result.case}`)
-            return {} as UpdatePaymentResponse
+            return create(UpdatePaymentResponseSchema)
         },
 
         async payOut(req: PayoutRequest, _: HandlerContext) {
@@ -35,7 +35,7 @@ const CreateProviderService = (networkClient: Client<typeof NetworkService>) => 
             // here, before making the payout, and report the result later via
             // ./complete_manual_aml_check.ts. Do not finalize on this path — the payout only
             // proceeds once the check is approved.
-            // return { result: { case: "manualAmlCheck", value: {} } } as PayoutResponse
+            // return create(PayoutResponseSchema, { result: { case: "manualAmlCheck", value: {} } })
 
             // TODO: finalizePayout should be called when your system completes (or fails) the payout
             setTimeout(() => {
@@ -61,24 +61,26 @@ const CreateProviderService = (networkClient: Client<typeof NetworkService>) => 
             // any violation here, in your own code, instead of as an opaque Code.Internal
             // from the SDK's safety-net interceptor. Catch it to map invalid output into
             // a domain-level failure (e.g. the `failed` arm of `PayoutResponse.result`).
-            return validate(PayoutResponseSchema, {
+            // `validate(...)` takes a message, so build the response with `create(...)`.
+            return validate(PayoutResponseSchema, create(PayoutResponseSchema, {
                 result: {
                     case: "accepted",
                     value: {},
                 },
-            } as PayoutResponse)
+            }))
         },
 
         async updateLimit(req: UpdateLimitRequest, _: HandlerContext) {
             // TODO: optionally implement updates on your limits and limits usage
+            // A request without limits fails validation before this handler runs, so limits[0] exists.
             console.log(`Received update of limits with provider ${req.limits[0].counterpartId}`)
-            return {} as UpdateLimitResponse
+            return create(UpdateLimitResponseSchema)
         },
 
         async appendLedgerEntries(req: AppendLedgerEntriesRequest, _: HandlerContext) {
             // TODO: optionally implement handling of new ledger transactions and new ledger entries
             console.log(`Received ledger entries for ${req.transactions.length} transaction(s)`)
-            return {} as AppendLedgerEntriesResponse
+            return create(AppendLedgerEntriesResponseSchema)
         },
 
         async approvePaymentQuotes(req: ApprovePaymentQuoteRequest, _: HandlerContext) {
@@ -86,12 +88,12 @@ const CreateProviderService = (networkClient: Client<typeof NetworkService>) => 
             // The request includes payOutFix — the fixed charge in USD for this payout.
             // Consider it alongside payOutRate and payOutAmount when deciding to accept.
             console.log(`Received approve payment quote request for ${req.paymentId}`)
-            return {
+            return create(ApprovePaymentQuoteResponseSchema, {
                 result: {
                     case: "accepted",
                     value: {}
                 }
-            } as ApprovePaymentQuoteResponse
+            })
         }
     }
 };

@@ -125,7 +125,7 @@ npm test           # Run src/*.test.ts under tsx
 
 ## Configuring logging
 
-The SDK emits a structured `error`-level log line when a handler returns a response that fails its `buf.validate` rules. The safety-net interceptor still produces a `Code.Internal` wire response, but first writes a line with the RPC method, response type, violations, and SDK version. Call `validate(Schema, resp)` inside the handler (see `src/service.ts`) if you want the failure raised on your own stack frame instead.
+The SDK emits a structured `error`-level log line when a handler returns a response that fails its `buf.validate` rules. The safety-net interceptor still produces a `Code.Internal` wire response, but first writes a line with the RPC method, response type, violations, and SDK version. Call `validate(Schema, create(Schema, {...}))` inside the handler (see `src/service.ts`) if you want the failure raised on your own stack frame instead. `validate` takes a message built with `create` from `@bufbuild/protobuf`, not a plain object.
 
 ### Default logger
 

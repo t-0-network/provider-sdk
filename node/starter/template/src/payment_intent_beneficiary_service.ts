@@ -1,3 +1,4 @@
+import {create} from "@bufbuild/protobuf";
 import {
     HandlerContext,
     PaymentIntentBeneficiary,
@@ -33,7 +34,7 @@ const CreateBeneficiaryService = () => {
                 default:
                     console.log(`Payment intent ${req.paymentIntentId}: unknown update variant`)
             }
-            return {} as PaymentIntentBeneficiary.PaymentIntentUpdateResponse
+            return create(PaymentIntentBeneficiary.PaymentIntentUpdateResponseSchema)
         },
     }
 };
