@@ -132,7 +132,9 @@ from t0_provider_sdk.crypto import new_signer_from_hex
 from t0_provider_sdk.network import DEFAULT_BASE_URL, new_service_client
 
 network_client = new_service_client(
-    new_signer_from_hex(config.provider_private_key), NetworkServiceClient, base_url=DEFAULT_BASE_URL,
+    new_signer_from_hex(config.provider_private_key),
+    NetworkServiceClient,
+    base_url=DEFAULT_BASE_URL,
 )
 ```
 
