@@ -55,7 +55,8 @@ public class KycFileCrossServerTests
         Assert.Equal(Shape, ex.Status.Detail);
     }
 
-    [GoHelperFact]
+    // .NET can turn the server's error into Internal when it answers mid-upload. Remove when #418 is done.
+    [GoHelperFact(Skip = ".NET HTTP/2 reset race turns the server's error into Internal, see #418")]
     public async Task DeniedUploadIsPermissionDenied()
     {
         await using var server = await Start();
