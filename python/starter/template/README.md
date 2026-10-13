@@ -29,6 +29,7 @@ my-provider/
 │   │   └── payment_intent_beneficiary_sync.py # Phase 3B: BeneficiaryService handler (sync)
 │   ├── publish_quotes.py                    # Phase 1: payout quote publishing
 │   ├── get_quote.py                         # Phase 1: quote retrieval
+│   ├── submit_payment.py                    # Phase 2: payment submission
 │   ├── complete_manual_aml_check.py         # Phase 2: report a manual AML check outcome
 │   ├── publish_payment_intent_quotes.py     # Phase 3A: pay-in quote publishing
 │   ├── get_payment_intent_quote.py          # Phase 3B: indicative quote retrieval
@@ -83,7 +84,8 @@ python-dotenv reads `PYTHON_DOTENV_DISABLED`. Set it to `1`, `true`, `t`, `yes`,
 2. Deploy your service and share the base URL with the T-0 team.
 3. Implement `pay_out` in `src/provider/handler/payment.py`.
 4. Wrap responses with `validate()` (see "Returning a validated response" below) so protovalidate failures surface in your own code.
-5. Coordinate with the T-0 team to test end-to-end payment flows.
+5. Test payment submission by uncommenting the `submit_payment` call in `src/provider/main.py` (see `src/provider/submit_payment.py`). An accepted result is not a completed payout: the `payment_update` notifications carry the outcome. A retry must resend the same payment client id and request — the network deduplicates on it; running the demo again creates a new id and therefore a new payment.
+6. Coordinate with the T-0 team to test end-to-end payment flows.
 
 ### Phase 3: Payment Intent Flow
 

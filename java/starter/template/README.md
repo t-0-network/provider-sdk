@@ -197,6 +197,15 @@ Run unit tests:
 ./gradlew test
 ```
 
+## Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| `ERROR: PROVIDER_PRIVATE_KEY is not set` | Run from the directory that holds your `.env`, or set `PROVIDER_PRIVATE_KEY` in the process environment. An existing `.env` holds the key generated for this project — do not overwrite its private half. |
+| `ERROR: NETWORK_PUBLIC_KEY is not set` | Ask the t-0 team for the network public key of the environment you target and put it in `.env` (or set `NETWORK_PUBLIC_KEY`). |
+| Port already in use | Free the port, or set `PORT` to another one. The process environment wins over `.env`, so change it where it is set. |
+| `timestamp is outside the allowed time window` | The request signature timestamp is more than 60 seconds away from this server's clock. Sync both clocks with NTP (the allowed skew is ±60 seconds). The provider refuses the call with `INVALID_ARGUMENT`, the same in every SDK. |
+
 ## Support
 
 Contact the T-0 team for:

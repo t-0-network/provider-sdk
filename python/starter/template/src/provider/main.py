@@ -57,6 +57,7 @@ from provider.handler.payment_intent_beneficiary import BeneficiaryServiceImplem
 from provider.handler.payment_intent_pay_in import PayInProviderServiceImplementation
 from provider.publish_payment_intent_quotes import publish_payment_intent_quotes
 from provider.publish_quotes import publish_quotes
+from provider.submit_payment import submit_payment  # noqa: F401
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -186,7 +187,8 @@ async def main() -> None:
         ]
 
         # TODO: Step 2.2 Deploy your integration and provide t-0 team with the base URL
-        # TODO: Step 2.3 Test payment submission
+        # TODO: Step 2.3 Test payment submission (see src/provider/submit_payment.py)
+        # await submit_payment(network_client)
         # TODO: Step 2.5 Ask t-0 team to submit a payment to test your payOut endpoint
         # TODO: Step 2.6 (optional) Complete manual AML checks if your pay_out returns manual_aml_check
         # await complete_manual_aml_check(network_client, payment_id)
