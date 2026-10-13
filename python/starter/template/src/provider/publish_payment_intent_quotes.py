@@ -1,6 +1,6 @@
 """Payment intent quote publishing to the T-0 Network.
 
-Pay-In Provider role — Step 3A.1. Publishes sample pay-in quotes every 5 seconds.
+Pay-In Provider role — Step 3A.1. Publishes sample pay-in quotes every 5 seconds by default.
 Replace the hardcoded values with quotes from your own pricing systems.
 """
 
@@ -63,9 +63,9 @@ async def publish_payment_intent_quotes(
                     ],
                 ),
             )
-        except Exception:
+        except Exception as e:
             # Logged; the next tick publishes again.
-            logger.exception("Error updating payment intent quote")
+            logger.error("Error updating payment intent quote: %s", e)
 
         try:
             await asyncio.wait_for(shutdown_event.wait(), timeout=interval_seconds)

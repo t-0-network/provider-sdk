@@ -48,9 +48,10 @@ function validatorFor(registry: Registry | undefined): Validator {
  * the error from a handler produces the same wire response as not calling
  * `validate` at all.
  *
- * Intended use:
+ * Intended use. `msg` must be a message, built with `create` from
+ * `@bufbuild/protobuf`; a plain object fails with "response validation error":
  * ```ts
- * return validate(PayOutResponseSchema, { result: { case: "accepted", value: {} } });
+ * return validate(PayoutResponseSchema, create(PayoutResponseSchema, { result: { case: "accepted", value: {} } }));
  * ```
  *
  * When your protos define custom predefined rules, pass the registry the

@@ -63,8 +63,9 @@ public class PublishPaymentIntentQuotes {
 
             log.debug("✅ Payment intent quotes published successfully");
 
-        } catch (io.grpc.StatusRuntimeException e) {
-            log.error("Error updating payment intent quote: {} - {}", e.getStatus().getCode(), e.getMessage());
+        } catch (RuntimeException e) {
+            // An exception that leaves this method stops the scheduler from running it again.
+            log.error("Error updating payment intent quote: {}", e.getMessage());
         }
     }
 }

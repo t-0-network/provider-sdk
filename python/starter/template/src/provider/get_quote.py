@@ -46,5 +46,5 @@ async def get_quote(network_client: NetworkServiceClient) -> None:
         else:
             logger.info("Unknown response type")
 
-    except Exception:
-        logger.exception("Error getting quote")
+    except Exception as e:
+        logger.error("Error getting quote: %s", e)

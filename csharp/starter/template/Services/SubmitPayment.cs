@@ -38,11 +38,14 @@ public static class SubmitPayment
                 case CreatePaymentResponse.ResultOneofCase.Failure:
                     Console.WriteLine($"Payment failed: {response.Failure.Reason}");
                     break;
+                default:
+                    Console.WriteLine("Unknown result type");
+                    break;
             }
         }
-        catch (Grpc.Core.RpcException ex)
+        catch (Exception ex)
         {
-            Console.WriteLine($"Error submitting payment: {ex.Status.StatusCode} - {ex.Message}");
+            Console.Error.WriteLine($"Error submitting payment: {ex.Message}");
         }
     }
 }

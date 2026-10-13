@@ -46,8 +46,8 @@ public class CompleteManualAmlCheck {
                         log.warn("Updated quotes rejected for payment {}, do not proceed with the payout", paymentId);
                 default -> log.warn("Unknown result type for payment {}", paymentId);
             }
-        } catch (io.grpc.StatusRuntimeException e) {
-            log.error("Error completing manual AML check: {} - {}", e.getStatus().getCode(), e.getMessage());
+        } catch (RuntimeException e) {
+            log.error("Error completing manual AML check: {}", e.getMessage());
         }
     }
 }

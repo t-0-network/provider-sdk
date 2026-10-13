@@ -1,6 +1,6 @@
 """Quote publishing to the T-0 Network.
 
-Publishes sample PayOut (off-ramp) quotes every 5 seconds.
+Publishes sample PayOut (off-ramp) quotes every 5 seconds by default.
 TODO: Step 1.3 Replace this with fetching quotes from your systems and publishing them.
 We recommend publishing at least once per 5 seconds, but not more than once per second.
 """
@@ -80,9 +80,9 @@ async def publish_quotes(
                     ],
                 ),
             )
-        except Exception:
+        except Exception as e:
             # Logged; the next tick publishes again.
-            logger.exception("Error updating quote")
+            logger.error("Error updating quote: %s", e)
 
         try:
             await asyncio.wait_for(shutdown_event.wait(), timeout=interval_seconds)

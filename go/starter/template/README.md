@@ -46,19 +46,21 @@ my-provider/
 
 ## Environment Variables
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `PROVIDER_PRIVATE_KEY` | Yes | Auto-generated | Your secp256k1 private key (hex) |
-| `NETWORK_PUBLIC_KEY` | Yes | Sandbox key | T-0 Network public key for signature verification |
-| `TZERO_ENDPOINT` | No | `https://api-sandbox.t-0.network` | T-0 Network API endpoint |
-| `PORT` | No | `8080` | TCP port, an integer from 1 to 65535 |
-| `QUOTE_PUBLISHING_INTERVAL` | No | `5000` | Quote publishing frequency in milliseconds, 1 to 2147483647; any other value gives the default |
+`t0-init` creates `.env` from `.env.example` and writes a new private key into it. The other values in that file are for the sandbox.
 
-An empty value counts as unset. `PROVIDER_PRIVATE_KEY`, `NETWORK_PUBLIC_KEY`, `TZERO_ENDPOINT`, and `PORT` are trimmed first, so a whitespace-only value counts as unset too.
+| Variable | In `.env` after `t0-init` | If unset or empty | Description |
+|----------|---------------------------|-------------------|-------------|
+| `PROVIDER_PRIVATE_KEY` | A new key generated for this project | The provider does not start | Your secp256k1 private key (hex) |
+| `NETWORK_PUBLIC_KEY` | The sandbox network key | The provider does not start | T-0 Network public key for signature verification |
+| `TZERO_ENDPOINT` | `https://api-sandbox.t-0.network` | `https://api-sandbox.t-0.network` | T-0 Network API endpoint |
+| `PORT` | `8080` | `8080` | Server port |
+| `QUOTE_PUBLISHING_INTERVAL` | not set | `5000` | Quote publishing interval in milliseconds |
 
-The process reads `.env` from the working directory when that file exists. A variable already set in the environment keeps its value. When `.env` is absent, stderr gets `No .env at <path> — taking configuration from the environment instead` and startup continues.
+The process reads `.env` from the working directory. A variable set in the process environment wins over `.env`, even when its value is empty, and an empty value counts as unset. For example, if `.env` has `PORT=9000` and the environment has `PORT=`, the server listens on 8080. To use the value from `.env`, unset the variable. If `.env` is missing, the process prints one notice on stderr and continues with the process environment.
 
-A missing key, a private key the SDK rejects, or a `PORT` that is not an integer from 1 to 65535 prints two lines on stderr and exits 1: `ERROR: <message>`, then one help line. Any other failure while starting, including a port already in use, prints `Provider failed to start: <cause>` on stderr and exits 1.
+For production, set both `NETWORK_PUBLIC_KEY` and `TZERO_ENDPOINT` to the values the T-0 team gives you. If `TZERO_ENDPOINT` is unset, the provider connects to the sandbox. `.env` holds your private key, so keep it out of Git. Use a separate private key in production.
+
+If a key is missing, or `PORT` is not a port number, the process prints `ERROR: <message>` and one help line on stderr and exits with status 1. Any other startup failure, for example a malformed key or a port already in use, prints `Provider failed to start: <cause>` and exits with status 1. After startup, a failed call to the network is logged as one line, and the provider keeps running. On SIGINT or SIGTERM, the provider stops publishing quotes and waits for the calls in progress. Then it exits with status 0.
 
 The server listens on `PORT` and serves Connect and gRPC over HTTP/1.1 and HTTP/2 cleartext (h2c).
 
@@ -97,7 +99,7 @@ Implement **one** of the two sub-phases below depending on your role. If you par
 2. **Step 3B.2** Create payment intents for your end-users via `CreatePaymentIntent` (see `internal/create_payment_intent.go`).
 3. **Step 3B.3** Implement `PaymentIntentUpdate` in `internal/handler/payment_intent_beneficiary.go` to receive notifications when funds are received.
 
-If you only play one role, delete the files for the other role and remove the corresponding handler registration in `cmd/main.go`.
+If you only play one role, delete the files for the other role. In `cmd/main.go`, also remove that role's handler registration, and that role's quote publishing and sample calls.
 
 ## Available Commands
 

@@ -48,15 +48,21 @@ Each generated project contains numbered `TODO` comments that guide you through 
 
 ## Environment Variables
 
-All platforms use the same environment variables:
+All starters read the same variables. `t0-init` creates `.env` from `.env.example` and writes a new private key into it. The other values in that file are for the sandbox.
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `PROVIDER_PRIVATE_KEY` | Yes | Auto-generated | Your secp256k1 private key (hex) |
-| `NETWORK_PUBLIC_KEY` | Yes | Sandbox key | T-0 Network public key for signature verification |
-| `TZERO_ENDPOINT` | No | `https://api-sandbox.t-0.network` | T-0 Network API URL |
-| `PORT` | No | `8080` (`3000` for TypeScript) | Server listen port |
-| `QUOTE_PUBLISHING_INTERVAL` | No | `5000` | Quote publishing interval (ms) |
+| Variable | In `.env` after `t0-init` | If unset or empty | Description |
+|----------|---------------------------|-------------------|-------------|
+| `PROVIDER_PRIVATE_KEY` | A new key generated for this project | The provider does not start | Your secp256k1 private key (hex) |
+| `NETWORK_PUBLIC_KEY` | The sandbox network key | The provider does not start | T-0 Network public key for signature verification |
+| `TZERO_ENDPOINT` | `https://api-sandbox.t-0.network` | `https://api-sandbox.t-0.network` | T-0 Network API endpoint |
+| `PORT` | `8080` | `8080` | Server port |
+| `QUOTE_PUBLISHING_INTERVAL` | not set | `5000` | Quote publishing interval in milliseconds |
+
+The process reads `.env` from the working directory. A variable set in the process environment wins over `.env`, even when its value is empty, and an empty value counts as unset. For example, if `.env` has `PORT=9000` and the environment has `PORT=`, the server listens on 8080. To use the value from `.env`, unset the variable. If `.env` is missing, the process prints one notice on stderr and continues with the process environment.
+
+For production, set both `NETWORK_PUBLIC_KEY` and `TZERO_ENDPOINT` to the values the T-0 team gives you. If `TZERO_ENDPOINT` is unset, the provider connects to the sandbox.
+
+If a key is missing, or `PORT` is not a port number, the process prints `ERROR: <message>` and one help line on stderr and exits with status 1. Any other startup failure, for example a malformed key or a port already in use, prints `Provider failed to start: <cause>` and exits with status 1. After startup, a failed call to the network is logged as one line, and the provider keeps running. On SIGINT or SIGTERM, the provider stops publishing quotes and waits for the calls in progress. Then it exits with status 0.
 
 ## SDK Packages
 

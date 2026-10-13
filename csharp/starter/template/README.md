@@ -23,6 +23,7 @@ my-provider/
 │   └── CompleteManualAmlCheck.cs # Manual AML check completion utility
 ├── Program.cs                   # Entry point
 ├── Config.cs                    # Reads the environment variables below
+├── Listening.cs                 # Prints the listening line once the server has started
 ├── my-provider.csproj           # Build configuration
 ├── appsettings.json             # ASP.NET Core configuration
 ├── .env                         # Your configuration (git-ignored)
@@ -39,17 +40,21 @@ my-provider/
 
 ## Environment Variables
 
-An empty value counts as unset. `PORT` and `TZERO_ENDPOINT` then use the defaults below. `PROVIDER_PRIVATE_KEY` and `NETWORK_PUBLIC_KEY` have no fallback, so an empty value is an error. The starter CLI writes a private key into `.env`, and `.env.example` carries the sandbox network key. Those are file contents, not runtime defaults.
+`t0-init` creates `.env` from `.env.example` and writes a new private key into it. The other values in that file are for the sandbox.
 
-The process environment wins over `.env`. A missing `.env` is not a failure: the process prints one notice on stderr and continues with the environment.
+| Variable | In `.env` after `t0-init` | If unset or empty | Description |
+|----------|---------------------------|-------------------|-------------|
+| `PROVIDER_PRIVATE_KEY` | A new key generated for this project | The provider does not start | Your secp256k1 private key (hex) |
+| `NETWORK_PUBLIC_KEY` | The sandbox network key | The provider does not start | T-0 Network public key for signature verification |
+| `TZERO_ENDPOINT` | `https://api-sandbox.t-0.network` | `https://api-sandbox.t-0.network` | T-0 Network API endpoint |
+| `PORT` | `8080` | `8080` | Server port |
+| `QUOTE_PUBLISHING_INTERVAL` | not set | `5000` | Quote publishing interval in milliseconds |
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `PROVIDER_PRIVATE_KEY` | Yes | none | Your secp256k1 private key (64-char hex). Surrounding whitespace is ignored. |
-| `NETWORK_PUBLIC_KEY` | Yes | none | T-0 Network public key for signature verification. Surrounding whitespace is ignored. |
-| `TZERO_ENDPOINT` | No | `https://api-sandbox.t-0.network` | T-0 Network API endpoint |
-| `PORT` | No | `8080` | Provider server port, an integer from 1 to 65535 |
-| `QUOTE_PUBLISHING_INTERVAL` | No | `5000` | Quote publishing interval in milliseconds |
+The process reads `.env` from the working directory. A variable set in the process environment wins over `.env`, even when its value is empty, and an empty value counts as unset. For example, if `.env` has `PORT=9000` and the environment has `PORT=`, the server listens on 8080. To use the value from `.env`, unset the variable. If `.env` is missing, the process prints one notice on stderr and continues with the process environment.
+
+For production, set both `NETWORK_PUBLIC_KEY` and `TZERO_ENDPOINT` to the values the T-0 team gives you. If `TZERO_ENDPOINT` is unset, the provider connects to the sandbox. `.env` holds your private key, so keep it out of Git. Use a separate private key in production.
+
+If a key is missing, or `PORT` is not a port number, the process prints `ERROR: <message>` and one help line on stderr and exits with status 1. Any other startup failure, for example a malformed key or a port already in use, prints `Provider failed to start: <cause>` and exits with status 1. After startup, a failed call to the network is logged as one line, and the provider keeps running. On SIGINT or SIGTERM, the provider stops publishing quotes and waits for the calls in progress. Then it exits with status 0.
 
 ASP.NET Core also reads configuration from the environment. `Kestrel__Endpoints__*` replaces the address `PORT` selects, rather than listening beside it. The server speaks gRPC over cleartext HTTP/2 only.
 
@@ -93,7 +98,7 @@ docker run -p 8080:8080 --env-file .env my-provider
 | `PROVIDER_PRIVATE_KEY is not set` | Run from the directory that holds `.env`, or set `PROVIDER_PRIVATE_KEY` in the environment. An existing `.env` already has the generated key; its private half cannot be recovered from the public key. |
 | Signature verification failures | Ensure system clock is synchronized (NTP). Tolerance is +/- 60 seconds. |
 | gRPC connection refused | Verify `TZERO_ENDPOINT` is correct and reachable. |
-| Port already in use | Change `PORT` in `.env` or stop the conflicting process. |
+| Port already in use | Stop the process that uses the port, or choose another port with `PORT`. If `PORT` is set in the process environment, change it there, because that value wins over `.env`. |
 
 ## SDK Reference
 

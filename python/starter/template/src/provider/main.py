@@ -48,7 +48,7 @@ from t0_provider_sdk.network.client import new_service_client
 from t0_provider_sdk.provider.handler import handler, new_asgi_app
 
 from provider.complete_manual_aml_check import complete_manual_aml_check  # noqa: F401
-from provider.config import NETWORK_PUBLIC_KEY_HELP, Config, ConfigurationError, load_config
+from provider.config import Config, ConfigurationError, load_config
 from provider.create_payment_intent import create_payment_intent  # noqa: F401
 from provider.get_payment_intent_quote import get_payment_intent_quote
 from provider.get_quote import get_quote
@@ -118,46 +118,10 @@ async def serve(server: uvicorn.Server) -> None:
         raise RuntimeError(f"the provider server exited with status {e.code}") from None
 
 
-def stop(server: uvicorn.Server) -> None:
-    """SIGINT / SIGTERM: stop accepting calls, then drain."""
+def stop(server: uvicorn.Server, shutdown_event: asyncio.Event) -> None:
+    """SIGINT / SIGTERM: stop publishing quotes and accepting calls, then drain."""
+    shutdown_event.set()
     server.should_exit = True
-
-
-def _report_shutdown(error: BaseException, reported: list[bool]) -> None:
-    """A drain error is one stderr line. The process still exits 0."""
-    if reported:
-        return
-    reported.append(True)
-    print(f"Shutdown: {error}", file=sys.stderr)
-
-
-async def _stop_background(
-    tasks: list[asyncio.Task[None]],
-    shutdown_event: asyncio.Event | None,
-    reported: list[bool],
-) -> None:
-    """Cancel the quote tasks and wait for them. One stderr line on a drain error."""
-    if shutdown_event is not None:
-        shutdown_event.set()
-    for task in tasks:
-        task.cancel()
-    if not tasks:
-        return
-    try:
-        done, _pending = await asyncio.wait(tasks)
-    except Exception as error:
-        _report_shutdown(error, reported)
-        return
-    for task in done:
-        if task.cancelled():
-            continue
-        try:
-            error = task.exception()
-        except asyncio.CancelledError:
-            continue
-        if error is not None:
-            _report_shutdown(error, reported)
-            return
 
 
 async def main() -> None:
@@ -166,31 +130,24 @@ async def main() -> None:
     network_client = init_network_client(config)
     payment_intent_client = init_payment_intent_client(config)
 
-    # The SDK parses NETWORK_PUBLIC_KEY while building the server. A malformed key is a
-    # configuration error; anything else is a startup failure.
-    try:
-        app = create_provider_app(config, network_client, payment_intent_client)
-    except ValueError as e:
-        if not str(e).startswith("invalid network public key: "):
-            raise
-        raise ConfigurationError(str(e), NETWORK_PUBLIC_KEY_HELP) from None
+    app = create_provider_app(config, network_client, payment_intent_client)
 
     # Run ASGI server. host="" listens on all interfaces, IPv4 and IPv6 (where the host has it).
     # A shutdown waits up to 15 s for calls in flight.
     server_config = uvicorn.Config(app, host="", port=config.port, log_level="info", timeout_graceful_shutdown=15)
     server = uvicorn.Server(server_config)
+    shutdown_event = asyncio.Event()
 
     # uvicorn re-raises SIGINT / SIGTERM once serve() returns, to whatever handler was
     # installed before it started. Installing this one first makes that re-raise land
     # here instead of on the default, which would end the process with 130 or 143.
     loop = asyncio.get_running_loop()
     for sig in (signal.SIGINT, signal.SIGTERM):
-        loop.add_signal_handler(sig, stop, server)
+        loop.add_signal_handler(sig, stop, server, shutdown_event)
 
     serving = asyncio.create_task(serve(server))
     background: list[asyncio.Task[None]] = []
-    shutdown_event: asyncio.Event | None = None
-    reported: list[bool] = []
+    drain_error: Exception | None = None
     try:
         while not server.started:
             if serving.done():
@@ -204,7 +161,6 @@ async def main() -> None:
         # TODO: Step 1.2 Share the generated public key from .env with t-0 team
 
         # TODO: Step 1.3 Replace publish_quotes with your own quote publishing logic
-        shutdown_event = asyncio.Event()
         interval_seconds = config.quote_publishing_interval_ms / 1000
 
         # TODO: Step 1.4 Verify that quotes for target currency are successfully received
@@ -240,9 +196,17 @@ async def main() -> None:
         # The server had started: this is a drain error, not a failed start.
         if not server.started:
             raise
-        _report_shutdown(error, reported)
+        drain_error = error
     finally:
-        await _stop_background(background, shutdown_event, reported)
+        # Stop the quote tasks and wait for them. A drain error is one stderr line, and the
+        # process still exits 0. A cancelled task returns CancelledError, which is not reported.
+        shutdown_event.set()
+        for task in background:
+            task.cancel()
+        results = await asyncio.gather(*background, return_exceptions=True)
+        failures = [e for e in (drain_error, *results) if isinstance(e, Exception)]
+        if failures:
+            print(f"Shutdown: {failures[0]}", file=sys.stderr)
 
 
 def run() -> int:

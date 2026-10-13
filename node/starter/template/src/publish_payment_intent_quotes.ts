@@ -31,7 +31,7 @@ export default async function publishPaymentIntentQuotes(
         }],
       })
     } catch (error) {
-      console.error(error);
+      console.error(`Error updating payment intent quote: ${error instanceof Error ? error.message : String(error)}`);
       return
     }
     console.log("payment intent quote published")

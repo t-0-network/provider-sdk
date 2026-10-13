@@ -20,48 +20,48 @@ func PublishQuotes(ctx context.Context, networkClient paymentconnect.NetworkServ
 	defer ticker.Stop()
 
 	for {
+		currency := "EUR"
+		paymentMethod := common.PaymentMethodType_PAYMENT_METHOD_TYPE_SEPA
+		expiration := timestamppb.New(time.Now().Add(30 * time.Second)) // expiration time - 30 seconds from now
+		timestamp := timestamppb.New(time.Now())                        // current timestamp
+
+		//NOTE: Every update quote request discard all previous quotes that were published before.
+		// So if you want to publish multiple quotes, you need to combine them into a single request.
+		// Otherwise, if you send multiple requests, only the quotes from the last one will be available.
+		_, err := networkClient.UpdateQuote(ctx, connect.NewRequest(&payment.UpdateQuoteRequest{
+			PayOut: []*payment.UpdateQuoteRequest_Quote{ // The quote at which you want to take USDT and pay out local currency (off-ramp)
+				{
+					Currency:      currency,
+					PaymentMethod: paymentMethod,
+					Expiration:    expiration,
+					Timestamp:     timestamp,
+					Bands: []*payment.UpdateQuoteRequest_Quote_Band{ // one or more bands are allowed
+						{
+							ClientQuoteId: uuid.NewString(),
+							MaxAmount: &common.Decimal{
+								Unscaled: 1000, // maximum amount in USD, could be 1000, 5000, 10000 or 25000
+								Exponent: 0,
+							},
+							// note that rate is always USD/XXX, so that for BRL quote should be USD/BRL
+							Rate: &common.Decimal{ //rate 0.86
+								Unscaled: 86,
+								Exponent: -2,
+							},
+							// optional: set Fix to charge a fixed fee per transfer (e.g. wire fees)
+							// Fix: &common.Decimal{Unscaled: 5, Exponent: 0}, // $5 fixed charge
+						},
+					},
+				},
+			},
+		}))
+		if err != nil {
+			log.Printf("Error updating quote: %s\n", err.Error()) // handle errors appropriately
+		}
+
 		select {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
-			currency := "EUR"
-			paymentMethod := common.PaymentMethodType_PAYMENT_METHOD_TYPE_SEPA
-			expiration := timestamppb.New(time.Now().Add(30 * time.Second)) // expiration time - 30 seconds from now
-			timestamp := timestamppb.New(time.Now())                        // current timestamp
-
-			//NOTE: Every update quote request discard all previous quotes that were published before.
-			// So if you want to publish multiple quotes, you need to combine them into a single request.
-			// Otherwise, if you send multiple requests, only the quotes from the last one will be available.
-			_, err := networkClient.UpdateQuote(ctx, connect.NewRequest(&payment.UpdateQuoteRequest{
-				PayOut: []*payment.UpdateQuoteRequest_Quote{ // The quote at which you want to take USDT and pay out local currency (off-ramp)
-					{
-						Currency:      currency,
-						PaymentMethod: paymentMethod,
-						Expiration:    expiration,
-						Timestamp:     timestamp,
-						Bands: []*payment.UpdateQuoteRequest_Quote_Band{ // one or more bands are allowed
-							{
-								ClientQuoteId: uuid.NewString(),
-								MaxAmount: &common.Decimal{
-									Unscaled: 1000, // maximum amount in USD, could be 1000, 5000, 10000 or 25000
-									Exponent: 0,
-								},
-								// note that rate is always USD/XXX, so that for BRL quote should be USD/BRL
-								Rate: &common.Decimal{ //rate 0.86
-									Unscaled: 86,
-									Exponent: -2,
-								},
-								// optional: set Fix to charge a fixed fee per transfer (e.g. wire fees)
-								// Fix: &common.Decimal{Unscaled: 5, Exponent: 0}, // $5 fixed charge
-							},
-						},
-					},
-				},
-			}))
-			if err != nil {
-				log.Printf("Error updating quote: %s\n", err.Error()) // handle errors appropriately
-				return
-			}
 		}
 	}
 }

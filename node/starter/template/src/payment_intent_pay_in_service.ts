@@ -1,3 +1,4 @@
+import {create} from "@bufbuild/protobuf";
 import {
     type Client,
     HandlerContext,
@@ -24,14 +25,14 @@ const CreatePayInProviderService = (paymentIntentClient: Client<typeof PaymentIn
         // confirmFundsReceived.
         async getPaymentDetails(req: PaymentIntentPayInProvider.GetPaymentDetailsRequest, _: HandlerContext) {
             console.log(`Received GetPaymentDetails for payment intent ${req.paymentIntentId}, methods: ${req.paymentMethods.join(',')}`)
-            return {
+            return create(PaymentIntentPayInProvider.GetPaymentDetailsResponseSchema, {
                 result: {
                     case: 'details',
                     value: {
                         paymentDetails: [], // TODO: populate one PaymentDetails per requested paymentMethod
                     },
                 },
-            } as unknown as PaymentIntentPayInProvider.GetPaymentDetailsResponse
+            })
         },
     }
 };

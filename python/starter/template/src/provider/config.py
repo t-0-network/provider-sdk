@@ -8,11 +8,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from dotenv import load_dotenv
-from t0_provider_sdk.crypto.keys import private_key_from_hex
 
 NETWORK_PUBLIC_KEY_HELP = "Ask the t-0 team for the network public key and put it in .env."
 PORT_HELP = "Set PORT to an integer between 1 and 65535, or leave it unset for 8080."
-_PRIVATE_KEY_HELP = "Any 32 random bytes will do: openssl rand -hex 32."
 _SANDBOX_ENDPOINT = "https://api-sandbox.t-0.network"
 
 
@@ -34,29 +32,26 @@ class Config:
 
 
 def _parse_positive_int(value: str, *, default: int) -> int:
-    """An integer from 1 to 2147483647, else the default."""
+    """A positive integer, else the default."""
     try:
         parsed = int(value)
     except (ValueError, TypeError):
         return default
-    return parsed if 0 < parsed <= 2_147_483_647 else default
+    return parsed if parsed > 0 else default
 
 
 def _parse_port(value: str) -> int:
-    """PORT: trim first. Whitespace-only means 8080.
-
-    What remains must match ``^[0-9]+$`` and fall in 1..65535. The error names the trimmed value.
-    """
+    """PORT: an empty value means 8080. Otherwise an integer from 1 to 65535."""
     trimmed = value.strip()
     if not trimmed:
         return 8080
-    # A port has at most five digits past its leading zeros. Checking that first also
-    # keeps int() clear of its digit limit. isdigit() is false for 0x, 1e3, and +8080.
-    significant = trimmed.lstrip("0")
-    digits = trimmed.isascii() and trimmed.isdigit() and len(significant) <= 5
-    if not (digits and 1 <= int(significant or "0") <= 65535):
+    try:
+        port = int(trimmed)
+    except ValueError:
+        port = 0
+    if not 1 <= port <= 65535:
         raise ConfigurationError(f"PORT is not a valid port number: {trimmed}", PORT_HELP)
-    return int(significant)
+    return port
 
 
 def _private_key_missing_help(env_path: Path) -> str:
@@ -88,11 +83,6 @@ def load_config() -> Config:
 
     if not provider_private_key:
         raise ConfigurationError("PROVIDER_PRIVATE_KEY is not set", _private_key_missing_help(env_path))
-
-    try:
-        private_key_from_hex(provider_private_key)
-    except ValueError as e:
-        raise ConfigurationError(f"PROVIDER_PRIVATE_KEY is not usable: {e}", _PRIVATE_KEY_HELP) from None
 
     if not network_public_key:
         raise ConfigurationError("NETWORK_PUBLIC_KEY is not set", NETWORK_PUBLIC_KEY_HELP)

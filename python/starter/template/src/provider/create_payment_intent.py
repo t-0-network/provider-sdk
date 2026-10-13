@@ -42,5 +42,7 @@ async def create_payment_intent(payment_intent_client: PaymentIntentServiceClien
             # pay_in_details options to your end-user.
         elif response.HasField("failure"):
             logger.info("Failed to create payment intent: %s", response.failure.reason)
-    except Exception:
-        logger.exception("Error creating payment intent")
+        else:
+            logger.info("Unknown response type")
+    except Exception as e:
+        logger.error("Error creating payment intent: %s", e)

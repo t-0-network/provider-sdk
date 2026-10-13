@@ -6,6 +6,8 @@ import network.t0.sdk.proto.tzero.v1.payment.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.math.BigDecimal;
+
 /**
  * Quote fetching logic for testing.
  *
@@ -37,10 +39,9 @@ public class GetQuote {
             if (response.hasSuccess()) {
                 GetQuoteResponse.Success success = response.getSuccess();
                 log.info("✅ Step 1.4: Quote received successfully!");
-                log.info("Rate: {}.{}E{}",
-                        success.getRate().getUnscaled(),
-                        Math.abs(success.getRate().getExponent()),
-                        success.getRate().getExponent());
+                // A Decimal is unscaled × 10^exponent.
+                log.info("Rate: {}", BigDecimal.valueOf(
+                        success.getRate().getUnscaled(), -success.getRate().getExponent()).toPlainString());
                 log.info("Quote ID: provider={}, quote={}",
                         success.getQuoteId().getProviderId(),
                         success.getQuoteId().getQuoteId());
@@ -48,11 +49,12 @@ public class GetQuote {
                 GetQuoteResponse.Failure failure = response.getFailure();
                 log.warn("Quote request failed: {}", failure.getReason());
                 log.info("This may be expected if no matching quotes are available yet");
+            } else {
+                log.warn("Unknown result type");
             }
 
-        } catch (io.grpc.StatusRuntimeException e) {
-            log.error("Error getting quote: {} - {}", e.getStatus().getCode(), e.getMessage());
-            log.info("Make sure the T-0 Network endpoint is accessible and quotes have been published");
+        } catch (RuntimeException e) {
+            log.error("Error getting quote: {}", e.getMessage());
         }
     }
 }

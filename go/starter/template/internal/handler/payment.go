@@ -2,6 +2,7 @@ package handler
 
 import (
 	"context"
+	"log"
 
 	"connectrpc.com/connect"
 	"github.com/t-0-network/provider-sdk/go/api/tzero/v1/common"
@@ -62,6 +63,7 @@ func (s *ProviderServiceImplementation) PayOut(ctx context.Context, req *connect
 	}))
 
 	if err != nil {
+		log.Printf("Error finalizing payout: %s\n", err.Error())
 		return nil, err
 	}
 	// optional: if your provider has multiple legal entities, set BeneficiaryProviderLegalEntityId
@@ -100,7 +102,9 @@ func (s *ProviderServiceImplementation) ApprovePaymentQuotes(ctx context.Context
 	//TODO: this is the endpoint to have a last look at quote and approve after AML check is done
 	// The request includes PayOutFix — the fixed charge in USD for this payout.
 	// Consider it alongside PayOutRate and PayOutAmount when deciding to accept.
-	return connect.NewResponse(&payment.ApprovePaymentQuoteResponse{}), nil
+	return connect.NewResponse(&payment.ApprovePaymentQuoteResponse{
+		Result: &payment.ApprovePaymentQuoteResponse_Accepted_{Accepted: &payment.ApprovePaymentQuoteResponse_Accepted{}},
+	}), nil
 }
 
 func ref(s string) *string {

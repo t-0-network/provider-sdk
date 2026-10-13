@@ -51,18 +51,22 @@ class ProviderServiceSyncImplementation:
 
         # TODO: FinalizePayout should be called when your system notifies
         # that payout has been made successfully
-        self._network_client.finalize_payout(
-            FinalizePayoutRequest(
-                payment_id=request.payment_id,
-                success=FinalizePayoutRequest.Success(
-                    receipt=PaymentReceipt(
-                        sepa=PaymentReceipt.Sepa(
-                            banking_transaction_reference_id="123456",
+        try:
+            self._network_client.finalize_payout(
+                FinalizePayoutRequest(
+                    payment_id=request.payment_id,
+                    success=FinalizePayoutRequest.Success(
+                        receipt=PaymentReceipt(
+                            sepa=PaymentReceipt.Sepa(
+                                banking_transaction_reference_id="123456",
+                            ),
                         ),
                     ),
                 ),
-            ),
-        )
+            )
+        except Exception as e:
+            logger.error("Error finalizing payout: %s", e)
+            raise
 
         # optional: if your provider has multiple legal entities, set beneficiary_provider_legal_entity_id
         return validate(PayoutResponse(accepted=PayoutResponse.Accepted()))
@@ -86,4 +90,4 @@ class ProviderServiceSyncImplementation:
         # and approve after AML check is done.
         # The request includes pay_out_fix — the fixed charge in USD for this payout.
         # Consider it alongside pay_out_rate and pay_out_amount when deciding to accept.
-        return ApprovePaymentQuoteResponse()
+        return ApprovePaymentQuoteResponse(accepted=ApprovePaymentQuoteResponse.Accepted())

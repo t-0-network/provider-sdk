@@ -55,6 +55,13 @@ func main() {
 	// TODO: Step 1.4 Verify that quotes for target currency are successfully received
 	go internal.GetQuote(ctx, networkClient)
 
+	// TODO: Step 2.2 Deploy your integration and provide t-0 team with the base URL
+	// TODO: Step 2.3 Test payment submission
+	// TODO: Step 2.5 Ask t-0 team to submit a payment to test your payOut endpoint
+	// TODO: Step 2.6 (optional) If your PayOut handler returns manual_aml_check, report the
+	// outcome of your AML check (see internal/complete_manual_aml_check.go)
+	// internal.CompleteManualAmlCheck(ctx, networkClient, paymentId)
+
 	// ──────────────────────────────────────────────────────────────
 	// Payment Intent Flow — Phase 3
 	//
@@ -79,13 +86,6 @@ func main() {
 	if err := shutdown(context.Background()); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to shutdown provider service: %s\n", err.Error())
 	}
-
-	// TODO: Step 2.2 Deploy your integration and provide t-0 team with the base URL
-	// TODO: Step 2.3 Test payment submission
-	// TODO: Step 2.5 Ask t-0 team to submit a payment to test your payOut endpoint
-	// TODO: Step 2.6 (optional) If your PayOut handler returns manual_aml_check, report the
-	// outcome of your AML check (see internal/complete_manual_aml_check.go)
-	// internal.CompleteManualAmlCheck(ctx, networkClient, paymentId)
 }
 
 func initNetworkClient(config Config) (paymentconnect.NetworkServiceClient, error) {
@@ -127,7 +127,7 @@ func startProviderServer(
 			payment_intentconnect.BeneficiaryServiceHandler(handler.NewBeneficiaryServiceImplementation())),
 	)
 	if err != nil {
-		return nil, asConfigurationError(err)
+		return nil, err
 	}
 
 	shutdown, err := provider.StartServer(

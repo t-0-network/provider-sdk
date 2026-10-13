@@ -11,8 +11,7 @@ import java.util.UUID;
 /**
  * Payment submission logic for testing.
  *
- * <p>TODO: Step 2.3 Test payment submission by calling this method.
- * Uncomment the call in Main.java when you're ready to test.
+ * <p>TODO: Step 2.3 Test payment submission by calling this method from Main.java.
  */
 public class SubmitPayment {
 
@@ -55,10 +54,12 @@ public class SubmitPayment {
             } else if (response.hasFailure()) {
                 CreatePaymentResponse.Failure failure = response.getFailure();
                 log.warn("Payment submission failed: {}", failure.getReason());
+            } else {
+                log.warn("Unknown result type");
             }
 
-        } catch (io.grpc.StatusRuntimeException e) {
-            log.error("Error submitting payment: {} - {}", e.getStatus().getCode(), e.getMessage());
+        } catch (RuntimeException e) {
+            log.error("Error submitting payment: {}", e.getMessage());
         }
     }
 }

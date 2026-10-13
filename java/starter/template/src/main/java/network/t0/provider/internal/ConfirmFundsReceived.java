@@ -41,8 +41,8 @@ public class ConfirmFundsReceived {
                         paymentIntentId, response.getReject().getReason());
                 default -> log.info("Unknown response type");
             }
-        } catch (io.grpc.StatusRuntimeException e) {
-            log.error("Error confirming funds received: {} - {}", e.getStatus().getCode(), e.getMessage());
+        } catch (RuntimeException e) {
+            log.error("Error confirming funds received: {}", e.getMessage());
         }
     }
 }

@@ -31,11 +31,14 @@ public static class CompleteManualAmlCheck
                     // Pay-in provider rejected the updated quotes — do NOT proceed with the payout.
                     Console.WriteLine($"Updated quotes rejected for payment {paymentId}, do not proceed with the payout");
                     break;
+                default:
+                    Console.WriteLine($"Unknown result type for payment {paymentId}");
+                    break;
             }
         }
-        catch (Grpc.Core.RpcException ex)
+        catch (Exception ex)
         {
-            Console.WriteLine($"Error completing manual AML check: {ex.Status.StatusCode} - {ex.Message}");
+            Console.Error.WriteLine($"Error completing manual AML check: {ex.Message}");
         }
     }
 }

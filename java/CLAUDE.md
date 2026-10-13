@@ -39,7 +39,7 @@ Cross-server tests live in `sdk/src/test/java/network/t0/sdk/integration/CrossSe
 
 ```bash
 cd cross_test/go_helper && go build -o go_helper .                              # Build Go helper
-cd java && ./gradlew test --tests "network.t0.sdk.integration.CrossServerTests" # Run cross-tests
+cd java && ./gradlew :sdk:test --tests "network.t0.sdk.integration.CrossServerTests" # Run cross-tests
 ```
 
 In CI, tests **fail** (not skip) if the Go helper binary is missing.

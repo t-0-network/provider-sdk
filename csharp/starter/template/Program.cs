@@ -15,10 +15,12 @@ try
 
     var server = new T0ProviderServer(config, signer);
     server.MapPaymentService<MyProvider.Services.PaymentHandler>(networkClient);
+    // Prints the listening line. QuotePublisher waits for it before its first publish.
+    MyProvider.Listening.Port = config.Port;
+    server.AddHostedService<MyProvider.Listening>();
     server.AddHostedService<MyProvider.Services.QuotePublisher>();
 
     // TODO: Step 1.4 Verify that quotes for target currency are successfully received
-    MyProvider.Services.GetQuote.Port = config.Port;
     server.AddHostedService<MyProvider.Services.GetQuote>();
 
     await server.RunAsync();
@@ -29,15 +31,14 @@ catch (MyProvider.ConfigException ex)
     Console.Error.WriteLine(ex.Help);
     Environment.Exit(1);
 }
-catch (Exception ex) when (MyProvider.Config.IsInvalidNetworkKey(ex))
-{
-    Console.Error.WriteLine($"ERROR: {ex.Message}");
-    Console.Error.WriteLine(MyProvider.Config.NetworkKeyHelp);
-    Environment.Exit(1);
-}
 catch (OperationCanceledException)
 {
     // SIGINT/SIGTERM: the host already drained.
+}
+catch (Exception ex) when (MyProvider.Listening.Started.IsCompleted)
+{
+    // The server ran, so this failure came while it stopped.
+    Console.Error.WriteLine($"Provider failed to shut down: {ex.Message}");
 }
 catch (Exception ex)
 {

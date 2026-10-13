@@ -9,29 +9,34 @@ export default async function createPaymentIntent(
   // Store the returned paymentIntentId to correlate with the PaymentIntentUpdate
   // notification you'll receive on your BeneficiaryService handler once the end-user
   // completes the pay-in.
-  const response = await paymentIntentClient.createPaymentIntent({
-    externalReference: randomUUID(), // idempotency key — reuse to retry without duplicating the intent
-    currency: 'EUR',
-    amount: decimalFromString("500"), // end-user pays 500 EUR
-    travelRuleData: {
-      // TODO: populate real IVMS101 beneficiary information for your end-user.
-      beneficiary: [{}],
-    },
-  })
+  try {
+    const response = await paymentIntentClient.createPaymentIntent({
+      externalReference: randomUUID(), // idempotency key — reuse to retry without duplicating the intent
+      currency: 'EUR',
+      amount: decimalFromString("500"), // end-user pays 500 EUR
+      travelRuleData: {
+        // TODO: populate real IVMS101 beneficiary information for your end-user.
+        beneficiary: [{}],
+      },
+    })
 
-  switch (response.result.case) {
-    case 'success':
-      console.log(
-          `Created payment intent id=${response.result.value.paymentIntentId}`,
-          `with ${response.result.value.payInDetails.length} pay-in option(s)`,
-      )
-      // TODO: persist (paymentIntentId, externalReference) and present the
-      // payInDetails options to your end-user.
-      break;
-    case 'failure':
-      console.log(`Failed to create payment intent: ${response.result.value.reason}`)
-      break;
-    default:
-      console.error("unexpected result type")
+    switch (response.result.case) {
+      case 'success':
+        console.log(
+            `Created payment intent id=${response.result.value.paymentIntentId}`,
+            `with ${response.result.value.payInDetails.length} pay-in option(s)`,
+        )
+        // TODO: persist (paymentIntentId, externalReference) and present the
+        // payInDetails options to your end-user.
+        break;
+      case 'failure':
+        console.log(`Failed to create payment intent: ${response.result.value.reason}`)
+        break;
+      default:
+        console.error("unexpected result type")
+    }
+  } catch (error) {
+    // A failed call is logged, and the provider keeps serving.
+    console.error(`Error creating payment intent: ${error instanceof Error ? error.message : String(error)}`)
   }
 }

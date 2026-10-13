@@ -33,12 +33,6 @@ public class ConfigTests
             error: "NETWORK_PUBLIC_KEY is not set",
             help: Config.NetworkKeyHelp);
 
-        yield return Row("bad private key",
-            privateKey: "not-a-key",
-            networkKey: NetworkKey,
-            error: "PROVIDER_PRIVATE_KEY is not usable: private key must be 32 bytes (64 hex characters)",
-            help: Config.PrivateKeyUnusableHelp);
-
         yield return Row("PORT blank", port: "", expectedPort: 8080);
         yield return Row("PORT whitespace", port: "   ", expectedPort: 8080);
         yield return Row("PORT 8080", port: "8080", expectedPort: 8080);
@@ -50,6 +44,10 @@ public class ConfigTests
         yield return Row("PORT http",
             port: "http",
             error: "PORT is not a valid port number: http",
+            help: Config.PortHelp);
+        yield return Row("PORT 65536",
+            port: "65536",
+            error: "PORT is not a valid port number: 65536",
             help: Config.PortHelp);
 
         yield return Row("blank TZERO_ENDPOINT", endpoint: "   ", expectedEndpoint: Sandbox);

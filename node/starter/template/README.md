@@ -49,27 +49,31 @@ my-provider/
 
 ## Environment Variables
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `PROVIDER_PRIVATE_KEY` | Yes | Auto-generated | Your secp256k1 private key (hex) |
-| `NETWORK_PUBLIC_KEY` | Yes | Sandbox key | T-0 Network public key for signature verification |
-| `TZERO_ENDPOINT` | No | `https://api-sandbox.t-0.network` | T-0 Network API endpoint |
-| `PORT` | No | `8080` | Server port |
-| `QUOTE_PUBLISHING_INTERVAL` | No | `5000` | Quote publishing frequency in milliseconds; a value that is not an integer from 1 to 2147483647 gives 5000 |
+`t0-init` creates `.env` from `.env.example` and writes a new private key into it. The other values in that file are for the sandbox.
 
-An empty value counts as unset.
+| Variable | In `.env` after `t0-init` | If unset or empty | Description |
+|----------|---------------------------|-------------------|-------------|
+| `PROVIDER_PRIVATE_KEY` | A new key generated for this project | The provider does not start | Your secp256k1 private key (hex) |
+| `NETWORK_PUBLIC_KEY` | The sandbox network key | The provider does not start | T-0 Network public key for signature verification |
+| `TZERO_ENDPOINT` | `https://api-sandbox.t-0.network` | `https://api-sandbox.t-0.network` | T-0 Network API endpoint |
+| `PORT` | `8080` | `8080` | Server port |
+| `QUOTE_PUBLISHING_INTERVAL` | not set | `5000` | Quote publishing interval in milliseconds |
+
+The process reads `.env` from the working directory. A variable set in the process environment wins over `.env`, even when its value is empty, and an empty value counts as unset. For example, if `.env` has `PORT=9000` and the environment has `PORT=`, the server listens on 8080. To use the value from `.env`, unset the variable. If `.env` is missing, the process prints one notice on stderr and continues with the process environment.
+
+For production, set both `NETWORK_PUBLIC_KEY` and `TZERO_ENDPOINT` to the values the T-0 team gives you. If `TZERO_ENDPOINT` is unset, the provider connects to the sandbox. `.env` holds your private key, so keep it out of Git. Use a separate private key in production.
+
+If a key is missing, or `PORT` is not a port number, the process prints `ERROR: <message>` and one help line on stderr and exits with status 1. Any other startup failure, for example a malformed key or a port already in use, prints `Provider failed to start: <cause>` and exits with status 1. After startup, a failed call to the network is logged as one line, and the provider keeps running. On SIGINT or SIGTERM, the provider stops publishing quotes and waits for the calls in progress. Then it exits with status 0.
 
 The process serves Connect on HTTP/1.1 only.
 
-`.env` is read from the working directory. A missing file is not a failure: the process prints one notice on stderr and continues. The starter calls `dotenv` with `quiet: true` and `override: false`, so dotenv does not print its own line and the process environment wins over the file. dotenv reads the variables below. Each falls back to the matching `DOTENV_CONFIG_*` name when the `DOTENV_*` name is unset.
+dotenv reads the variables below. Each falls back to the matching `DOTENV_CONFIG_*` name when the `DOTENV_*` name is unset.
 
 | Variable | Fallback | What it does |
 |----------|----------|----------------|
 | `DOTENV_PATH` | `DOTENV_CONFIG_PATH` | File to read, instead of `.env` in the working directory |
 | `DOTENV_ENCODING` | `DOTENV_CONFIG_ENCODING` | Encoding of that file |
-| `DOTENV_QUIET` | `DOTENV_CONFIG_QUIET` | Suppress dotenv's own line |
 | `DOTENV_DEBUG` | `DOTENV_CONFIG_DEBUG` | Debug output |
-| `DOTENV_OVERRIDE` | `DOTENV_CONFIG_OVERRIDE` | The switch for letting the file win over the process environment. This starter passes `override: false`, so the process environment wins |
 | `DOTENV_FAST` | `DOTENV_CONFIG_FAST` | Use dotenv's faster parser |
 
 ## Getting Started
@@ -108,7 +112,7 @@ Implement **one** of the two sub-phases below depending on your role. If you par
 2. **Step 3B.2** Create payment intents for your end-users via `createPaymentIntent` (see `src/create_payment_intent.ts`).
 3. **Step 3B.3** Implement `paymentIntentUpdate` in `src/payment_intent_beneficiary_service.ts` to receive notifications when funds are received.
 
-If you only play one role, delete the files for the other role and remove the corresponding `r.service(...)` registration in `src/index.ts`.
+If you only play one role, delete the files for the other role. In `src/index.ts`, also remove that role's `r.service(...)` registration, and that role's quote publishing and sample calls.
 
 ## Available Commands
 
@@ -121,7 +125,7 @@ npm test           # Run src/*.test.ts under tsx
 
 ## Configuring logging
 
-The SDK emits a structured `error`-level log line when a handler returns a response that fails its `buf.validate` rules. The safety-net interceptor still produces a `Code.Internal` wire response, but first writes a line with the RPC method, response type, violations, and SDK version. Call `validate(Schema, resp)` inside the handler (see `src/service.ts`) if you want the failure raised on your own stack frame instead.
+The SDK emits a structured `error`-level log line when a handler returns a response that fails its `buf.validate` rules. The safety-net interceptor still produces a `Code.Internal` wire response, but first writes a line with the RPC method, response type, violations, and SDK version. Call `validate(Schema, create(Schema, {...}))` inside the handler (see `src/service.ts`) if you want the failure raised on your own stack frame instead. `validate` takes a message built with `create` from `@bufbuild/protobuf`, not a plain object.
 
 ### Default logger
 
@@ -159,7 +163,10 @@ The same `logger` object is accepted by `createRequestDecoder`, so standalone in
 
 ## Deployment
 
+The Dockerfile runs `npm ci`, which needs `package-lock.json`. Run `npm install` once before you build the image, so that the file exists.
+
 ```bash
+npm install
 docker build -t my-provider .
 docker run -p 8080:8080 --env-file .env my-provider
 ```

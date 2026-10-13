@@ -10,22 +10,27 @@ export default async function confirmFundsReceived(
   // Call this after you have matched an incoming fiat payment to a payment intent
   // (using the payment reference you returned from getPaymentDetails). Settlement
   // with the beneficiary provider will proceed once this confirmation is accepted.
-  const response = await paymentIntentClient.confirmFundsReceived({
-    paymentIntentId,
-    confirmationCode,
-    paymentMethod: PaymentMethodType.SEPA,
-    transactionReference,
-    // optional: if your provider has multiple legal entities, set originatorProviderLegalEntityId
-  })
+  try {
+    const response = await paymentIntentClient.confirmFundsReceived({
+      paymentIntentId,
+      confirmationCode,
+      paymentMethod: PaymentMethodType.SEPA,
+      transactionReference,
+      // optional: if your provider has multiple legal entities, set originatorProviderLegalEntityId
+    })
 
-  switch (response.result.case) {
-    case 'accept':
-      console.log(`Funds accepted for payment intent ${paymentIntentId}`)
-      break;
-    case 'reject':
-      console.log(`Funds rejected for payment intent ${paymentIntentId}: ${response.result.value.reason}`)
-      break;
-    default:
-      console.error("unexpected result type")
+    switch (response.result.case) {
+      case 'accept':
+        console.log(`Funds accepted for payment intent ${paymentIntentId}`)
+        break;
+      case 'reject':
+        console.log(`Funds rejected for payment intent ${paymentIntentId}: ${response.result.value.reason}`)
+        break;
+      default:
+        console.error("unexpected result type")
+    }
+  } catch (error) {
+    // A failed call is logged, and the provider keeps serving.
+    console.error(`Error confirming funds received: ${error instanceof Error ? error.message : String(error)}`)
   }
 }

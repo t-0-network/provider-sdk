@@ -9,7 +9,7 @@ uv sync
 uv run python -m provider.main
 ```
 
-The process listens on all interfaces and serves HTTP/1.1 only. SIGINT (Ctrl+C) or SIGTERM stops it: it stops accepting calls, waits up to 15 seconds for calls already in progress, stops the quote tasks, and exits with status 0.
+The process listens on all interfaces and serves HTTP/1.1 only.
 
 Share the provider public key (printed by the initializer; also on the comment line under `# Your provider's public key` in `.env`) with the T-0 team so t-0 can verify the requests you sign.
 
@@ -29,10 +29,12 @@ my-provider/
 │   │   └── payment_intent_beneficiary_sync.py # Phase 3B: BeneficiaryService handler (sync)
 │   ├── publish_quotes.py                    # Phase 1: payout quote publishing
 │   ├── get_quote.py                         # Phase 1: quote retrieval
+│   ├── complete_manual_aml_check.py         # Phase 2: report a manual AML check outcome
 │   ├── publish_payment_intent_quotes.py     # Phase 3A: pay-in quote publishing
 │   ├── get_payment_intent_quote.py          # Phase 3B: indicative quote retrieval
 │   ├── create_payment_intent.py             # Phase 3B: create a payment intent
 │   └── confirm_funds_received.py            # Phase 3A: confirm funds received
+├── tests/                                   # Unit tests (uv run pytest)
 ├── Dockerfile                               # Docker configuration
 ├── .env                                     # Environment variables (with generated keys)
 ├── .env.example                             # Example environment file
@@ -48,17 +50,21 @@ my-provider/
 
 ## Environment Variables
 
-| Variable | Required | Default | Description |
-|----------|----------|---------|-------------|
-| `PROVIDER_PRIVATE_KEY` | Yes | Auto-generated | Your secp256k1 private key (hex) |
-| `NETWORK_PUBLIC_KEY` | Yes | Sandbox key | T-0 Network public key for signature verification |
-| `TZERO_ENDPOINT` | No | `https://api-sandbox.t-0.network` | T-0 Network API endpoint |
-| `PORT` | No | `8080` | Server port |
-| `QUOTE_PUBLISHING_INTERVAL` | No | `5000` | Quote publishing frequency in milliseconds |
+`t0-init` creates `.env` from `.env.example` and writes a new private key into it. The other values in that file are for the sandbox.
 
-Whitespace around `PROVIDER_PRIVATE_KEY`, `NETWORK_PUBLIC_KEY`, `TZERO_ENDPOINT`, and `PORT` is trimmed. An empty `TZERO_ENDPOINT`, `PORT`, or `QUOTE_PUBLISHING_INTERVAL` counts as unset.
+| Variable | In `.env` after `t0-init` | If unset or empty | Description |
+|----------|---------------------------|-------------------|-------------|
+| `PROVIDER_PRIVATE_KEY` | A new key generated for this project | The provider does not start | Your secp256k1 private key (hex) |
+| `NETWORK_PUBLIC_KEY` | The sandbox network key | The provider does not start | T-0 Network public key for signature verification |
+| `TZERO_ENDPOINT` | `https://api-sandbox.t-0.network` | `https://api-sandbox.t-0.network` | T-0 Network API endpoint |
+| `PORT` | `8080` | `8080` | Server port |
+| `QUOTE_PUBLISHING_INTERVAL` | not set | `5000` | Quote publishing interval in milliseconds |
 
-`.env` is read from the working directory when that file exists. If it does not, the process says so on stderr and takes configuration from the environment. A variable set in the environment wins over the same variable in `.env`.
+The process reads `.env` from the working directory. A variable set in the process environment wins over `.env`, even when its value is empty, and an empty value counts as unset. For example, if `.env` has `PORT=9000` and the environment has `PORT=`, the server listens on 8080. To use the value from `.env`, unset the variable. If `.env` is missing, the process prints one notice on stderr and continues with the process environment.
+
+For production, set both `NETWORK_PUBLIC_KEY` and `TZERO_ENDPOINT` to the values the T-0 team gives you. If `TZERO_ENDPOINT` is unset, the provider connects to the sandbox. `.env` holds your private key, so keep it out of Git. Use a separate private key in production.
+
+If a key is missing, or `PORT` is not a port number, the process prints `ERROR: <message>` and one help line on stderr and exits with status 1. Any other startup failure, for example a malformed key or a port already in use, prints `Provider failed to start: <cause>` and exits with status 1. After startup, a failed call to the network is logged as one line, and the provider keeps running. On SIGINT or SIGTERM, the provider stops publishing quotes and waits for the calls in progress. Then it exits with status 0.
 
 python-dotenv reads `PYTHON_DOTENV_DISABLED`. Set it to `1`, `true`, `t`, `yes`, or `y` (any case) to skip `.env`.
 
@@ -97,13 +103,14 @@ Implement **one** of the two sub-phases below depending on your role. If you par
 2. **Step 3B.2** Create payment intents for your end-users via `create_payment_intent` (see `src/provider/create_payment_intent.py`).
 3. **Step 3B.3** Implement `payment_intent_update` in `src/provider/handler/payment_intent_beneficiary.py` to receive notifications when funds are received.
 
-If you only play one role, remove the unused handler registration from `create_provider_app` in `src/provider/main.py`.
+If you only play one role, remove the other role's handler registration from `create_provider_app` in `src/provider/main.py`. In `main()`, also remove that role's quote publishing and sample calls.
 
 ## Available Commands
 
 ```bash
 uv sync                                   # Install / update dependencies
 uv run python -m provider.main            # Run the ASGI server (uvicorn)
+uv run pytest                             # Run tests
 uvx ruff check .                          # Lint (ruff is not a project dependency)
 uvx ruff format .                         # Format
 ```
@@ -202,6 +209,6 @@ For direct SDK usage (without the starter), see the [Python SDK documentation](h
 
 **`uv sync` fails** -- Ensure Python >= 3.13 is available: `python3 --version`. uv will fetch a managed interpreter if needed.
 
-**`ImportError: No module named 'provider'`** -- Run from the project root so `src/provider/` is on the import path, or use `uv run python -m provider.main`.
+**`ModuleNotFoundError: No module named 'provider'`** -- The project is not installed in `.venv` yet. Run `uv sync`, then start the server with `uv run python -m provider.main`.
 
-**Port already in use** -- Change `PORT` in `.env` or stop the conflicting process.
+**Port already in use** -- Stop the process that uses the port, or choose another port with `PORT`. If `PORT` is set in the process environment, change it there, because that value wins over `.env`.

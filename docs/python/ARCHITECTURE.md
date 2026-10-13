@@ -879,7 +879,7 @@ The starter template in `starter/template/` is a complete, runnable application.
 - **`config.py`** -- Loads configuration from `.env`: `PROVIDER_PRIVATE_KEY`, `NETWORK_PUBLIC_KEY`, `TZERO_ENDPOINT`, `PORT`.
 - **`handler/payment.py`** -- `ProviderServiceImplementation` (async) class with stub implementations for all 5 RPCs. Each method has TODO comments indicating what to implement.
 - **`handler/payment_sync.py`** -- `ProviderServiceSyncImplementation` (sync) class, parallel to `payment.py` but with regular `def` methods for use with WSGI servers.
-- **`publish_quotes.py`** -- Publishes sample pay-out and pay-in quotes every 5 seconds via `network_client.update_quote()`. Demonstrates quote bands with rates and amounts.
+- **`publish_quotes.py`** -- Publishes sample pay-out and pay-in quotes every 5 seconds by default, via `network_client.update_quote()`. Demonstrates quote bands with rates and amounts.
 - **`get_quote.py`** -- Requests a sample quote from the network. Demonstrates the `GetQuoteRequest` API.
 - **`Dockerfile`** -- Multi-stage build using `python:3.13-slim` with `uv` for fast dependency installation.
 - **`.env.example`** -- Template with default values including the sandbox network public key.

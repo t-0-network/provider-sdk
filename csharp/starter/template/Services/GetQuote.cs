@@ -10,19 +10,12 @@ public class GetQuote(
     NetworkService.NetworkServiceClient client,
     IHostApplicationLifetime lifetime) : IHostedService
 {
-    /// <summary>Set from Program before the host builds this service.</summary>
-    public static int Port { get; set; }
-
     private CancellationTokenRegistration _started;
 
     public Task StartAsync(CancellationToken cancellationToken)
     {
         // ApplicationStarted fires after the bind. A failed bind never gets here.
-        _started = lifetime.ApplicationStarted.Register(() =>
-        {
-            Console.WriteLine($"Step 1.1: Provider server initialized on port {Port}");
-            _ = FetchAsync(client);
-        });
+        _started = lifetime.ApplicationStarted.Register(() => _ = FetchAsync(client));
         return Task.CompletedTask;
     }
 
@@ -50,16 +43,19 @@ public class GetQuote(
             switch (response.ResultCase)
             {
                 case GetQuoteResponse.ResultOneofCase.Success:
-                    Console.WriteLine($"Step 1.4: Got quote id={response.Success.QuoteId.QuoteId_}");
+                    Console.WriteLine($"Step 1.4: Got quote id={response.Success.QuoteId?.QuoteId_}");
                     break;
                 case GetQuoteResponse.ResultOneofCase.Failure:
                     Console.WriteLine($"Quote failed: {response.Failure.Reason}");
                     break;
+                default:
+                    Console.WriteLine("Unknown result type");
+                    break;
             }
         }
-        catch (Grpc.Core.RpcException ex)
+        catch (Exception ex)
         {
-            Console.WriteLine($"Error getting quote: {ex.Status.StatusCode} - {ex.Message}");
+            Console.Error.WriteLine($"Error getting quote: {ex.Message}");
         }
     }
 }
