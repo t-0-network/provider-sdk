@@ -24,6 +24,7 @@ my-provider/
 │   │   └── payment_intent_beneficiary.go      # Phase 3B: BeneficiaryService handler
 │   ├── get_quote.go                           # Phase 1: quote retrieval
 │   ├── publish_quotes.go                      # Phase 1: payout quote publishing
+│   ├── submit_payment.go                      # Phase 2: payment submission
 │   ├── publish_payment_intent_quotes.go       # Phase 3A: pay-in quote publishing
 │   ├── get_payment_intent_quote.go            # Phase 3B: indicative quote retrieval
 │   ├── create_payment_intent.go               # Phase 3B: create a payment intent
@@ -78,8 +79,9 @@ The server listens on `PORT` and serves Connect and gRPC over HTTP/1.1 and HTTP/
 1. Implement `UpdatePayment` handler in `internal/handler/payment.go`.
 2. Deploy your service and share the base URL with the T-0 team.
 3. Implement `PayOut` handler in `internal/handler/payment.go`.
-4. Coordinate with the T-0 team to test end-to-end payment flows.
-5. *(Optional)* If your `PayOut` handler responds with `manual_aml_check`, report the outcome of your AML check via `CompleteManualAmlCheck` (see `internal/complete_manual_aml_check.go`).
+4. Test payment submission by uncommenting the `internal.SubmitPayment` call in `cmd/main.go` (see `internal/submit_payment.go`). An accepted result is not a completed payout: the `PaymentUpdate` notifications carry the outcome. A retry must resend the same payment client id and request — the network deduplicates on it; running the demo again creates a new id and therefore a new payment.
+5. Coordinate with the T-0 team to test end-to-end payment flows.
+6. *(Optional)* If your `PayOut` handler responds with `manual_aml_check`, report the outcome of your AML check via `CompleteManualAmlCheck` (see `internal/complete_manual_aml_check.go`).
 
 ### Phase 3: Payment Intent Flow
 

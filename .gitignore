@@ -28,6 +28,9 @@ __pycache__/
 *.pyc
 *.pyo
 .venv/
+# The template ships no lockfile (its README tells users to generate one); running uv
+# in it locally must not tempt a commit — CI tests a copy with a wheel added instead.
+python/starter/template/uv.lock
 .ruff_cache/
 .pytest_cache/
 dist/

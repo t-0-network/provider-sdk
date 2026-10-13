@@ -38,9 +38,9 @@ func starterLangs(t *testing.T) []string {
 }
 
 var entryFiles = map[string][]string{
-	"go":     {"go.mod", "go.sum", "cmd/main.go"},
-	"node":   {"package.json", "tsconfig.json", "src/index.ts"},
-	"python": {"pyproject.toml", "src/provider/main.py"},
+	"go":     {"go.mod", "go.sum", "cmd/main.go", "internal/submit_payment.go"},
+	"node":   {"package.json", "tsconfig.json", "src/index.ts", "src/submit_payment.ts"},
+	"python": {"pyproject.toml", "src/provider/main.py", "src/provider/submit_payment.py"},
 	"java":   {"build.gradle.kts", "settings.gradle.kts", "gradlew", "src/main/java"},
 	"csharp": {"test-project.csproj", "Program.cs", "appsettings.json"},
 }
@@ -196,6 +196,17 @@ func TestStarters_HaveDockerfiles(t *testing.T) {
 				t.Errorf("%s: both .dockerignore and dot-dockerignore — dot-dockerignore overwrites .dockerignore on scaffold (fs.WalkDir is lexical); delete the .dockerignore", lang)
 			}
 		})
+	}
+}
+
+func TestJavaStarter_READMEHasTroubleshooting(t *testing.T) {
+	projectDir, _ := instantiate(t, "java")
+	readme, err := os.ReadFile(filepath.Join(projectDir, "README.md"))
+	if err != nil {
+		t.Fatalf("reading the scaffolded Java README: %v", err)
+	}
+	if !strings.Contains(string(readme), "## Troubleshooting") {
+		t.Error("the scaffolded Java README has no Troubleshooting section")
 	}
 }
 
