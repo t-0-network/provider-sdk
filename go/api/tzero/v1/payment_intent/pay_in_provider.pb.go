@@ -334,8 +334,10 @@ func (x *GetPaymentDetailsResponse_Details) GetPaymentDetails() []*common.Paymen
 }
 
 type GetPaymentDetailsResponse_Rejection struct {
-	state         protoimpl.MessageState `protogen:"open.v1"`
-	Reason        string                 `protobuf:"bytes,10,opt,name=reason,proto3" json:"reason,omitempty"`
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// *
+	// Why the provider rejects the intent; at most 1024 characters.
+	Reason        string `protobuf:"bytes,10,opt,name=reason,proto3" json:"reason,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -397,17 +399,17 @@ const file_tzero_v1_payment_intent_pay_in_provider_proto_rawDesc = "" +
 	"\vbeneficiary\x18\x14 \x03(\v2\x0f.ivms101.PersonB\b\xbaH\x05\x92\x01\x02\b\x01R\vbeneficiary\x12O\n" +
 	"\x14beneficiary_provider\x18\x1e \x01(\v2\x14.ivms101.LegalPersonB\x06\xbaH\x03\xc8\x01\x01R\x13beneficiaryProvider\x12*\n" +
 	"\x05payer\x18( \x01(\v2\x0f.ivms101.PersonH\x00R\x05payer\x88\x01\x01B\b\n" +
-	"\x06_payer\"\xdc\x02\n" +
+	"\x06_payer\"\xe6\x02\n" +
 	"\x19GetPaymentDetailsResponse\x12V\n" +
 	"\adetails\x18\n" +
 	" \x01(\v2:.tzero.v1.payment_intent.GetPaymentDetailsResponse.DetailsH\x00R\adetails\x12\\\n" +
 	"\trejection\x18\x14 \x01(\v2<.tzero.v1.payment_intent.GetPaymentDetailsResponse.RejectionH\x00R\trejection\x1aS\n" +
 	"\aDetails\x12H\n" +
 	"\x0fpayment_details\x18\n" +
-	" \x03(\v2\x1f.tzero.v1.common.PaymentDetailsR\x0epaymentDetails\x1a#\n" +
-	"\tRejection\x12\x16\n" +
+	" \x03(\v2\x1f.tzero.v1.common.PaymentDetailsR\x0epaymentDetails\x1a-\n" +
+	"\tRejection\x12 \n" +
 	"\x06reason\x18\n" +
-	" \x01(\tR\x06reasonB\x0f\n" +
+	" \x01(\tB\b\xbaH\x05r\x03\x18\x80\bR\x06reasonB\x0f\n" +
 	"\x06result\x12\x05\xbaH\x02\b\x012\x97\x01\n" +
 	"\x14PayInProviderService\x12\x7f\n" +
 	"\x11GetPaymentDetails\x121.tzero.v1.payment_intent.GetPaymentDetailsRequest\x1a2.tzero.v1.payment_intent.GetPaymentDetailsResponse\"\x03\x90\x02\x02B\x82\x02\n" +
