@@ -46,6 +46,14 @@ After scaffolding your project:
 
 Each generated project contains numbered `TODO` comments that guide you through these steps.
 
+### Outgoing payment quotes
+
+`UpdateQuote` publishes your provider's quotes for other providers to use. `GetQuote` requests another provider's payout quote; correctly configured network routing excludes your own quotes.
+
+These operations are independent: the starter's sample `GetQuote` call does not need to wait for your first quote publication. Publishing your own quotes neither creates another provider's quote nor guarantees that `GetQuote` succeeds.
+
+A suitable quote from another provider may be unavailable both before and after your publication. The starter logs this result and keeps running; the result alone does not indicate a startup race. See the [payment `NetworkService` API contract](proto/tzero/v1/payment/network.proto) for `UpdateQuote`, `GetQuote`, and `GetQuoteResponse.Failure`.
+
 ## Environment Variables
 
 All starters read the same variables. `t0-init` creates `.env` from `.env.example` and writes a new private key into it. The other values in that file are for the sandbox.
