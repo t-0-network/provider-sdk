@@ -31,6 +31,9 @@ public static class CompleteManualAmlCheck
                     // Pay-in provider rejected the updated quotes — do NOT proceed with the payout.
                     Console.WriteLine($"Updated quotes rejected for payment {paymentId}, do not proceed with the payout");
                     break;
+                default:
+                    Console.WriteLine($"Unknown result type for payment {paymentId}");
+                    break;
             }
         }
         catch (Exception ex)

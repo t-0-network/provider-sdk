@@ -38,6 +38,9 @@ public static class SubmitPayment
                 case CreatePaymentResponse.ResultOneofCase.Failure:
                     Console.WriteLine($"Payment failed: {response.Failure.Reason}");
                     break;
+                default:
+                    Console.WriteLine("Unknown result type");
+                    break;
             }
         }
         catch (Exception ex)

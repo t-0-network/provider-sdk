@@ -43,5 +43,7 @@ async def confirm_funds_received(
                 payment_intent_id,
                 response.reject.reason,
             )
+        else:
+            logger.info("Unknown response type")
     except Exception as e:
         logger.error("Error confirming funds received: %s", e)

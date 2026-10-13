@@ -102,7 +102,9 @@ func (s *ProviderServiceImplementation) ApprovePaymentQuotes(ctx context.Context
 	//TODO: this is the endpoint to have a last look at quote and approve after AML check is done
 	// The request includes PayOutFix — the fixed charge in USD for this payout.
 	// Consider it alongside PayOutRate and PayOutAmount when deciding to accept.
-	return connect.NewResponse(&payment.ApprovePaymentQuoteResponse{}), nil
+	return connect.NewResponse(&payment.ApprovePaymentQuoteResponse{
+		Result: &payment.ApprovePaymentQuoteResponse_Accepted_{Accepted: &payment.ApprovePaymentQuoteResponse_Accepted{}},
+	}), nil
 }
 
 func ref(s string) *string {

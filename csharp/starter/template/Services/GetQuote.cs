@@ -43,10 +43,13 @@ public class GetQuote(
             switch (response.ResultCase)
             {
                 case GetQuoteResponse.ResultOneofCase.Success:
-                    Console.WriteLine($"Step 1.4: Got quote id={response.Success.QuoteId.QuoteId_}");
+                    Console.WriteLine($"Step 1.4: Got quote id={response.Success.QuoteId?.QuoteId_}");
                     break;
                 case GetQuoteResponse.ResultOneofCase.Failure:
                     Console.WriteLine($"Quote failed: {response.Failure.Reason}");
+                    break;
+                default:
+                    Console.WriteLine("Unknown result type");
                     break;
             }
         }

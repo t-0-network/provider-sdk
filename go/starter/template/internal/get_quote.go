@@ -26,9 +26,9 @@ func GetQuote(ctx context.Context, networkClient paymentconnect.NetworkServiceCl
 
 	switch quote.Msg.Result.(type) {
 	case *payment.GetQuoteResponse_Success_:
-		log.Printf("Got success response with quote id: %d \n", quote.Msg.GetSuccess().QuoteId.QuoteId)
+		log.Printf("Got success response with quote id: %d \n", quote.Msg.GetSuccess().GetQuoteId().GetQuoteId())
 	case *payment.GetQuoteResponse_Failure_:
-		log.Printf("Got failure response with reason: %s\n", quote.Msg.GetFailure().Reason.String())
+		log.Printf("Got failure response with reason: %s\n", quote.Msg.GetFailure().GetReason())
 	default:
 		log.Println("Unknown type")
 	}

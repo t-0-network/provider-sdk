@@ -16,9 +16,11 @@ export default async function getQuote(networkClient: Client<typeof NetworkServi
     })
 
     switch (usdgbp.result.case) {
-      case 'success':
-        console.log(`USD/GBP: ${decimalToString(usdgbp.result.value.rate!)}`)
+      case 'success': {
+        const rate = usdgbp.result.value.rate;
+        console.log(`USD/GBP: ${rate === undefined ? "not provided" : decimalToString(rate)}`)
         break;
+      }
       case 'failure':
         console.error(usdgbp.result.value.reason)
         break;

@@ -54,6 +54,8 @@ public class SubmitPayment {
             } else if (response.hasFailure()) {
                 CreatePaymentResponse.Failure failure = response.getFailure();
                 log.warn("Payment submission failed: {}", failure.getReason());
+            } else {
+                log.warn("Unknown result type");
             }
 
         } catch (RuntimeException e) {

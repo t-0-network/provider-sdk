@@ -90,4 +90,4 @@ class ProviderServiceSyncImplementation:
         # and approve after AML check is done.
         # The request includes pay_out_fix — the fixed charge in USD for this payout.
         # Consider it alongside pay_out_rate and pay_out_amount when deciding to accept.
-        return ApprovePaymentQuoteResponse()
+        return ApprovePaymentQuoteResponse(accepted=ApprovePaymentQuoteResponse.Accepted())

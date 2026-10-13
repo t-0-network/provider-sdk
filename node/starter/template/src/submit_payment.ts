@@ -37,6 +37,8 @@ export default async function submitPayment(networkClient: Client<typeof Network
         case 'failure':
           console.log(`Payment failed with '${result.result.value.reason}'`)
           break;
+        default:
+          console.error("unexpected result type")
     }
   } catch (error) {
     // A failed call is logged, and the provider keeps serving.
