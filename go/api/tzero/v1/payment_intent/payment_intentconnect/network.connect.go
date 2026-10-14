@@ -72,15 +72,7 @@ type PaymentIntentServiceClient interface {
 	// bands. Indicative — request a priced quote via GetQuote to act on one.
 	GetQuotes(context.Context, *connect.Request[payment_intent.GetQuotesRequest]) (*connect.Response[payment_intent.GetQuotesResponse], error)
 	// *
-	// CreatePaymentIntent initiates a new payment intent.
-	//
-	// Returns the available payment options to present to the end-user. Rates are
-	// not part of the result: call GetQuote for the current indicative rates.
-	//
-	// The returned payment_intent_id must be stored by the beneficiary provider
-	// to correlate with the PaymentIntentUpdate notification received later.
-	//
-	// Idempotency: Multiple calls with the same external_reference return the same payment_intent_id.
+	// Creates a payment intent and returns the pay-in options to present to the end-user.
 	CreatePaymentIntent(context.Context, *connect.Request[payment_intent.CreatePaymentIntentRequest]) (*connect.Response[payment_intent.CreatePaymentIntentResponse], error)
 	// *
 	// Confirms funds landed for a payment intent and locks the binding settlement rate.
@@ -194,15 +186,7 @@ type PaymentIntentServiceHandler interface {
 	// bands. Indicative — request a priced quote via GetQuote to act on one.
 	GetQuotes(context.Context, *connect.Request[payment_intent.GetQuotesRequest]) (*connect.Response[payment_intent.GetQuotesResponse], error)
 	// *
-	// CreatePaymentIntent initiates a new payment intent.
-	//
-	// Returns the available payment options to present to the end-user. Rates are
-	// not part of the result: call GetQuote for the current indicative rates.
-	//
-	// The returned payment_intent_id must be stored by the beneficiary provider
-	// to correlate with the PaymentIntentUpdate notification received later.
-	//
-	// Idempotency: Multiple calls with the same external_reference return the same payment_intent_id.
+	// Creates a payment intent and returns the pay-in options to present to the end-user.
 	CreatePaymentIntent(context.Context, *connect.Request[payment_intent.CreatePaymentIntentRequest]) (*connect.Response[payment_intent.CreatePaymentIntentResponse], error)
 	// *
 	// Confirms funds landed for a payment intent and locks the binding settlement rate.

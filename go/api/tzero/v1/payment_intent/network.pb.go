@@ -475,10 +475,6 @@ func (x *GetQuotesResponse) GetQuotes() []*GetQuotesResponse_CurrencyQuote {
 
 // *
 // Represents pay-in details for a payment intent option.
-//
-// Carries no rate: for the current indicative rate and fix of an option, call
-// GetQuote with the intent's currency and amount and pay_in_provider_ids set to
-// its provider_id, and match the returned quote on payment_method.
 type PaymentIntentPayInDetails struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// *
