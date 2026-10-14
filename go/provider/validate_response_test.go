@@ -388,8 +388,11 @@ func serveDecimal(
 	return connect.NewClient[common.Decimal, common.Decimal](srv.Client(), srv.URL+decimalProcedure)
 }
 
+// The protovalidate message of the one violation of common.Decimal{Exponent: 100}.
+const invalidExponentMessage = "must be greater than or equal to -8 and less than or equal to 8"
+
 // The message of the error for common.Decimal{Exponent: 100}, in every SDK's format.
-const invalidDecimalMessage = "response validation failed: exponent: must be greater than or equal to -8 and less than or equal to 8"
+const invalidDecimalMessage = "response validation failed: exponent: " + invalidExponentMessage
 
 // connectMessage is the message of a connect error, without the "<code>: " that Error() adds.
 func connectMessage(t *testing.T, err error) string {
@@ -414,5 +417,5 @@ func requireInvalidDecimalDetail(t *testing.T, err error) {
 	require.Len(t, violations.GetViolations(), 1)
 	violation := violations.GetViolations()[0]
 	require.Equal(t, "exponent", fieldPathString(violation.GetField()))
-	require.Equal(t, "must be greater than or equal to -8 and less than or equal to 8", violation.GetMessage())
+	require.Equal(t, invalidExponentMessage, violation.GetMessage())
 }
