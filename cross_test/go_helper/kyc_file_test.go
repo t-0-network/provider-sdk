@@ -86,10 +86,6 @@ func TestKycFiles(t *testing.T) {
 			})
 
 			t.Run("permission denied mid upload", func(t *testing.T) {
-				if protocol.name == "connect" {
-					// Over HTTP/1.1 connect-go can lose the handler's error. Remove when #417 is done.
-					t.Skip("connect-go loses the handler's error over HTTP/1.1: connectrpc/connect-go#1013, see #417")
-				}
 				_, err := kycsharing.UploadFile(ctx, client, &kyc.UploadFileRequest_Metadata{
 					PayoutProviderId: 7,
 					ClientId:         "kyc-file-permission-denied",

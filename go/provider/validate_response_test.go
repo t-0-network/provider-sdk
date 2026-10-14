@@ -10,6 +10,7 @@ import (
 	"testing"
 	"time"
 
+	"buf.build/gen/go/bufbuild/protovalidate/protocolbuffers/go/buf/validate"
 	"buf.build/go/protovalidate"
 	"connectrpc.com/connect"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
@@ -39,6 +40,7 @@ func TestValidationInterceptor(t *testing.T) {
 		require.Error(t, err)
 		require.Equal(t, connect.CodeInternal, connect.CodeOf(err))
 		require.Equal(t, invalidDecimalMessage, connectMessage(t, err))
+		requireInvalidDecimalDetail(t, err)
 	})
 
 	t.Run("rejects an invalid stream response with CodeInternal and logs it", func(t *testing.T) {
@@ -70,6 +72,7 @@ func TestValidationInterceptor(t *testing.T) {
 		require.Equal(t, []int32{2}, got)
 		require.Equal(t, connect.CodeInternal, connect.CodeOf(stream.Err()))
 		require.Equal(t, invalidDecimalMessage, connectMessage(t, stream.Err()))
+		requireInvalidDecimalDetail(t, stream.Err())
 
 		out := buf.String()
 		require.Equal(t, 1, strings.Count(out, "\n"), "expected exactly one slog record, got %q", out)
@@ -385,8 +388,11 @@ func serveDecimal(
 	return connect.NewClient[common.Decimal, common.Decimal](srv.Client(), srv.URL+decimalProcedure)
 }
 
+// The protovalidate message of the one violation of common.Decimal{Exponent: 100}.
+const invalidExponentMessage = "must be greater than or equal to -8 and less than or equal to 8"
+
 // The message of the error for common.Decimal{Exponent: 100}, in every SDK's format.
-const invalidDecimalMessage = "response validation failed: exponent: must be greater than or equal to -8 and less than or equal to 8"
+const invalidDecimalMessage = "response validation failed: exponent: " + invalidExponentMessage
 
 // connectMessage is the message of a connect error, without the "<code>: " that Error() adds.
 func connectMessage(t *testing.T, err error) string {
@@ -394,4 +400,22 @@ func connectMessage(t *testing.T, err error) string {
 	var connectErr *connect.Error
 	require.ErrorAs(t, err, &connectErr)
 	return connectErr.Message()
+}
+
+// requireInvalidDecimalDetail checks that err carries one buf.validate.Violations detail, with the
+// one violation of common.Decimal{Exponent: 100}.
+func requireInvalidDecimalDetail(t *testing.T, err error) {
+	t.Helper()
+	var connectErr *connect.Error
+	require.ErrorAs(t, err, &connectErr)
+	details := connectErr.Details()
+	require.Len(t, details, 1)
+	value, valueErr := details[0].Value()
+	require.NoError(t, valueErr)
+	violations, ok := value.(*validate.Violations)
+	require.True(t, ok, "detail is %T, want *validate.Violations", value)
+	require.Len(t, violations.GetViolations(), 1)
+	violation := violations.GetViolations()[0]
+	require.Equal(t, "exponent", fieldPathString(violation.GetField()))
+	require.Equal(t, invalidExponentMessage, violation.GetMessage())
 }

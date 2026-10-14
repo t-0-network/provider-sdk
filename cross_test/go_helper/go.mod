@@ -4,7 +4,7 @@ go 1.27.0
 
 require (
 	buf.build/go/protovalidate v1.4.0
-	connectrpc.com/connect v1.21.0
+	connectrpc.com/connect v1.21.1
 	connectrpc.com/grpchealth v1.5.0
 	github.com/decred/dcrd/dcrec/secp256k1/v4 v4.4.1
 	github.com/t-0-network/provider-sdk/go v1.1.38
