@@ -3145,14 +3145,13 @@ type PaymentDetails_ChileanBankTransfer struct {
 	// RUT of the beneficiary - 7-9 digits + check digit (K or 0-9).
 	// Example: "12345678-9", "1234567-K".
 	DocumentNumber string `protobuf:"bytes,10,opt,name=document_number,json=documentNumber,proto3" json:"document_number,omitempty"`
-	// Beneficiary full name (max 45 chars; provider truncates if longer).
+	// Beneficiary full name (max 45 chars).
 	BeneficiaryName string `protobuf:"bytes,20,opt,name=beneficiary_name,json=beneficiaryName,proto3" json:"beneficiary_name,omitempty"`
 	// Destination bank code - 3 digits (e.g. "012" for BCI).
 	BankCode string `protobuf:"bytes,30,opt,name=bank_code,json=bankCode,proto3" json:"bank_code,omitempty"`
 	// Destination account number - up to 18 digits (zero-padded by the provider if needed).
 	AccountNumber string `protobuf:"bytes,40,opt,name=account_number,json=accountNumber,proto3" json:"account_number,omitempty"`
-	// Account type. Optional - required by some provider fallbacks (e.g. Itau),
-	// ignored by others (e.g. BCI).
+	// Account type. Optional, but some payout routes require it; send it when known.
 	AccountType   *PaymentDetails_ChileanBankTransfer_AccountType `protobuf:"varint,50,opt,name=account_type,json=accountType,proto3,enum=tzero.v1.common.PaymentDetails_ChileanBankTransfer_AccountType,oneof" json:"account_type,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -3428,8 +3427,7 @@ type PaymentDetails_ColombianAch struct {
 	AccountNumber   string                                   `protobuf:"bytes,40,opt,name=account_number,json=accountNumber,proto3" json:"account_number,omitempty"`
 	AccountType     PaymentDetails_ColombianAch_AccountType  `protobuf:"varint,50,opt,name=account_type,json=accountType,proto3,enum=tzero.v1.common.PaymentDetails_ColombianAch_AccountType" json:"account_type,omitempty"`
 	BeneficiaryName string                                   `protobuf:"bytes,60,opt,name=beneficiary_name,json=beneficiaryName,proto3" json:"beneficiary_name,omitempty"`
-	// Beneficiary phone number. Optional - required only for Row provider;
-	// Mono/Cobre use a default when omitted.
+	// Beneficiary phone number. Optional, but some payout routes require it; send it when known.
 	PhoneNumber   *string `protobuf:"bytes,70,opt,name=phone_number,json=phoneNumber,proto3,oneof" json:"phone_number,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

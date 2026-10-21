@@ -217,7 +217,7 @@ func (x *GetQuotesResponse_CurrencyQuote_PaymentMethodQuote) GetProviderQuotes()
 // with the provider plus its tiered rate bands.
 type GetQuotesResponse_CurrencyQuote_PaymentMethodQuote_ProviderQuote struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// * The payout provider that published these quotes (= KYB id).
+	// * The payout provider that published these quotes.
 	ProviderId int32 `protobuf:"varint,10,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"`
 	// * The caller's credit standing with this provider (USD, currency-agnostic).
 	Balance *GetQuotesResponse_CurrencyQuote_PaymentMethodQuote_ProviderQuote_ProviderBalance `protobuf:"bytes,20,opt,name=balance,proto3" json:"balance,omitempty"`

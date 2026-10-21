@@ -1949,8 +1949,9 @@ type UpdateLimitRequest_Limit struct {
 	// the Id of the counterparty provider, e.g. the provider that is providing the credit limit.
 	// It's usually the payOut provider, which provides the credit line to the payIn provider.
 	CounterpartId int32 `protobuf:"varint,15,opt,name=counterpart_id,json=counterpartId,proto3" json:"counterpart_id,omitempty"`
-	// Amounts are mirrored verbatim: required enforces presence, sign is not re-validated
-	// (payout_limit and credit_usage are signed by design).
+	// *
+	// payout_limit = credit_limit - credit_usage - reserve, negative value means credit limit is exceeded,
+	// e.g. if counterparty decreased credit limit. no validation: any sign is valid.
 	PayoutLimit *common.Decimal `protobuf:"bytes,20,opt,name=payout_limit,json=payoutLimit,proto3" json:"payout_limit,omitempty"`
 	// *
 	// This is the credit limit that the counterparty is willing to extend to the provider.
