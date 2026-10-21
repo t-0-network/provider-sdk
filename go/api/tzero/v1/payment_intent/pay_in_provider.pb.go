@@ -228,7 +228,8 @@ type GetPaymentDetailsRequest_TravelRuleData struct {
 	// *
 	// Beneficiary provider travel rule data.
 	BeneficiaryProvider *ivms.LegalPerson `protobuf:"bytes,30,opt,name=beneficiary_provider,json=beneficiaryProvider,proto3" json:"beneficiary_provider,omitempty"`
-	// no validation: ivms101.Person opaque to protovalidate; structural checks delegated to travel-rule layer
+	// *
+	// Optional travel rule data of the payer
 	Payer         *ivms.Person `protobuf:"bytes,40,opt,name=payer,proto3,oneof" json:"payer,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

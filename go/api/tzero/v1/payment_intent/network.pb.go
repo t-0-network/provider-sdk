@@ -155,7 +155,9 @@ func (ConfirmFundsReceivedResponse_Reject_Reason) EnumDescriptor() ([]byte, []in
 // Base currency is always USD, so the quotes are always in USD/currency format.
 type UpdateQuoteRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// no validation: zero items is valid — empty list withdraws all quotes for this provider
+	// *
+	// Zero or more quotes for pay-in operations, each quote must have a unique currency, and one or more bands, with the
+	// unique client_quote_id for each band. An empty list withdraws all quotes.
 	PaymentIntentQuotes []*UpdateQuoteRequest_Quote `protobuf:"bytes,10,rep,name=payment_intent_quotes,json=paymentIntentQuotes,proto3" json:"payment_intent_quotes,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
@@ -1492,7 +1494,8 @@ type CreatePaymentIntentRequest_TravelRuleData struct {
 	// The natural or legal person or legal arrangement who is identified
 	// as the receiver of the requested payment.
 	Beneficiary []*ivms.Person `protobuf:"bytes,10,rep,name=beneficiary,proto3" json:"beneficiary,omitempty"`
-	// no validation: ivms101.Person opaque to protovalidate; structural checks delegated to travel-rule layer
+	// *
+	// Optional travel rule data of the payer
 	Payer         *ivms.Person `protobuf:"bytes,40,opt,name=payer,proto3,oneof" json:"payer,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

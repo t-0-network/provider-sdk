@@ -315,9 +315,7 @@ type UploadFileRequest_Metadata struct {
 	// The Payout Requester's own reference for the end client (applicant),
 	// the same value as the applicant's client_id.
 	ClientId string `protobuf:"bytes,20,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
-	// Original uploaded filename, kept for provenance/display. The caller chooses the
-	// download filename at download time; it is not derived from this field.
-	// Optional — API clients may omit it.
+	// Original uploaded filename, advisory only. Optional — API clients may omit it.
 	FileName *string `protobuf:"bytes,30,opt,name=file_name,json=fileName,proto3,oneof" json:"file_name,omitempty"`
 	// Advisory only; the effective content type is determined server-side.
 	DeclaredContentType *string `protobuf:"bytes,40,opt,name=declared_content_type,json=declaredContentType,proto3,oneof" json:"declared_content_type,omitempty"`
@@ -443,8 +441,7 @@ type DownloadFileResponse_Metadata struct {
 	// The effective content type of the stored file, determined server-side at
 	// upload time (e.g. application/pdf, image/png, image/jpeg).
 	ContentType string `protobuf:"bytes,10,opt,name=content_type,json=contentType,proto3" json:"content_type,omitempty"`
-	// The original uploaded filename, advisory only. The download filename is the
-	// client's responsibility, not derived from this. Optional — may be absent.
+	// The original uploaded filename, advisory only. Optional — may be absent.
 	FileName      *string `protobuf:"bytes,20,opt,name=file_name,json=fileName,proto3,oneof" json:"file_name,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
