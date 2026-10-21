@@ -39,13 +39,7 @@ extend google.protobuf.EnumValueOptions {
 // (network_mandatory) alone, so the Network Mandatory Fields are not necessarily the
 // lowest-numbered members. A form presents its standard fields in ascending number order.
 //
-// The network-mandatory set is frozen: the applicant messages declare those fields required, and
-// every stored applicant satisfies that only because the set has not grown. Do not promote a member,
-// add a network-mandatory one, tighten a standard field's value rules, or delete a member (deprecate
-// it instead) — each makes applicants bound to an earlier form version invalid against the schema.
-// A change that must happen anyway needs a decision about those applicants first. Forms never list
-// network-mandatory members; a form's reader takes them from this option, so a new member would
-// appear at once on every form version.
+// Forms never list network-mandatory members; a form's reader takes them from this option.
 
 enum StandardKybFieldType {
   STANDARD_KYB_FIELD_TYPE_UNSPECIFIED = 0;
