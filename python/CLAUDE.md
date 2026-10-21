@@ -101,7 +101,7 @@ Runtime version: `_version.py` (`__version__`). Full details: [`docs/VERSIONING.
 | `common/header.go` | `common/headers.py` |
 | `network/signing_transport.go` | `network/signing.py` |
 | `network/client.go` | `network/client.py` |
-| `provider/verify_signature.go` | `provider/middleware.py` (ASGI), `provider/middleware_wsgi.py` (WSGI) |
+| `signature/verify.go` | `provider/middleware.py` (ASGI), `provider/middleware_wsgi.py` (WSGI) |
 | `provider/signature_error.go` | `provider/interceptor.py` |
 | `provider/handler.go` | `provider/handler.py` |
 

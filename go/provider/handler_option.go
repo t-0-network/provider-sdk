@@ -2,9 +2,10 @@ package provider
 
 import (
 	"log/slog"
-	"time"
 
 	"connectrpc.com/connect"
+
+	"github.com/t-0-network/provider-sdk/go/signature"
 )
 
 const (
@@ -12,9 +13,9 @@ const (
 	// WithMaxBodySize sets another: the whole HTTP body of a unary call, gRPC prefix included.
 	DefaultMaxBodySize = 10 * 1024 * 1024 // 10 MiB
 
-	// TimestampWindow is how far X-Signature-Timestamp may be from the server's clock, either way.
-	// It is fixed: no option changes it.
-	TimestampWindow = time.Minute
+	// TimestampWindow is signature.TimestampWindow: how far X-Signature-Timestamp may be from the
+	// server's clock, either way.
+	TimestampWindow = signature.TimestampWindow
 )
 
 type providerHandlerOptions struct {

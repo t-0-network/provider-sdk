@@ -119,6 +119,8 @@ The function you pass as the first argument of `provider.Handler` gets connect o
 
 A handler built with `provider.Handler` verifies streaming calls too: over their first message only, before the handler runs, without buffering the stream ([`docs/STREAMING.md`](../docs/STREAMING.md#server-side-go-sdk)). `provider.SignatureVerification(ctx)` reports what a request's signature covered.
 
+The verifier is the `signature` package. `signature.NewMiddleware` verifies requests signed by any key its `KeyResolver` accepts, and `signature.FromContext(ctx)` returns the verdict: the signed part, the signature timestamp and the bytes read. `provider.Handler` uses it with a resolver that accepts the network public key only.
+
 ### Network Client
 
 Use `NewServiceClient` to call T-0 Network APIs. The client handles request signing automatically:
