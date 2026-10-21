@@ -9,9 +9,10 @@ import (
 )
 
 const (
-	// DefaultMaxBodySize is the largest request body a provider server accepts unless
-	// WithMaxBodySize sets another: the whole HTTP body of a unary call, gRPC prefix included.
-	DefaultMaxBodySize = 10 * 1024 * 1024 // 10 MiB
+	// DefaultMaxBodySize is signature.DefaultMaxBodySize: the largest request body a provider
+	// server accepts unless WithMaxBodySize sets another, the whole HTTP body of a unary call, gRPC
+	// prefix included.
+	DefaultMaxBodySize = signature.DefaultMaxBodySize
 
 	// TimestampWindow is signature.TimestampWindow: how far X-Signature-Timestamp may be from the
 	// server's clock, either way.
@@ -19,14 +20,14 @@ const (
 )
 
 type providerHandlerOptions struct {
-	verifier                   *signatureVerifier
+	resolve                    signature.KeyResolver
 	verifySignatureMaxBodySize int64
 	connectHandlerOptions      []connect.HandlerOption
 	logger                     *slog.Logger
 	sdkVersion                 string
 }
 
-func newDefaultHandlerOptions(verifier *signatureVerifier, logger *slog.Logger, sdkVersion string) (providerHandlerOptions, error) {
+func newDefaultHandlerOptions(resolve signature.KeyResolver, logger *slog.Logger, sdkVersion string) (providerHandlerOptions, error) {
 	if logger == nil {
 		logger = slog.Default()
 	}
@@ -35,8 +36,8 @@ func newDefaultHandlerOptions(verifier *signatureVerifier, logger *slog.Logger, 
 		connectHandlerOptions: []connect.HandlerOption{
 			connect.WithInterceptors(signatureErrorInterceptor{}, newValidationInterceptor(logger, sdkVersion)),
 		},
-		verifier: verifier,
-		logger:   logger,
+		resolve: resolve,
+		logger:  logger,
 	}, nil
 }
 

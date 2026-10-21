@@ -115,11 +115,11 @@ server := provider.NewServer(providerServiceHandler, provider.WithAddr(":8080"))
 
 **Handler options:** `WithConnectHandlerOptions`, `WithMaxBodySize` (the largest request message, default: 10 MiB; the body of a unary call, or each message of a stream).
 
-The function you pass as the first argument of `provider.Handler` gets connect options, and it must pass all of them to every connect handler it builds. The generated `paymentconnect.NewProviderServiceHandler` does so, and [`cross_test/go_helper/stream.go`](../cross_test/go_helper/stream.go) has one written by hand. The options include the interceptor that refuses a request that failed the signature check, so a function that drops them serves such requests. Add your own connect options with `WithConnectHandlerOptions`, not inside that function.
+The function you pass as the first argument of `provider.Handler` gets connect options, and it must pass all of them to every connect handler it builds. The generated `paymentconnect.NewProviderServiceHandler` does so, and [`cross_test/go_helper/stream.go`](../cross_test/go_helper/stream.go) has one written by hand. The options carry the per-message size limit and the validation interceptor, so a function that drops them serves calls without them. Add your own connect options with `WithConnectHandlerOptions`, not inside that function.
 
 A handler built with `provider.Handler` verifies streaming calls too: over their first message only, before the handler runs, without buffering the stream ([`docs/STREAMING.md`](../docs/STREAMING.md#server-side-go-sdk)). `provider.SignatureVerification(ctx)` reports what a request's signature covered.
 
-The verifier is the `signature` package. `signature.NewMiddleware` verifies requests signed by any key its `KeyResolver` accepts, and `signature.FromContext(ctx)` returns the verdict: the signed part, the signature timestamp and the bytes read. `provider.Handler` uses it with a resolver that accepts the network public key only.
+The verifier is the `signature` package. `signature.NewMiddleware` verifies requests signed by any key its `KeyResolver` accepts, with a body limit of 10 MiB unless `signature.WithMaxBodySize` sets another, and `signature.FromContext(ctx)` returns the verdict: the signed part, the signature timestamp and the bytes read. `provider.Handler` uses it with a resolver that accepts the network public key only.
 
 ### Network Client
 

@@ -3,16 +3,12 @@ package provider
 import (
 	"context"
 	"fmt"
-	"net/http"
 
 	"connectrpc.com/connect"
-	"github.com/decred/dcrd/dcrec/secp256k1/v4"
 	"github.com/t-0-network/provider-sdk/go/internal/contract"
 	"github.com/t-0-network/provider-sdk/go/internal/pubkey"
 	"github.com/t-0-network/provider-sdk/go/signature"
 )
-
-type middleware func(http.Handler) http.Handler
 
 // SignatureError is why a request's signature was not accepted, and the code its call fails with.
 //
@@ -43,33 +39,20 @@ func SignatureVerification(ctx context.Context) (SignedPart, error) {
 	return v.Part, nil
 }
 
-// newSignatureVerifierMiddleware verifies the signature of each request with
-// signature.NewMiddleware, accepting the network public key only.
-func newSignatureVerifierMiddleware(verifier *signatureVerifier, maxBodySize int64) middleware {
-	return signature.NewMiddleware(verifier.resolve, maxBodySize)
-}
-
-// signatureVerifier accepts requests signed with the network public key.
-type signatureVerifier struct {
-	networkPublicKey *secp256k1.PublicKey
-}
-
-func newSignatureVerifier(networkPublicKeyHexed string) (*signatureVerifier, error) {
+// networkKeyResolver returns the signature.KeyResolver of a provider server: it accepts a public
+// key if it is the network public key, compared as a point.
+func networkKeyResolver(networkPublicKeyHexed string) (signature.KeyResolver, error) {
 	networkPublicKey, err := pubkey.ParseHex(networkPublicKeyHexed)
 	if err != nil {
 		return nil, fmt.Errorf(contract.NetworkPublicKeyInvalid, err)
 	}
-	return &signatureVerifier{networkPublicKey: networkPublicKey}, nil
-}
-
-// resolve is the signature.KeyResolver of a provider server: it accepts publicKey if it is the
-// network public key, compared as a point.
-func (v *signatureVerifier) resolve(ctx context.Context, publicKey string) (context.Context, error) {
-	signerPublicKey, err := pubkey.ParseHex(publicKey)
-	if err != nil || !signerPublicKey.IsEqual(v.networkPublicKey) {
-		return nil, ErrUnknownPublicKey
-	}
-	return ctx, nil
+	return func(ctx context.Context, publicKey string) (context.Context, error) {
+		signerPublicKey, err := pubkey.ParseHex(publicKey)
+		if err != nil || !signerPublicKey.IsEqual(networkPublicKey) {
+			return nil, ErrUnknownPublicKey
+		}
+		return ctx, nil
+	}, nil
 }
 
 // VerifySignature accepts a public key, a message, and a signature, hashes the

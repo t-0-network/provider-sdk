@@ -124,7 +124,7 @@ func TestNewMiddleware_KeyResolver(t *testing.T) {
 			var caller any
 			var handlerBody []byte
 			handlerRan := false
-			handler := NewMiddleware(resolve, 1024)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			handler := NewMiddleware(resolve, WithMaxBodySize(1024))(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				handlerRan = true
 				verdict, verdictOK = FromContext(r.Context())
 				caller = r.Context().Value(callerContextKey{})
@@ -166,6 +166,47 @@ func TestNewMiddleware_KeyResolver(t *testing.T) {
 	}
 }
 
+// The body limit is DefaultMaxBodySize unless WithMaxBodySize sets a positive one. The rejection
+// names the limit that applied.
+func TestNewMiddleware_MaxBodySize(t *testing.T) {
+	key, err := secp256k1.GeneratePrivateKey()
+	require.NoError(t, err)
+	body := []byte("\x08\x2a")
+	headers := signedHeaders(t, key, body, time.Now())
+	accept := func(ctx context.Context, _ string) (context.Context, error) { return ctx, nil }
+
+	cases := []struct {
+		name  string
+		opts  []Option
+		limit int64
+	}{
+		{name: "default", limit: DefaultMaxBodySize},
+		{name: "WithMaxBodySize", opts: []Option{WithMaxBodySize(1024)}, limit: 1024},
+		{name: "WithMaxBodySize(0) keeps the default", opts: []Option{WithMaxBodySize(0)}, limit: DefaultMaxBodySize},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			handler := NewMiddleware(accept, tc.opts...)(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+				t.Error("a body over the limit reached the handler")
+			}))
+			req := httptest.NewRequest(http.MethodPost, "/test.v1.Test/Call", bytes.NewReader(body))
+			req.Header = headers.Clone()
+			req.Header.Set("Content-Type", "application/proto")
+			req.ContentLength = tc.limit + 1
+			recorder := httptest.NewRecorder()
+			handler.ServeHTTP(recorder, req)
+
+			var wire struct {
+				Code    string `json:"code"`
+				Message string `json:"message"`
+			}
+			require.NoError(t, json.Unmarshal(recorder.Body.Bytes(), &wire), "body: %s", recorder.Body.String())
+			require.Equal(t, connect.CodeResourceExhausted.String(), wire.Code)
+			require.Equal(t, fmt.Sprintf("max payload size of %d bytes exceeded", tc.limit), wire.Message)
+		})
+	}
+}
+
 func TestFromContext_OutsideTheMiddleware(t *testing.T) {
 	_, ok := FromContext(context.Background())
 	require.False(t, ok)
@@ -179,7 +220,7 @@ func TestNewMiddleware_ResolverConnectError(t *testing.T) {
 	resolve := func(context.Context, string) (context.Context, error) {
 		return nil, connect.NewError(connect.CodeInternal, errors.New("lookup failed"))
 	}
-	handler := NewMiddleware(resolve, 1024)(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
+	handler := NewMiddleware(resolve)(http.HandlerFunc(func(http.ResponseWriter, *http.Request) {
 		t.Error("a rejected request reached the handler")
 	}))
 	srv := httptest.NewUnstartedServer(handler)

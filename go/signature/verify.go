@@ -31,6 +31,27 @@ import (
 // It is fixed: no option changes it.
 const TimestampWindow = time.Minute
 
+// DefaultMaxBodySize is the body limit of NewMiddleware unless WithMaxBodySize sets another.
+const DefaultMaxBodySize = 10 * 1024 * 1024 // 10 MiB
+
+// Option configures NewMiddleware.
+type Option func(*options)
+
+type options struct {
+	maxBodySize int64
+}
+
+// WithMaxBodySize sets the largest body of a unary call, gRPC prefix included, and the largest
+// first envelope of an enveloped one, DefaultMaxBodySize by default. A larger one is
+// ResourceExhausted. If size is <= 0, the default is used.
+func WithMaxBodySize(size int64) Option {
+	return func(o *options) {
+		if size > 0 {
+			o.maxBodySize = size
+		}
+	}
+}
+
 // The errors a request is rejected with. Their texts are the same in every SDK
 // (cross_test/test_vectors.json, server_cases).
 var (
@@ -60,7 +81,9 @@ const (
 // timestamp is inside the window and publicKey is a key (rule V2), and before it reads any of the
 // body. To accept the key it returns the context the request goes on with, which may carry the
 // caller's identity. A *connect.Error it returns, wrapped or not, is the answer to the request;
-// any other error is Unauthenticated ErrUnknownPublicKey.
+// any other error is Unauthenticated ErrUnknownPublicKey. So return a plain error for a key you
+// do not accept, which gives the caller the shared message, and a *connect.Error only for a
+// failure such as a failed key lookup.
 type KeyResolver func(ctx context.Context, publicKey string) (context.Context, error)
 
 // Verdict is how the middleware verified an accepted request.
@@ -89,14 +112,17 @@ func FromContext(ctx context.Context) (Verdict, bool) {
 // decodes anything, so the caller gets the rejection's code and message whatever the body holds.
 // An accepted request goes on with the context resolve returned and the verdict in it. Of the
 // body, it reads only what the signature covers: the whole body, or the first envelope of an
-// enveloped one, so a stream reaches its handler as it arrives.
-//
-// maxBodySize is the largest body of a unary call, gRPC prefix included, and the largest first
-// envelope of an enveloped one. A larger one is ResourceExhausted. It must be positive.
+// enveloped one, so a stream reaches its handler as it arrives. The body limit is
+// DefaultMaxBodySize unless WithMaxBodySize sets another.
 //
 // A request whose method is not POST is refused first, before its headers are checked: a call's
 // message must be in its signed body. It gets Unimplemented, as a Connect unary error.
-func NewMiddleware(resolve KeyResolver, maxBodySize int64) func(http.Handler) http.Handler {
+func NewMiddleware(resolve KeyResolver, opts ...Option) func(http.Handler) http.Handler {
+	o := options{maxBodySize: DefaultMaxBodySize}
+	for _, opt := range opts {
+		opt(&o)
+	}
+	maxBodySize := o.maxBodySize
 	errorWriter := connect.NewErrorWriter()
 	return func(handler http.Handler) http.Handler {
 		return http.HandlerFunc(func(writer http.ResponseWriter, req *http.Request) {
