@@ -26,6 +26,7 @@ import (
 	"github.com/t-0-network/provider-sdk/go/common"
 	"github.com/t-0-network/provider-sdk/go/crypto"
 	"github.com/t-0-network/provider-sdk/go/network"
+	"github.com/t-0-network/provider-sdk/go/signature"
 )
 
 func envelopeOf(flags byte, payload []byte) []byte {
@@ -66,7 +67,7 @@ func TestSignatureVerifierMiddleware(t *testing.T) {
 	require.NoError(t, err)
 	otherKey, err := secp256k1.GeneratePrivateKey()
 	require.NoError(t, err)
-	verifier, err := newSignatureVerifier(crypto.HexPublicKey(networkKey.PubKey()))
+	resolve, err := networkKeyResolver(crypto.HexPublicKey(networkKey.PubKey()))
 	require.NoError(t, err)
 
 	now := time.Now()
@@ -150,7 +151,7 @@ func TestSignatureVerifierMiddleware(t *testing.T) {
 			var read []byte
 			var readErr error
 			handlerRan := false
-			handler := newSignatureVerifierMiddleware(verifier, limit)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			handler := signature.NewMiddleware(resolve, signature.WithMaxBodySize(limit))(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 				handlerRan = true
 				part, verifyErr = SignatureVerification(r.Context())
 				read, readErr = io.ReadAll(r.Body)
@@ -306,17 +307,16 @@ func (b countingBody) Read(p []byte) (int, error) {
 	return n, err
 }
 
-// A request rejected for its headers goes on to connect-go with its body
-// unread, and connect-go reads the rest of a body that is too large, so the
-// limit applies to every read: a body over it is ResourceExhausted, rejected
-// after at most limit+1 bytes.
+// The middleware reads at most limit+1 bytes of a body: a request rejected for
+// its headers is refused before any of its body is read, and a signed body over
+// the limit is ResourceExhausted.
 func TestSignatureVerification_BodyOverTheLimit(t *testing.T) {
 	const limit = 1024
 	networkKey, err := secp256k1.GeneratePrivateKey()
 	require.NoError(t, err)
-	verify, err := newSignatureVerifier(crypto.HexPublicKey(networkKey.PubKey()))
+	resolve, err := networkKeyResolver(crypto.HexPublicKey(networkKey.PubKey()))
 	require.NoError(t, err)
-	defaultOptions, err := newDefaultHandlerOptions(verify, nil, "")
+	defaultOptions, err := newDefaultHandlerOptions(resolve, nil, "")
 	require.NoError(t, err)
 	path, handler := Handler(grpchealth.NewHandler, grpchealth.Checker(grpchealth.NewStaticChecker()), WithMaxBodySize(limit))(defaultOptions)
 

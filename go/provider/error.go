@@ -4,6 +4,7 @@ import (
 	"errors"
 
 	"github.com/t-0-network/provider-sdk/go/internal/contract"
+	"github.com/t-0-network/provider-sdk/go/signature"
 )
 
 // The errors a provider server rejects a request with. Their texts are the same in every SDK
@@ -11,11 +12,11 @@ import (
 var (
 	ErrMissingRequiredHeader       = errors.New("missing required header")
 	ErrInvalidHeaderEncoding       = errors.New("invalid header encoding")
-	ErrTimestampNotDecimal         = errors.New(contract.TimestampNotDecimal)
-	ErrTimestampOutOfRange         = errors.New(contract.TimestampOutOfRange)
-	ErrTimestampOutsideWindow      = errors.New(contract.TimestampOutsideWindow)
-	ErrUnknownPublicKey            = errors.New(contract.UnknownPublicKey)
-	ErrSignatureVerificationFailed = errors.New(contract.SignatureVerificationFailed)
+	ErrTimestampNotDecimal         = signature.ErrTimestampNotDecimal
+	ErrTimestampOutOfRange         = signature.ErrTimestampOutOfRange
+	ErrTimestampOutsideWindow      = signature.ErrTimestampOutsideWindow
+	ErrUnknownPublicKey            = signature.ErrUnknownPublicKey
+	ErrSignatureVerificationFailed = signature.ErrSignatureVerificationFailed
 	ErrNoSignatureResult           = errors.New(contract.NoSignatureResult)
 	ErrNetworkPublicKeyIsRequired  = errors.New(contract.NetworkPublicKeyNotSet)
 

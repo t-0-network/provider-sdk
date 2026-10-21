@@ -98,6 +98,7 @@ Differences the owner approved. A new one needs the same approval, and is added 
 - **Node-only helpers:** `createRequestVerifier`, `createRequestDecoder` and the `registry` option of `createService`, `createHandler` and `validate` (protobuf-es has no global registry, so custom rules need it). They raise the server's shared messages where one exists.
 - **Header-constant names.** The three signature-header constants have the same values everywhere, but Go and Python define them as standalone constants (`SignatureHeader`, `SIGNATURE_HEADER`) while Node, Java and C# put them on one holder (`Headers.Signature`).
 - **Deprecated, not removed:** C#'s `ISigner` stays as an obsolete compatibility path next to the `SignFn` delegate (S7): `Signer` implements it, the server registers it for dependency injection, and every factory has an obsolete `ISigner` overload. Java's `DigestSigner` stays and is now a functional interface.
+- **Go-only request verifier:** the `signature` package (`NewMiddleware` with a `KeyResolver`, `FromContext`) verifies requests signed by keys the caller resolves, as `provider.Handler` does with the network key. Its one user is the T-0 backend, which verifies provider → network calls with it; the other SDKs verify network → provider calls only. It raises the server's shared messages, and writes a `*connect.Error` from the resolver as it is.
 - **Request validation.** Only the Go and Node servers validate incoming requests; tracked in [#401](https://github.com/t-0-network/provider-sdk/issues/401).
 - **KYC download result.** Java returns `DownloadedFile` (the generated metadata and the bytes) because it has no tuples. Java also maps a checked `StatusException` to `StatusRuntimeException` with the same code and description, which is what the classic blocking stub throws.
 - **Removed in this standardization (approved breaks):** Node's `toleranceMs` option and `DEFAULT_TOLERANCE_MS`; the timestamp-window constants Java `Headers.TIMESTAMP_VALIDITY_WINDOW_MS`, C# `Headers.TimestampValidityWindow`, Node `REQUEST_VALIDITY_MILLIS` and Python `TIMESTAMP_TOLERANCE_MS` (the window is `timestamp_window_ms` in every SDK); C#'s `T0Config.FromEnvironment` and `QuotePublisherService`, which moved to the C# starter.
@@ -106,7 +107,7 @@ Differences the owner approved. A new one needs the same approval, and is added 
 
 | SDK | Server verification |
 |---|---|
-| Go | `go/provider/verify_signature.go`, `go/provider/signature_error.go`, `go/provider/handler.go`, `go/internal/pubkey` (key parser), `go/internal/envelope` (enveloped content types) |
+| Go | `go/signature/verify.go`, `go/provider/verify_signature.go` (the network key), `go/provider/signature_error.go`, `go/provider/handler.go`, `go/internal/pubkey` (key parser), `go/internal/envelope` (enveloped content types) |
 | Node | `node/sdk/src/common/signature.ts`, `node/sdk/src/common/service.ts`, `node/sdk/src/common/crypto/{keys,request}.ts` |
 | Python | `python/sdk/src/t0_provider_sdk/provider/{middleware,middleware_wsgi,interceptor,handler}.py`, `crypto/keys.py` |
 | Java | `java/sdk/src/main/java/network/t0/sdk/provider/SignatureVerificationInterceptor.java`, `crypto/SignatureVerifier.java` |

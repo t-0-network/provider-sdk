@@ -515,7 +515,7 @@ The Python SDK is a faithful port of the Go SDK. Each Go module maps to a Python
 | `common/header.go` | `common/headers.py` | HTTP header constants |
 | `network/signing_transport.go` | `network/signing.py` | Signing HTTP wrapper |
 | `network/client.go` | `network/client.py` | Generic client factory |
-| `provider/verify_signature.go` | `provider/middleware.py` (ASGI), `provider/middleware_wsgi.py` (WSGI) | Signature verification |
+| `signature/verify.go` | `provider/middleware.py` (ASGI), `provider/middleware_wsgi.py` (WSGI) | Signature verification |
 | `provider/signature_error.go` | `provider/interceptor.py` | Error-to-ConnectError conversion |
 | `provider/handler.go` | `provider/handler.py` | Handler registration |
 

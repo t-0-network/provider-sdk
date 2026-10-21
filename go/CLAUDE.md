@@ -8,14 +8,14 @@ Protobuf encoding is not canonical — re-encoding a deserialized message produc
 
 ## Signature Verification — what is signed (DO NOT NARROW)
 
-`verify_signature.go`'s middleware decides by content type, with the rule the client uses (`go/internal/envelope`):
+`signature/verify.go`'s middleware decides by content type, with the rule the client uses (`go/internal/envelope`):
 
 - **Enveloped** (`application/connect+*`, `application/grpc`, `application/grpc+*`): the signature covers the **first envelope**, prefix included (`SignedEnvelope`), or, over gRPC with an uncompressed first envelope, its **payload without the 5-byte prefix** (`SignedPayload`). The middleware reads only that envelope, checking its length against the limit first, and passes the rest of the body on unread, so a stream reaches its handler as it arrives. gRPC unary takes this path too: connect-go accepts a unary gRPC body only as exactly one frame.
 - **Anything else** (Connect unary): the **whole body** (`SignedBody`).
 
 The payload path is for gRPC callers whose signer sits above the framer (the Java SDK's `SigningClientInterceptor`); the envelope path for callers that sign the HTTP body (C#'s `SigningDelegatingHandler`, Go, Python, the network over gRPC). Removing either silently breaks one of them with `UNAUTHENTICATED`. Every SDK's server follows the same rules ([`docs/CROSS_SDK_RULES.md`](../docs/CROSS_SDK_RULES.md)); Java's is explained in [`docs/java/SIGNATURE_VERIFICATION.md`](../docs/java/SIGNATURE_VERIFICATION.md).
 
-The headers are checked before any of the body is read: present and well-formed, the ±60 s window, then `X-Public-Key` compared with the network key as a point, then the signature length. The verdict goes into the request context; `provider.SignatureVerification(ctx)` reads it.
+The headers are checked before any of the body is read: present and well-formed, the ±60 s window, then `X-Public-Key` parsed and given to the `KeyResolver` (`provider`'s accepts the network key only, compared as a point), then the signature length. The verdict goes into the request context; `signature.FromContext(ctx)` reads it, `provider.SignatureVerification(ctx)` its signed part.
 
 ## Build Commands
 
@@ -38,7 +38,8 @@ go/
 ├── internal/envelope/    # Which content types are enveloped (client and server share it)
 ├── internal/pubkey/      # The one public key parser (network key, X-Public-Key, crypto helpers)
 ├── network/              # Network client with signing transport
-├── provider/             # Server, handler, signature verification middleware
+├── provider/             # Server, handler; verifies requests against the network public key
+├── signature/            # Request signature verification middleware, keys from a resolver
 └── starter/template/     # Starter template (scaffolded by the unified CLI)
 ```
 
@@ -47,6 +48,7 @@ go/
 - `provider.StartServer()` — Starts HTTP/2 (h2c) server, returns immediately with shutdown function
 - `provider.NewHttpHandler()` — Creates handler with signature verification middleware.
 - `provider.Handler()` — Registers ConnectRPC service with options (`WithMaxBodySize`, `WithConnectHandlerOptions`); unary and streaming procedures alike
+- `signature.NewMiddleware(resolve, opts...)` — The verifier `provider.Handler` uses, with a `KeyResolver` of the caller's and the body limit `signature.DefaultMaxBodySize` unless `signature.WithMaxBodySize` sets another: the T-0 backend verifies provider → network calls with it (Go only, an approved exception in [`docs/CROSS_SDK_RULES.md`](../docs/CROSS_SDK_RULES.md)). `signature.FromContext(ctx)` returns the verdict: the signed part, the timestamp and the bytes read
 - `provider.SignatureVerification(ctx)` — How the request was verified (`SignedBody`, `SignedEnvelope`, `SignedPayload`), or the error its call fails with
 - `network.NewServiceClient()` — Creates auto-signing ConnectRPC client: unary calls signed over the whole body, client-/server-streaming calls over their first request envelope (by content type; see [`docs/STREAMING.md`](../docs/STREAMING.md)); `WithTimeout` (unary, 15s), `WithStreamTimeout` (streams, 5 min), a context deadline replaces them; `WithWireFormat`, `WithProtocol` (gRPC on `http://` runs over HTTP/2 without TLS); GET and bidi calls are refused.
 - `crypto.NewSigner()` / `crypto.NewSignerFromHex()` — the SDK's signer (`crypto.SignFn`: a 32-byte digest → 65-byte r‖s‖v and the 65-byte uncompressed key; another digest length is refused); `crypto.VerifySignature()`; `crypto.PublicKeyFromPrivateKey()` — a hex key's public key, `0x` + 130 hex

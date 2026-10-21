@@ -10,6 +10,7 @@ import (
 	"connectrpc.com/grpchealth"
 
 	"github.com/t-0-network/provider-sdk/go/sdkversion"
+	"github.com/t-0-network/provider-sdk/go/signature"
 )
 
 type BuildHandler func(defaultOptions providerHandlerOptions) (path string, handler http.Handler)
@@ -84,7 +85,7 @@ func NewHttpHandlerWithOptions(
 	if key == "" {
 		return nil, ErrNetworkPublicKeyIsRequired
 	}
-	verifier, err := newSignatureVerifier(key)
+	resolve, err := networkKeyResolver(key)
 	if err != nil {
 		return nil, err
 	}
@@ -101,7 +102,7 @@ func NewHttpHandlerWithOptions(
 	if sdkVer == "" {
 		sdkVer = sdkversion.Version
 	}
-	defaultOptions, err := newDefaultHandlerOptions(verifier, scratch.logger, sdkVer)
+	defaultOptions, err := newDefaultHandlerOptions(resolve, scratch.logger, sdkVer)
 	if err != nil {
 		return nil, err
 	}
@@ -165,7 +166,7 @@ func Handler[T any](handler func(svc T, option ...connect.HandlerOption) (string
 			defaultOptions.connectHandlerOptions...,
 		)
 		path, h := handler(p, connectOptions...)
-		h = newSignatureVerifierMiddleware(defaultOptions.verifier, defaultOptions.verifySignatureMaxBodySize)(h)
+		h = signature.NewMiddleware(defaultOptions.resolve, signature.WithMaxBodySize(defaultOptions.verifySignatureMaxBodySize))(h)
 		return path, h
 	}
 }
