@@ -1053,12 +1053,12 @@ type isPaymentAmount_Amount interface {
 }
 
 type PaymentAmount_PayOutAmount struct {
-	// Amount in the pay-out currency
+	// Amount in the pay-out currency. At most 2 decimal places; trailing zeros are allowed; otherwise InvalidArgument.
 	PayOutAmount *common.Decimal `protobuf:"bytes,20,opt,name=pay_out_amount,json=payOutAmount,proto3,oneof"`
 }
 
 type PaymentAmount_SettlementAmount struct {
-	// Settlement amount in the settlement currency
+	// Settlement amount in the settlement currency. At most 2 decimal places; trailing zeros are allowed; otherwise InvalidArgument.
 	SettlementAmount *common.Decimal `protobuf:"bytes,30,opt,name=settlement_amount,json=settlementAmount,proto3,oneof"`
 }
 
