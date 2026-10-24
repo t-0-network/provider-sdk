@@ -30,7 +30,9 @@ keccak.new(digest_bits=256, data=data).digest()
 |---|---|---|
 | ≤ 0.9.0 | `connect-python` | Original name. Imported as `connectrpc`. |
 | ≥ 0.10.0 | `connectrpc` | Distribution renamed by upstream. **Pin `>=0.10.0`** so resolvers skip the squatted v0.0.1 by Gaudiy. |
-| ≥ 0.11.0 | `connectrpc` | Default codec switched to the protobuf-py runtime. Stubs must be generated with `protobuf=google` (they then import `connectrpc.compat`), so the SDK floor is **`>=0.11.1`**; 0.11.0's compat layer was broken upstream. Symptom of a mismatch: every request fails with `ConnectError('to_binary')`. |
+| ≥ 0.11.0 | `connectrpc` | Default codec switched to the protobuf-py runtime. Stubs must be generated with `protobuf=google` (they then import `connectrpc.compat`); 0.11.0's compat layer was broken upstream. Symptom of a mismatch: every request fails with `ConnectError('to_binary')`. |
+| ≥ 0.12.1 | `connectrpc` | The generated stubs also import `DEFAULT_READ_MAX_BYTES`, which 0.11 lacks, so the SDK floor is **`>=0.12.1`**, the version the stubs are generated with. |
+| 0.12.1 with protobuf-py ≥ 0.7 | `connectrpc` | Importing connectrpc fails with `cannot import name 'api_pb' from 'protobuf.wkt'`, because protobuf-py 0.7 no longer re-exports the `*_pb` modules from `protobuf.wkt`. The SDK caps **`protobuf-py<0.7`**. Lifting the cap needs a connectrpc release that supports protobuf-py 0.7 and `protovalidate>=2.1`, because protovalidate 2.0 fails the same way ([#429](https://github.com/t-0-network/provider-sdk/issues/429)). |
 
 The lesson: the same PyPI name can mean different things across versions. Pin the floor (`>=0.10.0`) — never `>=0.0.1` — so the squat can't satisfy the constraint.
 
@@ -310,6 +312,7 @@ The `_parse_wsgi_headers()` function in `middleware_wsgi.py` converts all `HTTP_
 | Want | Don't Use | Use Instead | Why |
 |------|-----------|-------------|-----|
 | Keccak256 | `pysha3`, `hashlib.sha3_256` | `pycryptodome` (`Crypto.Hash.keccak`) | py3.13 compat, correct padding |
-| ConnectRPC | `connectrpc<0.11.1` | `connectrpc>=0.11.1` | Generated stubs target the `google.protobuf` compat codec introduced in v0.11; older runtimes lack it, and pre-0.11 stubs break on newer runtimes |
+| ConnectRPC | `connectrpc<0.12.1` | `connectrpc>=0.12.1` | Generated stubs target the `google.protobuf` compat codec introduced in v0.11 and import `DEFAULT_READ_MAX_BYTES`, which 0.11 lacks; older runtimes lack them, and pre-0.11 stubs break on newer runtimes |
+| protobuf-py (pulled in by connectrpc) | `protobuf-py>=0.7` | `protobuf-py<0.7`, capped in `sdk/pyproject.toml` | connectrpc 0.12.1 imports the `*_pb` modules from `protobuf.wkt`, which 0.7 no longer re-exports. Lifting the cap needs a fixed connectrpc and `protovalidate>=2.1` ([#429](https://github.com/t-0-network/provider-sdk/issues/429)) |
 | buf.validate stubs | the `protovalidate` package (ships no stubs), BSR index | `include_imports: true` on the Python plugins in `buf.gen.yaml`, generated under `api/` | Self-contained, no external index |
 | Async subprocess | `subprocess.run()` | `asyncio.create_subprocess_exec()` | Non-blocking in event loop |
