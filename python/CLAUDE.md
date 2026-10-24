@@ -59,6 +59,7 @@ python/
 | coincurve | `coincurve` | secp256k1 ECDSA |
 | pycryptodome | `Crypto.Hash.keccak` | Keccak256 |
 | protovalidate | `protovalidate` | Response validation against the `buf.validate` rules; 2.0 or newer, since the SDK reads 2.0's error types and field paths |
+| protobuf-py | `protobuf` (not imported by the SDK) | Pulled in by connectrpc and protovalidate. `sdk/pyproject.toml` caps it `<0.7`, because connectrpc 0.12.1 imports the `*_pb` modules from `protobuf.wkt`, which 0.7 no longer re-exports, so importing connectrpc fails. Lifting the cap needs a fixed connectrpc and `protovalidate>=2.1` ([#429](https://github.com/t-0-network/provider-sdk/issues/429)) |
 
 Versions: `sdk/pyproject.toml`.
 

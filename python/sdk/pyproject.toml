@@ -9,6 +9,10 @@ authors = [
 ]
 dependencies = [
     "connectrpc>=0.12.1",
+    # connectrpc 0.12.1 imports `api_pb` and the other *_pb modules from `protobuf.wkt`, which
+    # protobuf-py 0.7 no longer re-exports, so importing connectrpc fails. Drop the cap once a
+    # connectrpc release supports protobuf-py 0.7.
+    "protobuf-py<0.7",
     # connectrpc's HTTP client. Requires cancellation to abort a streaming upload rather than
     # finish it normally after a partial body, as well as disabling signed-request redirects.
     "pyqwest>=0.11.0",

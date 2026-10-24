@@ -290,7 +290,8 @@ ConnectRPC was chosen over gRPC for its HTTP/1.1 compatibility, simpler deployme
 
 | Concern | Library | PyPI Name | Import | Rationale |
 |---------|---------|-----------|--------|-----------|
-| RPC Framework | connectrpc | `connectrpc>=0.11.1` | `connectrpc` | Official ConnectRPC Python runtime (renamed from `connect-python` at v0.10.0). Floor is 0.11.1: the generated stubs use `connectrpc.compat` so the runtime's protobuf-py default codec is bypassed in favour of the shipped `google.protobuf` messages |
+| RPC Framework | connectrpc | `connectrpc>=0.12.1` | `connectrpc` | Official ConnectRPC Python runtime (renamed from `connect-python` at v0.10.0). Floor is 0.12.1, the version the stubs are generated with. The generated stubs use `connectrpc.compat` so the runtime's protobuf-py default codec is bypassed in favour of the shipped `google.protobuf` messages, and they import `DEFAULT_READ_MAX_BYTES`, which 0.11 lacks |
+| Protobuf runtime of connectrpc | protobuf-py | `protobuf-py<0.7` | `protobuf` (not imported by the SDK) | Pulled in by connectrpc and protovalidate. Capped below 0.7, because connectrpc 0.12.1 imports the `*_pb` modules from `protobuf.wkt`, which 0.7 no longer re-exports, so importing connectrpc fails. The cap goes once connectrpc supports 0.7 ([#429](https://github.com/t-0-network/provider-sdk/issues/429)) |
 | HTTP Client | pyqwest | `pyqwest>=0.11.0` | `pyqwest` | Rust-backed HTTP client of connectrpc; the signing wrappers turn off redirects, and 0.11 aborts an upload whose source fails instead of ending it normally |
 | Protobuf | protobuf | `protobuf>=7.34.1` | `google.protobuf` | Standard Protocol Buffers runtime |
 | ECDSA Crypto | coincurve | `coincurve>=21.0` | `coincurve` | Python bindings for libsecp256k1 |
