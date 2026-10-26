@@ -1,6 +1,6 @@
 // SDK semantic version. Bumped in lockstep with all other SDKs by the
 // release.yaml workflow.
-export const SDK_VERSION = "1.3.1";
+export const SDK_VERSION = "1.3.2";
 
 // The version the SDK reports, in the health-check headers and the validation log: the override,
 // unless it is missing or blank, as in every SDK.
