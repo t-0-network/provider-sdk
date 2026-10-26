@@ -7,7 +7,7 @@ from connectrpc.client import ConnectClient, ConnectClientSync
 from connectrpc.code import Code
 from connectrpc.compat import google_protobuf_binary_codec
 from connectrpc.errors import ConnectError
-from connectrpc.method import IdempotencyLevel, MethodInfo
+from connectrpc.method import IdempotencyLevel, MethodInfo, StreamType
 from google.protobuf.wrappers_pb2 import StringValue
 from t0_provider_sdk.network import Protocol, new_service_client, new_service_client_sync
 
@@ -20,6 +20,7 @@ BIDI_STREAM = MethodInfo(
     input=StringValue,
     output=StringValue,
     idempotency_level=IdempotencyLevel.UNKNOWN,
+    stream_type=StreamType.BIDI_STREAM,
 )
 NO_SIDE_EFFECTS = MethodInfo(
     name="Get",
@@ -27,6 +28,7 @@ NO_SIDE_EFFECTS = MethodInfo(
     input=StringValue,
     output=StringValue,
     idempotency_level=IdempotencyLevel.NO_SIDE_EFFECTS,
+    stream_type=StreamType.UNARY,
 )
 
 

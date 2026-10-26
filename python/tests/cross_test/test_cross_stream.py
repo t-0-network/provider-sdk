@@ -29,7 +29,7 @@ from connectrpc.client import ConnectClient, ConnectClientSync
 from connectrpc.code import Code
 from connectrpc.compat import google_protobuf_binary_codec
 from connectrpc.errors import ConnectError
-from connectrpc.method import IdempotencyLevel, MethodInfo
+from connectrpc.method import IdempotencyLevel, MethodInfo, StreamType
 from google.protobuf.wrappers_pb2 import StringValue
 from grpc_health.v1 import health_pb2
 from t0_provider_sdk.network import DEFAULT_STREAM_TIMEOUT, Protocol, WireFormat, signing
@@ -101,6 +101,7 @@ _CLIENT_STREAM = MethodInfo(
     input=StringValue,
     output=StringValue,
     idempotency_level=IdempotencyLevel.UNKNOWN,
+    stream_type=StreamType.CLIENT_STREAM,
 )
 _SERVER_STREAM = MethodInfo(
     name="ServerStream",
@@ -108,6 +109,7 @@ _SERVER_STREAM = MethodInfo(
     input=StringValue,
     output=StringValue,
     idempotency_level=IdempotencyLevel.UNKNOWN,
+    stream_type=StreamType.SERVER_STREAM,
 )
 
 

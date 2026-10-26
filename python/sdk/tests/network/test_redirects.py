@@ -9,7 +9,7 @@ import pytest
 from connectrpc.client import ConnectClient, ConnectClientSync
 from connectrpc.compat import google_protobuf_binary_codec
 from connectrpc.errors import ConnectError
-from connectrpc.method import IdempotencyLevel, MethodInfo
+from connectrpc.method import IdempotencyLevel, MethodInfo, StreamType
 from google.protobuf.wrappers_pb2 import StringValue
 from t0_provider_sdk.network import new_service_client, new_service_client_sync
 
@@ -17,18 +17,19 @@ PRIVATE_KEY = "0x6b30303de7b26bfb1222b317a52113357f8bb06de00160b4261a2fef9c8b9bd
 TARGET = "/target"
 
 
-def _method(name: str) -> MethodInfo:
+def _method(name: str, stream_type: StreamType) -> MethodInfo:
     return MethodInfo(
         name=name,
         service_name="test.v1.StreamTest",
         input=StringValue,
         output=StringValue,
         idempotency_level=IdempotencyLevel.UNKNOWN,
+        stream_type=stream_type,
     )
 
 
-UNARY = _method("Unary")
-CLIENT_STREAM = _method("ClientStream")
+UNARY = _method("Unary", StreamType.UNARY)
+CLIENT_STREAM = _method("ClientStream", StreamType.CLIENT_STREAM)
 
 
 class _Client(ConnectClient):
