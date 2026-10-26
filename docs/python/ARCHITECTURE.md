@@ -290,13 +290,12 @@ ConnectRPC was chosen over gRPC for its HTTP/1.1 compatibility, simpler deployme
 
 | Concern | Library | PyPI Name | Import | Rationale |
 |---------|---------|-----------|--------|-----------|
-| RPC Framework | connectrpc | `connectrpc>=0.12.1` | `connectrpc` | Official ConnectRPC Python runtime (renamed from `connect-python` at v0.10.0). Floor is 0.12.1, the version the stubs are generated with. The generated stubs use `connectrpc.compat` so the runtime's protobuf-py default codec is bypassed in favour of the shipped `google.protobuf` messages, and they import `DEFAULT_READ_MAX_BYTES`, which 0.11 lacks |
-| Protobuf runtime of connectrpc | protobuf-py | `protobuf-py<0.7` | `protobuf` (not imported by the SDK) | Pulled in by connectrpc and protovalidate. Capped below 0.7, because connectrpc 0.12.1 imports the `*_pb` modules from `protobuf.wkt`, which 0.7 no longer re-exports, so importing connectrpc fails. The cap goes once connectrpc supports 0.7 ([#429](https://github.com/t-0-network/provider-sdk/issues/429)) |
+| RPC Framework | connectrpc | `connectrpc>=0.13.0` | `connectrpc` | Official ConnectRPC Python runtime (renamed from `connect-python` at v0.10.0). Floor is 0.13.0, the version the stubs are generated with. The generated stubs use `connectrpc.compat` so the runtime's protobuf-py default codec is bypassed in favour of the shipped `google.protobuf` messages, and they pass `stream_type` to `MethodInfo`, which 0.13 requires and 0.12 rejects |
 | HTTP Client | pyqwest | `pyqwest>=0.11.0` | `pyqwest` | Rust-backed HTTP client of connectrpc; the signing wrappers turn off redirects, and 0.11 aborts an upload whose source fails instead of ending it normally |
 | Protobuf | protobuf | `protobuf>=7.34.1` | `google.protobuf` | Standard Protocol Buffers runtime |
 | ECDSA Crypto | coincurve | `coincurve>=21.0` | `coincurve` | Python bindings for libsecp256k1 |
 | Keccak Hash | pycryptodome | `pycryptodome>=3.23` | `Crypto.Hash.keccak` | Legacy Keccak-256 implementation. Not `pysha3` (incompatible with Python 3.13) and not `hashlib.sha3_256` (NIST SHA-3, different padding) |
-| Validation | protovalidate | `protovalidate>=2.0` | `protovalidate` | Checks provider responses against the `buf.validate` rules in the protos. Floor is 2.0: the SDK reads 2.0's error types and field paths |
+| Validation | protovalidate | `protovalidate>=2.1` | `protovalidate` | Checks provider responses against the `buf.validate` rules in the protos. The SDK reads 2.0's error types and field paths, and the floor is 2.1 because 2.0 fails to import with protobuf-py 0.7, which connectrpc 0.13 allows |
 | Health | grpcio-health-checking | `grpcio-health-checking>=1.60` | `grpc_health.v1` | The `grpc.health.v1` messages of the health service |
 | Env Loading | python-dotenv | `python-dotenv>=1.0` | `dotenv` | Template .env file handling (template dependency) |
 

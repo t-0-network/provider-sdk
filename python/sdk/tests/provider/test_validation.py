@@ -8,7 +8,7 @@ import protovalidate
 import pytest
 from connectrpc.code import Code
 from connectrpc.errors import ConnectError
-from connectrpc.method import IdempotencyLevel, MethodInfo
+from connectrpc.method import IdempotencyLevel, MethodInfo, StreamType
 from connectrpc.request import Headers, RequestContext
 from t0_provider_sdk._version import __version__
 from t0_provider_sdk.api.tzero.v1.common.common_pb2 import Decimal
@@ -225,6 +225,7 @@ class TestValidationInterceptorLogger:
             input=Decimal,
             output=Decimal,
             idempotency_level=IdempotencyLevel.UNKNOWN,
+            stream_type=StreamType.UNARY,
         )
         ctx = RequestContext(method=method, http_method="POST", request_headers=Headers())
 

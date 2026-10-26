@@ -22,7 +22,7 @@ from connectrpc.client import ConnectClient
 from connectrpc.code import Code
 from connectrpc.compat import google_protobuf_binary_codec
 from connectrpc.errors import ConnectError
-from connectrpc.method import IdempotencyLevel, MethodInfo
+from connectrpc.method import IdempotencyLevel, MethodInfo, StreamType
 from connectrpc.request import Headers, RequestContext
 from grpc_health.v1 import health_pb2
 from t0_provider_sdk._version import __version__
@@ -101,6 +101,7 @@ _CHECK_METHOD = MethodInfo(
     input=health_pb2.HealthCheckRequest,
     output=health_pb2.HealthCheckResponse,
     idempotency_level=IdempotencyLevel.NO_SIDE_EFFECTS,
+    stream_type=StreamType.UNARY,
 )
 
 

@@ -14,7 +14,7 @@ import uvicorn
 from coincurve import PrivateKey
 from connectrpc.client import ConnectClient
 from connectrpc.compat import google_protobuf_binary_codec
-from connectrpc.method import IdempotencyLevel, MethodInfo
+from connectrpc.method import IdempotencyLevel, MethodInfo, StreamType
 from grpc_health.v1 import health_pb2
 from t0_provider_sdk.network.client import new_service_client
 from t0_provider_sdk.provider.handler import new_asgi_app
@@ -26,6 +26,7 @@ _CHECK_METHOD = MethodInfo(
     input=health_pb2.HealthCheckRequest,
     output=health_pb2.HealthCheckResponse,
     idempotency_level=IdempotencyLevel.NO_SIDE_EFFECTS,
+    stream_type=StreamType.UNARY,
 )
 
 
