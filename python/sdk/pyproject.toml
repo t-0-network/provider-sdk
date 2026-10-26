@@ -8,14 +8,17 @@ authors = [
     { name = "T-0 Network" },
 ]
 dependencies = [
-    "connectrpc>=0.12.1",
+    # The version the stubs are generated with. From 0.13 `MethodInfo` requires `stream_type`, so
+    # 0.12 stubs fail to import on a 0.13 runtime and 0.13 stubs on a 0.12 one.
+    "connectrpc>=0.13.0",
     # connectrpc's HTTP client. Requires cancellation to abort a streaming upload rather than
     # finish it normally after a partial body, as well as disabling signed-request redirects.
     "pyqwest>=0.11.0",
     "protobuf>=7.34.1",
     "coincurve>=21.0",
     "pycryptodome>=3.23",
-    "protovalidate>=2.0",
+    # 2.0 imports `FieldOptions` from `protobuf.wkt`, which protobuf-py 0.7 no longer re-exports.
+    "protovalidate>=2.1",
     # grpc.health.v1 messages. Upstream publishes them under the top-level
     # grpc_health package precisely because a generated grpc.health.v1 would
     # collide with grpcio's regular grpc package in any customer venv that has it.

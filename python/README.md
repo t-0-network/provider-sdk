@@ -162,4 +162,6 @@ docker run --env-file .env -p 8080:8080 my-provider
 
 **Signature verification failures** -- Ensure the server clock is synchronized (NTP). Timestamps outside the allowed window are rejected ([rules](../docs/CROSS_SDK_RULES.md)). Verify that `NETWORK_PUBLIC_KEY` matches the key provided by the T-0 team.
 
-**ConnectRPC PyPI package** -- The package is `connectrpc` (renamed from `connect-python` at v0.10.0). The SDK's `pyproject.toml` pins `connectrpc>=0.11.1`, which resolves to the official runtime. Earlier docs warned about a squatted v0.0.1 on the same PyPI name; that release pre-dates 0.9.0 and the pin skips it.
+**ConnectRPC PyPI package** -- The package is `connectrpc` (renamed from `connect-python` at v0.10.0). The SDK's `pyproject.toml` pins `connectrpc>=0.13.0`, which resolves to the official runtime. Earlier docs warned about a squatted v0.0.1 on the same PyPI name; that release pre-dates 0.9.0 and the pin skips it.
+
+**`ImportError: cannot import name 'api_pb' from 'protobuf.wkt'`** or **`TypeError: MethodInfo.__init__() missing 1 required keyword-only argument: 'stream_type'`** -- SDK 1.3.1 and older do not work with connectrpc 0.13 or protobuf-py 0.7, which a fresh install picks. Upgrade the SDK. If you can't upgrade yet, add `connectrpc<0.13` and `protobuf-py<0.7` to your project's dependencies.

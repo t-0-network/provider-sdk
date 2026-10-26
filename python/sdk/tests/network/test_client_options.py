@@ -11,7 +11,7 @@ from connectrpc.client import ConnectClient, ConnectClientSync
 from connectrpc.code import Code
 from connectrpc.compat import google_protobuf_binary_codec
 from connectrpc.errors import ConnectError
-from connectrpc.method import IdempotencyLevel, MethodInfo
+from connectrpc.method import IdempotencyLevel, MethodInfo, StreamType
 from google.protobuf.wrappers_pb2 import StringValue
 from t0_provider_sdk.common.headers import PUBLIC_KEY_HEADER, SIGNATURE_HEADER
 from t0_provider_sdk.crypto.signer import new_signer_from_hex
@@ -35,6 +35,7 @@ UNARY = MethodInfo(
     input=StringValue,
     output=StringValue,
     idempotency_level=IdempotencyLevel.UNKNOWN,
+    stream_type=StreamType.UNARY,
 )
 
 
@@ -44,6 +45,7 @@ CLIENT_STREAM = MethodInfo(
     input=StringValue,
     output=StringValue,
     idempotency_level=IdempotencyLevel.UNKNOWN,
+    stream_type=StreamType.CLIENT_STREAM,
 )
 
 
