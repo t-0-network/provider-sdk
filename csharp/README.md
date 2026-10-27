@@ -71,8 +71,12 @@ A client or server stream is signed over its first message and sent as soon as t
 
 `KycFiles.UploadFileAsync` and `KycFiles.DownloadFileAsync` run a `KycFileService` stream on a client the caller already built. They do not sign or retry. `UploadId` is sent as given.
 
+`KycFileService` is served by the KYB API, not by the network, so the client needs the KYB base URL and a key registered with the KYB API. The KYB API's base URL, key and signing: [`docs/KYB_API.md`](../docs/KYB_API.md).
+
 ```csharp
-var files = NetworkClient.Create(new NetworkClientOptions { BaseUrl = kybUrl }, signer,
+var kybSigner = Signer.FromHex("0x..."); // the KYB key, not the network key
+var kybUrl = "https://app-api.t-0.network";
+var files = NetworkClient.Create(new NetworkClientOptions { BaseUrl = kybUrl }, kybSigner,
     i => new KycFileService.KycFileServiceClient(i));
 long fileId = await KycFiles.UploadFileAsync(files, new UploadFileRequest.Types.Metadata
 {

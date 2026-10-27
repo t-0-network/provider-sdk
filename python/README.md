@@ -101,6 +101,8 @@ The streaming rules shared by every SDK: [`docs/STREAMING.md`](../docs/STREAMING
 
 `upload_file` and `download_file` (and the `_sync` pair) run a `KycFileService` stream on a client the caller already built. They are not re-exported from the package root. They do not sign or retry. `upload_id` is sent as given. Pass `timeout_ms` to set this call's deadline.
 
+`KycFileService` is served by the KYB API, not by the network, so the client needs the KYB base URL and a key registered with the KYB API. The KYB API's base URL, key and signing: [`docs/KYB_API.md`](../docs/KYB_API.md).
+
 ```python
 from pathlib import Path
 
@@ -109,6 +111,8 @@ from t0_provider_sdk.network import new_service_client
 from tzero.v1.manage.kyc_sharing.file_connect import KycFileServiceClient
 from tzero.v1.manage.kyc_sharing.file_pb2 import DownloadFileRequest, UploadFileRequest
 
+kyb_key = "0x..."  # the KYB key, not the network key
+KYB_URL = "https://app-api.t-0.network"
 files = new_service_client(kyb_key, KycFileServiceClient, base_url=KYB_URL)
 file_id = await upload_file(
     files,

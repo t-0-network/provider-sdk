@@ -234,8 +234,12 @@ The streaming rules shared by every SDK: [`docs/STREAMING.md`](../../docs/STREAM
 
 `KycFiles.uploadFile` and `KycFiles.downloadFile` run a `KycFileService` stream on a blocking V2 stub the caller already built. They do not sign or retry. `upload_id` is sent as given. `downloadFile` returns `DownloadedFile`, the generated metadata and the bytes.
 
+`KycFileService` is served by the KYB API, not by the network, so the client needs the KYB base URL and a key registered with the KYB API. The KYB API's base URL, key and signing: [`docs/KYB_API.md`](../../docs/KYB_API.md).
+
 ```java
-var files = BlockingNetworkClient.create(KYB_URL, signer, KycFileServiceGrpc::newBlockingV2Stub);
+Signer kybSigner = Signer.fromHex("0x..."); // the KYB key, not the network key
+String kybUrl = "https://app-api.t-0.network";
+var files = BlockingNetworkClient.create(kybUrl, kybSigner, KycFileServiceGrpc::newBlockingV2Stub);
 long fileId = KycFiles.uploadFile(files.stub(), UploadFileRequest.Metadata.newBuilder()
         .setPayoutProviderId(pid).setClientId(cid).setFileName("passport.pdf").build(),
         Files.readAllBytes(path));

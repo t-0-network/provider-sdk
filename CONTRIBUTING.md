@@ -130,6 +130,7 @@ Maintainers release only from GitHub Actions. They run the Release workflow (`re
 - [docs/STREAMING.md](docs/STREAMING.md): the streaming rules every SDK follows
 - [docs/CROSS_LANGUAGE_TESTING.md](docs/CROSS_LANGUAGE_TESTING.md): test vectors and the Go helper
 - [docs/HEALTH_SERVICE.md](docs/HEALTH_SERVICE.md): the health service
+- [docs/KYB_API.md](docs/KYB_API.md): the KYB API that serves the `kyc_sharing` services, its base URL, key and signing
 - [docs/CLI.md](docs/CLI.md): the CLI, its templates and the product-repository sync
 - [docs/VERSIONING.md](docs/VERSIONING.md) and [docs/RELEASE_AND_PUBLISH.md](docs/RELEASE_AND_PUBLISH.md): versions, releases and publishing
 - [docs/DEPENDENCY_UPDATES.md](docs/DEPENDENCY_UPDATES.md): handling Dependabot pull requests, and the audit for signing-path libraries
