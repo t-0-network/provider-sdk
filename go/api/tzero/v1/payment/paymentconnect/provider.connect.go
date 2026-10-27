@@ -53,11 +53,11 @@ const (
 type ProviderServiceClient interface {
 	// *
 	// Execute a payout to the recipient.
-	// This method should be idempotent, meaning that multiple calls with the same parameters will have no additional effect.
+	// This method should be idempotent, meaning that multiple calls with the same idempotency key will have no additional effect.
 	PayOut(context.Context, *connect.Request[payment.PayoutRequest]) (*connect.Response[payment.PayoutResponse], error)
 	// *
 	// Reports the current status of a payment — either a success or a failure.
-	// This method should be idempotent, meaning that multiple calls with the same parameters will have no additional effect.
+	// This method should be idempotent, meaning that multiple calls with the same idempotency key will have no additional effect.
 	UpdatePayment(context.Context, *connect.Request[payment.UpdatePaymentRequest]) (*connect.Response[payment.UpdatePaymentResponse], error)
 	// *
 	// Delivers updated credit limit and credit usage.
@@ -159,11 +159,11 @@ func (c *providerServiceClient) ApprovePaymentQuotes(ctx context.Context, req *c
 type ProviderServiceHandler interface {
 	// *
 	// Execute a payout to the recipient.
-	// This method should be idempotent, meaning that multiple calls with the same parameters will have no additional effect.
+	// This method should be idempotent, meaning that multiple calls with the same idempotency key will have no additional effect.
 	PayOut(context.Context, *connect.Request[payment.PayoutRequest]) (*connect.Response[payment.PayoutResponse], error)
 	// *
 	// Reports the current status of a payment — either a success or a failure.
-	// This method should be idempotent, meaning that multiple calls with the same parameters will have no additional effect.
+	// This method should be idempotent, meaning that multiple calls with the same idempotency key will have no additional effect.
 	UpdatePayment(context.Context, *connect.Request[payment.UpdatePaymentRequest]) (*connect.Response[payment.UpdatePaymentResponse], error)
 	// *
 	// Delivers updated credit limit and credit usage.
