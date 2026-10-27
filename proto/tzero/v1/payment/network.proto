@@ -12,7 +12,7 @@ import "buf/validate/validate.proto";
 /**
  * Network surface for publishing quotes and initiating pay-out payments.
  *
- * All methods of this service are idempotent, meaning they are safe to retry and multiple calls with the same parameters will have no additional effect.
+ * All methods of this service are idempotent, meaning they are safe to retry and multiple calls with the same idempotency key will have no additional effect.
  */
 service NetworkService {
   /**
