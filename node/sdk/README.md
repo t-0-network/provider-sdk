@@ -280,10 +280,14 @@ The `tzero.v1.manage.kyc_sharing` messages and services, and the two file helper
 
 `KycSharing.uploadFile` and `KycSharing.downloadFile` run a `KycFileService` stream on a client the caller already built. They do not sign or retry. `uploadId` is sent as given.
 
+`KycFileService` is served by the KYB API, not by the network, so the client needs the KYB base URL and a key registered with the KYB API. The KYB API's base URL, key and signing: [`docs/KYB_API.md`](../../docs/KYB_API.md).
+
 ```ts
 import { createClient, KycSharing } from "@t-0/provider-sdk";
 import { readFile } from "node:fs/promises";
 
+const kybKey = "0x..."; // the KYB key, not the network key
+const kybUrl = "https://app-api.t-0.network";
 const files = createClient(kybKey, kybUrl, KycSharing.KycFileService);
 const fileId = await KycSharing.uploadFile(files, {
   payoutProviderId, clientId, fileName: "passport.pdf",
