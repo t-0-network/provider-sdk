@@ -453,13 +453,23 @@ func (*GetQuoteResponse_Success_) isGetQuoteResponse_Result() {}
 func (*GetQuoteResponse_Failure_) isGetQuoteResponse_Result() {}
 
 type CreatePaymentRequest struct {
-	state           protoimpl.MessageState               `protogen:"open.v1"`
-	PaymentClientId string                               `protobuf:"bytes,10,opt,name=payment_client_id,json=paymentClientId,proto3" json:"payment_client_id,omitempty"` // unique client generated id for this payment
-	Amount          *PaymentAmount                       `protobuf:"bytes,30,opt,name=amount,proto3" json:"amount,omitempty"`                                            // payment amount - should be either pay-out amount or settlement amount
-	Currency        string                               `protobuf:"bytes,40,opt,name=currency,proto3" json:"currency,omitempty"`                                        // pay-out currency
-	PaymentDetails  *common.PaymentDetails               `protobuf:"bytes,50,opt,name=payment_details,json=paymentDetails,proto3" json:"payment_details,omitempty"`      // pay-out payment details
-	QuoteId         *QuoteId                             `protobuf:"bytes,60,opt,name=quote_id,json=quoteId,proto3,oneof" json:"quote_id,omitempty"`                     // if specified, must be a valid quoteId that was previously returned by GetQuote otherwise last available quote will be used
-	TravelRuleData  *CreatePaymentRequest_TravelRuleData `protobuf:"bytes,100,opt,name=travel_rule_data,json=travelRuleData,proto3" json:"travel_rule_data,omitempty"`   // travel rule data
+	state protoimpl.MessageState `protogen:"open.v1"`
+	// *
+	// Unique client generated id for this payment.
+	// A `failure` result creates no payment and leaves the id free. To try the same payment again,
+	// resend this id, also when the retry changes the amount or the quote. If an earlier call under
+	// this id was accepted, the response is that `accepted` result, or `AlreadyExists` when the amount
+	// or currency differs from the accepted payment.
+	// Once a payment is accepted, the id belongs to it, so a new attempt after a payout failure takes a new id.
+	// Each extra part of a split payment is a new payment and takes a new id.
+	// Do not retry a `failure` under a new id: an overlapping call under the old id can be accepted,
+	// and the payment is then paid out twice.
+	PaymentClientId string                               `protobuf:"bytes,10,opt,name=payment_client_id,json=paymentClientId,proto3" json:"payment_client_id,omitempty"`
+	Amount          *PaymentAmount                       `protobuf:"bytes,30,opt,name=amount,proto3" json:"amount,omitempty"`                                          // payment amount - should be either pay-out amount or settlement amount
+	Currency        string                               `protobuf:"bytes,40,opt,name=currency,proto3" json:"currency,omitempty"`                                      // pay-out currency
+	PaymentDetails  *common.PaymentDetails               `protobuf:"bytes,50,opt,name=payment_details,json=paymentDetails,proto3" json:"payment_details,omitempty"`    // pay-out payment details
+	QuoteId         *QuoteId                             `protobuf:"bytes,60,opt,name=quote_id,json=quoteId,proto3,oneof" json:"quote_id,omitempty"`                   // if specified, must be a valid quoteId that was previously returned by GetQuote otherwise last available quote will be used
+	TravelRuleData  *CreatePaymentRequest_TravelRuleData `protobuf:"bytes,100,opt,name=travel_rule_data,json=travelRuleData,proto3" json:"travel_rule_data,omitempty"` // travel rule data
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
 }

@@ -29,10 +29,9 @@ const (
 type GetPaymentDetailsRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// *
-	// The payment intent ID this request relates to. Requests for one payment intent
-	// creation can arrive with different payment_intent_id and confirmation_code values.
-	// Only one of these ids becomes a payment intent whose payment details reach the
-	// end-user; ConfirmFundsReceived for any other id answers NotFound.
+	// The payment intent ID this request relates to. A duplicate or retried payment
+	// intent creation sends this request again with the same payment_intent_id and
+	// confirmation_code; return the same payment details for the same payment_intent_id.
 	PaymentIntentId uint64 `protobuf:"varint,10,opt,name=payment_intent_id,json=paymentIntentId,proto3" json:"payment_intent_id,omitempty"`
 	// This is the confirmation code to be used later with ConfirmFundsReceived endpoint to prevent accidental
 	// confirmation of the wrong payment intent
