@@ -205,12 +205,12 @@ Details: [`docs/STREAMING.md`](../docs/STREAMING.md).
 
 `kycsharing.UploadFile` and `kycsharing.DownloadFile` run a `KycFileService` stream on a client the caller already built. They do not sign or retry. `upload_id` is sent as given.
 
-`KycFileService` is served by the KYB API, not by the network, so the client needs the KYB base URL and a key registered with the KYB API. The KYB API's base URL, key and signing: [`docs/KYB_API.md`](../docs/KYB_API.md).
+`KycFileService` is served by the KYB API, not by the network, so the client needs the KYB base URL. By default T-0 registers the network key with the KYB API, and the client signs with it, as the network client does. The KYB API's base URL, key and signing: [`docs/KYB_API.md`](../docs/KYB_API.md).
 
 ```go
-kybKey := network.PrivateKeyHexed("0x...") // the KYB key, not the network key
+privateKey := network.PrivateKeyHexed("0x...") // the network key
 kybURL := "https://app-api.t-0.network"
-files, err := network.NewServiceClient(kybKey, kyc_sharingconnect.NewKycFileServiceClient,
+files, err := network.NewServiceClient(privateKey, kyc_sharingconnect.NewKycFileServiceClient,
     network.WithBaseURL(kybURL),
 )
 data, err := os.ReadFile("passport.pdf")
