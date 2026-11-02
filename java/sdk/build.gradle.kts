@@ -1,7 +1,7 @@
 plugins {
     `java-library`
     id("build.buf") version "0.11.2"
-    id("me.champeau.jmh") version "0.7.3"
+    id("me.champeau.jmh") version "0.7.4"
     `maven-publish`
     signing
     id("com.gradleup.nmcp")
@@ -37,12 +37,12 @@ dependencies {
     compileOnly("javax.annotation:javax.annotation-api:1.3.2")
 
     // Testing
-    testImplementation("com.google.code.gson:gson:2.14.0")
+    testImplementation("com.google.code.gson:gson:2.15.0")
     testImplementation("org.junit.jupiter:junit-jupiter:6.1.3")
     testImplementation("org.assertj:assertj-core:3.27.7")
     testImplementation("io.grpc:grpc-testing:$grpcVersion")
     testRuntimeOnly("org.junit.platform:junit-platform-launcher")
-    testImplementation("ch.qos.logback:logback-classic:1.6.5")
+    testImplementation("ch.qos.logback:logback-classic:1.6.6")
 }
 
 // Disable buf format and lint checks - proto files are synced from backend and should not be modified

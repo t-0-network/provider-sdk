@@ -26,10 +26,10 @@ strict = true
 [dependency-groups]
 dev = [
     "protoc-gen-connectrpc>=0.13.0",
-    "pytest>=9.1.1",
+    "pytest>=9.2.0",
     "pytest-asyncio>=1.4.0",
-    "ruff>=0.17.2",
-    "mypy>=2.4.0",
+    "ruff>=0.17.3",
+    "mypy>=2.4.1",
     "uvicorn>=0.54.0",
     "waitress>=3.0.2",
     # Serves the ASGI app over h2c in the cross tests, so the shared server cases run over gRPC too.
