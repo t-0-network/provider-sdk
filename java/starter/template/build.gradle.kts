@@ -39,7 +39,7 @@ dependencies {
 
     // Logging. jul-to-slf4j matches the SLF4J version logback-classic 1.6.5 uses,
     // so grpc-java's java.util.logging records follow the io.grpc level.
-    implementation("ch.qos.logback:logback-classic:1.6.5")
+    implementation("ch.qos.logback:logback-classic:1.6.6")
     implementation("org.slf4j:jul-to-slf4j:2.0.20")
 
     // javax.annotation for generated code
