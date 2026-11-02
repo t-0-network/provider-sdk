@@ -25,7 +25,7 @@ The SDK client signs every request as it signs a network request, and sets `X-Pu
 
 ## HTTP method
 
-The KYB API accepts a signed request only as POST, and answers any other method with `InvalidArgument`. The SDK clients send every call as POST.
+The KYB API accepts a signed request only as POST, and answers any other method with `Unimplemented` "GET requests are not supported". The SDK clients send every call as POST.
 
 ## Services
 
