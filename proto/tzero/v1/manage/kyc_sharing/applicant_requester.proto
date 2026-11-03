@@ -244,7 +244,7 @@ message ListRequesterApplicantsRequest {
       }
     }
   }];
-  // no validation: absent = the first page at the default size; Page validates its own contents.
+  // no validation: absent = the first page at the default size.
   optional Page page = 40;
 }
 
@@ -271,7 +271,6 @@ message ListRequesterApplicantsResponse {
   PageInfo page_info = 20 [(buf.validate.field).required = true];
 }
 
-/** Carries no fields — the calling Payout Requester is taken from the auth context. */
 message ListProviderFormsRequest {}
 
 /** The Payout Providers the calling Payout Requester has mutual consent with, each with the form types it publishes. */

@@ -135,8 +135,7 @@ message AppendLedgerEntriesRequest {
       uint64 fee_settlement_id = 10 [(buf.validate.field).uint64.gt = 0];
       // Fee settlement amount in USD, truncated to cents. Equals the
       // SETTLEMENT_OUT credit this fee produces. The fee always flows to the
-      // network from the provider receiving this callback, so the descriptor
-      // carries no provider_id.
+      // network from the provider receiving this callback.
       tzero.v1.common.Decimal amount_usd = 20 [
         (buf.validate.field).required = true,
         (buf.validate.field).cel = {
@@ -466,9 +465,6 @@ message UpdateLimitRequest {
   }
 }
 
-/**
- * Empty message - means no response is needed.
- */
 message UpdateLimitResponse {}
 
 message ApprovePaymentQuoteRequest {

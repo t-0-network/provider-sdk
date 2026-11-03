@@ -442,7 +442,7 @@ message PaymentAmount {
 
 enum QuoteType {
   QUOTE_TYPE_UNSPECIFIED = 0;
-  QUOTE_TYPE_REALTIME = 1; // real-time quote must be valid at least for 30 seconds (TBD)
+  QUOTE_TYPE_REALTIME = 1;
 }
 
 message FinalizePayoutRequest {
