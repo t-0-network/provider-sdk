@@ -747,8 +747,6 @@ func (x *UpdateLimitRequest) GetLimits() []*UpdateLimitRequest_Limit {
 	return nil
 }
 
-// *
-// Empty message - means no response is needed.
 type UpdateLimitResponse struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -1337,8 +1335,7 @@ type AppendLedgerEntriesRequest_Transaction_FeeSettlement struct {
 	FeeSettlementId uint64                 `protobuf:"varint,10,opt,name=fee_settlement_id,json=feeSettlementId,proto3" json:"fee_settlement_id,omitempty"`
 	// Fee settlement amount in USD, truncated to cents. Equals the
 	// SETTLEMENT_OUT credit this fee produces. The fee always flows to the
-	// network from the provider receiving this callback, so the descriptor
-	// carries no provider_id.
+	// network from the provider receiving this callback.
 	AmountUsd     *common.Decimal `protobuf:"bytes,20,opt,name=amount_usd,json=amountUsd,proto3" json:"amount_usd,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

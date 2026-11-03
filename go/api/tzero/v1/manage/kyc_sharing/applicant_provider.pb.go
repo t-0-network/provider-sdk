@@ -538,7 +538,7 @@ type ListProviderApplicantsRequest struct {
 	// the review queue. DRAFT is never visible to a Payout Provider (an Applicant reaches it only once
 	// submitted), so it is not an accepted value.
 	States []ApplicantState `protobuf:"varint,30,rep,packed,name=states,proto3,enum=tzero.v1.manage.kyc_sharing.ApplicantState" json:"states,omitempty"`
-	// no validation: absent = the first page at the default size; Page validates its own contents.
+	// no validation: absent = the first page at the default size.
 	Page          *Page `protobuf:"bytes,40,opt,name=page,proto3,oneof" json:"page,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

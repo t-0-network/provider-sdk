@@ -433,7 +433,7 @@ func (*GetQuotesRequest) Descriptor() ([]byte, []int) {
 type GetQuotesResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// * One entry per pay-in currency with at least one quoting permitted provider.
-	Quotes        []*GetQuotesResponse_CurrencyQuote `protobuf:"bytes,10,rep,name=quotes,proto3" json:"quotes,omitempty"` // no validation: any count is valid, including none
+	Quotes        []*GetQuotesResponse_CurrencyQuote `protobuf:"bytes,10,rep,name=quotes,proto3" json:"quotes,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }

@@ -547,7 +547,7 @@ func (x *KycForm_StandardField) GetRequired() bool {
 	return false
 }
 
-// * Numeric free-entry field; carries no extra configuration.
+// * Numeric free-entry field.
 type FormField_Number struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -630,7 +630,7 @@ func (x *FormField_String) GetMaxLength() uint32 {
 	return 0
 }
 
-// * Date field; carries no extra configuration.
+// * Date field.
 type FormField_Date struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -667,7 +667,7 @@ func (*FormField_Date) Descriptor() ([]byte, []int) {
 	return file_tzero_v1_manage_kyc_sharing_form_proto_rawDescGZIP(), []int{2, 2}
 }
 
-// * File-upload field; carries no extra configuration. Upload size is bounded by the global server limit.
+// * File-upload field.
 type FormField_File struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields

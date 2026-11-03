@@ -154,7 +154,7 @@ type PaymentIntentUpdateRequest_FundsReceived struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// *
 	// The settlement amount credited to the beneficiary balance.
-	// This is calculated as: (source_amount / rate) - fix
+	// This is calculated as: (payment_amount / rate) - fix
 	//
 	// Note: Fees are NOT deducted from this amount. Fees are tracked
 	// separately and settled in periodic fee settlements.

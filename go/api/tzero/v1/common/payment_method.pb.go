@@ -2154,9 +2154,7 @@ type PaymentDetails_Swift struct {
 	// Beneficiary's bank name
 	BankName string `protobuf:"bytes,60,opt,name=bank_name,json=bankName,proto3" json:"bank_name,omitempty"`
 	// Beneficiary's bank country (ISO 3166-1 alpha-2)
-	BankCountry string `protobuf:"bytes,70,opt,name=bank_country,json=bankCountry,proto3" json:"bank_country,omitempty"`
-	// Account currency (ISO 4217)
-	AccountCurrency  *string                                `protobuf:"bytes,80,opt,name=account_currency,json=accountCurrency,proto3,oneof" json:"account_currency,omitempty"`
+	BankCountry      string                                 `protobuf:"bytes,70,opt,name=bank_country,json=bankCountry,proto3" json:"bank_country,omitempty"`
 	IntermediaryBank *PaymentDetails_Swift_IntermediaryBank `protobuf:"bytes,90,opt,name=intermediary_bank,json=intermediaryBank,proto3" json:"intermediary_bank,omitempty"`
 	unknownFields    protoimpl.UnknownFields
 	sizeCache        protoimpl.SizeCache
@@ -2237,13 +2235,6 @@ func (x *PaymentDetails_Swift) GetBankName() string {
 func (x *PaymentDetails_Swift) GetBankCountry() string {
 	if x != nil {
 		return x.BankCountry
-	}
-	return ""
-}
-
-func (x *PaymentDetails_Swift) GetAccountCurrency() string {
-	if x != nil && x.AccountCurrency != nil {
-		return *x.AccountCurrency
 	}
 	return ""
 }
@@ -4903,7 +4894,7 @@ var File_tzero_v1_common_payment_method_proto protoreflect.FileDescriptor
 
 const file_tzero_v1_common_payment_method_proto_rawDesc = "" +
 	"\n" +
-	"$tzero/v1/common/payment_method.proto\x12\x0ftzero.v1.common\x1a\x1bbuf/validate/validate.proto\x1a google/protobuf/descriptor.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xb5\x84\x01\n" +
+	"$tzero/v1/common/payment_method.proto\x12\x0ftzero.v1.common\x1a\x1bbuf/validate/validate.proto\x1a google/protobuf/descriptor.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf2\x83\x01\n" +
 	"\x0ePaymentDetails\x12:\n" +
 	"\x04sepa\x18\n" +
 	" \x01(\v2$.tzero.v1.common.PaymentDetails.SepaH\x00R\x04sepa\x12=\n" +
@@ -5006,7 +4997,7 @@ const file_tzero_v1_common_payment_method_proto_rawDesc = "" +
 	"\x1bBENEFICIARY_TYPE_INDIVIDUAL\x10\n" +
 	"\x12\x1c\n" +
 	"\x18BENEFICIARY_TYPE_COMPANY\x10\x14:\x04\x88\xa6\x1ddB\x0f\n" +
-	"\x06method\x12\x05\xbaH\x02\b\x01\x1a\xae\x06\n" +
+	"\x06method\x12\x05\xbaH\x02\b\x01\x1a\xeb\x05\n" +
 	"\x05Swift\x12X\n" +
 	"\n" +
 	"swift_code\x18\n" +
@@ -5020,17 +5011,14 @@ const file_tzero_v1_common_payment_method_proto_rawDesc = "" +
 	"\tbank_name\x18< \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\x8c\x01R\bbankName\x127\n" +
 	"\fbank_country\x18F \x01(\tB\x14\xbaH\x11r\x0f2\n" +
-	"^[A-Z]{2}$\x98\x01\x02R\vbankCountry\x12D\n" +
-	"\x10account_currency\x18P \x01(\tB\x14\xbaH\x11r\x0f2\n" +
-	"^[A-Z]{3}$\x98\x01\x03H\x00R\x0faccountCurrency\x88\x01\x01\x12c\n" +
+	"^[A-Z]{2}$\x98\x01\x02R\vbankCountry\x12c\n" +
 	"\x11intermediary_bank\x18Z \x01(\v26.tzero.v1.common.PaymentDetails.Swift.IntermediaryBankR\x10intermediaryBank\x1a\xc5\x01\n" +
 	"\x10IntermediaryBank\x12X\n" +
 	"\n" +
 	"swift_code\x18\x01 \x01(\tB9\xbaH6r4\x10\b\x18\v2.^[A-Z0-9]{4}[A-Z]{2}[A-Z0-9]{2}([A-Z0-9]{3})?$R\tswiftCode\x12'\n" +
 	"\tbank_name\x18\x02 \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\x8c\x01R\bbankName\x12.\n" +
-	"\x0eaccount_number\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x18\"R\raccountNumber:\x04\x88\xa6\x1d\x14B\x13\n" +
-	"\x11_account_currency\x1a\xcc\x03\n" +
+	"\x0eaccount_number\x18\x03 \x01(\tB\a\xbaH\x04r\x02\x18\"R\raccountNumber:\x04\x88\xa6\x1d\x14J\x04\bP\x10QR\x10account_currency\x1a\xcc\x03\n" +
 	"\x03Ach\x12<\n" +
 	"\x0erouting_number\x18\n" +
 	" \x01(\tB\x15\xbaH\x12r\x10\x10\t\x18\t2\n" +
@@ -5617,7 +5605,6 @@ func file_tzero_v1_common_payment_method_proto_init() {
 		(*PaymentDetails_IndianBankTransfer_AccountIfsc)(nil),
 		(*PaymentDetails_IndianBankTransfer_Imps)(nil),
 	}
-	file_tzero_v1_common_payment_method_proto_msgTypes[7].OneofWrappers = []any{}
 	file_tzero_v1_common_payment_method_proto_msgTypes[10].OneofWrappers = []any{}
 	file_tzero_v1_common_payment_method_proto_msgTypes[11].OneofWrappers = []any{}
 	file_tzero_v1_common_payment_method_proto_msgTypes[12].OneofWrappers = []any{}
