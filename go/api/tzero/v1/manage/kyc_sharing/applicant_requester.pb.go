@@ -1125,7 +1125,7 @@ type ListRequesterApplicantsRequest struct {
 	PayoutProviderId *uint32 `protobuf:"varint,20,opt,name=payout_provider_id,json=payoutProviderId,proto3,oneof" json:"payout_provider_id,omitempty"`
 	// filter; an empty list returns applicants in every state.
 	States []ApplicantState `protobuf:"varint,30,rep,packed,name=states,proto3,enum=tzero.v1.manage.kyc_sharing.ApplicantState" json:"states,omitempty"`
-	// no validation: absent = the first page at the default size; Page validates its own contents.
+	// no validation: absent = the first page at the default size.
 	Page          *Page `protobuf:"bytes,40,opt,name=page,proto3,oneof" json:"page,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1244,7 +1244,6 @@ func (x *ListRequesterApplicantsResponse) GetPageInfo() *PageInfo {
 	return nil
 }
 
-// * Carries no fields — the calling Payout Requester is taken from the auth context.
 type ListProviderFormsRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields

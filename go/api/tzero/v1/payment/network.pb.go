@@ -29,7 +29,7 @@ type QuoteType int32
 
 const (
 	QuoteType_QUOTE_TYPE_UNSPECIFIED QuoteType = 0
-	QuoteType_QUOTE_TYPE_REALTIME    QuoteType = 1 // real-time quote must be valid at least for 30 seconds (TBD)
+	QuoteType_QUOTE_TYPE_REALTIME    QuoteType = 1
 )
 
 // Enum value maps for QuoteType.
