@@ -140,12 +140,12 @@ type UpdatePaymentRequest_Failed_Reason int32
 
 const (
 	UpdatePaymentRequest_Failed_REASON_UNSPECIFIED                              UpdatePaymentRequest_Failed_Reason = 0
-	UpdatePaymentRequest_Failed_REASON_NO_QUOTE_AFTER_AML_APPROVAL              UpdatePaymentRequest_Failed_Reason = 1 // AML review completed, but the pay-out provider no longer has a valid quote available.
-	UpdatePaymentRequest_Failed_REASON_QUOTE_REJECTED_AFTER_AML_APPROVAL        UpdatePaymentRequest_Failed_Reason = 2 // AML review completed and a new quote was required, but the pay-in provider rejected the updated quote (e.g. due to rate change after AML delay).
-	UpdatePaymentRequest_Failed_REASON_AML_RISK_CHECK_FAILED                    UpdatePaymentRequest_Failed_Reason = 3 // Payment was rejected by the pay-out provider because the AML / risk checks failed.
-	UpdatePaymentRequest_Failed_REASON_CREDIT_LIMIT_EXCEEDED_AFTER_AML_APPROVAL UpdatePaymentRequest_Failed_Reason = 4 // AML review completed and a new quote was found, but the updated settlement amount exceeds the credit limit between the pay-in and pay-out providers.
-	UpdatePaymentRequest_Failed_REASON_REJECTED_BY_BENEFICIARY                  UpdatePaymentRequest_Failed_Reason = 5 // Pay-out provider rejected the initial PayOut request (no AML check involved).
-	UpdatePaymentRequest_Failed_REASON_FINALIZE_FAILURE                         UpdatePaymentRequest_Failed_Reason = 6 // Pay-out provider accepted initially, then reported failure via FinalizePayout (e.g. payment rails rejected).
+	UpdatePaymentRequest_Failed_REASON_NO_QUOTE_AFTER_AML_APPROVAL              UpdatePaymentRequest_Failed_Reason = 1 // AML review completed, but the Payout Provider no longer has a valid quote available.
+	UpdatePaymentRequest_Failed_REASON_QUOTE_REJECTED_AFTER_AML_APPROVAL        UpdatePaymentRequest_Failed_Reason = 2 // AML review completed and a new quote was required, but the Payout Requester rejected the updated quote (e.g. due to rate change after AML delay).
+	UpdatePaymentRequest_Failed_REASON_AML_RISK_CHECK_FAILED                    UpdatePaymentRequest_Failed_Reason = 3 // Payment was rejected by the Payout Provider because the AML / risk checks failed.
+	UpdatePaymentRequest_Failed_REASON_CREDIT_LIMIT_EXCEEDED_AFTER_AML_APPROVAL UpdatePaymentRequest_Failed_Reason = 4 // AML review completed and a new quote was found, but the updated settlement amount exceeds the credit limit between the Payout Requester and the Payout Provider.
+	UpdatePaymentRequest_Failed_REASON_REJECTED_BY_BENEFICIARY                  UpdatePaymentRequest_Failed_Reason = 5 // The Payout Provider rejected the initial PayOut request (no AML check involved).
+	UpdatePaymentRequest_Failed_REASON_FINALIZE_FAILURE                         UpdatePaymentRequest_Failed_Reason = 6 // The Payout Provider accepted initially, then reported failure via FinalizePayout (e.g. payment rails rejected).
 )
 
 // Enum value maps for UpdatePaymentRequest_Failed_Reason.
@@ -306,7 +306,7 @@ type PayoutRequest struct {
 	// Payment details specifying how the payout should be made (bank transfer, crypto transfer, etc.).
 	PayoutDetails *common.PaymentDetails `protobuf:"bytes,60,opt,name=payout_details,json=payoutDetails,proto3,oneof" json:"payout_details,omitempty"`
 	// *
-	// Pay-in provider id which initiated the pay out.
+	// ID of the Payout Requester that initiated the payout.
 	PayInProviderId uint32                        `protobuf:"varint,80,opt,name=pay_in_provider_id,json=payInProviderId,proto3" json:"pay_in_provider_id,omitempty"`
 	TravelRuleData  *PayoutRequest_TravelRuleData `protobuf:"bytes,200,opt,name=travel_rule_data,json=travelRuleData,proto3" json:"travel_rule_data,omitempty"`
 	unknownFields   protoimpl.UnknownFields
@@ -494,7 +494,7 @@ type isPayoutResponse_Result interface {
 
 type PayoutResponse_Accepted_ struct {
 	// *
-	// Accepted response - means the payout was accepted by the pay-out provider and pay-out provider is obligated to
+	// Accepted response - means the payout was accepted by the Payout Provider, which is then obligated to
 	// make a pay-out.
 	Accepted *PayoutResponse_Accepted `protobuf:"bytes,20,opt,name=accepted,proto3,oneof"`
 }
@@ -508,7 +508,7 @@ type PayoutResponse_Failed_ struct {
 type PayoutResponse_ManualAmlCheck_ struct {
 	// *
 	// Manual AML check required - means the payout provider requires additional Anti-Money Laundering (AML)
-	// verification before the payment can proceed. The pay-out provider will need to perform the manual AML check
+	// verification before the payment can proceed. The Payout Provider will need to perform the manual AML check
 	// and then call CompleteManualAmlCheck rpc with the result of the check.
 	ManualAmlCheck *PayoutResponse_ManualAmlCheck `protobuf:"bytes,40,opt,name=manual_aml_check,json=manualAmlCheck,proto3,oneof"`
 }
@@ -632,7 +632,7 @@ type isUpdatePaymentRequest_Result interface {
 
 type UpdatePaymentRequest_Accepted_ struct {
 	// *
-	// Accepted response - means the payout was accepted by the pay-out provider and pay-out provider is obligated to
+	// Accepted response - means the payout was accepted by the Payout Provider, which is then obligated to
 	// make a pay-out.
 	Accepted *UpdatePaymentRequest_Accepted `protobuf:"bytes,20,opt,name=accepted,proto3,oneof"`
 }
@@ -651,7 +651,7 @@ type UpdatePaymentRequest_Confirmed_ struct {
 }
 
 type UpdatePaymentRequest_ManualAmlCheck_ struct {
-	// In case of manual AML check, pay-out provider needs to perform additional checks and then call CompleteManualAmlCheck
+	// In case of manual AML check, the Payout Provider needs to perform additional checks and then call CompleteManualAmlCheck
 	// rpc with the result of the check.
 	ManualAmlCheck *UpdatePaymentRequest_ManualAmlCheck `protobuf:"bytes,50,opt,name=manual_aml_check,json=manualAmlCheck,proto3,oneof"`
 }
@@ -1386,7 +1386,7 @@ func (x *AppendLedgerEntriesRequest_Transaction_FeeSettlement) GetAmountUsd() *c
 }
 
 // *
-// Funds were received from the payer by the pay-in provider, creating the
+// Funds were received from the payer by the Collection Provider, creating the
 // inter-provider obligation to settle. The descriptor fields mirror values
 // the entries already encode; the entries remain authoritative for balances.
 // Only payment_intent_id is guaranteed non-zero; the remaining descriptor
@@ -1394,8 +1394,8 @@ func (x *AppendLedgerEntriesRequest_Transaction_FeeSettlement) GetAmountUsd() *c
 type AppendLedgerEntriesRequest_Transaction_PiFundsReceived struct {
 	state                 protoimpl.MessageState `protogen:"open.v1"`
 	PaymentIntentId       uint64                 `protobuf:"varint,10,opt,name=payment_intent_id,json=paymentIntentId,proto3" json:"payment_intent_id,omitempty"`
-	PayInProviderId       uint32                 `protobuf:"varint,20,opt,name=pay_in_provider_id,json=payInProviderId,proto3" json:"pay_in_provider_id,omitempty"`
-	BeneficiaryProviderId uint32                 `protobuf:"varint,30,opt,name=beneficiary_provider_id,json=beneficiaryProviderId,proto3" json:"beneficiary_provider_id,omitempty"`
+	PayInProviderId       uint32                 `protobuf:"varint,20,opt,name=pay_in_provider_id,json=payInProviderId,proto3" json:"pay_in_provider_id,omitempty"`                 // the Collection Provider that received the funds
+	BeneficiaryProviderId uint32                 `protobuf:"varint,30,opt,name=beneficiary_provider_id,json=beneficiaryProviderId,proto3" json:"beneficiary_provider_id,omitempty"` // the Collection Requester that created the intent
 	// no validation: descriptor mirror of the entries, which are authoritative for balances
 	SettlementAmount *common.Decimal `protobuf:"bytes,40,opt,name=settlement_amount,json=settlementAmount,proto3" json:"settlement_amount,omitempty"`
 	// no validation: descriptor mirror of the entries, which are authoritative for balances
@@ -1480,13 +1480,13 @@ func (x *AppendLedgerEntriesRequest_Transaction_PiFundsReceived) GetPayInFee() *
 
 type PayoutRequest_TravelRuleData struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// the natural or legal person that requests payment with originating provider
+	// the natural or legal person that requests payment with the Payout Requester
 	Originator []*ivms.Person `protobuf:"bytes,10,rep,name=originator,proto3" json:"originator,omitempty"`
 	// the natural or legal person or legal arrangement who is identified
 	// by the originator as the receiver of the requested payment.
 	Beneficiary []*ivms.Person `protobuf:"bytes,20,rep,name=beneficiary,proto3" json:"beneficiary,omitempty"`
 	// *
-	// IVMS101 travel rule data of the originating provider's legal entity.
+	// IVMS101 travel rule data of the Payout Requester's legal entity.
 	// Taken from the originator entity in the corresponding CreatePaymentRequest.
 	OriginatorProvider *ivms.Person `protobuf:"bytes,30,opt,name=originator_provider,json=originatorProvider,proto3,oneof" json:"originator_provider,omitempty"`
 	unknownFields      protoimpl.UnknownFields
@@ -1807,7 +1807,7 @@ type UpdatePaymentRequest_Confirmed struct {
 	// recorded time for this update rather than rejecting the callback.
 	PaidOutAt *timestamppb.Timestamp `protobuf:"bytes,10,opt,name=paid_out_at,json=paidOutAt,proto3" json:"paid_out_at,omitempty"`
 	// *
-	// Payment receipt might contain metadata about payment recognizable by pay-in provider.
+	// Payment receipt might contain metadata about payment recognizable by the Payout Requester.
 	Receipt       *common.PaymentReceipt `protobuf:"bytes,20,opt,name=receipt,proto3,oneof" json:"receipt,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1944,7 +1944,7 @@ type UpdateLimitRequest_Limit struct {
 	Version int64 `protobuf:"varint,10,opt,name=version,proto3" json:"version,omitempty"`
 	// *
 	// the Id of the counterparty provider, e.g. the provider that is providing the credit limit.
-	// It's usually the payOut provider, which provides the credit line to the payIn provider.
+	// Usually the Payout Provider, which extends the credit line to the Payout Requester.
 	CounterpartId int32 `protobuf:"varint,15,opt,name=counterpart_id,json=counterpartId,proto3" json:"counterpart_id,omitempty"`
 	// *
 	// payout_limit = credit_limit - credit_usage - reserve, negative value means credit limit is exceeded,

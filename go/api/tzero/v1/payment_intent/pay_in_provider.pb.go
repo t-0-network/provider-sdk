@@ -51,8 +51,8 @@ type GetPaymentDetailsRequest struct {
 	// Travel rule data for this payment
 	TravelRule *GetPaymentDetailsRequest_TravelRuleData `protobuf:"bytes,60,opt,name=travel_rule,json=travelRule,proto3" json:"travel_rule,omitempty"`
 	// *
-	// The T-0 provider ID of the beneficiary provider (the FI the funds are
-	// destined for). Stable, opaque identifier for the beneficiary.
+	// The T-0 provider ID of the Collection Requester (the FI the funds are
+	// destined for). Stable, opaque identifier for the Collection Requester.
 	BeneficiaryProviderId uint32 `protobuf:"varint,70,opt,name=beneficiary_provider_id,json=beneficiaryProviderId,proto3" json:"beneficiary_provider_id,omitempty"`
 	unknownFields         protoimpl.UnknownFields
 	sizeCache             protoimpl.SizeCache
@@ -225,10 +225,10 @@ type GetPaymentDetailsRequest_TravelRuleData struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// *
 	// The natural or legal person or legal arrangement who is identified
-	// by the beneficiary provider as the receiver of the requested payment.
+	// by the Collection Requester as the receiver of the requested payment.
 	Beneficiary []*ivms.Person `protobuf:"bytes,20,rep,name=beneficiary,proto3" json:"beneficiary,omitempty"`
 	// *
-	// Beneficiary provider travel rule data.
+	// Collection Requester travel rule data.
 	BeneficiaryProvider *ivms.LegalPerson `protobuf:"bytes,30,opt,name=beneficiary_provider,json=beneficiaryProvider,proto3" json:"beneficiary_provider,omitempty"`
 	// *
 	// Optional travel rule data of the payer

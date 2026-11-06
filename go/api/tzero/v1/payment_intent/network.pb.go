@@ -87,8 +87,8 @@ const (
 	ConfirmFundsReceivedResponse_Reject_REJECT_REASON_NO_ACTIVE_QUOTE            ConfirmFundsReceivedResponse_Reject_Reason = 20
 	ConfirmFundsReceivedResponse_Reject_REJECT_REASON_PROVIDER_NOT_ALLOWED       ConfirmFundsReceivedResponse_Reject_Reason = 30
 	// *
-	// The pay-in amount would yield a zero or negative beneficiary
-	// settlement (pay_in / rate − fix) at every active quote.
+	// The pay-in amount would yield a zero or negative settlement to the Collection Requester
+	// (pay_in / rate − fix) at every active quote.
 	ConfirmFundsReceivedResponse_Reject_REJECT_REASON_AMOUNT_TOO_SMALL ConfirmFundsReceivedResponse_Reject_Reason = 40
 	// *
 	// The requested payment method was not offered on this intent — either the
@@ -249,7 +249,7 @@ type GetQuoteRequest struct {
 	// This is the fiat amount the end-user will pay.
 	Amount *common.Decimal `protobuf:"bytes,30,opt,name=amount,proto3" json:"amount,omitempty"`
 	// *
-	// Optional list of pay-in provider IDs to filter by.
+	// Optional list of Collection Provider IDs to filter by.
 	// When specified, only quotes from these providers are returned.
 	// When empty, quotes from all providers are returned.
 	PayInProviderIds []uint32 `protobuf:"varint,40,rep,packed,name=pay_in_provider_ids,json=payInProviderIds,proto3" json:"pay_in_provider_ids,omitempty"`
@@ -391,7 +391,7 @@ func (*GetQuoteResponse_Success_) isGetQuoteResponse_Result() {}
 func (*GetQuoteResponse_QuoteNotFound_) isGetQuoteResponse_Result() {}
 
 // *
-// Request to browse the pay-in quotes available to the calling beneficiary.
+// Request to browse the pay-in quotes available to the calling Collection Requester.
 type GetQuotesRequest struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	unknownFields protoimpl.UnknownFields
@@ -484,7 +484,7 @@ type PaymentIntentPayInDetails struct {
 	// Determines which payment details format is provided.
 	PaymentMethod common.PaymentMethodType `protobuf:"varint,10,opt,name=payment_method,json=paymentMethod,proto3,enum=tzero.v1.common.PaymentMethodType" json:"payment_method,omitempty"`
 	// *
-	// The T-0 provider ID of the pay-in provider offering this option.
+	// The T-0 provider ID of the Collection Provider offering this option.
 	ProviderId uint32 `protobuf:"varint,20,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"`
 	// *
 	// Payment details for the end-user to make the payment.
@@ -554,7 +554,7 @@ type CreatePaymentIntentRequest struct {
 	// Provider-supplied unique identifier for this payment intent.
 	// Used for idempotency - subsequent requests with the same external_reference
 	// return the existing payment_intent_id instead of creating a new one.
-	// Should be unique per beneficiary provider.
+	// Should be unique per Collection Requester.
 	ExternalReference string `protobuf:"bytes,10,opt,name=external_reference,json=externalReference,proto3" json:"external_reference,omitempty"`
 	// *
 	// Pay-in currency code in ISO 4217 format.
@@ -569,7 +569,7 @@ type CreatePaymentIntentRequest struct {
 	// Required for regulatory compliance under FATF guidelines.
 	TravelRuleData *CreatePaymentIntentRequest_TravelRuleData `protobuf:"bytes,40,opt,name=travel_rule_data,json=travelRuleData,proto3" json:"travel_rule_data,omitempty"`
 	// *
-	// Optional list of pay-in provider IDs to consider.
+	// Optional list of Collection Provider IDs to consider.
 	// When specified, only quotes from these providers will be used.
 	// When empty, all available providers are considered.
 	PayInProviderIds []uint32 `protobuf:"varint,50,rep,packed,name=pay_in_provider_ids,json=payInProviderIds,proto3" json:"pay_in_provider_ids,omitempty"`
@@ -747,10 +747,10 @@ type ConfirmFundsReceivedRequest struct {
 	PaymentMethod common.PaymentMethodType `protobuf:"varint,30,opt,name=payment_method,json=paymentMethod,proto3,enum=tzero.v1.common.PaymentMethodType" json:"payment_method,omitempty"`
 	// *
 	// Pay-in's rail-native reference (SEPA EndToEndId, SWIFT UETR, PIX e2e_id) — do not generate.
-	// Forwarded to the beneficiary for end-to-end tracking and dispute resolution.
+	// Forwarded to the Collection Requester for end-to-end tracking and dispute resolution.
 	TransactionReference string `protobuf:"bytes,40,opt,name=transaction_reference,json=transactionReference,proto3" json:"transaction_reference,omitempty"`
 	// *
-	// Legal entity ID of the pay-in provider that received the funds.
+	// Legal entity ID of the Collection Provider that received the funds.
 	// Required when the provider has multiple registered legal entities.
 	// If the provider has a single entity, this field may be omitted.
 	OriginatorProviderLegalEntityId *uint32 `protobuf:"varint,50,opt,name=originator_provider_legal_entity_id,json=originatorProviderLegalEntityId,proto3,oneof" json:"originator_provider_legal_entity_id,omitempty"`
@@ -999,7 +999,7 @@ type UpdateQuoteRequest_Quote_Band struct {
 	// USD/currency rate
 	Rate *common.Decimal `protobuf:"bytes,50,opt,name=rate,proto3" json:"rate,omitempty"`
 	// *
-	// Fixed charge in USD retained by the pay-in provider per transfer.
+	// Fixed charge in USD retained by the Collection Provider per transfer.
 	// Covers flat operational costs that do not scale with amount
 	// (wire fees, rail fees, compliance checks).
 	// Subtracted from the settlement amount: settlement = (amount / rate) - fix.
@@ -1075,7 +1075,7 @@ type GetQuoteResponse_Success struct {
 	BestQuotes []*GetQuoteResponse_Success_IndicativeQuote `protobuf:"bytes,10,rep,name=best_quotes,json=bestQuotes,proto3" json:"best_quotes,omitempty"`
 	// *
 	// Available indicative quotes.
-	// Each entry represents a different pay-in provider and payment method combination.
+	// Each entry represents a different Collection Provider and payment method combination.
 	// Use CreatePaymentIntent to get the actual payment details for making a payment.
 	AllQuotes     []*GetQuoteResponse_Success_IndicativeQuote `protobuf:"bytes,20,rep,name=all_quotes,json=allQuotes,proto3" json:"all_quotes,omitempty"`
 	unknownFields protoimpl.UnknownFields
@@ -1165,22 +1165,22 @@ func (*GetQuoteResponse_QuoteNotFound) Descriptor() ([]byte, []int) {
 }
 
 // *
-// Represents an indicative quote from a pay-in provider.
+// Represents an indicative quote from a Collection Provider.
 type GetQuoteResponse_Success_IndicativeQuote struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// *
 	// The payment method type (e.g., SEPA, SWIFT, mobile money).
 	PaymentMethod common.PaymentMethodType `protobuf:"varint,10,opt,name=payment_method,json=paymentMethod,proto3,enum=tzero.v1.common.PaymentMethodType" json:"payment_method,omitempty"`
 	// *
-	// The T-0 provider ID of the pay-in provider offering this quote.
+	// The T-0 provider ID of the Collection Provider offering this quote.
 	ProviderId uint32 `protobuf:"varint,20,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"`
 	// *
 	// Indicative exchange rate USD/XXX (base currency is always USD).
 	//
-	// Note: This is indicative only. The actual rate is determined when pay-in provider calls ConfirmFundsReceived
+	// Note: This is indicative only. The actual rate is determined when the Collection Provider calls ConfirmFundsReceived
 	IndicativeRate *common.Decimal `protobuf:"bytes,30,opt,name=indicative_rate,json=indicativeRate,proto3" json:"indicative_rate,omitempty"`
 	// *
-	// Indicative fixed charge in USD retained by the pay-in provider per transfer.
+	// Indicative fixed charge in USD retained by the Collection Provider per transfer.
 	// Settlement is calculated as (amount / indicative_rate) - indicative_fix.
 	// Indicative only: the actual fix is locked in at ConfirmFundsReceived time.
 	IndicativeFix *common.Decimal `protobuf:"bytes,40,opt,name=indicative_fix,json=indicativeFix,proto3" json:"indicative_fix,omitempty"`
@@ -1305,7 +1305,7 @@ func (x *GetQuotesResponse_CurrencyQuote) GetPaymentMethodQuotes() []*GetQuotesR
 type GetQuotesResponse_CurrencyQuote_PaymentMethodQuote struct {
 	state         protoimpl.MessageState   `protogen:"open.v1"`
 	PaymentMethod common.PaymentMethodType `protobuf:"varint,10,opt,name=payment_method,json=paymentMethod,proto3,enum=tzero.v1.common.PaymentMethodType" json:"payment_method,omitempty"`
-	// * The permitted pay-in providers quoting this currency and payment method.
+	// * The permitted Collection Providers quoting this currency and payment method.
 	ProviderQuotes []*GetQuotesResponse_CurrencyQuote_PaymentMethodQuote_ProviderQuote `protobuf:"bytes,20,rep,name=provider_quotes,json=providerQuotes,proto3" json:"provider_quotes,omitempty"`
 	unknownFields  protoimpl.UnknownFields
 	sizeCache      protoimpl.SizeCache
@@ -1355,10 +1355,10 @@ func (x *GetQuotesResponse_CurrencyQuote_PaymentMethodQuote) GetProviderQuotes()
 	return nil
 }
 
-// * One pay-in provider's offering for the enclosing currency and payment method.
+// * One Collection Provider's offering for the enclosing currency and payment method.
 type GetQuotesResponse_CurrencyQuote_PaymentMethodQuote_ProviderQuote struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// * The T-0 provider ID of the pay-in provider that published these bands.
+	// * The T-0 provider ID of the Collection Provider that published these bands.
 	ProviderId uint32 `protobuf:"varint,10,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"`
 	// * Tiered rate bands, ascending by max_amount.
 	Quotes        []*GetQuotesResponse_CurrencyQuote_PaymentMethodQuote_ProviderQuote_Quote `protobuf:"bytes,20,rep,name=quotes,proto3" json:"quotes,omitempty"`
@@ -1420,7 +1420,7 @@ type GetQuotesResponse_CurrencyQuote_PaymentMethodQuote_ProviderQuote_Quote stru
 	MaxAmount *common.Decimal `protobuf:"bytes,10,opt,name=max_amount,json=maxAmount,proto3" json:"max_amount,omitempty"`
 	// * Indicative exchange rate, pay-in currency per USD.
 	Rate *common.Decimal `protobuf:"bytes,20,opt,name=rate,proto3" json:"rate,omitempty"`
-	// * Fixed charge in USD retained by the pay-in provider per transfer.
+	// * Fixed charge in USD retained by the Collection Provider per transfer.
 	Fix *common.Decimal `protobuf:"bytes,30,opt,name=fix,proto3" json:"fix,omitempty"`
 	// * When these terms stop being offered.
 	ExpiresAt     *timestamppb.Timestamp `protobuf:"bytes,40,opt,name=expires_at,json=expiresAt,proto3" json:"expires_at,omitempty"`
@@ -1671,21 +1671,21 @@ func (x *CreatePaymentIntentResponse_Failure) GetDetails() string {
 
 // *
 // Funds accepted - settlement will proceed.
-// The beneficiary provider will receive a PaymentIntentUpdate notification
+// The Collection Requester will receive a PaymentIntentUpdate notification
 // with settlement details.
 type ConfirmFundsReceivedResponse_Accept struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// *
-	// The settlement amount in USD that the pay-in provider owes the
-	// beneficiary provider for this payment intent. Locked from the chosen
+	// The settlement amount in USD that the Collection Provider owes the
+	// Collection Requester for this payment intent. Locked from the chosen
 	// quote at confirm-time as (payment_amount / rate) − fix.
 	SettlementAmount *common.Decimal `protobuf:"bytes,10,opt,name=settlement_amount,json=settlementAmount,proto3" json:"settlement_amount,omitempty"`
 	// *
 	// USD/<pay-in currency> exchange rate locked in for this settlement.
-	// Matches the rate forwarded to the beneficiary in PaymentIntentUpdate.FundsReceived.
+	// Matches the rate forwarded to the Collection Requester in PaymentIntentUpdate.FundsReceived.
 	Rate *common.Decimal `protobuf:"bytes,20,opt,name=rate,proto3" json:"rate,omitempty"`
 	// *
-	// Flat USD charge retained by the pay-in provider per transfer,
+	// Flat USD charge retained by the Collection Provider per transfer,
 	// already subtracted from settlement_amount.
 	// Settlement is computed as (payment_amount / rate) − fix.
 	Fix           *common.Decimal `protobuf:"bytes,30,opt,name=fix,proto3" json:"fix,omitempty"`
