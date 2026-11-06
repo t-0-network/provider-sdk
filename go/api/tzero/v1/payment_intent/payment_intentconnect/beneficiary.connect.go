@@ -41,7 +41,7 @@ const (
 // BeneficiaryServiceClient is a client for the tzero.v1.payment_intent.BeneficiaryService service.
 type BeneficiaryServiceClient interface {
 	// *
-	// PaymentIntentUpdate notifies the beneficiary provider of status changes.
+	// PaymentIntentUpdate notifies the Collection Requester of status changes.
 	//
 	// Delivery is retried on failure or timeout; handling must be idempotent.
 	PaymentIntentUpdate(context.Context, *connect.Request[payment_intent.PaymentIntentUpdateRequest]) (*connect.Response[payment_intent.PaymentIntentUpdateResponse], error)
@@ -82,7 +82,7 @@ func (c *beneficiaryServiceClient) PaymentIntentUpdate(ctx context.Context, req 
 // service.
 type BeneficiaryServiceHandler interface {
 	// *
-	// PaymentIntentUpdate notifies the beneficiary provider of status changes.
+	// PaymentIntentUpdate notifies the Collection Requester of status changes.
 	//
 	// Delivery is retried on failure or timeout; handling must be idempotent.
 	PaymentIntentUpdate(context.Context, *connect.Request[payment_intent.PaymentIntentUpdateRequest]) (*connect.Response[payment_intent.PaymentIntentUpdateResponse], error)

@@ -77,7 +77,8 @@ const (
 	GetQuoteResponse_Failure_REASON_UNSPECIFIED GetQuoteResponse_Failure_Reason = 0
 	// No candidate quote was returned for the requested currency / payment method
 	// (e.g. no published quote, all expired, no credit line configured between
-	// the providers, or the requested amount exceeds the provider's max_amount band).
+	// the providers, the requested amount exceeds the provider's max_amount band,
+	// or a settlement_amount leaves no pay-out amount after the provider's fix).
 	GetQuoteResponse_Failure_REASON_QUOTE_NOT_FOUND GetQuoteResponse_Failure_Reason = 10
 	// At least one provider quoted, but none has enough credit / prefunding
 	// headroom to execute the requested amount. Inspect `all_quotes[].settlement`
@@ -132,7 +133,8 @@ const (
 	CreatePaymentResponse_Failure_REASON_UNSPECIFIED CreatePaymentResponse_Failure_Reason = 0
 	// No candidate quote was returned for the requested currency / payment method
 	// (e.g. no published quote, all expired, no credit line configured between
-	// the providers, or the requested amount exceeds the provider's max_amount band).
+	// the providers, the requested amount exceeds the provider's max_amount band,
+	// or a settlement_amount leaves no pay-out amount after the provider's fix).
 	CreatePaymentResponse_Failure_REASON_QUOTE_NOT_FOUND CreatePaymentResponse_Failure_Reason = 10
 	// At least one provider quoted, but none has enough credit / prefunding
 	// headroom to execute the requested amount. Call GetQuote to inspect
@@ -145,7 +147,7 @@ const (
 	// The pinned quote's expires_at has passed. Auto-retry by calling GetQuote
 	// to obtain a fresh quote id and re-submit with it.
 	CreatePaymentResponse_Failure_REASON_QUOTE_EXPIRED CreatePaymentResponse_Failure_Reason = 40
-	// The pinned quote id does not exist for the pay-in/pay-out provider pair.
+	// The pinned quote id does not exist for the Payout Requester / Payout Provider pair.
 	// Indicates a client-side plumbing bug (stale / mismatched id); no auto-retry
 	// will succeed until the client fixes quote propagation.
 	CreatePaymentResponse_Failure_REASON_QUOTE_ID_UNKNOWN CreatePaymentResponse_Failure_Reason = 50
@@ -360,7 +362,7 @@ type GetQuoteResponse struct {
 	// *
 	// All best quotes from providers with credit lines.
 	// Each quote is that provider's best effective price for the requested amount:
-	// the lowest settlement amount, and on a tie the largest pay-out amount.
+	// the lowest settlement amount, and on a tie the largest (settlement amount - fix) * rate.
 	// Each quote indicates whether it can be executed immediately.
 	// Always returned alongside success/failure - providers can compare alternatives or see options when no executable quote exists.
 	AllQuotes     []*GetQuoteResponse_ProviderQuote `protobuf:"bytes,40,rep,name=all_quotes,json=allQuotes,proto3" json:"all_quotes,omitempty"`
@@ -723,7 +725,7 @@ type ConfirmPayoutRequest struct {
 	// Deprecated: Marked as deprecated in tzero/v1/payment/network.proto.
 	PayoutId uint64 `protobuf:"varint,20,opt,name=payout_id,json=payoutId,proto3" json:"payout_id,omitempty"` // deprecated, this is 1->1 mapping between payment and payout ids
 	// *
-	// Payment receipt might contain metadata about payment recognizable by pay-in provider.
+	// Payment receipt might contain metadata about payment recognizable by the Payout Requester.
 	Receipt       *common.PaymentReceipt `protobuf:"bytes,30,opt,name=receipt,proto3,oneof" json:"receipt,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1592,7 +1594,7 @@ func (x *GetQuoteResponse_ProviderQuote) GetFix() *common.Decimal {
 }
 
 // *
-// Settlement details between pay-in and pay-out providers.
+// Settlement details between the Payout Requester and the Payout Provider.
 // All amounts are in USD (settlement currency).
 type GetQuoteResponse_ProviderQuote_Settlement struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
@@ -1665,14 +1667,14 @@ func (x *GetQuoteResponse_ProviderQuote_Settlement) GetPrefundingAmount() *commo
 type CreatePaymentRequest_TravelRuleData struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// *
-	// the natural or legal person that requests payment with originating provider
+	// the natural or legal person that requests payment with the Payout Requester
 	Originator []*ivms.Person `protobuf:"bytes,10,rep,name=originator,proto3" json:"originator,omitempty"`
 	// *
 	// the natural or legal person or legal arrangement who is identified
 	// by the originator as the receiver of the requested payment.
 	Beneficiary []*ivms.Person `protobuf:"bytes,20,rep,name=beneficiary,proto3" json:"beneficiary,omitempty"`
 	// *
-	// Legal entity ID of the originating provider.
+	// Legal entity ID of the Payout Requester.
 	// Required when the provider has multiple registered legal entities.
 	// If the provider has a single entity, this field may be omitted.
 	OriginatorProviderLegalEntityId *uint32 `protobuf:"varint,30,opt,name=originator_provider_legal_entity_id,json=originatorProviderLegalEntityId,proto3,oneof" json:"originator_provider_legal_entity_id,omitempty"`
@@ -1989,13 +1991,13 @@ func (x *CompleteManualAmlCheckRequest_Rejected) GetReason() string {
 type CompleteManualAmlCheckResponse_Approved struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// *
-	// updated amount based on updated quote approved by the  pay-in provider
+	// updated amount based on updated quote approved by the Payout Requester
 	PayOutAmount *common.Decimal `protobuf:"bytes,10,opt,name=pay_out_amount,json=payOutAmount,proto3" json:"pay_out_amount,omitempty"`
-	// updated settlement amount based on updated quote approved by the  pay-in provider
+	// updated settlement amount based on updated quote approved by the Payout Requester
 	SettlementAmount *common.Decimal `protobuf:"bytes,20,opt,name=settlement_amount,json=settlementAmount,proto3" json:"settlement_amount,omitempty"`
 	// unique identifier of the updated pay-out quote
 	PayOutQuoteId int64 `protobuf:"varint,30,opt,name=pay_out_quote_id,json=payOutQuoteId,proto3" json:"pay_out_quote_id,omitempty"`
-	// client_quote_id of the updated pay-out quote assigned by pay-out provider
+	// client_quote_id of the updated pay-out quote assigned by the Payout Provider
 	PayOutClientQuoteId string `protobuf:"bytes,40,opt,name=pay_out_client_quote_id,json=payOutClientQuoteId,proto3" json:"pay_out_client_quote_id,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
@@ -2059,7 +2061,7 @@ func (x *CompleteManualAmlCheckResponse_Approved) GetPayOutClientQuoteId() strin
 	return ""
 }
 
-// Rejected means that the updated quotes were rejected by pay-in provider, and the payout provider should not proceed
+// Rejected means that the updated quotes were rejected by the Payout Requester, and the Payout Provider should not proceed
 // with the payout.
 type CompleteManualAmlCheckResponse_Rejected struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
@@ -2100,7 +2102,7 @@ func (*CompleteManualAmlCheckResponse_Rejected) Descriptor() ([]byte, []int) {
 type FinalizePayoutRequest_Success struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// *
-	// Payment receipt might contain metadata about payment recognizable by pay-in provider.
+	// Payment receipt might contain metadata about payment recognizable by the Payout Requester.
 	Receipt       *common.PaymentReceipt `protobuf:"bytes,30,opt,name=receipt,proto3,oneof" json:"receipt,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache

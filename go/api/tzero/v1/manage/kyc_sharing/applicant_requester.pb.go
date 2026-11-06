@@ -536,9 +536,8 @@ func (x *GetRequesterKycApplicantResponse) GetVersion() uint64 {
 }
 
 // *
-// Stores an applicant's KYB values. The form scope is implicit and the version is
-// server-resolved to the client's bound form version (the provider's current version on the first save), so
-// neither is sent.
+// Stores an applicant's KYB values against the client's bound form version (the provider's current version on the
+// first save).
 type SaveKybApplicantRequest struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
 	PayoutProviderId uint32                 `protobuf:"varint,10,opt,name=payout_provider_id,json=payoutProviderId,proto3" json:"payout_provider_id,omitempty"`
@@ -548,7 +547,11 @@ type SaveKybApplicantRequest struct {
 	Applicant *KybApplicant `protobuf:"bytes,30,opt,name=applicant,proto3" json:"applicant,omitempty"`
 	// The full ordered UBO set (snapshot), at most 100 owners — position is the owner's index; a later save
 	// replaces the stored owners, and an omitted or empty list clears all stored owners.
-	Ubos          []*KybUbo `protobuf:"bytes,40,rep,name=ubos,proto3" json:"ubos,omitempty"`
+	Ubos []*KybUbo `protobuf:"bytes,40,rep,name=ubos,proto3" json:"ubos,omitempty"`
+	// The form version the values were filled against. When the client is bound to a different version (on the first
+	// save, the provider's current version), the save fails with FailedPrecondition and stores nothing: read the form
+	// again (Create, then Get, for a new applicant) and refill the values. Unset skips this check.
+	FormVersion   *uint32 `protobuf:"varint,50,opt,name=form_version,json=formVersion,proto3,oneof" json:"form_version,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -609,6 +612,13 @@ func (x *SaveKybApplicantRequest) GetUbos() []*KybUbo {
 		return x.Ubos
 	}
 	return nil
+}
+
+func (x *SaveKybApplicantRequest) GetFormVersion() uint32 {
+	if x != nil && x.FormVersion != nil {
+		return *x.FormVersion
+	}
+	return 0
 }
 
 // * Stored values echoed back with the payout provider's form definition and the bound form_version, ready for the edit UI.
@@ -699,7 +709,11 @@ type SaveKycApplicantRequest struct {
 	PayoutProviderId uint32                 `protobuf:"varint,10,opt,name=payout_provider_id,json=payoutProviderId,proto3" json:"payout_provider_id,omitempty"`
 	ClientId         string                 `protobuf:"bytes,20,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
 	// The complete snapshot, sent on every save; an empty applicant clears all stored values.
-	Applicant     *KycApplicant `protobuf:"bytes,30,opt,name=applicant,proto3" json:"applicant,omitempty"`
+	Applicant *KycApplicant `protobuf:"bytes,30,opt,name=applicant,proto3" json:"applicant,omitempty"`
+	// The form version the values were filled against. When the client is bound to a different version (on the first
+	// save, the provider's current version), the save fails with FailedPrecondition and stores nothing: read the form
+	// again (Create, then Get, for a new applicant) and refill the values. Unset skips this check.
+	FormVersion   *uint32 `protobuf:"varint,40,opt,name=form_version,json=formVersion,proto3,oneof" json:"form_version,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -753,6 +767,13 @@ func (x *SaveKycApplicantRequest) GetApplicant() *KycApplicant {
 		return x.Applicant
 	}
 	return nil
+}
+
+func (x *SaveKycApplicantRequest) GetFormVersion() uint32 {
+	if x != nil && x.FormVersion != nil {
+		return *x.FormVersion
+	}
+	return 0
 }
 
 // * Stored KYC values echoed back with the payout provider's form definition and the bound form_version.
@@ -1528,25 +1549,29 @@ const file_tzero_v1_manage_kyc_sharing_applicant_requester_proto_rawDesc = "" +
 	"\x05state\x18( \x01(\x0e2+.tzero.v1.manage.kyc_sharing.ApplicantStateR\x05state\x12(\n" +
 	"\rreject_reason\x182 \x01(\tH\x00R\frejectReason\x88\x01\x01\x12\x18\n" +
 	"\aversion\x18< \x01(\x04R\aversionB\x10\n" +
-	"\x0e_reject_reason\"\x8c\x02\n" +
+	"\x0e_reject_reason\"\xce\x02\n" +
 	"\x17SaveKybApplicantRequest\x125\n" +
 	"\x12payout_provider_id\x18\n" +
 	" \x01(\rB\a\xbaH\x04*\x02 \x00R\x10payoutProviderId\x12&\n" +
 	"\tclient_id\x18\x14 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18@R\bclientId\x12O\n" +
 	"\tapplicant\x18\x1e \x01(\v2).tzero.v1.manage.kyc_sharing.KybApplicantB\x06\xbaH\x03\xc8\x01\x01R\tapplicant\x12A\n" +
-	"\x04ubos\x18( \x03(\v2#.tzero.v1.manage.kyc_sharing.KybUboB\b\xbaH\x05\x92\x01\x02\x10dR\x04ubos\"\x9b\x02\n" +
+	"\x04ubos\x18( \x03(\v2#.tzero.v1.manage.kyc_sharing.KybUboB\b\xbaH\x05\x92\x01\x02\x10dR\x04ubos\x12/\n" +
+	"\fform_version\x182 \x01(\rB\a\xbaH\x04*\x02 \x00H\x00R\vformVersion\x88\x01\x01B\x0f\n" +
+	"\r_form_version\"\x9b\x02\n" +
 	"\x18SaveKybApplicantResponse\x12@\n" +
 	"\x04form\x18\n" +
 	" \x01(\v2$.tzero.v1.manage.kyc_sharing.KybFormB\x06\xbaH\x03\xc8\x01\x01R\x04form\x12G\n" +
 	"\tapplicant\x18\x14 \x01(\v2).tzero.v1.manage.kyc_sharing.KybApplicantR\tapplicant\x127\n" +
 	"\x04ubos\x18\x1e \x03(\v2#.tzero.v1.manage.kyc_sharing.KybUboR\x04ubos\x12!\n" +
 	"\fform_version\x18( \x01(\rR\vformVersion\x12\x18\n" +
-	"\aversion\x182 \x01(\x04R\aversion\"\xc9\x01\n" +
+	"\aversion\x182 \x01(\x04R\aversion\"\x8b\x02\n" +
 	"\x17SaveKycApplicantRequest\x125\n" +
 	"\x12payout_provider_id\x18\n" +
 	" \x01(\rB\a\xbaH\x04*\x02 \x00R\x10payoutProviderId\x12&\n" +
 	"\tclient_id\x18\x14 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18@R\bclientId\x12O\n" +
-	"\tapplicant\x18\x1e \x01(\v2).tzero.v1.manage.kyc_sharing.KycApplicantB\x06\xbaH\x03\xc8\x01\x01R\tapplicant\"\xe2\x01\n" +
+	"\tapplicant\x18\x1e \x01(\v2).tzero.v1.manage.kyc_sharing.KycApplicantB\x06\xbaH\x03\xc8\x01\x01R\tapplicant\x12/\n" +
+	"\fform_version\x18( \x01(\rB\a\xbaH\x04*\x02 \x00H\x00R\vformVersion\x88\x01\x01B\x0f\n" +
+	"\r_form_version\"\xe2\x01\n" +
 	"\x18SaveKycApplicantResponse\x12@\n" +
 	"\x04form\x18\n" +
 	" \x01(\v2$.tzero.v1.manage.kyc_sharing.KycFormB\x06\xbaH\x03\xc8\x01\x01R\x04form\x12G\n" +
@@ -1731,6 +1756,8 @@ func file_tzero_v1_manage_kyc_sharing_applicant_requester_proto_init() {
 	file_tzero_v1_manage_kyc_sharing_form_proto_init()
 	file_tzero_v1_manage_kyc_sharing_applicant_requester_proto_msgTypes[3].OneofWrappers = []any{}
 	file_tzero_v1_manage_kyc_sharing_applicant_requester_proto_msgTypes[7].OneofWrappers = []any{}
+	file_tzero_v1_manage_kyc_sharing_applicant_requester_proto_msgTypes[8].OneofWrappers = []any{}
+	file_tzero_v1_manage_kyc_sharing_applicant_requester_proto_msgTypes[10].OneofWrappers = []any{}
 	file_tzero_v1_manage_kyc_sharing_applicant_requester_proto_msgTypes[18].OneofWrappers = []any{}
 	type x struct{}
 	out := protoimpl.TypeBuilder{

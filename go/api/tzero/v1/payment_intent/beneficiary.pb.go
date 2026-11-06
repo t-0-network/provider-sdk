@@ -102,7 +102,7 @@ type isPaymentIntentUpdateRequest_Update interface {
 
 type PaymentIntentUpdateRequest_FundsReceived_ struct {
 	// *
-	// Funds were received from the payer by pay-in provider.
+	// Funds were received from the payer by the Collection Provider.
 	FundsReceived *PaymentIntentUpdateRequest_FundsReceived `protobuf:"bytes,20,opt,name=funds_received,json=fundsReceived,proto3,oneof"`
 }
 
@@ -149,11 +149,11 @@ func (*PaymentIntentUpdateResponse) Descriptor() ([]byte, []int) {
 }
 
 // *
-// Notification that funds were received from the payer by pay-in provider.
+// Notification that funds were received from the payer by the Collection Provider.
 type PaymentIntentUpdateRequest_FundsReceived struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// *
-	// The settlement amount credited to the beneficiary balance.
+	// The settlement amount credited to the Collection Requester's balance.
 	// This is calculated as: (payment_amount / rate) - fix
 	//
 	// Note: Fees are NOT deducted from this amount. Fees are tracked
@@ -170,19 +170,19 @@ type PaymentIntentUpdateRequest_FundsReceived struct {
 	PaymentMethod common.PaymentMethodType `protobuf:"varint,40,opt,name=payment_method,json=paymentMethod,proto3,enum=tzero.v1.common.PaymentMethodType" json:"payment_method,omitempty"`
 	// *
 	// Pay-in's rail-native reference (SEPA EndToEndId, SWIFT UETR, PIX e2e_id), forwarded from ConfirmFundsReceived.
-	// Reconcile against the beneficiary's records; serves as the anchor for dispute resolution.
+	// Reconcile against the Collection Requester's records; serves as the anchor for dispute resolution.
 	TransactionReference string `protobuf:"bytes,50,opt,name=transaction_reference,json=transactionReference,proto3" json:"transaction_reference,omitempty"`
 	// *
-	// Travel rule data of the pay-in provider's legal entity that received the funds.
-	// Present when the pay-in provider has registered travel rule data.
+	// Travel rule data of the Collection Provider's legal entity that received the funds.
+	// Present when the Collection Provider has registered travel rule data.
 	TravelRuleData *PaymentIntentUpdateRequest_FundsReceived_TravelRuleData `protobuf:"bytes,60,opt,name=travel_rule_data,json=travelRuleData,proto3" json:"travel_rule_data,omitempty"`
 	// *
-	// Flat USD surcharge retained by the pay-in provider per transfer.
+	// Flat USD surcharge retained by the Collection Provider per transfer.
 	// Already subtracted from settlement_amount.
 	// Settlement is computed as (payment_amount / rate) - fix.
 	Fix *common.Decimal `protobuf:"bytes,70,opt,name=fix,proto3" json:"fix,omitempty"`
 	// *
-	// The pay-in provider that collected the funds — the counterparty whose balance moved
+	// The Collection Provider that collected the funds — the counterparty whose balance moved
 	// against this intent. Distinguishes providers that share a payment method.
 	PayInProviderId uint32 `protobuf:"varint,80,opt,name=pay_in_provider_id,json=payInProviderId,proto3" json:"pay_in_provider_id,omitempty"`
 	unknownFields   protoimpl.UnknownFields
@@ -278,7 +278,7 @@ func (x *PaymentIntentUpdateRequest_FundsReceived) GetPayInProviderId() uint32 {
 type PaymentIntentUpdateRequest_FundsReceived_TravelRuleData struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// *
-	// IVMS101 legal person data of the originating provider's legal entity.
+	// IVMS101 legal person data of the Collection Provider's legal entity.
 	OriginatorProvider *ivms.LegalPerson `protobuf:"bytes,30,opt,name=originator_provider,json=originatorProvider,proto3" json:"originator_provider,omitempty"`
 	unknownFields      protoimpl.UnknownFields
 	sizeCache          protoimpl.SizeCache
