@@ -4673,7 +4673,7 @@ func (x *PaymentDetails_Swift_IntermediaryBank) GetAccountNumber() string {
 
 type PaymentDetails_Cnaps_Business struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Business license number - 18 digits
+	// Business license number (Unified Social Credit Code) - 18 digits or uppercase letters
 	LicenseNumber string `protobuf:"bytes,10,opt,name=license_number,json=licenseNumber,proto3" json:"license_number,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -4718,7 +4718,7 @@ func (x *PaymentDetails_Cnaps_Business) GetLicenseNumber() string {
 
 type PaymentDetails_Cnaps_Person struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// ID number - 18 digits
+	// ID number - 17 digits followed by a digit or X
 	IdNumber      string `protobuf:"bytes,10,opt,name=id_number,json=idNumber,proto3" json:"id_number,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -4894,7 +4894,7 @@ var File_tzero_v1_common_payment_method_proto protoreflect.FileDescriptor
 
 const file_tzero_v1_common_payment_method_proto_rawDesc = "" +
 	"\n" +
-	"$tzero/v1/common/payment_method.proto\x12\x0ftzero.v1.common\x1a\x1bbuf/validate/validate.proto\x1a google/protobuf/descriptor.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xf2\x83\x01\n" +
+	"$tzero/v1/common/payment_method.proto\x12\x0ftzero.v1.common\x1a\x1bbuf/validate/validate.proto\x1a google/protobuf/descriptor.proto\x1a\x1fgoogle/protobuf/timestamp.proto\"\xfb\x83\x01\n" +
 	"\x0ePaymentDetails\x12:\n" +
 	"\x04sepa\x18\n" +
 	" \x01(\v2$.tzero.v1.common.PaymentDetails.SepaH\x00R\x04sepa\x12=\n" +
@@ -5114,7 +5114,7 @@ const file_tzero_v1_common_payment_method_proto_rawDesc = "" +
 	"\x13_beneficiary_tax_idB\x14\n" +
 	"\x12_payment_referenceB\n" +
 	"\n" +
-	"\b_br_code\x1a\xec\x04\n" +
+	"\b_br_code\x1a\xf5\x04\n" +
 	"\x05Cnaps\x12?\n" +
 	"\x0eaccount_number\x18\n" +
 	" \x01(\tB\x18\xbaH\x15r\x13\x10\x06\x18\x192\r^[0-9]{6,25}$R\raccountNumber\x125\n" +
@@ -5126,13 +5126,13 @@ const file_tzero_v1_common_payment_method_proto_rawDesc = "" +
 	"\xbaH\ar\x05\x10\x01\x18\x8c\x01R\x0fbeneficiaryName\x12L\n" +
 	"\bbusiness\x182 \x01(\v2..tzero.v1.common.PaymentDetails.Cnaps.BusinessH\x00R\bbusiness\x12F\n" +
 	"\x06person\x18< \x01(\v2,.tzero.v1.common.PaymentDetails.Cnaps.PersonH\x00R\x06person\x125\n" +
-	"\x11payment_reference\x18F \x01(\tB\b\xbaH\x05r\x03\x18\x8c\x01R\x10paymentReference\x1aI\n" +
-	"\bBusiness\x12=\n" +
+	"\x11payment_reference\x18F \x01(\tB\b\xbaH\x05r\x03\x18\x8c\x01R\x10paymentReference\x1aL\n" +
+	"\bBusiness\x12@\n" +
 	"\x0elicense_number\x18\n" +
-	" \x01(\tB\x16\xbaH\x13r\x11\x10\x12\x18\x122\v^[0-9]{18}$R\rlicenseNumber\x1a=\n" +
-	"\x06Person\x123\n" +
+	" \x01(\tB\x19\xbaH\x16r\x14\x10\x12\x18\x122\x0e^[0-9A-Z]{18}$R\rlicenseNumber\x1aC\n" +
+	"\x06Person\x129\n" +
 	"\tid_number\x18\n" +
-	" \x01(\tB\x16\xbaH\x13r\x11\x10\x12\x18\x122\v^[0-9]{18}$R\bidNumber:\x05\x88\xa6\x1d\xaa\x01B\x14\n" +
+	" \x01(\tB\x1c\xbaH\x19r\x17\x10\x12\x18\x122\x11^[0-9]{17}[0-9X]$R\bidNumber:\x05\x88\xa6\x1d\xaa\x01B\x14\n" +
 	"\vbeneficiary\x12\x05\xbaH\x02\b\x01\x1a\xf8\x01\n" +
 	"\x03Nip\x12;\n" +
 	"\tbank_code\x18\n" +
