@@ -15,7 +15,7 @@ For *which files* hold versions, see [`VERSIONING.md`](./VERSIONING.md).
 
 Triggered by `gh workflow run release.yaml -f bump=<patch|minor|major> --ref master`. Default bump is `patch`.
 
-**Choosing the bump.** `patch` is for fixes only. A release with new API or breaking changes needs at least `minor`, and its GitHub Release notes should list the breaking changes. The release workflow generates notes that only list the merged pull requests by title, grouped by label ([`.github/release.yml`](../.github/release.yml)). Add the breaking changes and the migration steps by editing the GitHub Release after the workflow has created it. A `major` bump needs more than the workflow: Go's module path must first move to `/v2` (semantic import versioning), or `go get` refuses a `v2.0.0` tag.
+**Choosing the bump.** `patch` is for fixes only. A release with new API or breaking changes needs at least `minor`, and its GitHub Release notes should list the breaking changes. The release workflow generates notes that only list the merged pull requests by title, grouped by label ([`.github/release.yml`](../.github/release.yml)). To list a breaking change, give its pull request the `breaking-change` label and a title that says what breaks and how to migrate; the notes list it under "Breaking Changes". The notes read titles and labels when the release is created, so a merged pull request, such as a sync from `t-0-network/backend`, can still be retitled and labeled before the release. If the migration steps do not fit in a title, add them by editing the GitHub Release after the workflow has created it. A `major` bump needs more than the workflow: Go's module path must first move to `/v2` (semantic import versioning), or `go get` refuses a `v2.0.0` tag.
 
 Steps in order:
 

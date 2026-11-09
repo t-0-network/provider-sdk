@@ -5,6 +5,10 @@ changelog:
       - invalid
       - wontfix
   categories:
+    # First, so that a breaking pull request is listed here and not under its other labels.
+    - title: Breaking Changes
+      labels:
+        - breaking-change
     - title: Features
       labels:
         - enhancement
