@@ -26,9 +26,11 @@ const (
 type CreateRequesterKybApplicantRequest struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
 	PayoutProviderId uint32                 `protobuf:"varint,10,opt,name=payout_provider_id,json=payoutProviderId,proto3" json:"payout_provider_id,omitempty"`
-	ClientId         string                 `protobuf:"bytes,20,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// The end-client reference. At most 50 characters, so the same reference fits a payment's travel-rule
+	// customer number (`ivms101.LegalPerson.customer_number`, `ivms101.NaturalPerson.customer_identification`).
+	ClientId      string `protobuf:"bytes,20,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CreateRequesterKybApplicantRequest) Reset() {
@@ -287,9 +289,11 @@ func (x *GetRequesterKybApplicantResponse) GetVersion() uint64 {
 type CreateRequesterKycApplicantRequest struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
 	PayoutProviderId uint32                 `protobuf:"varint,10,opt,name=payout_provider_id,json=payoutProviderId,proto3" json:"payout_provider_id,omitempty"`
-	ClientId         string                 `protobuf:"bytes,20,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
-	unknownFields    protoimpl.UnknownFields
-	sizeCache        protoimpl.SizeCache
+	// The end-client reference. At most 50 characters, so the same reference fits a payment's travel-rule
+	// customer number (`ivms101.LegalPerson.customer_number`, `ivms101.NaturalPerson.customer_identification`).
+	ClientId      string `protobuf:"bytes,20,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
+	unknownFields protoimpl.UnknownFields
+	sizeCache     protoimpl.SizeCache
 }
 
 func (x *CreateRequesterKycApplicantRequest) Reset() {
@@ -1510,7 +1514,7 @@ const file_tzero_v1_manage_kyc_sharing_applicant_requester_proto_rawDesc = "" +
 	"\"CreateRequesterKybApplicantRequest\x125\n" +
 	"\x12payout_provider_id\x18\n" +
 	" \x01(\rB\a\xbaH\x04*\x02 \x00R\x10payoutProviderId\x12&\n" +
-	"\tclient_id\x18\x14 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18@R\bclientId\"\x8b\x01\n" +
+	"\tclient_id\x18\x14 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x182R\bclientId\"\x8b\x01\n" +
 	"#CreateRequesterKybApplicantResponse\x12!\n" +
 	"\fform_version\x18\n" +
 	" \x01(\rR\vformVersion\x12A\n" +
@@ -1518,7 +1522,7 @@ const file_tzero_v1_manage_kyc_sharing_applicant_requester_proto_rawDesc = "" +
 	"\x1fGetRequesterKybApplicantRequest\x125\n" +
 	"\x12payout_provider_id\x18\n" +
 	" \x01(\rB\a\xbaH\x04*\x02 \x00R\x10payoutProviderId\x12&\n" +
-	"\tclient_id\x18\x14 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18@R\bclientId\"\xa2\x03\n" +
+	"\tclient_id\x18\x14 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x182R\bclientId\"\xa2\x03\n" +
 	" GetRequesterKybApplicantResponse\x12@\n" +
 	"\x04form\x18\n" +
 	" \x01(\v2$.tzero.v1.manage.kyc_sharing.KybFormB\x06\xbaH\x03\xc8\x01\x01R\x04form\x12G\n" +
@@ -1532,7 +1536,7 @@ const file_tzero_v1_manage_kyc_sharing_applicant_requester_proto_rawDesc = "" +
 	"\"CreateRequesterKycApplicantRequest\x125\n" +
 	"\x12payout_provider_id\x18\n" +
 	" \x01(\rB\a\xbaH\x04*\x02 \x00R\x10payoutProviderId\x12&\n" +
-	"\tclient_id\x18\x14 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18@R\bclientId\"\x8b\x01\n" +
+	"\tclient_id\x18\x14 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x182R\bclientId\"\x8b\x01\n" +
 	"#CreateRequesterKycApplicantResponse\x12!\n" +
 	"\fform_version\x18\n" +
 	" \x01(\rR\vformVersion\x12A\n" +
@@ -1540,7 +1544,7 @@ const file_tzero_v1_manage_kyc_sharing_applicant_requester_proto_rawDesc = "" +
 	"\x1fGetRequesterKycApplicantRequest\x125\n" +
 	"\x12payout_provider_id\x18\n" +
 	" \x01(\rB\a\xbaH\x04*\x02 \x00R\x10payoutProviderId\x12&\n" +
-	"\tclient_id\x18\x14 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18@R\bclientId\"\xe9\x02\n" +
+	"\tclient_id\x18\x14 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x182R\bclientId\"\xe9\x02\n" +
 	" GetRequesterKycApplicantResponse\x12@\n" +
 	"\x04form\x18\n" +
 	" \x01(\v2$.tzero.v1.manage.kyc_sharing.KycFormB\x06\xbaH\x03\xc8\x01\x01R\x04form\x12G\n" +
@@ -1553,7 +1557,7 @@ const file_tzero_v1_manage_kyc_sharing_applicant_requester_proto_rawDesc = "" +
 	"\x17SaveKybApplicantRequest\x125\n" +
 	"\x12payout_provider_id\x18\n" +
 	" \x01(\rB\a\xbaH\x04*\x02 \x00R\x10payoutProviderId\x12&\n" +
-	"\tclient_id\x18\x14 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18@R\bclientId\x12O\n" +
+	"\tclient_id\x18\x14 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x182R\bclientId\x12O\n" +
 	"\tapplicant\x18\x1e \x01(\v2).tzero.v1.manage.kyc_sharing.KybApplicantB\x06\xbaH\x03\xc8\x01\x01R\tapplicant\x12A\n" +
 	"\x04ubos\x18( \x03(\v2#.tzero.v1.manage.kyc_sharing.KybUboB\b\xbaH\x05\x92\x01\x02\x10dR\x04ubos\x12/\n" +
 	"\fform_version\x182 \x01(\rB\a\xbaH\x04*\x02 \x00H\x00R\vformVersion\x88\x01\x01B\x0f\n" +
@@ -1568,7 +1572,7 @@ const file_tzero_v1_manage_kyc_sharing_applicant_requester_proto_rawDesc = "" +
 	"\x17SaveKycApplicantRequest\x125\n" +
 	"\x12payout_provider_id\x18\n" +
 	" \x01(\rB\a\xbaH\x04*\x02 \x00R\x10payoutProviderId\x12&\n" +
-	"\tclient_id\x18\x14 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18@R\bclientId\x12O\n" +
+	"\tclient_id\x18\x14 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x182R\bclientId\x12O\n" +
 	"\tapplicant\x18\x1e \x01(\v2).tzero.v1.manage.kyc_sharing.KycApplicantB\x06\xbaH\x03\xc8\x01\x01R\tapplicant\x12/\n" +
 	"\fform_version\x18( \x01(\rB\a\xbaH\x04*\x02 \x00H\x00R\vformVersion\x88\x01\x01B\x0f\n" +
 	"\r_form_version\"\xe2\x01\n" +
@@ -1581,18 +1585,18 @@ const file_tzero_v1_manage_kyc_sharing_applicant_requester_proto_rawDesc = "" +
 	"\x16DeleteApplicantRequest\x125\n" +
 	"\x12payout_provider_id\x18\n" +
 	" \x01(\rB\a\xbaH\x04*\x02 \x00R\x10payoutProviderId\x12&\n" +
-	"\tclient_id\x18\x14 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18@R\bclientId\"\x19\n" +
+	"\tclient_id\x18\x14 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x182R\bclientId\"\x19\n" +
 	"\x17DeleteApplicantResponse\"\x91\x01\n" +
 	"\x16SubmitApplicantRequest\x125\n" +
 	"\x12payout_provider_id\x18\n" +
 	" \x01(\rB\a\xbaH\x04*\x02 \x00R\x10payoutProviderId\x12&\n" +
-	"\tclient_id\x18\x14 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18@R\bclientId\x12\x18\n" +
+	"\tclient_id\x18\x14 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x182R\bclientId\x12\x18\n" +
 	"\aversion\x18\x1e \x01(\x04R\aversion\"\x19\n" +
 	"\x17SubmitApplicantResponse\"\x93\x01\n" +
 	"\x18WithdrawApplicantRequest\x125\n" +
 	"\x12payout_provider_id\x18\n" +
 	" \x01(\rB\a\xbaH\x04*\x02 \x00R\x10payoutProviderId\x12&\n" +
-	"\tclient_id\x18\x14 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18@R\bclientId\x12\x18\n" +
+	"\tclient_id\x18\x14 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x182R\bclientId\x12\x18\n" +
 	"\aversion\x18\x1e \x01(\x04R\aversion\"\x1b\n" +
 	"\x19WithdrawApplicantResponse\"\xf3\x02\n" +
 	"\x1eListRequesterApplicantsRequest\x12S\n" +

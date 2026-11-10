@@ -75,15 +75,14 @@ type GetQuoteResponse_Failure_Reason int32
 
 const (
 	GetQuoteResponse_Failure_REASON_UNSPECIFIED GetQuoteResponse_Failure_Reason = 0
-	// No candidate quote was returned for the requested currency / payment method
-	// (e.g. no published quote, all expired, no credit line configured between
-	// the providers, the requested amount exceeds the provider's max_amount band,
-	// or a settlement_amount leaves no pay-out amount after the provider's fix).
+	// No quote fits the currency, payment method and amount, or no credit line exists.
 	GetQuoteResponse_Failure_REASON_QUOTE_NOT_FOUND GetQuoteResponse_Failure_Reason = 10
-	// At least one provider quoted, but none has enough credit / prefunding
-	// headroom to execute the requested amount. Inspect `all_quotes[].settlement`
-	// for the per-provider prefunding gap.
+	// Quotes exist, but no credit line covers the amount.
+	// all_quotes shows the prefunding each provider needs.
 	GetQuoteResponse_Failure_REASON_CREDIT_OR_PREDEPOSIT_REQUIRED GetQuoteResponse_Failure_Reason = 20
+	// The settlement_amount is too small to pay out anything after the quote's fix.
+	// Retry with a larger settlement_amount.
+	GetQuoteResponse_Failure_REASON_AMOUNT_TOO_SMALL GetQuoteResponse_Failure_Reason = 30
 )
 
 // Enum value maps for GetQuoteResponse_Failure_Reason.
@@ -92,11 +91,13 @@ var (
 		0:  "REASON_UNSPECIFIED",
 		10: "REASON_QUOTE_NOT_FOUND",
 		20: "REASON_CREDIT_OR_PREDEPOSIT_REQUIRED",
+		30: "REASON_AMOUNT_TOO_SMALL",
 	}
 	GetQuoteResponse_Failure_Reason_value = map[string]int32{
 		"REASON_UNSPECIFIED":                   0,
 		"REASON_QUOTE_NOT_FOUND":               10,
 		"REASON_CREDIT_OR_PREDEPOSIT_REQUIRED": 20,
+		"REASON_AMOUNT_TOO_SMALL":              30,
 	}
 )
 
@@ -131,26 +132,21 @@ type CreatePaymentResponse_Failure_Reason int32
 
 const (
 	CreatePaymentResponse_Failure_REASON_UNSPECIFIED CreatePaymentResponse_Failure_Reason = 0
-	// No candidate quote was returned for the requested currency / payment method
-	// (e.g. no published quote, all expired, no credit line configured between
-	// the providers, the requested amount exceeds the provider's max_amount band,
-	// or a settlement_amount leaves no pay-out amount after the provider's fix).
+	// No quote fits the currency, payment method and amount, or no credit line exists.
 	CreatePaymentResponse_Failure_REASON_QUOTE_NOT_FOUND CreatePaymentResponse_Failure_Reason = 10
-	// At least one provider quoted, but none has enough credit / prefunding
-	// headroom to execute the requested amount. Call GetQuote to inspect
-	// `all_quotes[].settlement` for the per-provider prefunding gap.
+	// Quotes exist, but no credit line covers the amount.
+	// GetQuote shows the prefunding each provider needs.
 	CreatePaymentResponse_Failure_REASON_CREDIT_OR_PREDEPOSIT_REQUIRED CreatePaymentResponse_Failure_Reason = 20
-	// The pinned quote's band cannot cover the requested amount. The quote is
-	// still live; retry with a smaller amount, split the payment across bands,
-	// or request a fresh GetQuote for a quote that covers the full amount.
+	// The amount is above the pinned quote's maximum.
+	// Retry with a smaller amount, or with a new quote from GetQuote.
 	CreatePaymentResponse_Failure_REASON_AMOUNT_EXCEEDS_QUOTE_BAND CreatePaymentResponse_Failure_Reason = 30
-	// The pinned quote's expires_at has passed. Auto-retry by calling GetQuote
-	// to obtain a fresh quote id and re-submit with it.
+	// The pinned quote has expired. Retry with a new quote from GetQuote.
 	CreatePaymentResponse_Failure_REASON_QUOTE_EXPIRED CreatePaymentResponse_Failure_Reason = 40
-	// The pinned quote id does not exist for the Payout Requester / Payout Provider pair.
-	// Indicates a client-side plumbing bug (stale / mismatched id); no auto-retry
-	// will succeed until the client fixes quote propagation.
+	// The pinned quote id is unknown. A retry with the same quote id fails again.
 	CreatePaymentResponse_Failure_REASON_QUOTE_ID_UNKNOWN CreatePaymentResponse_Failure_Reason = 50
+	// The settlement_amount is too small to pay out anything after the quote's fix.
+	// Retry with a larger settlement_amount.
+	CreatePaymentResponse_Failure_REASON_AMOUNT_TOO_SMALL CreatePaymentResponse_Failure_Reason = 60
 )
 
 // Enum value maps for CreatePaymentResponse_Failure_Reason.
@@ -162,6 +158,7 @@ var (
 		30: "REASON_AMOUNT_EXCEEDS_QUOTE_BAND",
 		40: "REASON_QUOTE_EXPIRED",
 		50: "REASON_QUOTE_ID_UNKNOWN",
+		60: "REASON_AMOUNT_TOO_SMALL",
 	}
 	CreatePaymentResponse_Failure_Reason_value = map[string]int32{
 		"REASON_UNSPECIFIED":                   0,
@@ -170,6 +167,7 @@ var (
 		"REASON_AMOUNT_EXCEEDS_QUOTE_BAND":     30,
 		"REASON_QUOTE_EXPIRED":                 40,
 		"REASON_QUOTE_ID_UNKNOWN":              50,
+		"REASON_AMOUNT_TOO_SMALL":              60,
 	}
 )
 
@@ -204,8 +202,7 @@ func (CreatePaymentResponse_Failure_Reason) EnumDescriptor() ([]byte, []int) {
 type UpdateQuoteRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// *
-	// Zero or more quotes for pay-out operations, each quote must have a unique currency, and one or more bands, with the
-	// unique client_quote_id for each band.
+	// Pay-out quotes. Each band has a unique client_quote_id.
 	PayOut        []*UpdateQuoteRequest_Quote `protobuf:"bytes,10,rep,name=pay_out,json=payOut,proto3" json:"pay_out,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -360,11 +357,8 @@ type GetQuoteResponse struct {
 	//	*GetQuoteResponse_Failure_
 	Result isGetQuoteResponse_Result `protobuf_oneof:"result"`
 	// *
-	// All best quotes from providers with credit lines.
-	// Each quote is that provider's best effective price for the requested amount:
-	// the lowest settlement amount, and on a tie the largest (settlement amount - fix) * rate.
-	// Each quote indicates whether it can be executed immediately.
-	// Always returned alongside success/failure - providers can compare alternatives or see options when no executable quote exists.
+	// The best quote of each provider with a credit line, for the requested amount.
+	// Returned with both success and failure.
 	AllQuotes     []*GetQuoteResponse_ProviderQuote `protobuf:"bytes,40,rep,name=all_quotes,json=allQuotes,proto3" json:"all_quotes,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -445,8 +439,7 @@ type GetQuoteResponse_Success_ struct {
 
 type GetQuoteResponse_Failure_ struct {
 	// *
-	// Failure response - means the quote was not found for the specified parameters, or provider limits
-	// would exceed by processing the payment amount with the specified amount.
+	// No quote can serve the request. The reason says why.
 	Failure *GetQuoteResponse_Failure `protobuf:"bytes,30,opt,name=failure,proto3,oneof"`
 }
 
@@ -457,20 +450,14 @@ func (*GetQuoteResponse_Failure_) isGetQuoteResponse_Result() {}
 type CreatePaymentRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// *
-	// Unique client generated id for this payment.
-	// A `failure` result creates no payment and leaves the id free. To try the same payment again,
-	// resend this id, also when the retry changes the amount or the quote. If an earlier call under
-	// this id was accepted, the response is that `accepted` result, or `AlreadyExists` when the amount
-	// or currency differs from the accepted payment.
-	// Once a payment is accepted, the id belongs to it, so a new attempt after a payout failure takes a new id.
-	// Each extra part of a split payment is a new payment and takes a new id.
-	// Do not retry a `failure` under a new id: an overlapping call under the old id can be accepted,
-	// and the payment is then paid out twice.
+	// Client id of the payment. To retry, resend the same id, also with a new amount or quote.
+	// Once accepted, the id returns that payment, or AlreadyExists if the amount or currency differs.
+	// A retry of a `failure` under a new id can pay the payment out twice.
 	PaymentClientId string                               `protobuf:"bytes,10,opt,name=payment_client_id,json=paymentClientId,proto3" json:"payment_client_id,omitempty"`
 	Amount          *PaymentAmount                       `protobuf:"bytes,30,opt,name=amount,proto3" json:"amount,omitempty"`                                          // payment amount - should be either pay-out amount or settlement amount
 	Currency        string                               `protobuf:"bytes,40,opt,name=currency,proto3" json:"currency,omitempty"`                                      // pay-out currency
 	PaymentDetails  *common.PaymentDetails               `protobuf:"bytes,50,opt,name=payment_details,json=paymentDetails,proto3" json:"payment_details,omitempty"`    // pay-out payment details
-	QuoteId         *QuoteId                             `protobuf:"bytes,60,opt,name=quote_id,json=quoteId,proto3,oneof" json:"quote_id,omitempty"`                   // if specified, must be a valid quoteId that was previously returned by GetQuote otherwise last available quote will be used
+	QuoteId         *QuoteId                             `protobuf:"bytes,60,opt,name=quote_id,json=quoteId,proto3,oneof" json:"quote_id,omitempty"`                   // a quote from GetQuote; without it, the best quote is picked
 	TravelRuleData  *CreatePaymentRequest_TravelRuleData `protobuf:"bytes,100,opt,name=travel_rule_data,json=travelRuleData,proto3" json:"travel_rule_data,omitempty"` // travel rule data
 	unknownFields   protoimpl.UnknownFields
 	sizeCache       protoimpl.SizeCache
@@ -697,9 +684,7 @@ type CreatePaymentResponse_Accepted_ struct {
 }
 
 type CreatePaymentResponse_SettlementRequired_ struct {
-	// *
-	// Deprecated: Settlement required response - presettlement flow is being removed.
-	// This response type will no longer be returned.
+	// Deprecated: no longer returned.
 	//
 	// Deprecated: Marked as deprecated in tzero/v1/payment/network.proto.
 	SettlementRequired *CreatePaymentResponse_SettlementRequired `protobuf:"bytes,35,opt,name=settlement_required,json=settlementRequired,proto3,oneof"`
@@ -707,8 +692,7 @@ type CreatePaymentResponse_SettlementRequired_ struct {
 
 type CreatePaymentResponse_Failure_ struct {
 	// *
-	// The payment was not accepted — e.g. no suitable quote exists for the pay-out
-	// currency and amount, or the credit limit is exceeded for the available quotes.
+	// The payment was not accepted. The reason says why.
 	Failure *CreatePaymentResponse_Failure `protobuf:"bytes,30,opt,name=failure,proto3,oneof"`
 }
 
@@ -992,8 +976,7 @@ func (*CompleteManualAmlCheckResponse_Approved_) isCompleteManualAmlCheckRespons
 
 func (*CompleteManualAmlCheckResponse_Rejected_) isCompleteManualAmlCheckResponse_Result() {}
 
-// Payment amount could be specified either as settlement amount and then converted to corresponding amount of pay-out amount
-// or as pay-out amount, so that the settlement amount is calculated accordingly
+// The amount as a pay-out amount or as a settlement amount. The other amount is computed from it.
 type PaymentAmount struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Types that are valid to be assigned to Amount:
@@ -1299,10 +1282,7 @@ type UpdateQuoteRequest_Quote_Band struct {
 	MaxAmount     *common.Decimal        `protobuf:"bytes,40,opt,name=max_amount,json=maxAmount,proto3" json:"max_amount,omitempty"`               // Maximum amount of USD this band applies to.
 	Rate          *common.Decimal        `protobuf:"bytes,50,opt,name=rate,proto3" json:"rate,omitempty"`                                          // USD/currency rate
 	// *
-	// Fixed charge in USD applied per transfer on top of the exchange rate.
-	// This covers payment method costs (e.g. wire transfer fees).
-	// Added to the settlement amount: settlement = (amount / rate) + fix.
-	// Defaults to 0 when absent — no fixed charge applied.
+	// Fixed charge in USD per transfer, added to the settlement amount. Absent means no charge.
 	Fix           *common.Decimal `protobuf:"bytes,60,opt,name=fix,proto3,oneof" json:"fix,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1374,8 +1354,8 @@ type GetQuoteResponse_Success struct {
 	PayOutAmount     *common.Decimal        `protobuf:"bytes,40,opt,name=pay_out_amount,json=payOutAmount,proto3" json:"pay_out_amount,omitempty"`           // pay-out amount in pay-out currency if the quote from response is used
 	SettlementAmount *common.Decimal        `protobuf:"bytes,50,opt,name=settlement_amount,json=settlementAmount,proto3" json:"settlement_amount,omitempty"` // settlement amount in settlement currency if the quote from response is used
 	// *
-	// Fixed charge in USD included in settlement_amount.
-	// settlement_amount = (pay_out_amount / rate) + fix.
+	// Fixed charge in USD, included in settlement_amount.
+	// The settlement amount is rounded up to the cent, and the pay-out amount is rounded down.
 	Fix           *common.Decimal `protobuf:"bytes,60,opt,name=fix,proto3" json:"fix,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -1674,9 +1654,7 @@ type CreatePaymentRequest_TravelRuleData struct {
 	// by the originator as the receiver of the requested payment.
 	Beneficiary []*ivms.Person `protobuf:"bytes,20,rep,name=beneficiary,proto3" json:"beneficiary,omitempty"`
 	// *
-	// Legal entity ID of the Payout Requester.
-	// Required when the provider has multiple registered legal entities.
-	// If the provider has a single entity, this field may be omitted.
+	// Legal entity of the Payout Requester. Required only when the provider has more than one.
 	OriginatorProviderLegalEntityId *uint32 `protobuf:"varint,30,opt,name=originator_provider_legal_entity_id,json=originatorProviderLegalEntityId,proto3,oneof" json:"originator_provider_legal_entity_id,omitempty"`
 	unknownFields                   protoimpl.UnknownFields
 	sizeCache                       protoimpl.SizeCache
@@ -1801,7 +1779,7 @@ func (x *CreatePaymentResponse_Accepted) GetPayoutProviderId() uint32 {
 	return 0
 }
 
-// Deprecated: presettlement flow is being removed. This message will no longer be used.
+// Deprecated: no longer used.
 //
 // Deprecated: Marked as deprecated in tzero/v1/payment/network.proto.
 type CreatePaymentResponse_SettlementRequired struct {
@@ -2224,7 +2202,7 @@ const file_tzero_v1_payment_network_proto_rawDesc = "" +
 	"^[A-Z]{3}$\x98\x01\x03R\x0epayOutCurrency\x12P\n" +
 	"\x0epay_out_method\x182 \x01(\x0e2\".tzero.v1.common.PaymentMethodTypeB\x06\xbaH\x03\xc8\x01\x01R\fpayOutMethod\x12B\n" +
 	"\n" +
-	"quote_type\x18< \x01(\x0e2\x1b.tzero.v1.payment.QuoteTypeB\x06\xbaH\x03\xc8\x01\x01R\tquoteType\"\xa5\f\n" +
+	"quote_type\x18< \x01(\x0e2\x1b.tzero.v1.payment.QuoteTypeB\x06\xbaH\x03\xc8\x01\x01R\tquoteType\"\xc3\f\n" +
 	"\x10GetQuoteResponse\x12F\n" +
 	"\asuccess\x18\x14 \x01(\v2*.tzero.v1.payment.GetQuoteResponse.SuccessH\x00R\asuccess\x12F\n" +
 	"\afailure\x18\x1e \x01(\v2*.tzero.v1.payment.GetQuoteResponse.FailureH\x00R\afailure\x12O\n" +
@@ -2239,15 +2217,16 @@ const file_tzero_v1_payment_network_proto_rawDesc = "" +
 	"\bquote_id\x18\x1e \x01(\v2\x19.tzero.v1.payment.QuoteIdB\x06\xbaH\x03\xc8\x01\x01R\aquoteId\x12F\n" +
 	"\x0epay_out_amount\x18( \x01(\v2\x18.tzero.v1.common.DecimalB\x06\xbaH\x03\xc8\x01\x01R\fpayOutAmount\x12M\n" +
 	"\x11settlement_amount\x182 \x01(\v2\x18.tzero.v1.common.DecimalB\x06\xbaH\x03\xc8\x01\x01R\x10settlementAmount\x12*\n" +
-	"\x03fix\x18< \x01(\v2\x18.tzero.v1.common.DecimalR\x03fix\x1a\xbc\x01\n" +
+	"\x03fix\x18< \x01(\v2\x18.tzero.v1.common.DecimalR\x03fix\x1a\xda\x01\n" +
 	"\aFailure\x12I\n" +
 	"\x06reason\x18\n" +
-	" \x01(\x0e21.tzero.v1.payment.GetQuoteResponse.Failure.ReasonR\x06reason\"f\n" +
+	" \x01(\x0e21.tzero.v1.payment.GetQuoteResponse.Failure.ReasonR\x06reason\"\x83\x01\n" +
 	"\x06Reason\x12\x16\n" +
 	"\x12REASON_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16REASON_QUOTE_NOT_FOUND\x10\n" +
 	"\x12(\n" +
-	"$REASON_CREDIT_OR_PREDEPOSIT_REQUIRED\x10\x14\x1a\xd6\x05\n" +
+	"$REASON_CREDIT_OR_PREDEPOSIT_REQUIRED\x10\x14\x12\x1b\n" +
+	"\x17REASON_AMOUNT_TOO_SMALL\x10\x1e\x1a\xd6\x05\n" +
 	"\rProviderQuote\x12<\n" +
 	"\bquote_id\x18\n" +
 	" \x01(\v2\x19.tzero.v1.payment.QuoteIdB\x06\xbaH\x03\xc8\x01\x01R\aquoteId\x124\n" +
@@ -2293,7 +2272,7 @@ const file_tzero_v1_payment_network_proto_rawDesc = "" +
 	"\aQuoteId\x12\"\n" +
 	"\bquote_id\x18\x1e \x01(\x03B\a\xbaH\x04\"\x02 \x00R\aquoteId\x12(\n" +
 	"\vprovider_id\x18( \x01(\x05B\a\xbaH\x04\x1a\x02 \x00R\n" +
-	"providerId\"\xda\b\n" +
+	"providerId\"\xf7\b\n" +
 	"\x15CreatePaymentResponse\x123\n" +
 	"\x11payment_client_id\x18\n" +
 	" \x01(\tB\a\xbaH\x04r\x02\x10\x01R\x0fpaymentClientId\x12N\n" +
@@ -2312,10 +2291,10 @@ const file_tzero_v1_payment_network_proto_rawDesc = "" +
 	"payment_id\x18\n" +
 	" \x01(\x04B\a\xbaH\x042\x02 \x00R\tpaymentId\x12M\n" +
 	"\x11settlement_amount\x18\x14 \x01(\v2\x18.tzero.v1.common.DecimalB\x06\xbaH\x03\xc8\x01\x01R\x10settlementAmount\x125\n" +
-	"\x12payout_provider_id\x18\x1e \x01(\rB\a\xbaH\x04*\x02 \x00R\x10payoutProviderId:\x02\x18\x01\x1a\x9f\x02\n" +
+	"\x12payout_provider_id\x18\x1e \x01(\rB\a\xbaH\x04*\x02 \x00R\x10payoutProviderId:\x02\x18\x01\x1a\xbc\x02\n" +
 	"\aFailure\x12N\n" +
 	"\x06reason\x18\n" +
-	" \x01(\x0e26.tzero.v1.payment.CreatePaymentResponse.Failure.ReasonR\x06reason\"\xc3\x01\n" +
+	" \x01(\x0e26.tzero.v1.payment.CreatePaymentResponse.Failure.ReasonR\x06reason\"\xe0\x01\n" +
 	"\x06Reason\x12\x16\n" +
 	"\x12REASON_UNSPECIFIED\x10\x00\x12\x1a\n" +
 	"\x16REASON_QUOTE_NOT_FOUND\x10\n" +
@@ -2323,7 +2302,8 @@ const file_tzero_v1_payment_network_proto_rawDesc = "" +
 	"$REASON_CREDIT_OR_PREDEPOSIT_REQUIRED\x10\x14\x12$\n" +
 	" REASON_AMOUNT_EXCEEDS_QUOTE_BAND\x10\x1e\x12\x18\n" +
 	"\x14REASON_QUOTE_EXPIRED\x10(\x12\x1b\n" +
-	"\x17REASON_QUOTE_ID_UNKNOWN\x102B\x0f\n" +
+	"\x17REASON_QUOTE_ID_UNKNOWN\x102\x12\x1b\n" +
+	"\x17REASON_AMOUNT_TOO_SMALL\x10<B\x0f\n" +
 	"\x06result\x12\x05\xbaH\x02\b\x01\"\xb6\x01\n" +
 	"\x14ConfirmPayoutRequest\x12&\n" +
 	"\n" +

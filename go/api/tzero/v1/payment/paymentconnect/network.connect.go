@@ -55,31 +55,22 @@ const (
 // NetworkServiceClient is a client for the tzero.v1.payment.NetworkService service.
 type NetworkServiceClient interface {
 	// *
-	// Publishes pay-in and pay-out quotes (FX rates) into the network.
-	// Quotes carry tiered pricing bands and an expiration timestamp.
-	// Full snapshot: omitted quotes are deleted.
+	// Publishes pay-out quotes. Each request is a full snapshot: a quote left out is deleted.
 	UpdateQuote(context.Context, *connect.Request[payment.UpdateQuoteRequest]) (*connect.Response[payment.UpdateQuoteResponse], error)
 	// *
-	// Request the best available quote for a payout in a specific currency, for a given amount.
-	// If the payout quote exists, but the credit limit is exceeded, this quote will not be considered.
+	// Returns the best pay-out quote for an amount. A quote whose credit line cannot cover the amount is not picked.
 	GetQuote(context.Context, *connect.Request[payment.GetQuoteRequest]) (*connect.Response[payment.GetQuoteResponse], error)
 	// *
-	// Submit a request to create a new payment for the specified pay-out currency.
-	// QuoteId is the optional parameter.
-	// If the quoteId is specified, it must be a valid quoteId previously returned by GetQuote.
-	// If the quoteId is not specified, a suitable quote is selected for the pay-out currency and amount, as GetQuote does.
+	// Creates a pay-out payment. With quote_id, the payment uses that quote from GetQuote.
+	// Without it, the best quote is picked, as GetQuote does.
 	CreatePayment(context.Context, *connect.Request[payment.CreatePaymentRequest]) (*connect.Response[payment.CreatePaymentResponse], error)
 	// *
-	// Informs the network that a payout has been completed, specifying the payment ID and payout ID
-	// from the original payout request.
-	// deprecated, use the FinalizePayout rpc instead.
+	// Reports that a payout is complete. Deprecated: use FinalizePayout.
 	//
 	// Deprecated: do not use.
 	ConfirmPayout(context.Context, *connect.Request[payment.ConfirmPayoutRequest]) (*connect.Response[payment.ConfirmPayoutResponse], error)
 	// *
-	// Report the final outcome of a payout to the network, identified by the payment id from the
-	// original PayoutRequest, as either success (with an optional receipt) or failure with a reason.
-	// Supersedes the deprecated ConfirmPayout, which could only signal completion.
+	// Reports the final result of a payout: success with an optional receipt, or failure with a reason.
 	FinalizePayout(context.Context, *connect.Request[payment.FinalizePayoutRequest]) (*connect.Response[payment.FinalizePayoutResponse], error)
 	// *
 	// Reports the result of a manual AML check on a payment.
@@ -188,31 +179,22 @@ func (c *networkServiceClient) CompleteManualAmlCheck(ctx context.Context, req *
 // NetworkServiceHandler is an implementation of the tzero.v1.payment.NetworkService service.
 type NetworkServiceHandler interface {
 	// *
-	// Publishes pay-in and pay-out quotes (FX rates) into the network.
-	// Quotes carry tiered pricing bands and an expiration timestamp.
-	// Full snapshot: omitted quotes are deleted.
+	// Publishes pay-out quotes. Each request is a full snapshot: a quote left out is deleted.
 	UpdateQuote(context.Context, *connect.Request[payment.UpdateQuoteRequest]) (*connect.Response[payment.UpdateQuoteResponse], error)
 	// *
-	// Request the best available quote for a payout in a specific currency, for a given amount.
-	// If the payout quote exists, but the credit limit is exceeded, this quote will not be considered.
+	// Returns the best pay-out quote for an amount. A quote whose credit line cannot cover the amount is not picked.
 	GetQuote(context.Context, *connect.Request[payment.GetQuoteRequest]) (*connect.Response[payment.GetQuoteResponse], error)
 	// *
-	// Submit a request to create a new payment for the specified pay-out currency.
-	// QuoteId is the optional parameter.
-	// If the quoteId is specified, it must be a valid quoteId previously returned by GetQuote.
-	// If the quoteId is not specified, a suitable quote is selected for the pay-out currency and amount, as GetQuote does.
+	// Creates a pay-out payment. With quote_id, the payment uses that quote from GetQuote.
+	// Without it, the best quote is picked, as GetQuote does.
 	CreatePayment(context.Context, *connect.Request[payment.CreatePaymentRequest]) (*connect.Response[payment.CreatePaymentResponse], error)
 	// *
-	// Informs the network that a payout has been completed, specifying the payment ID and payout ID
-	// from the original payout request.
-	// deprecated, use the FinalizePayout rpc instead.
+	// Reports that a payout is complete. Deprecated: use FinalizePayout.
 	//
 	// Deprecated: do not use.
 	ConfirmPayout(context.Context, *connect.Request[payment.ConfirmPayoutRequest]) (*connect.Response[payment.ConfirmPayoutResponse], error)
 	// *
-	// Report the final outcome of a payout to the network, identified by the payment id from the
-	// original PayoutRequest, as either success (with an optional receipt) or failure with a reason.
-	// Supersedes the deprecated ConfirmPayout, which could only signal completion.
+	// Reports the final result of a payout: success with an optional receipt, or failure with a reason.
 	FinalizePayout(context.Context, *connect.Request[payment.FinalizePayoutRequest]) (*connect.Response[payment.FinalizePayoutResponse], error)
 	// *
 	// Reports the result of a manual AML check on a payment.
