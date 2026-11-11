@@ -386,6 +386,50 @@ class SignatureVerifierTest {
                 .isTrue();
     }
 
+    // ==================== Digest above the curve order ====================
+    // ECDSA verifies against e = digest mod n. The signature is libsecp256k1's (coincurve)
+    // RFC 6979 signature of the digest 2^256 - 1 with the vector key, so these tests check
+    // BouncyCastle's verifier against a signature that BouncyCastle did not make.
+
+    private static final String DIGEST_ABOVE_ORDER_HEX =
+            "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff";
+    private static final String SIGNATURE_OVER_DIGEST_ABOVE_ORDER_HEX =
+            "a962005a752b846e63bfc2a024896acd4a97b873a21c9c75a5cab52764014022"
+                    + "4b6b8e10f7d26682c193e82c2f7cfde0ad3f394579225447c7aea5f9e92056dd00";
+
+    @Test
+    void verify_digestAboveCurveOrder_shouldReturnTrue() {
+        assertThat(SignatureVerifier.verify(
+                hexToBytes(PUBLIC_KEY_HEX),
+                hexToBytes(DIGEST_ABOVE_ORDER_HEX),
+                hexToBytes(SIGNATURE_OVER_DIGEST_ABOVE_ORDER_HEX)))
+                .isTrue();
+    }
+
+    @Test
+    void verify_digestAboveCurveOrder_tamperedSignature_shouldReturnFalse() {
+        byte[] signature = hexToBytes(SIGNATURE_OVER_DIGEST_ABOVE_ORDER_HEX);
+        signature[40] ^= 0x01; // one bit of s
+
+        assertThat(SignatureVerifier.verify(
+                hexToBytes(PUBLIC_KEY_HEX),
+                hexToBytes(DIGEST_ABOVE_ORDER_HEX),
+                signature))
+                .isFalse();
+    }
+
+    @Test
+    void verify_digestAboveCurveOrder_otherDigest_shouldReturnFalse() {
+        byte[] digest = hexToBytes(DIGEST_ABOVE_ORDER_HEX);
+        digest[31] = (byte) 0xfe; // still above n, but a different e
+
+        assertThat(SignatureVerifier.verify(
+                hexToBytes(PUBLIC_KEY_HEX),
+                digest,
+                hexToBytes(SIGNATURE_OVER_DIGEST_ABOVE_ORDER_HEX)))
+                .isFalse();
+    }
+
     private static byte[] bigIntegerTo32Bytes(BigInteger value) {
         byte[] raw = value.toByteArray();
         if (raw.length == 32) return raw;

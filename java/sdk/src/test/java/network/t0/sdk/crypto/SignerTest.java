@@ -2,6 +2,7 @@ package network.t0.sdk.crypto;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.junit.jupiter.params.provider.ValueSource;
 
 import java.math.BigInteger;
@@ -316,6 +317,35 @@ class SignerTest {
 
         assertThat(sawV0).as("recovery id 0 must occur within 64 digests").isTrue();
         assertThat(sawV1).as("recovery id 1 must occur within 64 digests").isTrue();
+    }
+
+    // ==================== Digest At Or Above The Curve Order ====================
+    // sign takes any 32 bytes, so the digest's value can be n or more. ECDSA signs e = digest mod n,
+    // and RFC 6979 also reduces the digest mod n (bits2octets) before it derives the nonce.
+    // BouncyCastle 1.86 changed how ECDSASigner reduces e and forms s. The expected signatures
+    // come from libsecp256k1 (coincurve) and match a textbook RFC 6979 implementation, so they
+    // do not depend on BouncyCastle.
+
+    @ParameterizedTest(name = "digest {0}")
+    @CsvSource({
+            "n,       fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141, "
+                    + "5390c053f1e8f63a37acf133510ea6c69b801eb94cbc685450dc0442fd21082d"
+                    + "71acb8a7204c4a5483057f06c22f7d6ddab55530613af8cacd3f772abcb4e0ed01",
+            "n+1,     fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364142, "
+                    + "0fc40cbbbce958122ac9080a79ff465e0f3f7c6878aa704483ab1a5d43ae233f"
+                    + "720180c43b065956923d2d49c541e39f2661b31570355f3afe2a0d19eb5a836201",
+            "2^256-1, ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff, "
+                    + "a962005a752b846e63bfc2a024896acd4a97b873a21c9c75a5cab52764014022"
+                    + "4b6b8e10f7d26682c193e82c2f7cfde0ad3f394579225447c7aea5f9e92056dd00",
+    })
+    void sign_digestAtOrAboveCurveOrder_matchesRfc6979(String name, String digestHex, String expectedSignatureHex) {
+        Signer signer = Signer.fromHex(PRIVATE_KEY_HEX);
+        byte[] digest = hexToBytes(digestHex);
+
+        SignResult result = signer.sign(digest);
+
+        assertThat(bytesToHex(result.getSignature())).isEqualTo(expectedSignatureHex);
+        assertThat(SignatureVerifier.verify(signer.getPublicKey(), digest, result.getSignature())).isTrue();
     }
 
     private static String bytesToHex(byte[] bytes) {
