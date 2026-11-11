@@ -89,7 +89,7 @@ Before you open a pull request, check that:
 - **Java's two verification paths are both required.** The Java provider accepts a signature over the unframed message or over the gRPC-framed body, because the network signs either one depending on its transport. See [docs/java/SIGNATURE_VERIFICATION.md](docs/java/SIGNATURE_VERIFICATION.md).
 - **In a stream, only the first message is signed, and it is sent at once.** Never buffer a stream to sign it. Every SDK follows [docs/STREAMING.md](docs/STREAMING.md).
 - **Every place that holds the version is listed in the release workflows.** If you add one, add it to `release.yaml` and `publish.yaml` too. See [docs/VERSIONING.md](docs/VERSIONING.md).
-- **Dependencies follow [docs/DEPENDENCY_UPDATES.md](docs/DEPENDENCY_UPDATES.md).** Dependabot batches ordinary updates. Dependencies on the signing path get their own pull request and an audit.
+- **Dependencies follow [docs/DEPENDENCY_UPDATES.md](docs/DEPENDENCY_UPDATES.md).** Dependabot puts every update into one weekly pull request. A dependency on the signing path gets an audit, in that pull request or in one of its own.
 - **`cli/` is copied into other product repositories.** Keep product-specific values in `config.go`. See [docs/CLI.md](docs/CLI.md).
 
 ## Generated code

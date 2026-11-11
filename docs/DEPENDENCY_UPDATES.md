@@ -6,9 +6,9 @@ The five SDKs sign and verify the same bytes, checked against `cross_test/test_v
 
 ## How Dependabot groups updates
 
-- **One weekly batch.** Every dependency that CI can validate goes into one pull request across all ecosystems, `ci-batch`, opened on Mondays. The config lists these dependencies per ecosystem as allowlist `patterns`, because Dependabot has no exclude patterns for groups that span ecosystems. `.github/tools/sumtool` is not watched: every pull request Dependabot built for it was refused (HTTP 400), so its one dependency is updated by hand.
-- **Signing-path libraries get their own pull requests.** They are deliberately left out of every allowlist, so Dependabot opens one pull request per library. The list is in the header of `.github/dependabot.yml`. Never add one of them to a pattern.
-- **New dependencies start alone.** A dependency that is in no allowlist also gets its own pull request. Decide whether it is on the signing path (see below). If it is not, add it to its ecosystem's `patterns` so later updates join the batch.
+- **One weekly batch.** Every dependency, in every ecosystem, goes into one pull request, `ci-batch`, opened on Mondays. Each ecosystem uses `patterns: ["*"]`. In a group that spans ecosystems, Dependabot updates only the dependencies that match the group's patterns and opens no pull request for the others (`run_ungrouped_dependency_updates unless job.multi_ecosystem_update?` in dependabot-core). An allowlist would silently drop every dependency it does not name, and until November 2026 it did: the signing-path libraries and new dependencies got no pull request at all.
+- **Not watched, updated by hand:** `.github/tools/sumtool` (every pull request Dependabot built for it was refused, HTTP 400), `cross_test/go_helper` (a Go workspace; its versions follow `go/go.mod`), and the Python starter's floors, which are customer-facing ([`python/CLAUDE.md`](../python/CLAUDE.md)). The C# and Java starters are listed as directories of their own, because `csharp.slnx` and the Java build do not cover them (the Java starter's Gradle wrapper).
+- **Signing-path libraries arrive in the batch.** The list is in the header of `.github/dependabot.yml`. When the batch moves one, do its audit (below) in the batch pull request. To update it on its own instead, hold it back with `@dependabot ignore <dependency-name> minor version` (or `patch version`) on the batch, and follow the audit in a pull request of its own.
 - **Release-owned pins are ignored.** The starter templates' pins of the SDK itself are ignored, because `release.yaml` updates them.
 - **Updates wait three days** after a release (`cooldown`).
 
@@ -44,7 +44,7 @@ Treat a dependency as being on the signing path if any of these is true, and als
 
 ## Updating a signing-path dependency
 
-Update one library per pull request. The exception is a coupled pair: `@noble/curves` with `@noble/hashes`, or the two `@connectrpc/connect` packages. PR #99 is the reference.
+Audit every signing-path library an update moves, whether it arrives in the weekly batch or in a pull request of its own. Coupled pairs move together: `@noble/curves` with `@noble/hashes`, the two `@connectrpc/connect` packages, and `golang.org/x/net` with `golang.org/x/crypto`. PR #99 is the reference.
 
 1. **List the call sites.** Find every function of the library that the SDK uses, as a table: function | call site | direct test? (yes / indirect only / no).
 2. **Run the tests on the current version, before updating.** Note the test count and which suites cover the library.
@@ -60,9 +60,9 @@ Update one library per pull request. The exception is a coupled pair: `@noble/cu
    - Python: `python/sdk/tests/crypto/test_cross_vectors.py`
    - Java: `java/sdk/src/test/java/network/t0/sdk/crypto/CrossVectorTest.java`
    - C#: `csharp/sdk/T0.ProviderSdk.Tests/Crypto/CrossTestVectors.cs`
-7. **Open a pull request** titled `chore(deps): bump <pkg> to <ver>`. Its description has these sections, in order:
+7. **Write it up.** For a library updated on its own, open a pull request titled `chore(deps): bump <pkg> to <ver>`. For one in the weekly batch, add the same sections to the batch pull request's description or a comment on it. The sections, in order:
    - Summary;
-   - Supersedes (`#N` of the Dependabot pull request);
+   - Supersedes (`#N` of a Dependabot pull request it replaces, if any);
    - Pre-bump call-site audit (the table from step 1);
    - Test additions (step 3);
    - Crypto safety attestation (the vector tests unchanged);
