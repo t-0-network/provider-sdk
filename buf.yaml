@@ -2,7 +2,7 @@ version: v2
 modules:
   - path: proto
 deps:
-  - buf.build/bufbuild/protovalidate:v1.2.0
+  - buf.build/bufbuild/protovalidate:v1.2.2
 lint:
   use:
     - STANDARD
