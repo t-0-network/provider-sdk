@@ -11,7 +11,7 @@ runs:
         cache-dependency-path: cross_test/go_helper/go.sum
 
     - name: Cache Go cross-test helper
-      uses: actions/cache@v4
+      uses: actions/cache@v6
       with:
         path: cross_test/go_helper/go_helper
         key: go-helper-${{ runner.os }}-${{ hashFiles('cross_test/go_helper/**', 'go/**/*.go', 'go/go.sum') }}

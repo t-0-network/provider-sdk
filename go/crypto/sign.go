@@ -43,8 +43,15 @@ func NewSignerFromHex(hexedPrivateKey string) (SignFn, error) {
 }
 
 func sign(digest []byte, privateKey *secp256k1.PrivateKey) []byte {
+	// RFC 6979 derives the nonce from the digest reduced mod n (bits2octets, section 2.3.4), as the
+	// other SDKs do; SignCompact would use the 32 bytes as given. Below n, which is every digest in
+	// practice, the reduced bytes are the digest itself.
+	var e secp256k1.ModNScalar
+	e.SetByteSlice(digest)
+	reduced := e.Bytes()
+
 	// Use SignCompact which returns recovery ID in the first byte
-	compactSig := ecdsa.SignCompact(privateKey, digest, false)
+	compactSig := ecdsa.SignCompact(privateKey, reduced[:], false)
 
 	// compactSig is [recovery_id + 27][r][s] (65 bytes)
 	// We need to adjust the recovery ID format for Ethereum

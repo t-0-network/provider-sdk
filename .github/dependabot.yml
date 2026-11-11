@@ -1,25 +1,27 @@
 # Dependency-update policy (see docs/DEPENDENCY_UPDATES.md):
-#   * ONE weekly PR ("ci-batch") for every dependency CI can validate, across all
-#     five ecosystems and their sub-projects, except .github/tools/sumtool and
-#     cross_test/go_helper, which are not watched and are updated by hand.
-#     Entries use ALLOWLIST `patterns` (Dependabot has no exclude-patterns for
-#     multi-ecosystem groups).
-#   * Crypto / signing-path libraries are intentionally NOT in any allowlist, so
-#     Dependabot raises them one dependency per PR. They follow the signing-path
-#     audit in that document. Never add them to a pattern below:
-#       golang.org/x/crypto, github.com/btcsuite/*, github.com/decred/*,
-#       @noble/*, coincurve, pycryptodome,
-#       org.bouncycastle:*, BouncyCastle.Cryptography,
-#       @connectrpc/connect, @connectrpc/connect-node,
-#       connectrpc.com/connect, golang.org/x/net
-#     The Node SDK's client transport signs the bodies and envelopes connect-es
-#     builds and uses its @private CommonTransportOptions, so those two are
-#     pinned exactly in node/sdk/package.json and bumped together
-#     (connect-node peer-depends on connect's exact version) in one PR.
-#     The Go client signs the bodies and envelopes connect-go builds, and
-#     golang.org/x/net pulls golang.org/x/crypto along with it.
-#   * A new non-crypto dependency shows up as a solo PR until it is added to the
-#     matching allowlist.
+#   * ONE weekly PR ("ci-batch") for every dependency, across all five
+#     ecosystems, the starters and CI, except .github/tools/sumtool and
+#     cross_test/go_helper, which are not watched and are updated by hand, and the
+#     Python starter's floors, which are customer-facing and changed by hand
+#     (python/CLAUDE.md).
+#   * Every entry uses `patterns: ["*"]`. In a multi-ecosystem group Dependabot
+#     updates only what matches the group's patterns and never opens a pull
+#     request for anything else (dependabot-core,
+#     updater/lib/dependabot/updater/operations/group_update_all_versions.rb:
+#     `run_ungrouped_dependency_updates unless job.multi_ecosystem_update?`).
+#     An allowlist therefore drops every dependency it does not name.
+#   * Signing-path libraries arrive in the same batch. When the batch moves one,
+#     its audit (docs/DEPENDENCY_UPDATES.md, "Updating a signing-path
+#     dependency") is done in that pull request, or the library is held back with
+#     `@dependabot ignore <name> <version>` and updated on its own:
+#       golang.org/x/crypto, golang.org/x/net, connectrpc.com/connect,
+#       github.com/btcsuite/*, github.com/decred/*,
+#       @noble/*, @connectrpc/connect, @connectrpc/connect-node,
+#       coincurve, pycryptodome,
+#       org.bouncycastle:*, BouncyCastle.Cryptography
+#     @connectrpc/connect and @connectrpc/connect-node are pinned exactly in
+#     node/sdk/package.json and must move together (connect-node peer-depends on
+#     connect's exact version).
 version: 2
 
 multi-ecosystem-groups:
@@ -49,93 +51,52 @@ updates:
       - "/go/starter/template"
       - "/cli"
     multi-ecosystem-group: "ci-batch"
+    patterns: ["*"]
     cooldown:
       default-days: 3
     ignore:
       - dependency-name: "github.com/t-0-network/provider-sdk/go"   # release.yaml owns the template pin
-    patterns:
-      - "connectrpc.com/validate"     # not connectrpc.com/*: connect is on the signing path, see header
-      - "connectrpc.com/grpchealth"
-      - "google.golang.org/*"
-      - "buf.build/*"                 # protovalidate + generated schema modules
-      - "github.com/stretchr/*"
-      - "github.com/joho/*"
-      - "github.com/google/uuid"
 
   - package-ecosystem: "npm"
     directories:
       - "/node/sdk"
       - "/node/starter/template"      # no lockfile: only out-of-range bumps surface
     multi-ecosystem-group: "ci-batch"
+    patterns: ["*"]
     cooldown:
       default-days: 3
     ignore:
       - dependency-name: "@t-0/provider-sdk"                       # release.yaml owns it
-    patterns:
-      - "@bufbuild/*"
-      - "@connectrpc/validate"                                     # not connect / connect-node: signing path, see header
-      - "@types/*"
-      - "typescript"
-      - "tsx"
-      - "dotenv"
-      - "tiny-invariant"
 
   - package-ecosystem: "uv"                                        # was "pip": pip never moved uv.lock
     directory: "/python"
     multi-ecosystem-group: "ci-batch"
+    patterns: ["*"]
     cooldown:
       default-days: 3
-    patterns:
-      - "connectrpc"
-      - "protoc-gen-*"
-      - "protobuf"
-      - "protovalidate"
-      - "grpcio-*"
-      - "click"
-      - "python-dotenv"
-      - "pytest"
-      - "pytest-*"
-      - "ruff"
-      - "mypy"
-      - "uvicorn"
-      - "waitress"
-      - "hatchling"
 
+  # /java includes the starter's build (settings.gradle.kts), but not its own Gradle wrapper,
+  # so the starter is listed as well.
   - package-ecosystem: "gradle"
-    directory: "/java"
+    directories:
+      - "/java"
+      - "/java/starter/template"
     multi-ecosystem-group: "ci-batch"
+    patterns: ["*"]
     cooldown:
       default-days: 3
     ignore:
       - dependency-name: "network.t-0:provider-sdk-java"           # template, release-owned
       - dependency-name: "com.github.t-0-network:provider-sdk"
-    patterns:
-      - "com.gradleup.*"              # nmcp, nmcp.aggregation  (fixes #334 + #342)
-      - "build.buf*"                  # buf plugin id AND build.buf:protovalidate
-      - "me.champeau.*"
-      - "gradle-wrapper"
-      - "io.grpc:*"                   # grpcVersion property -> 6 artifacts, one bump
-      - "com.google.protobuf:*"
-      - "org.slf4j:*"
-      - "javax.annotation:*"
-      - "io.github.cdimascio:*"
-      - "ch.qos.logback:*"
-      - "org.junit.*"
-      - "org.assertj:*"
-      - "com.google.code.gson:*"
 
+  # csharp.slnx holds only the SDK and its tests, so the starter is listed on its own.
   - package-ecosystem: "nuget"
-    directory: "/csharp"                                           # discovers sdk, tests, template
+    directories:
+      - "/csharp"
+      - "/csharp/starter/template"
     multi-ecosystem-group: "ci-batch"
+    patterns: ["*"]
     cooldown:
       default-days: 3
     ignore:
       - dependency-name: "T0.ProviderSdk"                          # template, release-owned
-    patterns:
-      - "Google.Protobuf"
-      - "Grpc.*"
-      - "ProtoValidate"
-      - "DotNetEnv"
-      - "coverlet.*"
-      - "Microsoft.NET.Test.Sdk"
-      - "xunit*"

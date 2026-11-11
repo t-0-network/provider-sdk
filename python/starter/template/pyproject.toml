@@ -4,12 +4,12 @@ version = "0.1.0"
 requires-python = ">=3.13"
 dependencies = [
     "t0-provider-sdk>=1.2.0",
-    "uvicorn>=0.44.0",
-    "python-dotenv>=1.0",
+    "uvicorn>=0.54.0",
+    "python-dotenv>=1.2.4",
 ]
 
 [dependency-groups]
-dev = ["pytest>=8"]
+dev = ["pytest>=9.2.0"]
 
 [build-system]
 requires = ["hatchling"]

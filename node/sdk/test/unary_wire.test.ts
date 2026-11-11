@@ -10,6 +10,7 @@ import { StringValueSchema } from '@bufbuild/protobuf/wkt';
 import { Code, ConnectError, createClient as createConnectClient } from '@connectrpc/connect';
 import type { UniversalClientFn } from '@connectrpc/connect/protocol';
 import { createTransport } from '@connectrpc/connect/protocol-connect';
+import { compressionGzip } from '@connectrpc/connect-node';
 import { createClient, WireFormat } from '../src/client/client.js';
 import { CreateSigner } from '../src/client/signer.js';
 import { transportOptions } from '../src/common/client/client.js';
@@ -115,6 +116,31 @@ function assertSignedOverBody(s: Sent): void {
   const publicKey = parsePublicKey(vectors.keys.public_key);
   assert.ok(verifySignature(publicKey, computeDigest(s.body, TIMESTAMP_MS), signature), 'the signature covers the body as sent');
 }
+
+// CommonTransportOptions is @private connect-es API, so its values are pinned here: among them the
+// defaults that validateReadWriteMaxBytes fills in, and no useHttpGet, which would move a request
+// message out of the signed body into the URL.
+describe('The transport options the client gives connect-es', () => {
+  for (const [name, wireFormat, useBinaryFormat] of [['WireFormat.Binary', WireFormat.Binary, true], ['WireFormat.Json', WireFormat.Json, false]] as const) {
+    it(`are exactly these with ${name}`, () => {
+      const { httpClient, acceptCompression, ...rest } = transportOptions(signer, BASE_URL, 1_234, wireFormat);
+      assert.equal(typeof httpClient, 'function');
+      assert.equal(acceptCompression.length, 1);
+      assert.equal(acceptCompression[0], compressionGzip);
+      assert.equal(compressionGzip.name, 'gzip');
+      assert.deepEqual(rest, {
+        baseUrl: BASE_URL,
+        useBinaryFormat,
+        interceptors: [],
+        sendCompression: null,
+        readMaxBytes: 0xffffffff,
+        writeMaxBytes: 0xffffffff,
+        compressMinBytes: 1024,
+        defaultTimeoutMs: 1_234,
+      });
+    });
+  }
+});
 
 describe('Unary request on the wire (golden)', () => {
   it('the SDK sends the Connect request in binary, signed over the whole body', async (t) => {

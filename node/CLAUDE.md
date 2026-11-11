@@ -35,7 +35,7 @@ node/
 
 ## Dependencies on the signing path
 
-`@connectrpc/connect` and `@connectrpc/connect-node` are pinned to one exact version (no `^`) and bumped together as a signing-path update ([`docs/DEPENDENCY_UPDATES.md`](../docs/DEPENDENCY_UPDATES.md)): the client signs the bytes connect-es builds, relies on connect-es's `@private` `CommonTransportOptions`, and sends through connect-node's `@private` `createNodeHttpClient`. It also replaces the server-streaming methods on the client that connect-es `createClient` returns, because connect-es's server-stream iterable has no `return()`: leaving a `for await` early must cancel the call (test "leaving a server stream early cancels the call").
+`@connectrpc/connect` and `@connectrpc/connect-node` are pinned to one exact version (no `^`) and bumped together as a signing-path update ([`docs/DEPENDENCY_UPDATES.md`](../docs/DEPENDENCY_UPDATES.md)): the client signs the bytes connect-es builds, relies on connect-es's `@private` `CommonTransportOptions`, and sends through connect-node's `@private` `createNodeHttpClient`. It also replaces the server-streaming methods on the client that connect-es `createClient` returns, so that leaving a `for await` early cancels the call and reads it to its end (test "leaving a server stream early cancels the call"). connect-es before 2.3 had no `return()` on that iterable; the wrapper keeps the behavior independent of the connect-es version.
 
 `@noble/curves` and `@noble/hashes` compute the digest and the signature. They are pinned to one exact version too, and are bumped together.
 

@@ -7,11 +7,14 @@ description: >-
 runs:
   using: composite
   steps:
-    # The Buf CLI version the backend's proto CI uses (its tools/go.mod).
+    # Pinned Buf CLI version; generate-clients.yaml pins the same one.
+    # setup_only installs buf and runs nothing else: by default buf-action
+    # also runs build, lint, format, breaking and push.
     - name: Setup buf
-      uses: bufbuild/buf-setup-action@v1
+      uses: bufbuild/buf-action@v1
       with:
-        version: "1.64.0"
+        version: "1.75.0"
+        setup_only: true
         github_token: ${{ github.token }}
 
     # The Python connect plugin runs through `uv run` (see buf.gen.yaml): the
@@ -24,7 +27,7 @@ runs:
 
     - name: Setup uv
       if: steps.uv.outputs.found != 'true'
-      uses: astral-sh/setup-uv@v7
+      uses: astral-sh/setup-uv@v10.3.3
 
     - name: Generate code
       shell: bash
