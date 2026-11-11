@@ -397,6 +397,130 @@ describe('createHandler', () => {
     });
   });
 
+  // The handler answers a rejection itself, with connect-es's encoders (errorToJsonBytes,
+  // endStreamToJson, setTrailerStatus), in the protocol the caller speaks. Byte for byte.
+  describe('a rejected request is answered in the protocol of its content type', () => {
+    const network = newKeypair();
+    const message = 'missing required header: X-Public-Key';
+
+    async function rejected(contentType: string) {
+      const service = createService(network.publicKeyHex, () => {});
+      const router = createConnectRouter({ interceptors: service.interceptors });
+      service.routes(router);
+      const handler = router.handlers.find((h) => h.requestPath === '/grpc.health.v1.Health/Check')!;
+      const response = await handler({
+        httpVersion: '2.0',
+        url: 'http://localhost/grpc.health.v1.Health/Check',
+        method: 'POST',
+        header: new Headers({ 'content-type': contentType }),
+        body: createAsyncIterable([frame(0, healthCheckPayload)]),
+        signal: new AbortController().signal,
+      });
+      const chunks: Uint8Array[] = [];
+      for await (const chunk of response.body ?? []) {
+        chunks.push(chunk);
+      }
+      return {
+        status: response.status,
+        header: Object.fromEntries(new Headers(response.header)),
+        body: Buffer.concat(chunks),
+        trailer: response.trailer === undefined ? undefined : Object.fromEntries(new Headers(response.trailer)),
+      };
+    }
+
+    it('Connect unary: a JSON error with the HTTP status of its code', async () => {
+      const r = await rejected('application/proto');
+      assert.equal(r.status, 400);
+      assert.deepEqual(r.header, { 'content-type': 'application/json' });
+      assert.equal(r.body.toString(), `{"code":"invalid_argument","message":"${message}"}`);
+      assert.equal(r.trailer, undefined);
+    });
+
+    it('Connect streaming: one end-stream envelope that carries the error', async () => {
+      const r = await rejected('application/connect+proto');
+      assert.equal(r.status, 200);
+      assert.deepEqual(r.header, { 'content-type': 'application/connect+proto' });
+      assert.equal(r.body.toString('hex'), frame(2, Buffer.from(`{"error":{"code":"invalid_argument","message":"${message}"}}`)).toString('hex'));
+      assert.equal(r.trailer, undefined);
+    });
+
+    it('gRPC: an empty body and the status in the trailers', async () => {
+      const r = await rejected('application/grpc+proto');
+      assert.equal(r.status, 200);
+      assert.deepEqual(r.header, { 'content-type': 'application/grpc+proto' });
+      assert.equal(r.body.length, 0);
+      assert.deepEqual(r.trailer, { 'grpc-message': 'missing%20required%20header%3A%20X-Public-Key', 'grpc-status': '3' });
+    });
+  });
+
+  // requireVerified fails closed: it reads the verified flag that the handler sets in the call's
+  // context values (createContextKey), and refuses a call without it.
+  it('refuses a signed call that did not pass the signature check, before its implementation runs', async () => {
+    const { privateKeyHex, publicKeyHex } = newKeypair();
+    const service = createService(publicKeyHex, () => {});
+    const router = createConnectRouter({ interceptors: service.interceptors });
+    let calls = 0;
+    // Registered without service.routes, so no handler checks the signature.
+    router.service(Health, {
+      check: () => {
+        calls++;
+        return { status: HealthCheckResponse_ServingStatus.SERVING };
+      },
+    });
+    const handler = router.handlers.find((h) => h.requestPath === '/grpc.health.v1.Health/Check')!;
+    const response = await handler({
+      httpVersion: '1.1',
+      url: 'http://localhost/grpc.health.v1.Health/Check',
+      method: 'POST',
+      header: new Headers({ 'content-type': 'application/proto', ...signatureHeaders(privateKeyHex, healthCheckPayload) }),
+      body: createAsyncIterable([healthCheckPayload]),
+      signal: new AbortController().signal,
+    });
+    const chunks: Uint8Array[] = [];
+    for await (const chunk of response.body ?? []) {
+      chunks.push(chunk);
+    }
+    assert.equal(response.status, 500);
+    assert.equal(Buffer.concat(chunks).toString(), '{"code":"internal","message":"no signature result in context"}');
+    assert.equal(calls, 0);
+  });
+
+  // Without a Content-Length the body is read until it passes the limit: the handler stops reading
+  // connect-node's request body there and still answers.
+  it('refuses a body without a Content-Length once it passes maxBodySize, with ResourceExhausted', async () => {
+    const { privateKeyHex, publicKeyHex } = newKeypair();
+    const server = http.createServer(createHandler(publicKeyHex, () => {}, { maxBodySize: 100_000 }));
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+    // A connection that stays open, as the network's would.
+    const agent = new http.Agent({ keepAlive: true });
+    try {
+      const body = Buffer.alloc(200_000, 1);
+      const answer = await new Promise<{ status?: number; body: string }>((resolve, reject) => {
+        const req = http.request(`${url}/grpc.health.v1.Health/Check`, {
+          method: 'POST',
+          agent,
+          headers: { 'content-type': 'application/proto', ...signatureHeaders(privateKeyHex, body) },
+        }, (res) => {
+          let text = '';
+          res.setEncoding('utf8');
+          res.on('data', (chunk: string) => { text += chunk; });
+          res.on('end', () => resolve({ status: res.statusCode, body: text }));
+        });
+        req.on('error', reject);
+        // Two writes and no Content-Length: the body is sent chunked.
+        req.write(body.subarray(0, 50_000));
+        req.end(body.subarray(50_000));
+      });
+      assert.equal(answer.status, 429);
+      assert.deepEqual(JSON.parse(answer.body), { code: 'resource_exhausted', message: 'max payload size of 100000 bytes exceeded' });
+    } finally {
+      agent.destroy();
+      server.closeAllConnections();
+      await new Promise<void>((resolve) => server.close(() => resolve()));
+    }
+  });
+
   it('unsigned request is rejected', async () => {
     const { publicKeyHex } = newKeypair();
     const { url, close } = await bootServer(publicKeyHex);

@@ -1,14 +1,18 @@
-import { describe, it } from 'node:test';
+import { describe, it, type TestContext } from 'node:test';
 import assert from 'node:assert/strict';
 import http from 'node:http';
 import net from 'node:net';
 import type { AddressInfo } from 'node:net';
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
-import { Code, createConnectRouter, type ServiceImpl } from '@connectrpc/connect';
+import { Code, createClient as createConnectClient, createConnectRouter, type Client, type ServiceImpl } from '@connectrpc/connect';
+import type { UniversalClientFn } from '@connectrpc/connect/protocol';
+import { createTransport } from '@connectrpc/connect/protocol-connect';
 import { universalRequestFromNodeRequest, universalResponseToNodeResponse } from '@connectrpc/connect-node';
 import { createClient, WireFormat, type Signature } from '../src/client/client.js';
 import { CreateSigner } from '../src/client/signer.js';
+import { transportOptions } from '../src/common/client/client.js';
+import { createSigningHttpClient } from '../src/common/client/signing-http-client.js';
 import { computeDigest, NetworkHeaders, parsePublicKey, publicKeysEqual, verifySignature } from '../src/crypto/index.js';
 import { StreamTest, isCode, newKeypair, stringValues } from './stream_helpers.js';
 
@@ -604,6 +608,166 @@ describe('createClient routes unary and streaming calls to their own transport',
       };
       await assert.rejects(drain(), isCode(Code.Unimplemented));
       assert.equal(srv.checks.length, 0, 'nothing is sent');
+    });
+  });
+});
+
+// ---- Streaming requests as connect-es builds them ----
+
+interface SentStream {
+  url: string;
+  method: string;
+  header: Headers;
+  chunks: Buffer[];
+}
+
+// flags 0x02 (end of stream), length 2, "{}"
+const END_STREAM_HEX = '02000000027b7d';
+
+// Records what the signing client hands the HTTP client, and answers with one "ok" and the end of
+// the stream.
+function recordingStreamClient(sent: SentStream[]): UniversalClientFn {
+  return async (req) => {
+    const chunks: Buffer[] = [];
+    for await (const chunk of req.body ?? []) {
+      chunks.push(Buffer.from(chunk));
+    }
+    sent.push({ url: req.url, method: req.method, header: new Headers(req.header), chunks });
+    return {
+      status: 200,
+      header: new Headers({ 'Content-Type': 'application/connect+proto' }),
+      body: (async function* () { yield Buffer.from(envelopeOf('ok') + END_STREAM_HEX, 'hex'); })(),
+      trailer: new Headers(),
+    };
+  };
+}
+
+function splitEnvelopes(body: Buffer): Buffer[] {
+  const envelopes: Buffer[] = [];
+  for (let at = 0; at < body.length;) {
+    const end = at + 5 + body.readUInt32BE(at + 1);
+    envelopes.push(body.subarray(at, end));
+    at = end;
+  }
+  return envelopes;
+}
+
+// The signing HTTP client signs the first chunk that connect-es hands it, so each chunk must be
+// exactly one envelope. These calls go through connect-es's createTransport with the options the
+// SDK gives it, and the bytes it builds must be the vector's.
+describe('Streaming requests as connect-es builds them, pinned to stream_signing_cases', () => {
+  const BASE_URL = 'http://127.0.0.1:9'; // never dialed: only used with a recording client
+  const STREAM_TIMEOUT_MS = 300_000;
+  const signer = CreateSigner(vectors.keys.private_key);
+
+  const cases: [string, string, (client: Client<typeof StreamTest>) => Promise<unknown>][] = [
+    ['connect-client-stream', 'ClientStream', (c) => c.clientStream(stringValues('chunk-1', 'chunk-2', 'chunk-3'))],
+    ['multi-byte-length', 'ClientStream', (c) => c.clientStream(stringValues('x'.repeat(300), 'chunk-2'))],
+    ['empty-client-stream', 'ClientStream', (c) => c.clientStream(stringValues())],
+    ['server-stream-request', 'ServerStream', async (c) => { for await (const _ of c.serverStream({ value: 'hello' })) { /* drain */ } }],
+  ];
+  for (const [name, procedure, call] of cases) {
+    it(`${name}: the body is the vector's, one envelope per chunk, the first signed with the vector signature`, async (t: TestContext) => {
+      const vec = vectors.stream_signing_cases.find((v: { name: string }) => v.name === name);
+      t.mock.method(Date, 'now', () => vec.timestamp_ms);
+      const sent: SentStream[] = [];
+      const transport = createTransport({
+        ...transportOptions(signer, BASE_URL, STREAM_TIMEOUT_MS, WireFormat.Binary),
+        httpClient: createSigningHttpClient(signer, recordingStreamClient(sent)),
+      });
+      await call(createConnectClient(StreamTest, transport));
+
+      assert.equal(sent.length, 1);
+      const [s] = sent;
+      assert.equal(s.url, `${BASE_URL}/test.v1.StreamTest/${procedure}`);
+      assert.equal(s.method, 'POST');
+      const plain = new Headers(s.header);
+      for (const header of [NetworkHeaders.Signature, NetworkHeaders.PublicKey, NetworkHeaders.SignatureTimestamp, 'User-Agent']) {
+        plain.delete(header);
+      }
+      assert.deepEqual(Object.fromEntries(plain), {
+        'connect-accept-encoding': 'gzip',
+        'connect-protocol-version': '1',
+        'connect-timeout-ms': String(STREAM_TIMEOUT_MS),
+        'content-type': vec.content_type,
+      });
+
+      const body = Buffer.concat(s.chunks);
+      assert.equal(body.toString('hex'), vec.body_hex);
+      assert.deepEqual(s.chunks.map((c) => c.toString('hex')), splitEnvelopes(body).map((e) => e.toString('hex')), 'one envelope per chunk');
+      assert.equal((s.chunks[0] ?? Buffer.alloc(0)).toString('hex'), vec.signed_hex);
+      assert.match(s.header.get(NetworkHeaders.Signature) ?? '', new RegExp(`^0x${vec.expected_signature}0[01]$`));
+      assert.equal(s.header.get(NetworkHeaders.PublicKey), '0x' + vectors.keys.public_key);
+      assert.equal(s.header.get(NetworkHeaders.SignatureTimestamp), String(vec.timestamp_ms));
+    });
+  }
+});
+
+// Settles `outcome` with "end" when a request's whole body arrived, or "aborted" when the client
+// cut it off. A request that ends gets one "ok" and the end of the stream.
+async function withBodyEndServer(fn: (url: string, server: { firstChunk: Promise<void>; outcome: Promise<string> }) => Promise<void>) {
+  let gotFirstChunk = () => {};
+  let settle: (outcome: string) => void = () => {};
+  const events = {
+    firstChunk: new Promise<void>((resolve) => { gotFirstChunk = resolve; }),
+    outcome: new Promise<string>((resolve) => { settle = resolve; }),
+  };
+  const server = http.createServer((req, res) => {
+    req.once('data', () => gotFirstChunk());
+    req.on('end', () => {
+      settle('end');
+      res.writeHead(200, { 'Content-Type': 'application/connect+proto' }).end(Buffer.from(envelopeOf('ok') + END_STREAM_HEX, 'hex'));
+    });
+    req.on('error', () => settle('aborted'));
+    req.on('close', () => {
+      if (!req.complete) {
+        settle('aborted');
+      }
+    });
+  });
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  try {
+    await fn(`http://127.0.0.1:${(server.address() as AddressInfo).port}`, events);
+  } finally {
+    server.closeAllConnections();
+    await new Promise<void>((resolve) => server.close(() => resolve()));
+  }
+}
+
+// docs/STREAMING.md: after the first message was sent, a failed source or a cancellation fails the
+// call and aborts the request, so the server never handles a partial upload as complete.
+describe('A client stream that fails after its first message is aborted, never ended', { timeout: 20_000 }, () => {
+  it('a source that throws fails the call, and the server sees the request aborted', async () => {
+    await withBodyEndServer(async (url, server) => {
+      const client = createClient(newKeypair().privateKeyHex, url, StreamTest);
+      async function* throwsAfterFirst() {
+        yield { value: 'm1' };
+        await server.firstChunk;
+        throw new Error('source failed');
+      }
+      await assert.rejects(
+        Promise.race([client.clientStream(throwsAfterFirst()), giveUp('the call did not fail')]),
+        isCode(Code.Internal, 'source failed'),
+      );
+      assert.equal(await Promise.race([server.outcome, giveUp('the request neither ended nor was aborted')]), 'aborted');
+    });
+  });
+
+  it('a caller that cancels fails the call with canceled, and the server sees the request aborted', async () => {
+    await withBodyEndServer(async (url, server) => {
+      const client = createClient(newKeypair().privateKeyHex, url, StreamTest);
+      const caller = new AbortController();
+      async function* cancelledAfterFirst() {
+        yield { value: 'm1' };
+        await server.firstChunk;
+        caller.abort();
+        await new Promise(() => {}); // the source never ends by itself
+      }
+      await assert.rejects(
+        Promise.race([client.clientStream(cancelledAfterFirst(), { signal: caller.signal }), giveUp('the call did not fail')]),
+        isCode(Code.Canceled),
+      );
+      assert.equal(await Promise.race([server.outcome, giveUp('the request neither ended nor was aborted')]), 'aborted');
     });
   });
 });
