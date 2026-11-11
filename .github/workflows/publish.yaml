@@ -93,10 +93,12 @@ jobs:
           python-version: "3.13"
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@v10.3.3
         with:
           enable-cache: true
           cache-dependency-glob: python/uv.lock
+          # setup-uv v9 stopped pruning the cache by default; keep pruning it.
+          prune-cache: true
 
       - uses: ./.github/actions/buf-generate
 
@@ -271,7 +273,7 @@ jobs:
           python-version: "3.13"
 
       - name: Install uv
-        uses: astral-sh/setup-uv@v7
+        uses: astral-sh/setup-uv@v10.3.3
 
       - name: Verify SDK version matches tag
         run: |
