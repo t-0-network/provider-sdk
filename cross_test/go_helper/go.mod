@@ -19,7 +19,7 @@ require (
 	connectrpc.com/connect/v2 v2.0.0 // indirect
 	connectrpc.com/validate v0.9.0 // indirect
 	github.com/antlr4-go/antlr/v4 v4.13.1 // indirect
-	github.com/btcsuite/btcd/btcec/v2 v2.5.0 // indirect
+	github.com/btcsuite/btcd/btcec/v2 v2.5.1 // indirect
 	go.yaml.in/yaml/v3 v3.0.5 // indirect
 	golang.org/x/crypto v0.56.0 // indirect
 	golang.org/x/exp v0.0.0-20260820142414-ca536658362e // indirect
