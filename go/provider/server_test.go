@@ -587,6 +587,57 @@ func TestDefaultServerOptionsIntegrity(t *testing.T) {
 	assert.NotNil(t, opts.http2Config)
 }
 
+// The HTTP/2 configuration from WithHTTP2Config reaches the h2c handler: the server
+// advertises its MaxConcurrentStreams in its first SETTINGS frame.
+func TestServer_H2CUsesHTTP2Config(t *testing.T) {
+	addr := serveForTest(t, http.NotFoundHandler(), WithHTTP2Config(&http2.Server{MaxConcurrentStreams: 7}))
+
+	conn, err := net.Dial("tcp", addr)
+	require.NoError(t, err)
+	defer func() { _ = conn.Close() }()
+	require.NoError(t, conn.SetDeadline(time.Now().Add(5*time.Second)))
+	_, err = conn.Write([]byte(http2.ClientPreface))
+	require.NoError(t, err)
+	framer := http2.NewFramer(conn, conn)
+	require.NoError(t, framer.WriteSettings())
+
+	for {
+		frame, err := framer.ReadFrame()
+		require.NoError(t, err)
+		settings, ok := frame.(*http2.SettingsFrame)
+		if !ok || settings.IsAck() {
+			continue
+		}
+		value, found := settings.Value(http2.SettingMaxConcurrentStreams)
+		require.True(t, found, "the server advertises SETTINGS_MAX_CONCURRENT_STREAMS")
+		require.Equal(t, uint32(7), value)
+		return
+	}
+}
+
+// An Upgrade header that lists h2c among other tokens, in any case, is dropped too.
+func TestServer_H2CUpgradeTokenInList(t *testing.T) {
+	addr := serveForTest(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = fmt.Fprintf(w, "%s upgrade=%q", r.Proto, r.Header.Get("Upgrade"))
+	}))
+
+	for _, upgrade := range []string{"websocket, h2c", "H2C"} {
+		t.Run(upgrade, func(t *testing.T) {
+			req, err := http.NewRequest(http.MethodPost, "http://"+addr+"/", strings.NewReader("body"))
+			require.NoError(t, err)
+			req.Header.Set("Connection", "Upgrade, HTTP2-Settings")
+			req.Header.Set("Upgrade", upgrade)
+			req.Header.Set("HTTP2-Settings", "AAMAAABkAARAAAAAAAIAAAAA")
+			resp, err := http.DefaultClient.Do(req)
+			require.NoError(t, err)
+			defer func() { _ = resp.Body.Close() }()
+			body, err := io.ReadAll(resp.Body)
+			require.NoError(t, err)
+			require.Equal(t, `HTTP/1.1 upgrade=""`, string(body))
+		})
+	}
+}
+
 // Benchmark the server creation to ensure no performance regression
 func BenchmarkNewServer(b *testing.B) {
 
