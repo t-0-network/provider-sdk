@@ -297,3 +297,33 @@ func TestCrossVectors_SignerCases(t *testing.T) {
 		})
 	}
 }
+
+// LegacyKeccak256Concat is what the client and the verifier hash: the body and the
+// timestamp as separate parts, never joined. Split at every offset, the parts must give
+// the vector's digest.
+func TestCrossVectors_Keccak256Concat(t *testing.T) {
+	v := loadVectors(t)
+	for _, tc := range v.RequestSigningCases {
+		t.Run(tc.Name, func(t *testing.T) {
+			body, err := hex.DecodeString(tc.BodyHex)
+			require.NoError(t, err)
+			tsBytes := make([]byte, 8)
+			binary.LittleEndian.PutUint64(tsBytes, tc.TimestampMs)
+
+			require.Equal(t, tc.ExpectedHash, hex.EncodeToString(crypto.LegacyKeccak256Concat(body, tsBytes)))
+			for i := range len(body) + 1 {
+				got := crypto.LegacyKeccak256Concat(body[:i], body[i:], tsBytes)
+				require.Equal(t, tc.ExpectedHash, hex.EncodeToString(got), "split at %d", i)
+			}
+		})
+	}
+	emptyChecked := false
+	for _, tc := range v.Keccak256 {
+		require.Equal(t, tc.Hash, hex.EncodeToString(crypto.LegacyKeccak256Concat([]byte(tc.Input))))
+		if tc.Input == "" {
+			require.Equal(t, tc.Hash, hex.EncodeToString(crypto.LegacyKeccak256Concat()), "no parts")
+			emptyChecked = true
+		}
+	}
+	require.True(t, emptyChecked, "the vectors hash an empty input")
+}
