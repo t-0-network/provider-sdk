@@ -309,6 +309,37 @@
       "public_key": "04466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f276728176c3c6431f8eeda4538dc37c865e2784f3a9e77d044f33e407797e1278a"
     },
     {
+      "name": "digest-equals-n",
+      "private_key": "6b30303de7b26bfb1222b317a52113357f8bb06de00160b4261a2fef9c8b9bd8",
+      "digest": "fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364141",
+      "signature": "5390c053f1e8f63a37acf133510ea6c69b801eb94cbc685450dc0442fd21082d71acb8a7204c4a5483057f06c22f7d6ddab55530613af8cacd3f772abcb4e0ed01",
+      "public_key": "044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0",
+      "note": "The digest equals the curve order n. RFC 6979 derives k from the digest reduced mod n (here 0), not from the 32 bytes as given."
+    },
+    {
+      "name": "digest-n-plus-1",
+      "private_key": "6b30303de7b26bfb1222b317a52113357f8bb06de00160b4261a2fef9c8b9bd8",
+      "digest": "fffffffffffffffffffffffffffffffebaaedce6af48a03bbfd25e8cd0364142",
+      "signature": "0fc40cbbbce958122ac9080a79ff465e0f3f7c6878aa704483ab1a5d43ae233f720180c43b065956923d2d49c541e39f2661b31570355f3afe2a0d19eb5a836201",
+      "public_key": "044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0",
+      "note": "The digest n + 1, which reduces to 1."
+    },
+    {
+      "name": "digest-all-ones",
+      "private_key": "6b30303de7b26bfb1222b317a52113357f8bb06de00160b4261a2fef9c8b9bd8",
+      "digest": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "signature": "a962005a752b846e63bfc2a024896acd4a97b873a21c9c75a5cab527640140224b6b8e10f7d26682c193e82c2f7cfde0ad3f394579225447c7aea5f9e92056dd00",
+      "public_key": "044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0",
+      "note": "The largest 32-byte digest, above n."
+    },
+    {
+      "name": "impostor-keys-digest-all-ones",
+      "private_key": "2222222222222222222222222222222222222222222222222222222222222222",
+      "digest": "ffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffffff",
+      "signature": "b3d3a63bb0d3758877a857937c00a13c8207cac00fe09c4ad93bb54f01814a92707efe5f7904fdc5f95868458a262b06bdd41a4402d3c94da1f35d061bab653d00",
+      "public_key": "04466d7fcae563e5cb09a0d1870bb580344804617879a14949cf22285f1bae3f276728176c3c6431f8eeda4538dc37c865e2784f3a9e77d044f33e407797e1278a"
+    },
+    {
       "name": "digest-31-bytes",
       "private_key": "6b30303de7b26bfb1222b317a52113357f8bb06de00160b4261a2fef9c8b9bd8",
       "digest": "49a567a359bf25d9652b24acc5567bc38c93139467c8fcf798f059ada58569",
