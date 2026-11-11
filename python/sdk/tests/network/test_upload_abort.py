@@ -44,19 +44,23 @@ async def test_source_failure_after_first_message_aborts_upload(failure) -> None
             with suppress(ConnectionResetError):
                 await writer.wait_closed()
 
+    error = failure("source failed")
+
     async def source():
         yield first
         await received_first.wait()
-        raise failure("source failed")
+        raise error
 
     signer = new_signer_from_hex("0x6b30303de7b26bfb1222b317a52113357f8bb06de00160b4261a2fef9c8b9bd8")
     client = SigningClient(signer)
     server = await asyncio.start_server(receive, "127.0.0.1", 0)
     port = server.sockets[0].getsockname()[1]
     async with server, asyncio.timeout(5):
-        with pytest.raises(pyqwest.WriteError):
+        with pytest.raises((pyqwest.WriteError, failure)) as raised:
             async with client.stream("POST", f"http://127.0.0.1:{port}/", content=source()):
                 pass
         body, completed = await upload
+    # pyqwest 0.14 re-raises the source's own exception; earlier versions wrap it in WriteError.
+    assert isinstance(raised.value, pyqwest.WriteError) or raised.value is error
     assert body == first
     assert not completed, "a failed source must not send the normal end-of-upload chunk"

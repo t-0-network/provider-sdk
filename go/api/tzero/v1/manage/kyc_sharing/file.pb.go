@@ -547,7 +547,7 @@ const file_tzero_v1_manage_kyc_sharing_file_proto_rawDesc = "" +
 	"\bMetadata\x125\n" +
 	"\x12payout_provider_id\x18\n" +
 	" \x01(\rB\a\xbaH\x04*\x02 \x00R\x10payoutProviderId\x12&\n" +
-	"\tclient_id\x18\x14 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18@R\bclientId\x12,\n" +
+	"\tclient_id\x18\x14 \x01(\tB\t\xbaH\x06r\x04\x10\x01\x182R\bclientId\x12,\n" +
 	"\tfile_name\x18\x1e \x01(\tB\n" +
 	"\xbaH\ar\x05\x10\x01\x18\xff\x01H\x00R\bfileName\x88\x01\x01\x12C\n" +
 	"\x15declared_content_type\x18( \x01(\tB\n" +
@@ -570,7 +570,7 @@ const file_tzero_v1_manage_kyc_sharing_file_proto_rawDesc = "" +
 	" \x01(\x03B\a\xbaH\x04\"\x02 \x00R\x06fileId\x127\n" +
 	"\x13payout_requester_id\x18\x14 \x01(\rB\a\xbaH\x04*\x02 \x00R\x11payoutRequesterId\x125\n" +
 	"\x12payout_provider_id\x18\x1e \x01(\rB\a\xbaH\x04*\x02 \x00R\x10payoutProviderId\x12&\n" +
-	"\tclient_id\x18( \x01(\tB\t\xbaH\x06r\x04\x10\x01\x18@R\bclientId\"\xf4\x02\n" +
+	"\tclient_id\x18( \x01(\tB\t\xbaH\x06r\x04\x10\x01\x182R\bclientId\"\xf4\x02\n" +
 	"\x14DownloadFileResponse\x12X\n" +
 	"\bmetadata\x18\n" +
 	" \x01(\v2:.tzero.v1.manage.kyc_sharing.DownloadFileResponse.MetadataH\x00R\bmetadata\x12O\n" +
