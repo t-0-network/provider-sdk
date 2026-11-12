@@ -213,11 +213,11 @@ func (x *GetQuotesResponse_CurrencyQuote_PaymentMethodQuote) GetProviderQuotes()
 	return nil
 }
 
-// * One payout provider's offering for the enclosing currency and method: the caller's balance
-// with the provider plus its tiered rate bands.
+// * The quotes of one payout provider for the enclosing currency and method: the caller's balance
+// with the provider plus the tiered rate bands.
 type GetQuotesResponse_CurrencyQuote_PaymentMethodQuote_ProviderQuote struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// * The payout provider that published these quotes.
+	// * The payout provider that executes payouts under these quotes.
 	ProviderId int32 `protobuf:"varint,10,opt,name=provider_id,json=providerId,proto3" json:"provider_id,omitempty"`
 	// * The caller's credit standing with this provider (USD, currency-agnostic).
 	Balance *GetQuotesResponse_CurrencyQuote_PaymentMethodQuote_ProviderQuote_ProviderBalance `protobuf:"bytes,20,opt,name=balance,proto3" json:"balance,omitempty"`
@@ -334,7 +334,7 @@ func (x *GetQuotesResponse_CurrencyQuote_PaymentMethodQuote_ProviderQuote_Provid
 	return nil
 }
 
-// * One pricing band: the rate and fixed fee that apply for a pay-out amount up to max_amount.
+// * One pricing band: the rate and fixed charge that apply for a pay-out amount up to max_amount.
 type GetQuotesResponse_CurrencyQuote_PaymentMethodQuote_ProviderQuote_Quote struct {
 	state   protoimpl.MessageState `protogen:"open.v1"`
 	QuoteId int64                  `protobuf:"varint,10,opt,name=quote_id,json=quoteId,proto3" json:"quote_id,omitempty"`

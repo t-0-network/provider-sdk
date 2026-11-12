@@ -1196,9 +1196,11 @@ type UpdateQuoteRequest_Quote struct {
 	QuoteType QuoteType `protobuf:"varint,20,opt,name=quote_type,json=quoteType,proto3,enum=tzero.v1.payment.QuoteType" json:"quote_type,omitempty"`
 	// Payment method must be specified
 	PaymentMethod common.PaymentMethodType         `protobuf:"varint,25,opt,name=payment_method,json=paymentMethod,proto3,enum=tzero.v1.common.PaymentMethodType" json:"payment_method,omitempty"`
-	Bands         []*UpdateQuoteRequest_Quote_Band `protobuf:"bytes,30,rep,name=bands,proto3" json:"bands,omitempty"`           // list of bands for this quote
-	Expiration    *timestamppb.Timestamp           `protobuf:"bytes,60,opt,name=expiration,proto3" json:"expiration,omitempty"` // expiration time of the quote
-	Timestamp     *timestamppb.Timestamp           `protobuf:"bytes,70,opt,name=timestamp,proto3" json:"timestamp,omitempty"`   // timestamp quote was created
+	Bands         []*UpdateQuoteRequest_Quote_Band `protobuf:"bytes,30,rep,name=bands,proto3" json:"bands,omitempty"` // list of bands for this quote
+	// Expiration time of the quote. Must be at least the network's minimum quote validity after the
+	// network receives the request; otherwise InvalidArgument.
+	Expiration    *timestamppb.Timestamp `protobuf:"bytes,60,opt,name=expiration,proto3" json:"expiration,omitempty"`
+	Timestamp     *timestamppb.Timestamp `protobuf:"bytes,70,opt,name=timestamp,proto3" json:"timestamp,omitempty"` // timestamp quote was created
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -1478,7 +1480,7 @@ func (x *GetQuoteResponse_Failure) GetReason() GetQuoteResponse_Failure_Reason {
 }
 
 // *
-// Best quote from a provider with credit line configured.
+// Best quote for each provider with a credit line configured.
 // Contains settlement status and calculated amounts for the payment request.
 type GetQuoteResponse_ProviderQuote struct {
 	state        protoimpl.MessageState                     `protogen:"open.v1"`
@@ -2171,10 +2173,10 @@ var File_tzero_v1_payment_network_proto protoreflect.FileDescriptor
 
 const file_tzero_v1_payment_network_proto_rawDesc = "" +
 	"\n" +
-	"\x1etzero/v1/payment/network.proto\x12\x10tzero.v1.payment\x1a\x1ctzero/v1/common/common.proto\x1a$tzero/v1/common/payment_method.proto\x1a%tzero/v1/common/payment_receipt.proto\x1a\x1divms101/v1/ivms/ivms101.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bbuf/validate/validate.proto\"\xa3\a\n" +
+	"\x1etzero/v1/payment/network.proto\x12\x10tzero.v1.payment\x1a\x1ctzero/v1/common/common.proto\x1a$tzero/v1/common/payment_method.proto\x1a%tzero/v1/common/payment_receipt.proto\x1a\x1divms101/v1/ivms/ivms101.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bbuf/validate/validate.proto\"\xa6\a\n" +
 	"\x12UpdateQuoteRequest\x12C\n" +
 	"\apay_out\x18\n" +
-	" \x03(\v2*.tzero.v1.payment.UpdateQuoteRequest.QuoteR\x06payOut\x1a\xb9\x06\n" +
+	" \x03(\v2*.tzero.v1.payment.UpdateQuoteRequest.QuoteR\x06payOut\x1a\xbc\x06\n" +
 	"\x05Quote\x120\n" +
 	"\bcurrency\x18\n" +
 	" \x01(\tB\x14\xbaH\x11r\x0f2\n" +
@@ -2182,9 +2184,9 @@ const file_tzero_v1_payment_network_proto_rawDesc = "" +
 	"\n" +
 	"quote_type\x18\x14 \x01(\x0e2\x1b.tzero.v1.payment.QuoteTypeB\x02\x18\x01R\tquoteType\x12Q\n" +
 	"\x0epayment_method\x18\x19 \x01(\x0e2\".tzero.v1.common.PaymentMethodTypeB\x06\xbaH\x03\xc8\x01\x01R\rpaymentMethod\x12O\n" +
-	"\x05bands\x18\x1e \x03(\v2/.tzero.v1.payment.UpdateQuoteRequest.Quote.BandB\b\xbaH\x05\x92\x01\x02\b\x01R\x05bands\x12D\n" +
+	"\x05bands\x18\x1e \x03(\v2/.tzero.v1.payment.UpdateQuoteRequest.Quote.BandB\b\xbaH\x05\x92\x01\x02\b\x01R\x05bands\x12G\n" +
 	"\n" +
-	"expiration\x18< \x01(\v2\x1a.google.protobuf.TimestampB\b\xbaH\x05\xb2\x01\x02@\x01R\n" +
+	"expiration\x18< \x01(\v2\x1a.google.protobuf.TimestampB\v\xbaH\b\xc8\x01\x01\xb2\x01\x02@\x01R\n" +
 	"expiration\x12@\n" +
 	"\ttimestamp\x18F \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\ttimestamp\x1a\x91\x03\n" +
 	"\x04Band\x121\n" +

@@ -1943,7 +1943,7 @@ const file_tzero_v1_payment_intent_network_proto_rawDesc = "" +
 	"\x06result\x12\x05\xbaH\x02\b\x012\xe7\x04\n" +
 	"\x14PaymentIntentService\x12m\n" +
 	"\vUpdateQuote\x12+.tzero.v1.payment_intent.UpdateQuoteRequest\x1a,.tzero.v1.payment_intent.UpdateQuoteResponse\"\x03\x90\x02\x02\x12d\n" +
-	"\bGetQuote\x12(.tzero.v1.payment_intent.GetQuoteRequest\x1a).tzero.v1.payment_intent.GetQuoteResponse\"\x03\x90\x02\x02\x12g\n" +
+	"\bGetQuote\x12(.tzero.v1.payment_intent.GetQuoteRequest\x1a).tzero.v1.payment_intent.GetQuoteResponse\"\x03\x90\x02\x01\x12g\n" +
 	"\tGetQuotes\x12).tzero.v1.payment_intent.GetQuotesRequest\x1a*.tzero.v1.payment_intent.GetQuotesResponse\"\x03\x90\x02\x01\x12\x85\x01\n" +
 	"\x13CreatePaymentIntent\x123.tzero.v1.payment_intent.CreatePaymentIntentRequest\x1a4.tzero.v1.payment_intent.CreatePaymentIntentResponse\"\x03\x90\x02\x02\x12\x88\x01\n" +
 	"\x14ConfirmFundsReceived\x124.tzero.v1.payment_intent.ConfirmFundsReceivedRequest\x1a5.tzero.v1.payment_intent.ConfirmFundsReceivedResponse\"\x03\x90\x02\x02B\xfc\x01\n" +
