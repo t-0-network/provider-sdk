@@ -37,7 +37,7 @@ service PaymentIntentService {
    * at the time of ConfirmFundsReceived.
    */
   rpc GetQuote(GetQuoteRequest) returns (GetQuoteResponse) {
-    option idempotency_level = IDEMPOTENT;
+    option idempotency_level = NO_SIDE_EFFECTS;
   }
 
   /** Lists the active pay-in quotes the caller can collect against, grouped by currency, then
