@@ -67,8 +67,8 @@ type ProviderServiceClient interface {
 	// keep track of the provider's exposure to other participants and other important financial events. (see the list in the message below)
 	AppendLedgerEntries(context.Context, *connect.Request[payment.AppendLedgerEntriesRequest]) (*connect.Response[payment.AppendLedgerEntriesResponse], error)
 	// *
-	// Approves the final pay-out quotes — the "Last Look" before payment executes.
-	// Applies after a manual AML check completes, when one was required.
+	// Approves the final pay-out quote — the "Last Look" after a manual AML check, before the payout executes.
+	// The network can repeat this call for the same `payment_id` with a different quote, rate and amounts: answer each call from the values it carries, not with an earlier answer for that `payment_id`.
 	ApprovePaymentQuotes(context.Context, *connect.Request[payment.ApprovePaymentQuoteRequest]) (*connect.Response[payment.ApprovePaymentQuoteResponse], error)
 }
 
@@ -173,8 +173,8 @@ type ProviderServiceHandler interface {
 	// keep track of the provider's exposure to other participants and other important financial events. (see the list in the message below)
 	AppendLedgerEntries(context.Context, *connect.Request[payment.AppendLedgerEntriesRequest]) (*connect.Response[payment.AppendLedgerEntriesResponse], error)
 	// *
-	// Approves the final pay-out quotes — the "Last Look" before payment executes.
-	// Applies after a manual AML check completes, when one was required.
+	// Approves the final pay-out quote — the "Last Look" after a manual AML check, before the payout executes.
+	// The network can repeat this call for the same `payment_id` with a different quote, rate and amounts: answer each call from the values it carries, not with an earlier answer for that `payment_id`.
 	ApprovePaymentQuotes(context.Context, *connect.Request[payment.ApprovePaymentQuoteRequest]) (*connect.Response[payment.ApprovePaymentQuoteResponse], error)
 }
 

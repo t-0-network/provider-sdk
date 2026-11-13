@@ -873,6 +873,10 @@ func (x *ApprovePaymentQuoteRequest) GetPayOutFix() *common.Decimal {
 	return nil
 }
 
+// *
+// An answer is not the payment outcome. `UpdatePayment` reports the outcome:
+// `UpdatePaymentRequest.Accepted` carries the final rate, fixed charge and settlement amount, and
+// `UpdatePaymentRequest.Failed` ends the payment.
 type ApprovePaymentQuoteResponse struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// Types that are valid to be assigned to Result:
@@ -2113,7 +2117,7 @@ var File_tzero_v1_payment_provider_proto protoreflect.FileDescriptor
 
 const file_tzero_v1_payment_provider_proto_rawDesc = "" +
 	"\n" +
-	"\x1ftzero/v1/payment/provider.proto\x12\x10tzero.v1.payment\x1a$tzero/v1/common/payment_method.proto\x1a%tzero/v1/common/payment_receipt.proto\x1a\x1ctzero/v1/common/common.proto\x1a\x1divms101/v1/ivms/ivms101.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bbuf/validate/validate.proto\"\xa0\x13\n" +
+	"\x1ftzero/v1/payment/provider.proto\x12\x10tzero.v1.payment\x1a$tzero/v1/common/payment_method.proto\x1a%tzero/v1/common/payment_receipt.proto\x1a\x1ctzero/v1/common/common.proto\x1a\x1dtzero/v1/common/timeout.proto\x1a\x1divms101/v1/ivms/ivms101.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bbuf/validate/validate.proto\"\xa0\x13\n" +
 	"\x1aAppendLedgerEntriesRequest\x12f\n" +
 	"\ftransactions\x18\x14 \x03(\v28.tzero.v1.payment.AppendLedgerEntriesRequest.TransactionB\b\xbaH\x05\x92\x01\x02\b\x01R\ftransactions\x1a\xfd\r\n" +
 	"\vTransaction\x12.\n" +
@@ -2284,13 +2288,13 @@ const file_tzero_v1_payment_provider_proto_rawDesc = "" +
 	"\bAccepted\x1a\n" +
 	"\n" +
 	"\bRejectedB\x0f\n" +
-	"\x06result\x12\x05\xbaH\x02\b\x012\x9e\x04\n" +
-	"\x0fProviderService\x12P\n" +
-	"\x06PayOut\x12\x1f.tzero.v1.payment.PayoutRequest\x1a .tzero.v1.payment.PayoutResponse\"\x03\x90\x02\x02\x12e\n" +
-	"\rUpdatePayment\x12&.tzero.v1.payment.UpdatePaymentRequest\x1a'.tzero.v1.payment.UpdatePaymentResponse\"\x03\x90\x02\x02\x12_\n" +
-	"\vUpdateLimit\x12$.tzero.v1.payment.UpdateLimitRequest\x1a%.tzero.v1.payment.UpdateLimitResponse\"\x03\x90\x02\x02\x12w\n" +
-	"\x13AppendLedgerEntries\x12,.tzero.v1.payment.AppendLedgerEntriesRequest\x1a-.tzero.v1.payment.AppendLedgerEntriesResponse\"\x03\x90\x02\x02\x12x\n" +
-	"\x14ApprovePaymentQuotes\x12,.tzero.v1.payment.ApprovePaymentQuoteRequest\x1a-.tzero.v1.payment.ApprovePaymentQuoteResponse\"\x03\x90\x02\x02B\xd7\x01\n" +
+	"\x06result\x12\x05\xbaH\x02\b\x012\xbc\x04\n" +
+	"\x0fProviderService\x12V\n" +
+	"\x06PayOut\x12\x1f.tzero.v1.payment.PayoutRequest\x1a .tzero.v1.payment.PayoutResponse\"\t\xa2\xa7\x1d\x02\b\x1e\x90\x02\x02\x12k\n" +
+	"\rUpdatePayment\x12&.tzero.v1.payment.UpdatePaymentRequest\x1a'.tzero.v1.payment.UpdatePaymentResponse\"\t\xa2\xa7\x1d\x02\b\x1e\x90\x02\x02\x12e\n" +
+	"\vUpdateLimit\x12$.tzero.v1.payment.UpdateLimitRequest\x1a%.tzero.v1.payment.UpdateLimitResponse\"\t\xa2\xa7\x1d\x02\b\x1e\x90\x02\x02\x12}\n" +
+	"\x13AppendLedgerEntries\x12,.tzero.v1.payment.AppendLedgerEntriesRequest\x1a-.tzero.v1.payment.AppendLedgerEntriesResponse\"\t\xa2\xa7\x1d\x02\b\x1e\x90\x02\x02\x12~\n" +
+	"\x14ApprovePaymentQuotes\x12,.tzero.v1.payment.ApprovePaymentQuoteRequest\x1a-.tzero.v1.payment.ApprovePaymentQuoteResponse\"\t\xa2\xa7\x1d\x02\b\x1d\x90\x02\x02B\xd7\x01\n" +
 	"\x14com.tzero.v1.paymentB\rProviderProtoP\x01Z;github.com/t-0-network/provider-sdk/go/api/tzero/v1/payment\xa2\x02\x03TVP\xaa\x02#T0.ProviderSdk.Api.Tzero.V1.Payment\xca\x02\x10Tzero\\V1\\Payment\xe2\x02\x1cTzero\\V1\\Payment\\GPBMetadata\xea\x02\x12Tzero::V1::Paymentb\x06proto3"
 
 var (

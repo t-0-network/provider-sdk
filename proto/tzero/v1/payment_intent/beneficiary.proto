@@ -5,6 +5,7 @@ package tzero.v1.payment_intent;
 import "buf/validate/validate.proto";
 import "ivms101/v1/ivms/ivms101.proto";
 import "tzero/v1/common/common.proto";
+import "tzero/v1/common/timeout.proto";
 import "tzero/v1/common/payment_method.proto";
 
 /**
@@ -26,6 +27,7 @@ service BeneficiaryService {
    */
   rpc PaymentIntentUpdate(PaymentIntentUpdateRequest) returns (PaymentIntentUpdateResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (tzero.v1.common.timeout) = {seconds: 30};
   }
 }
 

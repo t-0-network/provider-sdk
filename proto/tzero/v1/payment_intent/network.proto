@@ -6,6 +6,7 @@ import "buf/validate/validate.proto";
 import "google/protobuf/timestamp.proto";
 import "ivms101/v1/ivms/ivms101.proto";
 import "tzero/v1/common/common.proto";
+import "tzero/v1/common/timeout.proto";
 import "tzero/v1/common/payment_method.proto";
 
 /**
@@ -24,6 +25,7 @@ service PaymentIntentService {
    */
   rpc UpdateQuote(UpdateQuoteRequest) returns (UpdateQuoteResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (tzero.v1.common.timeout) = {seconds: 30};
   }
 
   /**
@@ -38,6 +40,7 @@ service PaymentIntentService {
    */
   rpc GetQuote(GetQuoteRequest) returns (GetQuoteResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (tzero.v1.common.timeout) = {seconds: 30};
   }
 
   /** Lists the active pay-in quotes the caller can collect against, grouped by currency, then
@@ -45,6 +48,7 @@ service PaymentIntentService {
    * bands. Indicative — request a priced quote via GetQuote to act on one. */
   rpc GetQuotes(GetQuotesRequest) returns (GetQuotesResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (tzero.v1.common.timeout) = {seconds: 30};
   }
 
   /**
@@ -52,6 +56,7 @@ service PaymentIntentService {
    */
   rpc CreatePaymentIntent(CreatePaymentIntentRequest) returns (CreatePaymentIntentResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (tzero.v1.common.timeout) = {seconds: 30};
   }
 
   /**
@@ -60,6 +65,7 @@ service PaymentIntentService {
    */
   rpc ConfirmFundsReceived(ConfirmFundsReceivedRequest) returns (ConfirmFundsReceivedResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (tzero.v1.common.timeout) = {seconds: 30};
   }
 }
 
