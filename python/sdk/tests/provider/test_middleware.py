@@ -3,6 +3,7 @@
 Mirrors Go's verify_signature_test.go test cases.
 """
 
+import asyncio
 import struct
 import time
 
@@ -254,6 +255,34 @@ class TestSignatureVerificationMiddleware:
         scope, body = _make_signed_request()
         assert await _run_middleware(scope, body) is None
         assert signature_error_var.get() is NOT_VERIFIED
+
+    async def test_disconnect_reaches_the_app_when_the_client_disconnects(self):
+        """After the body, the app's receive is the server's: it reports a disconnect when the
+        client disconnects, not before. An RPC library cancels a handler that is still running
+        when its receive reports one."""
+        scope, body = _make_signed_request()
+        client_gone = asyncio.Event()
+        messages = [{"type": "http.request", "body": body, "more_body": False}]
+
+        async def receive():
+            if messages:
+                return messages.pop()
+            await client_gone.wait()
+            return {"type": "http.disconnect"}
+
+        async def send(message):
+            pass
+
+        async def downstream_app(scope, receive, send):
+            assert (await receive())["body"] == body
+            after_body = asyncio.ensure_future(receive())
+            await asyncio.sleep(0)
+            assert not after_body.done()
+            client_gone.set()
+            assert await after_body == {"type": "http.disconnect"}
+
+        app = signature_verification_middleware(downstream_app, new_verify_signature(PUBLIC_KEY))
+        await asyncio.wait_for(app(scope, receive, send), timeout=1.0)
 
 
 class _RecordingVerifyFn:

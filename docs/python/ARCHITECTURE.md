@@ -385,7 +385,7 @@ sequenceDiagram
 
 **Phase 1 -- ASGI/WSGI Middleware:**
 - Both variants check the signature headers first (V10 in `docs/CROSS_SDK_RULES.md`: presence and format, the window, the network key, the signature length), then read the body (at most the limit; a declared `Content-Length` over it is refused unread), then verify the signature over the raw bytes, and store any error in a `contextvars.ContextVar`
-- **ASGI:** reads the body through the raw `receive` callable and replays it with a synthetic `receive`; for a rejected request it first reads and discards what the caller is still sending (bounded), so the caller reads the answer instead of a reset connection
+- **ASGI:** reads the body through the raw `receive` callable and replays it with a synthetic `receive`, which after the body is the server's own, so the app learns of a disconnect when the client disconnects, not before; for a rejected request it first reads and discards what the caller is still sending (bounded), so the caller reads the answer instead of a reset connection
 - **WSGI:** reads the body from `environ["wsgi.input"]` and replaces it with a `BytesIO`
 - A rejected request goes on with an empty request message in place of its body (and without its encoding headers), so ConnectRPC decodes nothing the caller sent and reaches the interceptor, which answers with the rejection whatever the body held
 
@@ -757,7 +757,7 @@ The most complex modules in the SDK. Implement Phase 1 of the [two-phase verific
 2. Reads the body with `_BodyReader.read()` (enforcing the size limit)
 3. Verifies the signature with `_verify_body()`
 4. Stores the result (an error, or `None`) in `signature_error_var`; for an error, replaces the body with `_rejection_body()`. If the caller is still sending, the answer goes out at once and only the message that ends the response waits while the rest of the body is read (`_AnswerThenDrain`), at most 4× the body limit and 1 s, so an HTTP/1.1 client reads the answer instead of a reset under its upload. HTTP/2 without trailers ends at once, without a drain
-5. Forwards to the downstream ASGI app with a replayed `receive`, and resets `signature_error_var` when it returns
+5. Forwards to the downstream ASGI app with a `receive` that replays the body and is then the server's own, and resets `signature_error_var` when it returns
 
 `verify_fn` is the `VerifySignatureFn` built by `new_verify_signature`, or, as in 1.2.1, a `CustomVerifyFn` of the caller's own, called after the header checks and before the body is decoded; such a function decides the signature itself. `new_asgi_app` and `new_wsgi_app` always use the network key.
 
@@ -774,7 +774,7 @@ The most complex modules in the SDK. Implement Phase 1 of the [two-phase verific
 | `_BodyReader` | Reads the ASGI body with size enforcement, and drains a rejected one after its answer |
 | `_AnswerThenDrain` | Wraps `send` for a rejected call: sends the answer at once, then reads the rest of the body (bounded by bytes and time) before ending the response |
 | `_rejection_body(headers)` | The empty request message replayed in place of a rejected body |
-| `_replay_receive(body)` | Returns a synthetic ASGI `receive` callable |
+| `_replay_receive(body, receive)` | Returns an ASGI `receive` that gives the body, then whatever `receive` gives: the server's own, or `_client_gone` while `_AnswerThenDrain` is still reading a rejected body |
 
 #### 4.4.3 `interceptor.py` -- ConnectRPC Error Conversion
 
