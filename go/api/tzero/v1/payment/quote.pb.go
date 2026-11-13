@@ -418,7 +418,7 @@ var File_tzero_v1_payment_quote_proto protoreflect.FileDescriptor
 
 const file_tzero_v1_payment_quote_proto_rawDesc = "" +
 	"\n" +
-	"\x1ctzero/v1/payment/quote.proto\x12\x10tzero.v1.payment\x1a\x1ctzero/v1/common/common.proto\x1a$tzero/v1/common/payment_method.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bbuf/validate/validate.proto\"\x12\n" +
+	"\x1ctzero/v1/payment/quote.proto\x12\x10tzero.v1.payment\x1a\x1ctzero/v1/common/common.proto\x1a\x1dtzero/v1/common/timeout.proto\x1a$tzero/v1/common/payment_method.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bbuf/validate/validate.proto\"\x12\n" +
 	"\x10GetQuotesRequest\"\xef\v\n" +
 	"\x11GetQuotesResponse\x12I\n" +
 	"\x06quotes\x18\n" +
@@ -452,9 +452,9 @@ const file_tzero_v1_payment_quote_proto_rawDesc = "" +
 	"\x03fix\x18( \x01(\v2\x18.tzero.v1.common.DecimalB7\xbaH4\xba\x01.\x12\x18fix must be non-negative\x1a\x12this.unscaled >= 0\xc8\x01\x01R\x03fix\x12B\n" +
 	"\n" +
 	"expiration\x182 \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\n" +
-	"expiration2i\n" +
-	"\fQuoteService\x12Y\n" +
-	"\tGetQuotes\x12\".tzero.v1.payment.GetQuotesRequest\x1a#.tzero.v1.payment.GetQuotesResponse\"\x03\x90\x02\x01B\xd4\x01\n" +
+	"expiration2o\n" +
+	"\fQuoteService\x12_\n" +
+	"\tGetQuotes\x12\".tzero.v1.payment.GetQuotesRequest\x1a#.tzero.v1.payment.GetQuotesResponse\"\t\xa2\xa7\x1d\x02\b\x1e\x90\x02\x01B\xd4\x01\n" +
 	"\x14com.tzero.v1.paymentB\n" +
 	"QuoteProtoP\x01Z;github.com/t-0-network/provider-sdk/go/api/tzero/v1/payment\xa2\x02\x03TVP\xaa\x02#T0.ProviderSdk.Api.Tzero.V1.Payment\xca\x02\x10Tzero\\V1\\Payment\xe2\x02\x1cTzero\\V1\\Payment\\GPBMetadata\xea\x02\x12Tzero::V1::Paymentb\x06proto3"
 
