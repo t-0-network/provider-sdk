@@ -3,6 +3,7 @@ syntax = "proto3";
 package tzero.v1.payment_intent;
 
 import "tzero/v1/common/common.proto";
+import "tzero/v1/common/timeout.proto";
 import "tzero/v1/common/payment_method.proto";
 import "buf/validate/validate.proto";
 import "ivms101/v1/ivms/ivms101.proto";
@@ -26,6 +27,7 @@ service PayInProviderService {
    */
   rpc GetPaymentDetails(GetPaymentDetailsRequest) returns (GetPaymentDetailsResponse) {
     option idempotency_level = IDEMPOTENT;
+    option (tzero.v1.common.timeout) = {seconds: 29};
   };
 }
 
