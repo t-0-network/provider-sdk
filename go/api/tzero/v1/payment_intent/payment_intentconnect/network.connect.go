@@ -103,7 +103,7 @@ func NewPaymentIntentServiceClient(httpClient connect.HTTPClient, baseURL string
 			httpClient,
 			baseURL+PaymentIntentServiceGetQuoteProcedure,
 			connect.WithSchema(paymentIntentServiceMethods.ByName("GetQuote")),
-			connect.WithIdempotency(connect.IdempotencyIdempotent),
+			connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 			connect.WithClientOptions(opts...),
 		),
 		getQuotes: connect.NewClient[payment_intent.GetQuotesRequest, payment_intent.GetQuotesResponse](
@@ -212,7 +212,7 @@ func NewPaymentIntentServiceHandler(svc PaymentIntentServiceHandler, opts ...con
 		PaymentIntentServiceGetQuoteProcedure,
 		svc.GetQuote,
 		connect.WithSchema(paymentIntentServiceMethods.ByName("GetQuote")),
-		connect.WithIdempotency(connect.IdempotencyIdempotent),
+		connect.WithIdempotency(connect.IdempotencyNoSideEffects),
 		connect.WithHandlerOptions(opts...),
 	)
 	paymentIntentServiceGetQuotesHandler := connect.NewUnaryHandler(

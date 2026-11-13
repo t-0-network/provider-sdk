@@ -1674,7 +1674,7 @@ type UpdatePaymentRequest_Accepted struct {
 	TravelRuleData *UpdatePaymentRequest_Accepted_TravelRuleData `protobuf:"bytes,20,opt,name=travel_rule_data,json=travelRuleData,proto3" json:"travel_rule_data,omitempty"`
 	// * Exchange rate the network applied to this payout, pay-out currency per USD.
 	Rate *common.Decimal `protobuf:"bytes,30,opt,name=rate,proto3" json:"rate,omitempty"`
-	// * Fixed USD markup the network applied to this payout.
+	// * Fixed charge in USD included in the settlement amount for this payout.
 	Fix *common.Decimal `protobuf:"bytes,40,opt,name=fix,proto3" json:"fix,omitempty"`
 	// * Final USD obligation persisted by the network for this accepted payout.
 	SettlementAmount *common.Decimal `protobuf:"bytes,50,opt,name=settlement_amount,json=settlementAmount,proto3" json:"settlement_amount,omitempty"`

@@ -85,7 +85,12 @@ message UpdateQuoteRequest {
       min_items: 1
     }]; // list of bands for this quote
 
-    google.protobuf.Timestamp expiration = 60 [(buf.validate.field).timestamp.gt_now = true]; // expiration time of the quote
+    // Expiration time of the quote. Must be at least the network's minimum quote validity after the
+    // network receives the request; otherwise InvalidArgument.
+    google.protobuf.Timestamp expiration = 60 [
+      (buf.validate.field).required = true,
+      (buf.validate.field).timestamp.gt_now = true
+    ];
 
     google.protobuf.Timestamp timestamp = 70 [(buf.validate.field).required = true]; // timestamp quote was created
 
@@ -188,7 +193,7 @@ message GetQuoteResponse {
   }
 
   /**
-   * Best quote from a provider with credit line configured.
+   * Best quote for each provider with a credit line configured.
    * Contains settlement status and calculated amounts for the payment request.
    */
   message ProviderQuote {
