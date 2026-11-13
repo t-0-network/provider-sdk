@@ -205,12 +205,15 @@ def signature_verification_middleware(
                 # The answer goes out at once, never after the rest of the body; what the caller
                 # is still sending is read after it (_AnswerThenDrain).
                 send = _AnswerThenDrain(scope, send, reader, _DRAIN_LIMIT_FACTOR * max_body_size)
+                # The rest of the body is read there, not by the app, which is told the client
+                # has gone.
+                receive = _client_gone
 
         # The result is reset when the request ends, so a server that serves another request in
         # this context never finds it there.
         token = signature_error_var.set(error)
         try:
-            await app(scope, _replay_receive(body), send)
+            await app(scope, _replay_receive(body, receive), send)
         finally:
             signature_error_var.reset(token)
 
@@ -471,15 +474,24 @@ def _with_content_length(start: dict[str, Any], length: int) -> dict[str, Any]:
     return {**start, "headers": headers}
 
 
-def _replay_receive(body: bytes) -> ASGIReceive:
-    """Create a synthetic ASGI receive that replays buffered body bytes."""
+def _replay_receive(body: bytes, receive: ASGIReceive) -> ASGIReceive:
+    """An ASGI receive that gives the app the buffered body, then whatever receive gives.
+
+    With the server's receive that is the client's disconnect, when it happens. An RPC library
+    cancels a running handler on a disconnect, so one reported right after the body would cancel
+    every handler that awaits."""
     sent = False
 
-    async def receive() -> dict[str, Any]:
+    async def replay() -> dict[str, Any]:
         nonlocal sent
         if not sent:
             sent = True
             return {"type": "http.request", "body": body, "more_body": False}
-        return {"type": "http.disconnect"}
+        message: dict[str, Any] = await receive()
+        return message
 
-    return receive
+    return replay
+
+
+async def _client_gone() -> dict[str, Any]:
+    return {"type": "http.disconnect"}

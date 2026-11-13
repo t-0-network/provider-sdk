@@ -160,10 +160,14 @@ async def _send_asgi(
         "headers": [(b"content-type", content_type.encode())] + [(k.encode(), v.encode()) for k, v in headers.items()],
         "extensions": {"http.response.trailers": {}},  # gRPC needs trailers
     }
+    request = [{"type": "http.request", "body": body, "more_body": False}]
     sent = []
 
     async def receive():
-        return {"type": "http.request", "body": body, "more_body": False}
+        # As an ASGI server's: the body, then nothing while the client stays connected.
+        if request:
+            return request.pop()
+        await asyncio.Event().wait()
 
     async def send(message):
         sent.append(message)
@@ -391,6 +395,20 @@ async def test_refused_body_that_never_ends_is_read_for_a_bounded_time():
     finally:
         task.cancel()
     assert sent[-1] == {"type": "http.response.body", "body": b"", "more_body": False}
+
+
+class _AwaitingProviderService(_StubProviderService):
+    async def pay_out(self, request, ctx):
+        await asyncio.sleep(0.01)  # any await: a call to the network, a database query
+        return payment_pb2.PayoutResponse(accepted=payment_pb2.PayoutResponse.Accepted())
+
+
+async def test_handler_that_awaits_answers_while_the_client_stays_connected():
+    """A handler that awaits, as the starter's pay_out awaits FinalizePayout, runs to its answer:
+    it is not cancelled as if the client had disconnected."""
+    app = new_asgi_app(PUBLIC_KEY, handler(ProviderServiceASGIApplication, _AwaitingProviderService()))
+    answer = await asyncio.wait_for(_call_asgi(app, PAY_OUT_PATH, _signed_headers()), timeout=ANSWER_TIMEOUT)
+    assert answer == ("ok", "")
 
 
 @pytest.mark.parametrize("transport", TRANSPORTS)

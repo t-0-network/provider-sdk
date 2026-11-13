@@ -155,6 +155,48 @@ class TestGoClientPythonServerHealth:
             await server_task
 
 
+class _AwaitingProviderService(_ProviderService):
+    async def pay_out(self, request: PayoutRequest, ctx: RequestContext) -> PayoutResponse:
+        await asyncio.sleep(0.05)  # any await: a call to the network, a database query
+        return PayoutResponse(accepted=PayoutResponse.Accepted())
+
+
+@pytest.mark.asyncio
+class TestGoClientPythonServerPayOut:
+    """Go PayOut client -> Python server."""
+
+    async def test_pay_out_handler_that_awaits(self):
+        """Behind a real server, a handler that awaits runs to its answer while the client waits
+        for it: it is not cancelled as if the client had disconnected."""
+        port = _find_free_port()
+        app = new_asgi_app(
+            CLIENT_PUBLIC_KEY,
+            handler(ProviderServiceASGIApplication, _AwaitingProviderService()),
+        )
+        server = uvicorn.Server(uvicorn.Config(app, host="127.0.0.1", port=port, log_level="warning"))
+
+        server_task = asyncio.create_task(server.serve())
+        try:
+            await _async_wait_for_port(port, timeout=5.0)
+
+            proc = await asyncio.create_subprocess_exec(
+                str(GO_HELPER),
+                "call-pay-out",
+                f"http://127.0.0.1:{port}",
+                CLIENT_PRIVATE_KEY,
+                stdout=asyncio.subprocess.PIPE,
+                stderr=asyncio.subprocess.PIPE,
+            )
+            stdout, stderr = await asyncio.wait_for(proc.communicate(), timeout=15)
+
+            assert proc.returncode == 0, f"Go PayOut failed: stdout={stdout.decode()}, stderr={stderr.decode()}"
+            assert stdout.decode().strip() == "OK"
+
+        finally:
+            server.should_exit = True
+            await server_task
+
+
 @pytest.mark.asyncio
 class TestPythonClientGoServerHealth:
     """Python health check client -> Go server."""
