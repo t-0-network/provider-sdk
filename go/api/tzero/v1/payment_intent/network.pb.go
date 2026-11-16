@@ -156,8 +156,7 @@ func (ConfirmFundsReceivedResponse_Reject_Reason) EnumDescriptor() ([]byte, []in
 type UpdateQuoteRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// *
-	// Zero or more quotes for pay-in operations, each quote must have a unique currency, and one or more bands, with the
-	// unique client_quote_id for each band. An empty list withdraws all quotes.
+	// Pay-in quotes. Each band has a unique client_quote_id. An empty list withdraws all quotes.
 	PaymentIntentQuotes []*UpdateQuoteRequest_Quote `protobuf:"bytes,10,rep,name=payment_intent_quotes,json=paymentIntentQuotes,proto3" json:"payment_intent_quotes,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
@@ -563,6 +562,7 @@ type CreatePaymentIntentRequest struct {
 	// *
 	// Pay-in amount in the specified currency.
 	// The exact fiat amount the end-user should pay.
+	// At most 2 decimal places and 14 integer digits; trailing zeros are allowed; otherwise InvalidArgument.
 	Amount *common.Decimal `protobuf:"bytes,30,opt,name=amount,proto3" json:"amount,omitempty"`
 	// *
 	// Travel rule compliance data.
@@ -917,7 +917,8 @@ type UpdateQuoteRequest_Quote struct {
 	PaymentMethod common.PaymentMethodType `protobuf:"varint,25,opt,name=payment_method,json=paymentMethod,proto3,enum=tzero.v1.common.PaymentMethodType" json:"payment_method,omitempty"`
 	// list of bands for this quote
 	Bands []*UpdateQuoteRequest_Quote_Band `protobuf:"bytes,30,rep,name=bands,proto3" json:"bands,omitempty"`
-	// expiration time of the quote
+	// Expiration time of the quote. Must be at least the network's minimum quote validity after the
+	// network receives the request; otherwise InvalidArgument.
 	Expiration *timestamppb.Timestamp `protobuf:"bytes,60,opt,name=expiration,proto3" json:"expiration,omitempty"`
 	// timestamp quote was created
 	Timestamp     *timestamppb.Timestamp `protobuf:"bytes,70,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
@@ -996,7 +997,8 @@ type UpdateQuoteRequest_Quote_Band struct {
 	ClientQuoteId string `protobuf:"bytes,10,opt,name=client_quote_id,json=clientQuoteId,proto3" json:"client_quote_id,omitempty"`
 	// Maximum amount of USD this band applies to.
 	MaxAmount *common.Decimal `protobuf:"bytes,40,opt,name=max_amount,json=maxAmount,proto3" json:"max_amount,omitempty"`
-	// USD/currency rate
+	// USD/currency rate. At most 6 decimal places and 6 integer digits; trailing zeros are allowed;
+	// otherwise InvalidArgument.
 	Rate *common.Decimal `protobuf:"bytes,50,opt,name=rate,proto3" json:"rate,omitempty"`
 	// *
 	// Fixed charge in USD retained by the Collection Provider per transfer.
@@ -1794,19 +1796,19 @@ var File_tzero_v1_payment_intent_network_proto protoreflect.FileDescriptor
 
 const file_tzero_v1_payment_intent_network_proto_rawDesc = "" +
 	"\n" +
-	"%tzero/v1/payment_intent/network.proto\x12\x17tzero.v1.payment_intent\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1divms101/v1/ivms/ivms101.proto\x1a\x1ctzero/v1/common/common.proto\x1a$tzero/v1/common/payment_method.proto\"\x82\a\n" +
+	"%tzero/v1/payment_intent/network.proto\x12\x17tzero.v1.payment_intent\x1a\x1bbuf/validate/validate.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1divms101/v1/ivms/ivms101.proto\x1a\x1ctzero/v1/common/common.proto\x1a\x1dtzero/v1/common/timeout.proto\x1a$tzero/v1/common/payment_method.proto\"\x85\a\n" +
 	"\x12UpdateQuoteRequest\x12e\n" +
 	"\x15payment_intent_quotes\x18\n" +
-	" \x03(\v21.tzero.v1.payment_intent.UpdateQuoteRequest.QuoteR\x13paymentIntentQuotes\x1a\x84\x06\n" +
+	" \x03(\v21.tzero.v1.payment_intent.UpdateQuoteRequest.QuoteR\x13paymentIntentQuotes\x1a\x87\x06\n" +
 	"\x05Quote\x120\n" +
 	"\bcurrency\x18\n" +
 	" \x01(\tB\x14\xbaH\x11r\x0f2\n" +
 	"^[A-Z]{3}$\x98\x01\x03R\bcurrency\x12U\n" +
 	"\x0epayment_method\x18\x19 \x01(\x0e2\".tzero.v1.common.PaymentMethodTypeB\n" +
 	"\xbaH\a\x82\x01\x04\x10\x01 \x00R\rpaymentMethod\x12V\n" +
-	"\x05bands\x18\x1e \x03(\v26.tzero.v1.payment_intent.UpdateQuoteRequest.Quote.BandB\b\xbaH\x05\x92\x01\x02\b\x01R\x05bands\x12D\n" +
+	"\x05bands\x18\x1e \x03(\v26.tzero.v1.payment_intent.UpdateQuoteRequest.Quote.BandB\b\xbaH\x05\x92\x01\x02\b\x01R\x05bands\x12G\n" +
 	"\n" +
-	"expiration\x18< \x01(\v2\x1a.google.protobuf.TimestampB\b\xbaH\x05\xb2\x01\x02@\x01R\n" +
+	"expiration\x18< \x01(\v2\x1a.google.protobuf.TimestampB\v\xbaH\b\xc8\x01\x01\xb2\x01\x02@\x01R\n" +
 	"expiration\x12@\n" +
 	"\ttimestamp\x18F \x01(\v2\x1a.google.protobuf.TimestampB\x06\xbaH\x03\xc8\x01\x01R\ttimestamp\x1a\x91\x03\n" +
 	"\x04Band\x121\n" +
@@ -1940,13 +1942,13 @@ const file_tzero_v1_payment_intent_network_proto_rawDesc = "" +
 	"\x1eREJECT_REASON_AMOUNT_TOO_SMALL\x10(\x12 \n" +
 	"\x1cREJECT_REASON_NO_VALID_OFFER\x102\x124\n" +
 	"0REJECT_REASON_TRANSACTION_REFERENCE_ALREADY_USED\x10<B\x0f\n" +
-	"\x06result\x12\x05\xbaH\x02\b\x012\xe7\x04\n" +
-	"\x14PaymentIntentService\x12m\n" +
-	"\vUpdateQuote\x12+.tzero.v1.payment_intent.UpdateQuoteRequest\x1a,.tzero.v1.payment_intent.UpdateQuoteResponse\"\x03\x90\x02\x02\x12d\n" +
-	"\bGetQuote\x12(.tzero.v1.payment_intent.GetQuoteRequest\x1a).tzero.v1.payment_intent.GetQuoteResponse\"\x03\x90\x02\x01\x12g\n" +
-	"\tGetQuotes\x12).tzero.v1.payment_intent.GetQuotesRequest\x1a*.tzero.v1.payment_intent.GetQuotesResponse\"\x03\x90\x02\x01\x12\x85\x01\n" +
-	"\x13CreatePaymentIntent\x123.tzero.v1.payment_intent.CreatePaymentIntentRequest\x1a4.tzero.v1.payment_intent.CreatePaymentIntentResponse\"\x03\x90\x02\x02\x12\x88\x01\n" +
-	"\x14ConfirmFundsReceived\x124.tzero.v1.payment_intent.ConfirmFundsReceivedRequest\x1a5.tzero.v1.payment_intent.ConfirmFundsReceivedResponse\"\x03\x90\x02\x02B\xfc\x01\n" +
+	"\x06result\x12\x05\xbaH\x02\b\x012\x85\x05\n" +
+	"\x14PaymentIntentService\x12s\n" +
+	"\vUpdateQuote\x12+.tzero.v1.payment_intent.UpdateQuoteRequest\x1a,.tzero.v1.payment_intent.UpdateQuoteResponse\"\t\xa2\xa7\x1d\x02\b\x1e\x90\x02\x02\x12j\n" +
+	"\bGetQuote\x12(.tzero.v1.payment_intent.GetQuoteRequest\x1a).tzero.v1.payment_intent.GetQuoteResponse\"\t\xa2\xa7\x1d\x02\b\x1e\x90\x02\x01\x12m\n" +
+	"\tGetQuotes\x12).tzero.v1.payment_intent.GetQuotesRequest\x1a*.tzero.v1.payment_intent.GetQuotesResponse\"\t\xa2\xa7\x1d\x02\b\x1e\x90\x02\x01\x12\x8b\x01\n" +
+	"\x13CreatePaymentIntent\x123.tzero.v1.payment_intent.CreatePaymentIntentRequest\x1a4.tzero.v1.payment_intent.CreatePaymentIntentResponse\"\t\xa2\xa7\x1d\x02\b\x1e\x90\x02\x02\x12\x8e\x01\n" +
+	"\x14ConfirmFundsReceived\x124.tzero.v1.payment_intent.ConfirmFundsReceivedRequest\x1a5.tzero.v1.payment_intent.ConfirmFundsReceivedResponse\"\t\xa2\xa7\x1d\x02\b\x1e\x90\x02\x02B\xfc\x01\n" +
 	"\x1bcom.tzero.v1.payment_intentB\fNetworkProtoP\x01ZBgithub.com/t-0-network/provider-sdk/go/api/tzero/v1/payment_intent\xa2\x02\x03TVP\xaa\x02)T0.ProviderSdk.Api.Tzero.V1.PaymentIntent\xca\x02\x16Tzero\\V1\\PaymentIntent\xe2\x02\"Tzero\\V1\\PaymentIntent\\GPBMetadata\xea\x02\x18Tzero::V1::PaymentIntentb\x06proto3"
 
 var (

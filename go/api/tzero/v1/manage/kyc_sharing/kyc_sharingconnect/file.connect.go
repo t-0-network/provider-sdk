@@ -49,12 +49,11 @@ type KycFileServiceClient interface {
 	// returns the originally stored file; without it, each call stores a new file.
 	UploadFile(context.Context) *connect.ClientStreamForClient[kyc_sharing.UploadFileRequest, kyc_sharing.UploadFileResponse]
 	// *
-	// Server-streaming download of a previously uploaded file. The first response
-	// message carries Metadata (content type, advisory original name); the rest are
-	// Chunks of the file bytes. The file is identified by its id plus the (Payout
-	// Requester, Payout Provider, client) tuple it must belong to; access is granted
-	// to the owning requester (any state) and to the provider once the matching
-	// application is past draft.
+	// Server-streaming download of a previously uploaded file: the first response
+	// message carries Metadata (content type, advisory original name), the rest are
+	// Chunks of the file bytes. The file must belong to the Payout Requester, Payout
+	// Provider and client the request names; its requester can download it at any
+	// time, and its provider once the matching application is past draft.
 	DownloadFile(context.Context, *connect.Request[kyc_sharing.DownloadFileRequest]) (*connect.ServerStreamForClient[kyc_sharing.DownloadFileResponse], error)
 }
 
@@ -110,12 +109,11 @@ type KycFileServiceHandler interface {
 	// returns the originally stored file; without it, each call stores a new file.
 	UploadFile(context.Context, *connect.ClientStream[kyc_sharing.UploadFileRequest]) (*connect.Response[kyc_sharing.UploadFileResponse], error)
 	// *
-	// Server-streaming download of a previously uploaded file. The first response
-	// message carries Metadata (content type, advisory original name); the rest are
-	// Chunks of the file bytes. The file is identified by its id plus the (Payout
-	// Requester, Payout Provider, client) tuple it must belong to; access is granted
-	// to the owning requester (any state) and to the provider once the matching
-	// application is past draft.
+	// Server-streaming download of a previously uploaded file: the first response
+	// message carries Metadata (content type, advisory original name), the rest are
+	// Chunks of the file bytes. The file must belong to the Payout Requester, Payout
+	// Provider and client the request names; its requester can download it at any
+	// time, and its provider once the matching application is past draft.
 	DownloadFile(context.Context, *connect.Request[kyc_sharing.DownloadFileRequest], *connect.ServerStream[kyc_sharing.DownloadFileResponse]) error
 }
 

@@ -58,14 +58,9 @@ type PaymentIntentServiceClient interface {
 	// An empty payment_intent_quotes withdraws all of this provider's quotes.
 	UpdateQuote(context.Context, *connect.Request[payment_intent.UpdateQuoteRequest]) (*connect.Response[payment_intent.UpdateQuoteResponse], error)
 	// *
-	// GetQuote returns available quotes for a given currency and amount.
-	//
-	// Use this to check indicative rates before creating a payment intent, and for the
-	// current rates of a created payment intent's options.
-	// The returned quotes show which providers can accept pay-ins and their current rates.
-	//
-	// Note: Quotes are indicative only. The actual rate used for settlement is determined
-	// at the time of ConfirmFundsReceived.
+	// Returns indicative quotes for a pay-in currency and amount: which Collection Providers can accept
+	// the pay-in and at what rate, before a payment intent is created or for the options of a created one.
+	// The quotes are not binding: the rate used for settlement is set at ConfirmFundsReceived.
 	GetQuote(context.Context, *connect.Request[payment_intent.GetQuoteRequest]) (*connect.Response[payment_intent.GetQuoteResponse], error)
 	// * Lists the active pay-in quotes the caller can collect against, grouped by currency, then
 	// payment method: for each, the Collection Providers permitted to the caller and their tiered rate
@@ -172,14 +167,9 @@ type PaymentIntentServiceHandler interface {
 	// An empty payment_intent_quotes withdraws all of this provider's quotes.
 	UpdateQuote(context.Context, *connect.Request[payment_intent.UpdateQuoteRequest]) (*connect.Response[payment_intent.UpdateQuoteResponse], error)
 	// *
-	// GetQuote returns available quotes for a given currency and amount.
-	//
-	// Use this to check indicative rates before creating a payment intent, and for the
-	// current rates of a created payment intent's options.
-	// The returned quotes show which providers can accept pay-ins and their current rates.
-	//
-	// Note: Quotes are indicative only. The actual rate used for settlement is determined
-	// at the time of ConfirmFundsReceived.
+	// Returns indicative quotes for a pay-in currency and amount: which Collection Providers can accept
+	// the pay-in and at what rate, before a payment intent is created or for the options of a created one.
+	// The quotes are not binding: the rate used for settlement is set at ConfirmFundsReceived.
 	GetQuote(context.Context, *connect.Request[payment_intent.GetQuoteRequest]) (*connect.Response[payment_intent.GetQuoteResponse], error)
 	// * Lists the active pay-in quotes the caller can collect against, grouped by currency, then
 	// payment method: for each, the Collection Providers permitted to the caller and their tiered rate
