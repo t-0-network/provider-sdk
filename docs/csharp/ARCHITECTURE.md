@@ -122,7 +122,7 @@ headers = {
 | `network.SigningTransport` | `SigningDelegatingHandler` |
 | `provider.NewHttpHandler()` | `T0ProviderServer` |
 | `provider.StartServer()` | `T0ProviderServer.RunAsync()` |
-| `provider.Handler()` | `T0ProviderServer.MapPaymentService<T>()` |
+| `provider.Handler()` | `T0ProviderServer.MapPaymentService<T>()`, `MapPayInProviderService<T>()`, `MapBeneficiaryService<T>()` |
 
 ## Dependencies
 
