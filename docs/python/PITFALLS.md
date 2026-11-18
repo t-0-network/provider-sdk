@@ -308,6 +308,28 @@ The `_parse_wsgi_headers()` function in `middleware_wsgi.py` converts all `HTTP_
 
 ---
 
+## 15. ASGI Body Replay: Report a Disconnect Only When the Server Does
+
+ASGI middleware that reads the body gives the app a `receive` that replays it. What that `receive` returns after the body matters: connectrpc watches it while a handler runs and cancels the handler on `http.disconnect`. A replay that answers `http.disconnect` right after the body cancels every handler that awaits (a call to the network, a database query): the caller gets `canceled` (HTTP 499), while a handler that never awaits still answers, so a health check passes.
+
+```python
+# WRONG — every handler that awaits is cancelled
+async def receive():
+    if not sent:
+        return {"type": "http.request", "body": body, "more_body": False}
+    return {"type": "http.disconnect"}
+
+# CORRECT — after the body, the server's own receive: a disconnect when the client disconnects
+async def replay():
+    if not sent:
+        return {"type": "http.request", "body": body, "more_body": False}
+    return await receive()
+```
+
+`_replay_receive()` in `middleware.py` does this. Test harnesses must model the server the same way: a `receive` that returns the body and then waits. One that keeps returning immediately hides this bug, or spins connectrpc's disconnect watch.
+
+---
+
 ## Quick Reference: Dependency Gotchas
 
 | Want | Don't Use | Use Instead | Why |
