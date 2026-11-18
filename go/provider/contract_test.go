@@ -170,8 +170,7 @@ func TestContract_MaxBodySizeCases(t *testing.T) {
 
 	for _, c := range v.Cases {
 		t.Run(c.Name, func(t *testing.T) {
-			opts, err := newDefaultHandlerOptions(nil, nil, "")
-			require.NoError(t, err)
+			opts := newDefaultHandlerOptions(nil, nil, "")
 			WithMaxBodySize(c.Input)(&opts)
 			require.Equal(t, c.Limit, opts.verifySignatureMaxBodySize)
 		})

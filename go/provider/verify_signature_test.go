@@ -316,8 +316,7 @@ func TestSignatureVerification_BodyOverTheLimit(t *testing.T) {
 	require.NoError(t, err)
 	resolve, err := networkKeyResolver(crypto.HexPublicKey(networkKey.PubKey()))
 	require.NoError(t, err)
-	defaultOptions, err := newDefaultHandlerOptions(resolve, nil, "")
-	require.NoError(t, err)
+	defaultOptions := newDefaultHandlerOptions(resolve, nil, "")
 	path, handler := Handler(grpchealth.NewHandler, grpchealth.Checker(grpchealth.NewStaticChecker()), WithMaxBodySize(limit))(defaultOptions)
 
 	var read atomic.Int64

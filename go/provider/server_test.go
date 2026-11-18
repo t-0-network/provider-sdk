@@ -239,7 +239,7 @@ func TestStartServer_ShutdownTimeout(t *testing.T) {
 	defer cancel()
 
 	start := time.Now()
-	err = shutdownFn(ctx)
+	_ = shutdownFn(ctx) // succeeds or times out; only the duration is checked
 	duration := time.Since(start)
 
 	// The shutdown should complete quickly due to our short shutdown timeout
@@ -516,7 +516,7 @@ func TestStartServerShutdownRespectsCaller_Context(t *testing.T) {
 	defer cancel()
 
 	start := time.Now()
-	err = shutdownFn(ctx)
+	_ = shutdownFn(ctx) // succeeds or times out; only the duration is checked
 	duration := time.Since(start)
 
 	// Should respect caller's short timeout, not server's long timeout

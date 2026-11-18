@@ -155,14 +155,12 @@ func TestValidationInterceptor(t *testing.T) {
 		WithLogger(logger)(&scratch)
 		require.Same(t, logger, scratch.logger, "WithLogger should set providerHandlerOptions.logger")
 
-		opts, err := newDefaultHandlerOptions(nil, scratch.logger, sdkversion.Version)
-		require.NoError(t, err)
+		opts := newDefaultHandlerOptions(nil, scratch.logger, sdkversion.Version)
 		require.Same(t, logger, opts.logger, "newDefaultHandlerOptions should preserve the caller's logger")
 
 		// nil from the caller falls back to slog.Default(), preserving the
 		// "logger is always non-nil downstream" invariant.
-		fallback, err := newDefaultHandlerOptions(nil, nil, sdkversion.Version)
-		require.NoError(t, err)
+		fallback := newDefaultHandlerOptions(nil, nil, sdkversion.Version)
 		require.NotNil(t, fallback.logger, "newDefaultHandlerOptions should default to slog.Default() when nil")
 	})
 
