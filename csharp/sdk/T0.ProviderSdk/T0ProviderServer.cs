@@ -9,7 +9,6 @@ using T0.ProviderSdk.Common;
 using T0.ProviderSdk.Crypto;
 using T0.ProviderSdk.Provider;
 using PaymentApi = T0.ProviderSdk.Api.Tzero.V1.Payment;
-using PaymentIntentApi = T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.Provider;
 using Grpc.Health.V1;
 
 namespace T0.ProviderSdk;
@@ -75,19 +74,6 @@ public sealed class T0ProviderServer
         where THandler : PaymentApi.ProviderService.ProviderServiceBase
     {
         _registeredFqns.Add(PaymentApi.ProviderService.Descriptor.FullName);
-        _builder.Services.AddSingleton(networkClient);
-        _mapActions.Add(app => app.MapGrpcService<THandler>());
-        return this;
-    }
-
-    /// <summary>
-    /// Maps a PaymentIntent ProviderService handler and registers its NetworkServiceClient for DI.
-    /// </summary>
-    public T0ProviderServer MapPaymentIntentService<THandler>(
-        PaymentIntentApi.NetworkService.NetworkServiceClient networkClient)
-        where THandler : PaymentIntentApi.ProviderService.ProviderServiceBase
-    {
-        _registeredFqns.Add(PaymentIntentApi.ProviderService.Descriptor.FullName);
         _builder.Services.AddSingleton(networkClient);
         _mapActions.Add(app => app.MapGrpcService<THandler>());
         return this;

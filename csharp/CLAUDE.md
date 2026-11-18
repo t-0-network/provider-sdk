@@ -51,7 +51,6 @@ csharp/
 - `SignatureVerifier` / `DefaultSignatureVerifier` (implements `ISignatureVerifier`) — Verification
 - `Keccak256` — Legacy Keccak-256 hashing (NOT NIST SHA-3)
 - `NetworkClient.CreateNetworkServiceClient()` — Auto-signing Payment gRPC client
-- `NetworkClient.CreatePaymentIntentNetworkServiceClient()` — Auto-signing PaymentIntent gRPC client
 - `SignatureVerificationMiddleware` — ASP.NET Core middleware, verifies incoming requests
 - `ValidationInterceptor` — validates every response the server sends (rule V12)
 - `Validate.Check(message)` — the same validation inside a handler (Go `provider.Validate`, Node and Python `validate`, Java `Validate.check`): returns the message when it is valid, else throws the interceptor's `RpcException`, Internal "response validation failed: …" or "response validation error: …"

@@ -67,17 +67,6 @@ If a key is missing, or `PORT` is not a port number, the process prints `ERROR: 
 9. **Step 2.5** — Ask T-0 team to test payout to your provider
 10. **Step 2.6 (optional)** — Complete manual AML checks via `CompleteManualAmlCheck` if your `PayOut` handler returns `ManualAmlCheck`
 
-## PaymentIntent Support
-
-For providers handling payment intents, map an additional service:
-
-```csharp
-var intentNetworkClient = NetworkClient.CreatePaymentIntentNetworkServiceClient(
-    config.TZeroEndpoint, signer);
-
-server.MapPaymentIntentService<MyProvider.Services.PaymentIntentHandler>(intentNetworkClient);
-```
-
 ## Testing Your Handler
 
 A client takes a `SignFn` delegate, so a test can pass a plain lambda instead of a key; `ISignatureVerifier` can be mocked for server tests:

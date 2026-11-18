@@ -6,7 +6,6 @@ using Microsoft.AspNetCore.Builder;
 using T0.ProviderSdk.Crypto;
 using T0.ProviderSdk.Network;
 using PaymentApi = T0.ProviderSdk.Api.Tzero.V1.Payment;
-using PaymentIntentApi = T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.Provider;
 using StringValue = Google.Protobuf.WellKnownTypes.StringValue;
 
 namespace T0.ProviderSdk.Tests.Network;
@@ -254,11 +253,9 @@ public class DefaultDeadlineInterceptorTests
                 () => payment.UpdateQuoteAsync(new PaymentApi.UpdateQuoteRequest()).ResponseAsync);
             Assert.Equal(StatusCode.Unimplemented, ex.StatusCode);
 
-            // Fails buf.validate (payment_intent_id 0), and is sent all the same: the network validates.
-            var paymentIntent = NetworkClient.CreatePaymentIntentNetworkServiceClient(
-                new NetworkClientOptions { BaseUrl = baseUrl, Timeout = TimeSpan.FromSeconds(9) }, signer);
+            // Fails buf.validate (payment_client_id empty), and is sent all the same: the network validates.
             ex = await Assert.ThrowsAsync<RpcException>(
-                () => paymentIntent.ConfirmPaymentAsync(new PaymentIntentApi.ConfirmPaymentRequest()).ResponseAsync);
+                () => payment.CreatePaymentAsync(new PaymentApi.CreatePaymentRequest()).ResponseAsync);
             Assert.Equal(StatusCode.Unimplemented, ex.StatusCode);
 
             var health = NetworkClient.Create(
@@ -295,15 +292,8 @@ public class DefaultDeadlineInterceptorTests
                 () => payment.UpdateQuoteAsync(new PaymentApi.UpdateQuoteRequest()).ResponseAsync);
             Assert.Equal(StatusCode.Unimplemented, ex.StatusCode);
 
-            var paymentIntent = NetworkClient.CreatePaymentIntentNetworkServiceClient(baseUrl, signer);
-            ex = await Assert.ThrowsAsync<RpcException>(
-                () => paymentIntent.ConfirmPaymentAsync(new PaymentIntentApi.ConfirmPaymentRequest()).ResponseAsync);
-            Assert.Equal(StatusCode.Unimplemented, ex.StatusCode);
-
-            // Both reached the server at baseUrl, each with 30 s: the method's option or the default.
-            Assert.Equal(2, timeouts.Count);
-            Assert.All(timeouts, timeout =>
-                Assert.InRange(ParseGrpcTimeout(timeout), TimeSpan.FromSeconds(25), TimeSpan.FromSeconds(30)));
+            // It reached the server at baseUrl, with the method's 30 s.
+            Assert.InRange(ParseGrpcTimeout(Assert.Single(timeouts)), TimeSpan.FromSeconds(25), TimeSpan.FromSeconds(30));
         }
         finally
         {

@@ -10,7 +10,6 @@ using T0.ProviderSdk.Crypto;
 using T0.ProviderSdk.Network;
 using T0.ProviderSdk.Provider;
 using PaymentApi = T0.ProviderSdk.Api.Tzero.V1.Payment;
-using PaymentIntentApi = T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.Provider;
 
 namespace T0.ProviderSdk.Tests.Crypto;
 
@@ -61,7 +60,7 @@ public class ISignerCompatibilityTests
         await using var server = await VerifyingServer.StartAsync(signer.GetPublicKeyHexPrefixed());
 
         await AssertEachCallSucceedsAsync(server, CallsWith(server.BaseUrl, signer));
-        Assert.True(signer.Calls >= 6);
+        Assert.True(signer.Calls >= 4);
     }
 
     // As for a SignFn: Internal, with the signer's error as the cause, and nothing is sent. A null
@@ -97,10 +96,6 @@ public class ISignerCompatibilityTests
             ("Create", () => NetworkClient.Create(options, signer!, invoker => invoker)),
             ("CreateNetworkServiceClient(options)", () => NetworkClient.CreateNetworkServiceClient(options, signer!)),
             ("CreateNetworkServiceClient(baseUrl)", () => NetworkClient.CreateNetworkServiceClient(Unreachable, signer!)),
-            ("CreatePaymentIntentNetworkServiceClient(options)",
-                () => NetworkClient.CreatePaymentIntentNetworkServiceClient(options, signer!)),
-            ("CreatePaymentIntentNetworkServiceClient(baseUrl)",
-                () => NetworkClient.CreatePaymentIntentNetworkServiceClient(Unreachable, signer!)),
             ("SigningDelegatingHandler", () => new SigningDelegatingHandler(signer!)),
         };
 
@@ -148,10 +143,6 @@ public class ISignerCompatibilityTests
             () => NetworkClient.CreateNetworkServiceClient(options, signer).UpdateQuoteAsync(new()).ResponseAsync);
         yield return ("CreateNetworkServiceClient(baseUrl)",
             () => NetworkClient.CreateNetworkServiceClient(baseUrl, signer).UpdateQuoteAsync(new()).ResponseAsync);
-        yield return ("CreatePaymentIntentNetworkServiceClient(options)",
-            () => NetworkClient.CreatePaymentIntentNetworkServiceClient(options, signer).ConfirmPaymentAsync(new()).ResponseAsync);
-        yield return ("CreatePaymentIntentNetworkServiceClient(baseUrl)",
-            () => NetworkClient.CreatePaymentIntentNetworkServiceClient(baseUrl, signer).ConfirmPaymentAsync(new()).ResponseAsync);
         yield return ("SigningDelegatingHandler", () => CallThroughAsync(baseUrl, new SigningDelegatingHandler(signer)));
     }
 
@@ -166,10 +157,6 @@ public class ISignerCompatibilityTests
             () => NetworkClient.CreateNetworkServiceClient(options, signer).UpdateQuoteAsync(new()).ResponseAsync);
         yield return ("CreateNetworkServiceClient(baseUrl)",
             () => NetworkClient.CreateNetworkServiceClient(baseUrl, signer).UpdateQuoteAsync(new()).ResponseAsync);
-        yield return ("CreatePaymentIntentNetworkServiceClient(options)",
-            () => NetworkClient.CreatePaymentIntentNetworkServiceClient(options, signer).ConfirmPaymentAsync(new()).ResponseAsync);
-        yield return ("CreatePaymentIntentNetworkServiceClient(baseUrl)",
-            () => NetworkClient.CreatePaymentIntentNetworkServiceClient(baseUrl, signer).ConfirmPaymentAsync(new()).ResponseAsync);
         yield return ("SigningDelegatingHandler", () => CallThroughAsync(baseUrl, new SigningDelegatingHandler(signer)));
     }
 
@@ -189,12 +176,6 @@ public class ISignerCompatibilityTests
             () => NetworkClient.CreateNetworkServiceClient(options, digest => Sign(digest)).UpdateQuoteAsync(new()).ResponseAsync);
         yield return ("CreateNetworkServiceClient(baseUrl)",
             () => NetworkClient.CreateNetworkServiceClient(baseUrl, digest => Sign(digest)).UpdateQuoteAsync(new()).ResponseAsync);
-        yield return ("CreatePaymentIntentNetworkServiceClient(options)",
-            () => NetworkClient.CreatePaymentIntentNetworkServiceClient(options, digest => Sign(digest))
-                .ConfirmPaymentAsync(new()).ResponseAsync);
-        yield return ("CreatePaymentIntentNetworkServiceClient(baseUrl)",
-            () => NetworkClient.CreatePaymentIntentNetworkServiceClient(baseUrl, digest => Sign(digest))
-                .ConfirmPaymentAsync(new()).ResponseAsync);
         yield return ("SigningDelegatingHandler",
             () => CallThroughAsync(baseUrl, new SigningDelegatingHandler(digest => Sign(digest))));
     }
@@ -220,7 +201,7 @@ public class ISignerCompatibilityTests
             factories.Add(factory);
         }
 
-        Assert.Equal(6, factories.Count);
+        Assert.Equal(4, factories.Count);
         Assert.Equal(factories.Count, server.Verified);
     }
 

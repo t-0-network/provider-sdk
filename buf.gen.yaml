@@ -29,12 +29,6 @@ managed:
       path: tzero/v1/payment_intent
       value: T0.ProviderSdk.Api.Tzero.V1.PaymentIntent
     - file_option: csharp_namespace
-      path: tzero/v1/payment_intent/provider
-      value: T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.Provider
-    - file_option: csharp_namespace
-      path: tzero/v1/payment_intent/recipient
-      value: T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.Recipient
-    - file_option: csharp_namespace
       path: buf/validate
       value: T0.ProviderSdk.Api.Buf.Validate
 
