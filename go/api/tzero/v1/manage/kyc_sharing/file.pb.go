@@ -153,15 +153,9 @@ func (x *UploadFileResponse) GetFileId() int64 {
 
 type DownloadFileRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
-	// Stable id of the file to download.
-	FileId int64 `protobuf:"varint,10,opt,name=file_id,json=fileId,proto3" json:"file_id,omitempty"`
-	// The Payout Requester that owns the file (its originator).
-	PayoutRequesterId uint32 `protobuf:"varint,20,opt,name=payout_requester_id,json=payoutRequesterId,proto3" json:"payout_requester_id,omitempty"`
-	// The Payout Provider whose form the file was uploaded against.
-	PayoutProviderId uint32 `protobuf:"varint,30,opt,name=payout_provider_id,json=payoutProviderId,proto3" json:"payout_provider_id,omitempty"`
-	// The Payout Requester's own reference for the end client (applicant),
-	// the same value as the applicant's client_id.
-	ClientId      string `protobuf:"bytes,40,opt,name=client_id,json=clientId,proto3" json:"client_id,omitempty"`
+	// Stable id of the file to download, as returned by UploadFile and carried in
+	// the applicant's FileValue fields.
+	FileId        int64 `protobuf:"varint,10,opt,name=file_id,json=fileId,proto3" json:"file_id,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -201,27 +195,6 @@ func (x *DownloadFileRequest) GetFileId() int64 {
 		return x.FileId
 	}
 	return 0
-}
-
-func (x *DownloadFileRequest) GetPayoutRequesterId() uint32 {
-	if x != nil {
-		return x.PayoutRequesterId
-	}
-	return 0
-}
-
-func (x *DownloadFileRequest) GetPayoutProviderId() uint32 {
-	if x != nil {
-		return x.PayoutProviderId
-	}
-	return 0
-}
-
-func (x *DownloadFileRequest) GetClientId() string {
-	if x != nil {
-		return x.ClientId
-	}
-	return ""
 }
 
 type DownloadFileResponse struct {
@@ -564,13 +537,10 @@ const file_tzero_v1_manage_kyc_sharing_file_proto_rawDesc = "" +
 	"\apayload\x12\x05\xbaH\x02\b\x01\"6\n" +
 	"\x12UploadFileResponse\x12 \n" +
 	"\afile_id\x18\n" +
-	" \x01(\x03B\a\xbaH\x04\"\x02 \x00R\x06fileId\"\xcf\x01\n" +
+	" \x01(\x03B\a\xbaH\x04\"\x02 \x00R\x06fileId\"7\n" +
 	"\x13DownloadFileRequest\x12 \n" +
 	"\afile_id\x18\n" +
-	" \x01(\x03B\a\xbaH\x04\"\x02 \x00R\x06fileId\x127\n" +
-	"\x13payout_requester_id\x18\x14 \x01(\rB\a\xbaH\x04*\x02 \x00R\x11payoutRequesterId\x125\n" +
-	"\x12payout_provider_id\x18\x1e \x01(\rB\a\xbaH\x04*\x02 \x00R\x10payoutProviderId\x12&\n" +
-	"\tclient_id\x18( \x01(\tB\t\xbaH\x06r\x04\x10\x01\x182R\bclientId\"\xf4\x02\n" +
+	" \x01(\x03B\a\xbaH\x04\"\x02 \x00R\x06fileId\"\xf4\x02\n" +
 	"\x14DownloadFileResponse\x12X\n" +
 	"\bmetadata\x18\n" +
 	" \x01(\v2:.tzero.v1.manage.kyc_sharing.DownloadFileResponse.MetadataH\x00R\bmetadata\x12O\n" +

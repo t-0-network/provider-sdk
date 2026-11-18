@@ -51,9 +51,9 @@ type KycFileServiceClient interface {
 	// *
 	// Server-streaming download of a previously uploaded file: the first response
 	// message carries Metadata (content type, advisory original name), the rest are
-	// Chunks of the file bytes. The file must belong to the Payout Requester, Payout
-	// Provider and client the request names; its requester can download it at any
-	// time, and its provider once the matching application is past draft.
+	// Chunks of the file bytes. The file's Payout Requester can download it at any
+	// time, and its Payout Provider once the matching application is past draft; any
+	// other caller gets the same error as for a missing file.
 	DownloadFile(context.Context, *connect.Request[kyc_sharing.DownloadFileRequest]) (*connect.ServerStreamForClient[kyc_sharing.DownloadFileResponse], error)
 }
 
@@ -111,9 +111,9 @@ type KycFileServiceHandler interface {
 	// *
 	// Server-streaming download of a previously uploaded file: the first response
 	// message carries Metadata (content type, advisory original name), the rest are
-	// Chunks of the file bytes. The file must belong to the Payout Requester, Payout
-	// Provider and client the request names; its requester can download it at any
-	// time, and its provider once the matching application is past draft.
+	// Chunks of the file bytes. The file's Payout Requester can download it at any
+	// time, and its Payout Provider once the matching application is past draft; any
+	// other caller gets the same error as for a missing file.
 	DownloadFile(context.Context, *connect.Request[kyc_sharing.DownloadFileRequest], *connect.ServerStream[kyc_sharing.DownloadFileResponse]) error
 }
 
