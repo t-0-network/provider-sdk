@@ -219,7 +219,9 @@ class MyInterceptor:
         return response
 ```
 
-`Interceptor = UnaryInterceptor | StreamInterceptor` — it's a type alias, not a class.
+`Interceptor = UnaryInterceptor | ClientStreamInterceptor | ServerStreamInterceptor | BidiStreamInterceptor | MetadataInterceptor` — it's a type alias, not a class.
+
+Each kind runs for its own kind of method only: a `UnaryInterceptor` never sees a streaming call. A check that must cover every call, such as the signature check, is a `MetadataInterceptor` (`on_start`, `on_end`). On a server, the metadata interceptors at the front of the list run before the request body is read, so one there can refuse a call without decoding its body. `SignatureErrorInterceptor` is one, and `handler()` keeps it first.
 
 ---
 

@@ -25,7 +25,13 @@ from t0_provider_sdk.provider import (
 )
 from t0_provider_sdk.provider.health import HealthASGIApplication, HealthImpl, HealthImplSync, HealthWSGIApplication
 from t0_provider_sdk.provider.interceptor import SignatureErrorInterceptor, SignatureErrorInterceptorSync
-from t0_provider_sdk.provider.middleware import DEFAULT_MAX_BODY_SIZE
+from t0_provider_sdk.provider.middleware import (
+    DEFAULT_MAX_BODY_SIZE,
+    new_verify_signature,
+    signature_verification_middleware,
+)
+from tzero.v1.manage.kyc_sharing import file_pb2
+from tzero.v1.manage.kyc_sharing.file_connect import KycFileServiceASGIApplication, KycFileServiceWSGIApplication
 from tzero.v1.payment import provider_pb2 as payment_pb2
 from tzero.v1.payment import quote_pb2
 from tzero.v1.payment.provider_connect import ProviderServiceASGIApplication, ProviderServiceWSGIApplication
@@ -284,8 +290,8 @@ def test_body_over_the_limit_is_resource_exhausted(transport, content_type):
 
 
 def test_body_over_the_limit_is_resource_exhausted_over_grpc():
-    """The body replayed after the refusal decodes as one empty message, so the answer is the
-    interceptor's, not a decoding error ("unary request has zero messages")."""
+    """The interceptor answers before connectrpc reads the body, so the answer is the interceptor's,
+    not a decoding error ("unary request has zero messages")."""
     app = new_asgi_app(PUBLIC_KEY, handler(ProviderServiceASGIApplication, _StubProviderService()))
     body = b"\x00" * (DEFAULT_MAX_BODY_SIZE + 1)
     sent = asyncio.run(_send_asgi(app, CHECK_PATH, _signed_headers(), body, "application/grpc"))
@@ -395,6 +401,265 @@ async def test_refused_body_that_never_ends_is_read_for_a_bounded_time():
     finally:
         task.cancel()
     assert sent[-1] == {"type": "http.response.body", "body": b"", "more_body": False}
+
+
+# -- A refusal is answered before connectrpc reads or decodes the body (rule V8) --
+
+GRPC_EMPTY_MESSAGE = b"\x00\x00\x00\x00\x00"  # one uncompressed frame holding an empty message
+_REFUSED = ("unauthenticated", "signature verification failed")
+_UNAUTHENTICATED_GRPC_STATUS = b"16"
+
+
+def _headers_signing(body: bytes) -> dict[str, str]:
+    """Headers signing body with PRIVATE_KEY."""
+    return dict(_sign_request(new_signer_from_hex(PRIVATE_KEY), body, None).items())
+
+
+def _grpc_answer(sent: list[dict]) -> tuple[bytes, str]:
+    """The grpc-status and grpc-message of a gRPC answer, trailers-only or not."""
+    fields = {
+        k: v for m in sent if m["type"] in ("http.response.start", "http.response.trailers") for k, v in m["headers"]
+    }
+    return fields[b"grpc-status"], unquote(fields.get(b"grpc-message", b"").decode())
+
+
+# What a refused body may hold: whatever it is, the answer is the refusal. The headers sign another
+# body, so the signature does not verify. (content type, extra headers, body)
+_CONNECT_REFUSED_BODIES = [
+    pytest.param("application/json", {}, b"{not json", id="json, not json"),
+    pytest.param("application/proto", {}, b"\xff\xff\xff", id="proto, not a message"),
+    pytest.param("application/proto", {"content-encoding": "br"}, b"\x01\x02", id="unknown content-encoding"),
+    pytest.param("application/proto", {"content-encoding": "gzip"}, b"not gzip", id="gzip, not gzip"),
+]
+_GRPC_REFUSED_BODIES = [
+    pytest.param("application/grpc", {}, b"", id="grpc, empty body"),
+    pytest.param("application/grpc", {}, b"\x01\x02", id="grpc, cut-short frame"),
+    pytest.param("application/grpc", {}, GRPC_EMPTY_MESSAGE * 2, id="grpc, two frames"),
+    pytest.param("application/grpc", {"grpc-encoding": "snappy"}, GRPC_EMPTY_MESSAGE, id="unknown grpc-encoding"),
+    pytest.param("application/grpc+json", {}, b"\x00\x00\x00\x00\x01{", id="grpc+json, not json"),
+]
+
+
+@pytest.mark.parametrize("transport", TRANSPORTS)
+@pytest.mark.parametrize(("content_type", "extra", "body"), _CONNECT_REFUSED_BODIES)
+def test_refusal_wins_over_what_the_body_holds(transport, content_type, extra, body):
+    """A refused Connect call gets the refusal, not a decoding or compression error: the body and its
+    encoding headers reach connectrpc as sent, and the interceptor answers before they are read."""
+    headers = {**_headers_signing(b"another body"), **extra}
+    assert _call(transport, headers, path=PAY_OUT_PATH, body=body, content_type=content_type) == _REFUSED
+
+
+@pytest.mark.parametrize(("content_type", "extra", "body"), _GRPC_REFUSED_BODIES)
+def test_refusal_wins_over_what_the_body_holds_over_grpc(content_type, extra, body):
+    app = new_asgi_app(PUBLIC_KEY, handler(ProviderServiceASGIApplication, _StubProviderService()))
+    headers = {**_headers_signing(b"another body"), **extra}
+    sent = asyncio.run(_send_asgi(app, PAY_OUT_PATH, headers, body, content_type))
+    assert _grpc_answer(sent) == (_UNAUTHENTICATED_GRPC_STATUS, _REFUSED[1])
+
+
+def _behind_receive_spy(reads: list[dict]):
+    """A ProviderService app with only the signature interceptor, behind the signature middleware,
+    with every message the app receives recorded in reads."""
+    app = ProviderServiceASGIApplication(_StubProviderService(), interceptors=[SignatureErrorInterceptor()])
+
+    async def spy(scope, receive, send):
+        async def recording_receive():
+            message = await receive()
+            reads.append(message)
+            return message
+
+        await app(scope, recording_receive, send)
+
+    return signature_verification_middleware(spy, new_verify_signature(PUBLIC_KEY))
+
+
+@pytest.mark.parametrize(
+    ("content_type", "body"),
+    [("application/proto", b""), ("application/grpc", GRPC_EMPTY_MESSAGE)],
+    ids=["connect", "grpc"],
+)
+async def test_refused_call_is_answered_without_reading_the_body(content_type, body):
+    """connectrpc runs the signature interceptor, a leading metadata interceptor, before it reads the
+    body: a refused call is answered and the app never calls receive. The accepted call shows that
+    the spy sees a read."""
+    reads: list[dict] = []
+    app = _behind_receive_spy(reads)
+
+    await _send_asgi(app, PAY_OUT_PATH, _headers_signing(body), body, content_type)
+    assert [m["body"] for m in reads] == [body]
+
+    reads.clear()
+    sent = await _send_asgi(app, PAY_OUT_PATH, _headers_signing(b"another body"), body, content_type)
+    assert reads == []
+    if content_type == "application/grpc":
+        assert _grpc_answer(sent) == (_UNAUTHENTICATED_GRPC_STATUS, _REFUSED[1])
+    else:
+        assert _answer(sent[0]["status"], b"".join(m.get("body", b"") for m in sent[1:])) == _REFUSED
+
+
+class _RecordingInput:
+    """A wsgi.input that records every read."""
+
+    def __init__(self, body: bytes) -> None:
+        self._inner = io.BytesIO(body)
+        self.reads: list[int] = []
+
+    def read(self, size: int = -1) -> bytes:
+        chunk = self._inner.read(size)
+        self.reads.append(len(chunk))
+        return chunk
+
+
+def test_refused_wsgi_body_is_not_read_by_the_app():
+    """On a refusal the WSGI app gets an empty input with CONTENT_LENGTH 0. Over HTTP/1, connectrpc
+    reads what is left of the input after an error, up to CONTENT_LENGTH; given the caller's input it
+    would read a body whose declared length is over the limit."""
+    app = new_wsgi_app(PUBLIC_KEY, handler_sync(ProviderServiceWSGIApplication, _StubProviderServiceSync()))
+    wsgi_input = _RecordingInput(b"\x00" * (DEFAULT_MAX_BODY_SIZE + 1))
+    environ = {
+        "REQUEST_METHOD": "POST",
+        "PATH_INFO": PAY_OUT_PATH,
+        "SCRIPT_NAME": "",
+        "SERVER_PROTOCOL": "HTTP/1.1",
+        "CONTENT_TYPE": "application/proto",
+        "CONTENT_LENGTH": str(DEFAULT_MAX_BODY_SIZE + 1),
+        "wsgi.input": wsgi_input,
+        "wsgi.errors": io.StringIO(),
+    }
+    for name, value in _signed_headers().items():
+        environ["HTTP_" + name.upper().replace("-", "_")] = value
+    statuses = []
+    body = b"".join(app(environ, lambda status, headers, exc_info=None: statuses.append(int(status.split()[0]))))
+    assert _answer(statuses[0], body) == (
+        "resource_exhausted",
+        f"max payload size of {DEFAULT_MAX_BODY_SIZE} bytes exceeded",
+    )
+    assert wsgi_input.reads == []
+
+
+# -- Streaming endpoints: the signature check runs before their handler too --
+
+DOWNLOAD_FILE_PATH = "/tzero.v1.manage.kyc_sharing.KycFileService/DownloadFile"
+UPLOAD_FILE_PATH = "/tzero.v1.manage.kyc_sharing.KycFileService/UploadFile"
+_DOWNLOAD_REQUEST = file_pb2.DownloadFileRequest(file_id=7).SerializeToString()
+_DOWNLOAD_BODY = b"\x00" + len(_DOWNLOAD_REQUEST).to_bytes(4, "big") + _DOWNLOAD_REQUEST
+_UPLOAD_REQUEST = file_pb2.UploadFileRequest(
+    metadata=file_pb2.UploadFileRequest.Metadata(upload_id="u1")
+).SerializeToString()
+_UPLOAD_BODY = b"\x00" + len(_UPLOAD_REQUEST).to_bytes(4, "big") + _UPLOAD_REQUEST
+# A streaming endpoint of each kind that verifies as one body: (path, body of one message).
+_STREAMS = [
+    pytest.param(DOWNLOAD_FILE_PATH, _DOWNLOAD_BODY, id="server stream"),
+    pytest.param(UPLOAD_FILE_PATH, _UPLOAD_BODY, id="client stream"),
+]
+
+
+class _RecordingKycFileService:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    async def upload_file(self, request, ctx):
+        self.calls += 1
+        async for _ in request:
+            pass
+        return file_pb2.UploadFileResponse(file_id=1)
+
+    async def download_file(self, request, ctx):
+        self.calls += 1
+        yield file_pb2.DownloadFileResponse(chunk=file_pb2.DownloadFileResponse.Chunk(data=b"file"))
+
+
+class _RecordingKycFileServiceSync:
+    def __init__(self) -> None:
+        self.calls = 0
+
+    def upload_file(self, request, ctx):
+        self.calls += 1
+        for _ in request:
+            pass
+        return file_pb2.UploadFileResponse(file_id=1)
+
+    def download_file(self, request, ctx):
+        self.calls += 1
+        yield file_pb2.DownloadFileResponse(chunk=file_pb2.DownloadFileResponse.Chunk(data=b"file"))
+
+
+def _stream_end(body: bytes) -> dict:
+    """The JSON of the end-of-stream message that ends a Connect streaming response body."""
+    offset = 0
+    while offset < len(body):
+        flags, length = body[offset], int.from_bytes(body[offset + 1 : offset + 5], "big")
+        if flags & 0b10:
+            return json.loads(body[offset + 5 : offset + 5 + length])
+        offset += 5 + length
+    raise AssertionError(f"no end-of-stream message in {body!r}")
+
+
+@pytest.mark.parametrize("transport", TRANSPORTS)
+@pytest.mark.parametrize(("path", "stream_body"), _STREAMS)
+def test_refused_stream_never_starts_its_handler(transport, path, stream_body):
+    """A streaming call that fails the signature check gets the refusal and its handler never runs; a
+    signed one is served. (A provider server receives unary calls; this is what V8 asks of a
+    streaming endpoint mounted with handler().)"""
+    headers = _headers_signing(stream_body)
+    # With an unknown connect-content-encoding too: the signature check answers first.
+    refused = {**_headers_signing(b"another body"), "connect-content-encoding": "snappy"}
+    if transport == "asgi":
+        service = _RecordingKycFileService()
+        app = new_asgi_app(PUBLIC_KEY, handler(KycFileServiceASGIApplication, service))
+
+        def call(headers):
+            sent = asyncio.run(_send_asgi(app, path, headers, stream_body, "application/connect+proto"))
+            return _stream_end(b"".join(m.get("body", b"") for m in sent if m["type"] == "http.response.body"))
+    else:
+        service = _RecordingKycFileServiceSync()
+        app = new_wsgi_app(PUBLIC_KEY, handler_sync(KycFileServiceWSGIApplication, service))
+
+        def call(headers):
+            environ = {
+                "REQUEST_METHOD": "POST",
+                "PATH_INFO": path,
+                "SCRIPT_NAME": "",
+                "CONTENT_TYPE": "application/connect+proto",
+                "CONTENT_LENGTH": str(len(stream_body)),
+                "wsgi.input": io.BytesIO(stream_body),
+                "wsgi.errors": io.StringIO(),
+            }
+            for name, value in headers.items():
+                environ["HTTP_" + name.upper().replace("-", "_")] = value
+            return _stream_end(b"".join(app(environ, lambda status, headers, exc_info=None: None)))
+
+    assert call(refused) == {"error": {"code": "unauthenticated", "message": "signature verification failed"}}
+    assert service.calls == 0
+    assert call(headers) == {}
+    assert service.calls == 1
+
+
+@pytest.mark.parametrize("transport", TRANSPORTS)
+@pytest.mark.parametrize(("path", "stream_body"), _STREAMS)
+def test_unverified_stream_is_refused(transport, path, stream_body):
+    """Served without the signature middleware: no result, and the streaming handler never runs."""
+    headers = _headers_signing(stream_body)
+    if transport == "asgi":
+        service = _RecordingKycFileService()
+        app = KycFileServiceASGIApplication(service, interceptors=[SignatureErrorInterceptor()])
+        sent = asyncio.run(_send_asgi(app, path, headers, stream_body, "application/connect+proto"))
+        body = b"".join(m.get("body", b"") for m in sent if m["type"] == "http.response.body")
+    else:
+        service = _RecordingKycFileServiceSync()
+        app = KycFileServiceWSGIApplication(service, interceptors=[SignatureErrorInterceptorSync()])
+        environ = {
+            "REQUEST_METHOD": "POST",
+            "PATH_INFO": path,
+            "SCRIPT_NAME": "",
+            "CONTENT_TYPE": "application/connect+proto",
+            "CONTENT_LENGTH": str(len(stream_body)),
+            "wsgi.input": io.BytesIO(stream_body),
+            "wsgi.errors": io.StringIO(),
+        }
+        body = b"".join(app(environ, lambda status, headers, exc_info=None: None))
+    assert _stream_end(body) == {"error": {"code": "internal", "message": "no signature result in context"}}
+    assert service.calls == 0
 
 
 class _AwaitingProviderService(_StubProviderService):
