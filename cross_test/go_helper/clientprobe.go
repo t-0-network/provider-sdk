@@ -16,10 +16,14 @@ import (
 
 	"connectrpc.com/connect"
 	"connectrpc.com/grpchealth"
+	"github.com/t-0-network/provider-sdk/go/api/tzero/v1/payment"
+	"github.com/t-0-network/provider-sdk/go/api/tzero/v1/payment/paymentconnect"
 )
 
 type clientCase struct {
 	Name            string `json:"name"`
+	Method          string `json:"method"`
+	MethodTimeoutMs *int64 `json:"method_timeout_ms"`
 	ClientTimeoutMs *int64 `json:"client_timeout_ms"`
 	CallTimeoutMs   *int64 `json:"call_timeout_ms"`
 	Signer          string `json:"signer"`
@@ -47,7 +51,7 @@ const (
 
 // cmdClientProbe serves the client cases of the shared fixture until it is killed:
 // go_helper client-probe --sdk <name> [--vectors <path>]. Its first line on stdout is
-// "READY <base_url>"; a client calls a case at <base_url>/<case name>.
+// "READY <base_url>"; a client calls a case at <base_url>/<case name>/<service>/<method>.
 func cmdClientProbe() {
 	var sdk, vectorsPath string
 	args := os.Args[2:]
@@ -93,10 +97,11 @@ func newClientProbeServer(v *vectors, sdk string, log io.Writer) *http.Server {
 	}
 }
 
-// newClientProbeHandler checks each request against its client case and answers SERVING if it
-// passes, or failed_precondition with the reason. The case is the first path segment.
+// newClientProbeHandler checks each request against its client case and, if it passes, answers
+// as the case's method does: SERVING for Health/Check, an empty response for the method a case
+// names. Else it answers failed_precondition with the reason. The case is the first path segment.
 func newClientProbeHandler(v *vectors, sdk string, log io.Writer) http.Handler {
-	_, health := grpchealth.NewHandler(servingChecker{})
+	methods := clientProbeMethods()
 	errorWriter := connect.NewErrorWriter()
 	cases := make(map[string]clientCase, len(v.ClientCases))
 	for _, c := range v.ClientCases {
@@ -105,10 +110,18 @@ func newClientProbeHandler(v *vectors, sdk string, log io.Writer) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		name, rest, _ := strings.Cut(strings.TrimPrefix(r.URL.Path, "/"), "/")
 		body, err := io.ReadAll(r.Body)
-		if err == nil && "/"+rest != healthCheckPath {
-			err = fmt.Errorf("path %q is not /<case>%s", r.URL.Path, healthCheckPath)
-		}
 		c, ok := cases[name]
+		path := healthCheckPath
+		if c.Method != "" {
+			path = "/" + c.Method
+		}
+		method, served := methods[path]
+		if err == nil && !served {
+			err = fmt.Errorf("the probe serves no method %s", path)
+		}
+		if err == nil && "/"+rest != path {
+			err = fmt.Errorf("path %q is not /<case>%s", r.URL.Path, path)
+		}
 		if err == nil && !ok && name != redirectTarget {
 			err = fmt.Errorf("no client case %q", name)
 		}
@@ -126,12 +139,42 @@ func newClientProbeHandler(v *vectors, sdk string, log io.Writer) http.Handler {
 			w.WriteHeader(http.StatusTemporaryRedirect)
 			return
 		}
-		served := r.Clone(r.Context())
-		served.URL.Path = healthCheckPath
-		served.URL.RawPath = ""
-		served.Body = io.NopCloser(bytes.NewReader(body))
-		health.ServeHTTP(w, served)
+		forwarded := r.Clone(r.Context())
+		forwarded.URL.Path = path
+		forwarded.URL.RawPath = ""
+		forwarded.Body = io.NopCloser(bytes.NewReader(body))
+		method.ServeHTTP(w, forwarded)
 	})
+}
+
+// clientProbeMethods are the methods a client case can call, by path: Health/Check, and the
+// methods that client_cases name in `method`, which answer an empty response. Each speaks Connect
+// and gRPC.
+func clientProbeMethods() map[string]http.Handler {
+	_, health := grpchealth.NewHandler(servingChecker{})
+	_, provider := paymentconnect.NewProviderServiceHandler(emptyProvider{})
+	_, network := paymentconnect.NewNetworkServiceHandler(emptyNetwork{})
+	return map[string]http.Handler{
+		healthCheckPath: health,
+		paymentconnect.ProviderServiceApprovePaymentQuotesProcedure: provider,
+		paymentconnect.NetworkServiceUpdateQuoteProcedure:           network,
+	}
+}
+
+type emptyProvider struct {
+	paymentconnect.UnimplementedProviderServiceHandler
+}
+
+func (emptyProvider) ApprovePaymentQuotes(context.Context, *connect.Request[payment.ApprovePaymentQuoteRequest]) (*connect.Response[payment.ApprovePaymentQuoteResponse], error) {
+	return connect.NewResponse(&payment.ApprovePaymentQuoteResponse{}), nil
+}
+
+type emptyNetwork struct {
+	paymentconnect.UnimplementedNetworkServiceHandler
+}
+
+func (emptyNetwork) UpdateQuote(context.Context, *connect.Request[payment.UpdateQuoteRequest]) (*connect.Response[payment.UpdateQuoteResponse], error) {
+	return connect.NewResponse(&payment.UpdateQuoteResponse{}), nil
 }
 
 type servingChecker struct{}
@@ -166,12 +209,14 @@ func checkClientRequest(v *vectors, sdk string, c clientCase, header http.Header
 }
 
 // checkDeadline: the deadline header is in (want - deadlineSlackMs, want], want being the case's
-// per-call timeout, else its client timeout, else the default.
+// per-call timeout, else its method's timeout option, else its client timeout, else the default.
 func checkDeadline(v *vectors, c clientCase, protocol string, header http.Header) error {
 	want := v.Constants.DefaultTimeoutMs
 	switch {
 	case c.CallTimeoutMs != nil:
 		want = *c.CallTimeoutMs
+	case c.MethodTimeoutMs != nil:
+		want = *c.MethodTimeoutMs
 	case c.ClientTimeoutMs != nil:
 		want = *c.ClientTimeoutMs
 	}

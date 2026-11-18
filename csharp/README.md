@@ -31,7 +31,7 @@ var signer = Signer.FromHex(privateKeyHex);
 var options = new NetworkClientOptions
 {
     BaseUrl = "https://api.t-0.network",      // the default
-    Timeout = TimeSpan.FromSeconds(15),       // unary calls, the default
+    Timeout = TimeSpan.FromSeconds(30),       // unary calls, the default
     StreamTimeout = TimeSpan.FromMinutes(5),  // client and server streams, whole call, the default
 };
 
@@ -41,6 +41,8 @@ var client = NetworkClient.CreateNetworkServiceClient(options, signer);
 // A deadline on the call replaces the default, shorter or longer.
 await client.UpdateQuoteAsync(request, deadline: DateTime.UtcNow.AddMinutes(1));
 ```
+
+A call gets the timeout its method has in the proto (the `tzero.v1.common.timeout` option): 30 seconds for most network methods, 29 for `ApprovePaymentQuotes` and `GetPaymentDetails`. The network answers within that time, so `Timeout` does not shorten or lengthen it. A method without the option gets the client's timeout: `Timeout` for a unary call, `StreamTimeout` for a stream. A deadline on the call replaces both, shorter or longer.
 
 ## Custom signer
 

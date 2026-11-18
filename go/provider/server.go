@@ -20,9 +20,13 @@ import (
 
 // Default timeout values
 const (
-	DefaultAddr              = ":8080"
-	DefaultReadTimeout       = 10 * time.Second
-	DefaultWriteTimeout      = 10 * time.Second
+	DefaultAddr        = ":8080"
+	DefaultReadTimeout = 10 * time.Second
+	// DefaultWriteTimeout counts from the end of the request headers to the end of the response,
+	// so it bounds how long a handler may take. The network waits up to 30 s for a provider's
+	// answer (the timeout option of each method in the proto), and a handler that answers within
+	// that time must not be cut off.
+	DefaultWriteTimeout      = 35 * time.Second
 	DefaultReadHeaderTimeout = 10 * time.Second
 	DefaultShutdownTimeout   = 15 * time.Second
 

@@ -264,7 +264,7 @@ The provider calls these RPCs on the T-0 Network.
 
 | RPC | Purpose |
 |-----|---------|
-| `UpdateQuote` | Publish pay-out and pay-in quotes with rate bands |
+| `UpdateQuote` | Publish pay-out quotes with rate bands |
 | `GetQuote` | Request a quote for a specific currency and payment method |
 | `FinalizePayout` | Report the outcome of a payout (success with receipt or failure) |
 | `CompleteManualAmlCheck` | Report the outcome of a manual AML check for a payout (approved or rejected) |
@@ -699,15 +699,15 @@ def new_service_client_sync(
 
 The functions check the base URL (rule C2 in [`docs/CROSS_SDK_RULES.md`](../CROSS_SDK_RULES.md)) and the key, create a `SignFn` from the private key (unless `sign_fn` is given), wrap it in `SigningClient`/`SigningSyncClient`, and pass it as the `http_client` parameter to the generated ConnectRPC client constructor, together with the protocol, the codec for `WireFormat.JSON` and `send_compression=None` (requests go out uncompressed). `Protocol.GRPC` on an `http://` base URL gets an HTTP/2 transport without TLS.
 
-`timeout` (15 s) is the default of unary calls and `stream_timeout` (300 s) that of client- and server-streaming calls; a per-call `timeout_ms` replaces it, shorter or longer. A `timeout` or `stream_timeout` that is not greater than zero raises `ValueError`; a per-call `timeout_ms` goes to connectrpc as is. Bidirectional calls raise `ConnectError(Code.UNIMPLEMENTED)` before anything is sent. See [docs/STREAMING.md](../STREAMING.md#stream-timeout).
+A call without its own `timeout_ms` waits as long as its method's timeout option (`tzero.v1.common.timeout`) says, read from the generated descriptors in the default pool and cached per method. A method without the option, or with one that is not positive, waits `timeout` (30 s) if unary and `stream_timeout` (300 s) if client- or server-streaming. A per-call `timeout_ms` replaces both, shorter or longer. A `timeout` or `stream_timeout` that is not greater than zero raises `ValueError`; a per-call `timeout_ms` goes to connectrpc as is. Bidirectional calls raise `ConnectError(Code.UNIMPLEMENTED)` before anything is sent. See [docs/STREAMING.md](../STREAMING.md#stream-timeout).
 
 #### 4.3.3 `options.py`
 
 | Constant | Value | Purpose |
 |----------|-------|---------|
 | `DEFAULT_BASE_URL` | `"https://api.t-0.network"` | T-0 Network API endpoint |
-| `DEFAULT_TIMEOUT` | `15.0` | Unary call timeout in seconds |
-| `DEFAULT_STREAM_TIMEOUT` | `300.0` | Client- and server-streaming call timeout in seconds |
+| `DEFAULT_TIMEOUT` | `30.0` | Unary call timeout in seconds, for a method without a timeout option |
+| `DEFAULT_STREAM_TIMEOUT` | `300.0` | Client- and server-streaming call timeout in seconds, for a method without a timeout option |
 | `WireFormat` | `BINARY`, `JSON` | Enum for the factories' `wire_format` option |
 | `Protocol` | `CONNECT`, `GRPC` | Enum for the factories' `protocol` option |
 
@@ -879,7 +879,7 @@ The starter template in `starter/template/` is a complete, runnable application.
 - **`config.py`** -- Loads configuration from `.env`: `PROVIDER_PRIVATE_KEY`, `NETWORK_PUBLIC_KEY`, `TZERO_ENDPOINT`, `PORT`.
 - **`handler/payment.py`** -- `ProviderServiceImplementation` (async) class with stub implementations for all 5 RPCs. Each method has TODO comments indicating what to implement.
 - **`handler/payment_sync.py`** -- `ProviderServiceSyncImplementation` (sync) class, parallel to `payment.py` but with regular `def` methods for use with WSGI servers.
-- **`publish_quotes.py`** -- Publishes sample pay-out and pay-in quotes every 5 seconds by default, via `network_client.update_quote()`. Demonstrates quote bands with rates and amounts.
+- **`publish_quotes.py`** -- Publishes sample pay-out quotes every 5 seconds by default, via `network_client.update_quote()`. Each quote expires at publish time + publishing interval + 35 s. Demonstrates quote bands with rates and amounts.
 - **`get_quote.py`** -- Requests a sample quote from the network. Demonstrates the `GetQuoteRequest` API.
 - **`Dockerfile`** -- Multi-stage build using `python:3.13-slim` with `uv` for fast dependency installation.
 - **`.env.example`** -- Template with default values including the sandbox network public key.

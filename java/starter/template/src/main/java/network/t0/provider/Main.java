@@ -82,7 +82,7 @@ public class Main {
         installSignals(server, scheduler, networkClient, paymentIntentClient);
 
         scheduler.scheduleAtFixedRate(
-                () -> PublishQuotes.publish(networkClient.stub()),
+                () -> PublishQuotes.publish(networkClient.stub(), config.quotePublishingIntervalMs()),
                 0, config.quotePublishingIntervalMs(), TimeUnit.MILLISECONDS);
 
         // TODO: Step 1.4 Verify that quotes for target currency are successfully received
@@ -97,7 +97,7 @@ public class Main {
         // Phase 3A — Pay-In Provider role. Comment out if you are only a beneficiary.
         // TODO: Step 3A.1 Replace with your own pay-in quote publishing logic
         scheduler.scheduleAtFixedRate(
-                () -> PublishPaymentIntentQuotes.publish(paymentIntentClient.stub()),
+                () -> PublishPaymentIntentQuotes.publish(paymentIntentClient.stub(), config.quotePublishingIntervalMs()),
                 0, config.quotePublishingIntervalMs(), TimeUnit.MILLISECONDS);
 
         // Phase 3B — Beneficiary Provider role. Comment out if you are only a pay-in provider.

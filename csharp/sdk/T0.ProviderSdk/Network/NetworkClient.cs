@@ -1,7 +1,11 @@
+using System.Collections.Concurrent;
+using System.Reflection;
 using System.Runtime.CompilerServices;
+using Google.Protobuf.Reflection;
 using Grpc.Core;
 using Grpc.Core.Interceptors;
 using Grpc.Net.Client;
+using T0.ProviderSdk.Api.Tzero.V1.Common;
 using T0.ProviderSdk.Common;
 using T0.ProviderSdk.Crypto;
 using PaymentApi = T0.ProviderSdk.Api.Tzero.V1.Payment;
@@ -13,10 +17,11 @@ namespace T0.ProviderSdk.Network;
 /// Factory for auto-signing gRPC clients of the T-0 Network.
 /// </summary>
 /// <remarks>
-/// Every client signs its requests and gives a call without a deadline of its own
-/// <see cref="NetworkClientOptions.Timeout"/> (unary) or <see cref="NetworkClientOptions.StreamTimeout"/>
-/// (client and server streams). Bidirectional streams are refused (see docs/STREAMING.md). All
-/// clients share one connection pool, so a client is cheap to create and needs no disposing.
+/// Every client signs its requests and gives a call without a deadline of its own the timeout option
+/// (tzero.v1.common.timeout) of its method, else <see cref="NetworkClientOptions.Timeout"/> (unary) or
+/// <see cref="NetworkClientOptions.StreamTimeout"/> (client and server streams). Bidirectional streams
+/// are refused (see docs/STREAMING.md). All clients share one connection pool, so a client is cheap
+/// to create and needs no disposing.
 /// </remarks>
 public static class NetworkClient
 {
@@ -58,7 +63,8 @@ public static class NetworkClient
 
         try
         {
-            return newClient(channel.Intercept(new DefaultDeadlineInterceptor(options)));
+            return newClient(channel.Intercept(
+                new DefaultDeadlineInterceptor(options, MethodTimeouts(typeof(TClient)))));
         }
         catch
         {
@@ -79,6 +85,32 @@ public static class NetworkClient
         ISigner signer,
         Func<CallInvoker, TClient> newClient) =>
         Create(options, SignerAdapter.ToSignFn(signer)!, newClient);
+
+    private static readonly ConcurrentDictionary<Type, IReadOnlyDictionary<string, TimeSpan>> MethodTimeoutsCache = new();
+
+    // The timeout option (tzero.v1.common.timeout) of each method of the service whose generated
+    // client is clientType, by the method's full name ("/pkg.Service/Method"), at most MaxTimeout. A
+    // method without the option, or with one that is not positive, is left out, and so is every
+    // method of a type that is not a generated client: its calls get the client's timeout.
+    internal static IReadOnlyDictionary<string, TimeSpan> MethodTimeouts(Type clientType) =>
+        MethodTimeoutsCache.GetOrAdd(clientType, type =>
+        {
+            var timeouts = new Dictionary<string, TimeSpan>();
+            if (type.DeclaringType?.GetProperty("Descriptor", BindingFlags.Public | BindingFlags.Static)
+                    ?.GetValue(null) is not ServiceDescriptor service)
+                return timeouts;
+            foreach (var method in service.Methods)
+            {
+                var methodOptions = method.GetOptions();
+                if (methodOptions is null || !methodOptions.HasExtension(TimeoutExtensions.Timeout))
+                    continue;
+                var timeout = methodOptions.GetExtension(TimeoutExtensions.Timeout).ToTimeSpan();
+                if (timeout > TimeSpan.Zero)
+                    timeouts[$"/{service.FullName}/{method.Name}"] =
+                        timeout < NetworkClientOptions.MaxTimeout ? timeout : NetworkClientOptions.MaxTimeout;
+            }
+            return timeouts;
+        });
 
     // One connection pool for the process: a client created per request would otherwise leave a
     // pool of open connections behind it, since nothing disposes a client.

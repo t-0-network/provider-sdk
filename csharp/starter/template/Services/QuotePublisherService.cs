@@ -9,13 +9,16 @@ namespace MyProvider.Services;
 /// <param name="interval">How often to publish quotes (recommended: 5 seconds).</param>
 public abstract class QuotePublisherService(TimeSpan interval) : BackgroundService
 {
+    /// <summary>How often quotes are published.</summary>
+    protected TimeSpan Interval { get; } = interval;
+
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
         try
         {
             // The first publish waits for the server to bind. Then one runs on every tick.
             await Listening.Started.WaitAsync(stoppingToken);
-            using var timer = new PeriodicTimer(interval);
+            using var timer = new PeriodicTimer(Interval);
             do
             {
                 try

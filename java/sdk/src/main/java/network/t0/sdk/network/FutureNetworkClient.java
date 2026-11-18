@@ -52,7 +52,8 @@ public final class FutureNetworkClient<S extends AbstractFutureStub<S>> extends 
     /**
      * Creates a new FutureNetworkClient for the given endpoint and stub type.
      *
-     * <p>Default deadlines: 15 seconds for unary calls, 5 minutes for client- and server-streaming calls.
+     * <p>Default deadlines: the method's timeout option in the proto, else 30 seconds for unary calls and
+     * 5 minutes for client- and server-streaming calls.
      *
      * @param endpoint    the T-0 Network endpoint (e.g., "https://api.t-0.network" or "api.t-0.network:443"); {@code null} is "base URL is not set"
      * @param signer      the signer to use for signing requests
@@ -69,13 +70,13 @@ public final class FutureNetworkClient<S extends AbstractFutureStub<S>> extends 
     }
 
     /**
-     * Creates a new FutureNetworkClient with a default deadline in seconds for unary calls; streaming calls
-     * get the default stream timeout of 5 minutes.
+     * Creates a new FutureNetworkClient with a default deadline in seconds for unary calls whose method has
+     * no timeout option in the proto; streaming calls get the default stream timeout of 5 minutes.
      *
      * @param endpoint       the T-0 Network endpoint (e.g., "https://api.t-0.network" or "api.t-0.network:443"); {@code null} is "base URL is not set"
      * @param signer         the signer to use for signing requests
      * @param stubFactory    the stub factory (e.g., {@code NetworkServiceGrpc::newFutureStub})
-     * @param timeoutSeconds the default deadline for unary calls, in seconds
+     * @param timeoutSeconds the default deadline for unary calls whose method has no timeout option, in seconds
      * @param <S>            the future stub type
      * @return a new FutureNetworkClient instance
      * @throws IllegalArgumentException if the endpoint, signer or stub factory is invalid, or the timeout is not
@@ -95,14 +96,17 @@ public final class FutureNetworkClient<S extends AbstractFutureStub<S>> extends 
     /**
      * Creates a new FutureNetworkClient with separate default deadlines for unary and streaming calls.
      *
-     * <p>See {@code docs/STREAMING.md}.
+     * <p>A method with a timeout option in the proto ({@code tzero.v1.common.timeout}), as most payment and
+     * payment-intent methods have, waits as long as the option says, whatever these timeouts are: the network answers
+     * within that time. The timeouts apply to methods without the option. A deadline on the call or on its
+     * {@code Context} replaces both, shorter or longer. See {@code docs/STREAMING.md}.
      *
      * @param endpoint      the T-0 Network endpoint (e.g., "https://api.t-0.network" or "api.t-0.network:443"); {@code null} is "base URL is not set"
      * @param signer        the signer to use for signing requests
      * @param stubFactory   the stub factory (e.g., {@code NetworkServiceGrpc::newFutureStub})
-     * @param timeout       the default deadline for unary calls
-     * @param streamTimeout the default deadline for client- and server-streaming calls, counted from
-     *                      when the call is created
+     * @param timeout       the default deadline for unary calls whose method has no timeout option
+     * @param streamTimeout the default deadline for client- and server-streaming calls whose method has no
+     *                      timeout option, counted from when the call is created
      * @param <S>           the future stub type
      * @return a new FutureNetworkClient instance
      * @throws IllegalArgumentException if the endpoint, signer or stub factory is invalid, or a timeout is
@@ -136,7 +140,8 @@ public final class FutureNetworkClient<S extends AbstractFutureStub<S>> extends 
      *
      * <p>This is useful when different operations require different timeouts.
      *
-     * <p>The deadline replaces the client's default deadline for the calls made on this stub.
+     * <p>The deadline replaces the method's timeout option and the client's default deadline for the calls made
+     * on this stub.
      *
      * @param timeout the timeout value
      * @param unit    the time unit for the timeout

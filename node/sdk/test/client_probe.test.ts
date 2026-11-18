@@ -5,9 +5,17 @@ import { once } from 'node:events';
 import { createInterface } from 'node:readline';
 import path from 'node:path';
 import fs from 'node:fs';
-import { ConnectError } from '@connectrpc/connect';
+import { ConnectError, type CallOptions } from '@connectrpc/connect';
 import { codeToString } from '@connectrpc/connect/protocol-connect';
-import { createClient, newSignerFromHex, type Signature, type SignerFunction } from '../src/index.js';
+import {
+  createClient,
+  NetworkService,
+  newSignerFromHex,
+  ProviderService,
+  type ClientOptions,
+  type Signature,
+  type SignerFunction,
+} from '../src/index.js';
 import { Health, HealthCheckResponse_ServingStatus } from '../src/service/health_pb.js';
 
 const CROSS_TEST = path.resolve(import.meta.dirname, '..', '..', '..', 'cross_test');
@@ -23,6 +31,7 @@ const vectors = JSON.parse(fs.readFileSync(VECTORS, 'utf8'));
 
 interface ClientCase {
   name: string;
+  method?: string;
   client_timeout_ms?: number;
   call_timeout_ms?: number;
   signer?: 'factory';
@@ -58,6 +67,36 @@ function signerOf(c: ClientCase): string | SignerFunction {
     }
     return { signature, publicKey };
   };
+}
+
+// The call of case c on a client of its service: it ends with ok on a SERVING reply of
+// Health/Check, or on any reply of the case's method.
+function clientCall(c: ClientCase, baseUrl: string, options?: ClientOptions): (callOptions?: CallOptions) => Promise<string> {
+  switch (c.method) {
+    case undefined: {
+      const client = createClient(signerOf(c), baseUrl, Health, options);
+      return async (callOptions) => {
+        const reply = await client.check({ service: '' }, callOptions);
+        return reply.status === HealthCheckResponse_ServingStatus.SERVING ? 'ok' : `status ${reply.status}`;
+      };
+    }
+    case 'tzero.v1.payment.ProviderService/ApprovePaymentQuotes': {
+      const client = createClient(signerOf(c), baseUrl, ProviderService, options);
+      return async (callOptions) => {
+        await client.approvePaymentQuotes({}, callOptions);
+        return 'ok';
+      };
+    }
+    case 'tzero.v1.payment.NetworkService/UpdateQuote': {
+      const client = createClient(signerOf(c), baseUrl, NetworkService, options);
+      return async (callOptions) => {
+        await client.updateQuote({}, callOptions);
+        return 'ok';
+      };
+    }
+    default:
+      throw new Error(`no client for method ${c.method}`);
+  }
 }
 
 // What the client sends, checked by the reference server of `go_helper client-probe`: every case of
@@ -102,13 +141,12 @@ describe('shared client cases', { skip: goAvailable ? undefined : `Go helper not
     it(c.name, async () => {
       const logged = log.length;
       const options = c.client_timeout_ms === undefined ? undefined : { timeoutMs: c.client_timeout_ms };
-      const client = createClient(signerOf(c), `${baseUrl}/${c.name}`, Health, options);
+      const call = clientCall(c, `${baseUrl}/${c.name}`, options);
       const callOptions = c.call_timeout_ms === undefined ? undefined : { timeoutMs: c.call_timeout_ms };
       let code: string;
       let message = '';
       try {
-        const reply = await client.check({ service: '' }, callOptions);
-        code = reply.status === HealthCheckResponse_ServingStatus.SERVING ? 'ok' : `status ${reply.status}`;
+        code = await call(callOptions);
       } catch (e) {
         const err = ConnectError.from(e);
         code = codeToString(err.code);

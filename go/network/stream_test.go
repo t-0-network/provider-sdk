@@ -875,7 +875,7 @@ func TestStream_DeadlinesAreSent(t *testing.T) {
 // The defaults apply only to a call without a deadline of its own, which replaces them both ways.
 func TestCallTimeouts_CallerDeadlineReplacesDefault(t *testing.T) {
 	timeouts := callTimeouts{unary: defaultClientOptions.timeout, stream: defaultClientOptions.streamTimeout}
-	require.Equal(t, 15*time.Second, timeouts.unary)
+	require.Equal(t, 30*time.Second, timeouts.unary)
 	require.Equal(t, 5*time.Minute, timeouts.stream)
 
 	calls := []struct {
@@ -887,7 +887,7 @@ func TestCallTimeouts_CallerDeadlineReplacesDefault(t *testing.T) {
 			_, _ = timeouts.WrapUnary(func(ctx context.Context, _ connect.AnyRequest) (connect.AnyResponse, error) {
 				deadline, ok = ctx.Deadline()
 				return nil, nil
-			})(ctx, nil)
+			})(ctx, connect.NewRequest(wrapperspb.String("")))
 			return deadline, ok
 		}},
 		{"stream", timeouts.stream, func(ctx context.Context) (deadline time.Time, ok bool) {

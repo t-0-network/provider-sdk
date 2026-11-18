@@ -101,9 +101,11 @@ function of the same shape; the `custom_signer` client cases check what a client
 output: it refuses a signature that is not 64 or 65 bytes or a key that is not 65 bytes
 uncompressed, and sends any other signature exactly as returned, v included.
 
-`client_cases` are calls each SDK's client makes to `grpc.health.v1.Health/Check` on `go_helper
-client-probe` (below), one per case at the base URL `<base_url>/<case name>`, with the timeouts the
-case sets. The probe checks each request it gets (the signature headers and the deadline header)
+`client_cases` are calls each SDK's client makes to `grpc.health.v1.Health/Check`, or to the method
+a case names in `method`, on `go_helper client-probe` (below), one per case at the base URL
+`<base_url>/<case name>`, with the timeouts the case sets. `method_timeout_ms` is that method's
+timeout option in the proto, which the client reads from its generated code; a test asserts that
+the value matches the proto. The probe checks each request it gets (the signature headers and the deadline header)
 and answers SERVING, or `failed_precondition` with the reason; a case that expects an error checks
 that a call which must fail does (a per-call timeout of 0, a redirect). `client_cases_note` is what
 an SDK test must do.

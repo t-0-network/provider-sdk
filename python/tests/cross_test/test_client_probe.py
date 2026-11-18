@@ -1,6 +1,7 @@
 """The Python column of the shared client behavior: every case of client_cases in
 cross_test/test_vectors.json, called by new_service_client and new_service_client_sync, over Connect
-and gRPC, against `go_helper client-probe`, which checks each request it gets. Also a custom signer
+and gRPC, against `go_helper client-probe`, which checks each request it gets. A case calls Health
+Check, or its `method` on a client of that method's service. Also a custom signer
 whose result fails the output check, called where the probe has no case, so any request it gets fails.
 
 Requires the Go helper binary to be built:
@@ -23,6 +24,10 @@ from grpc_health.v1 import health_pb2
 from t0_provider_sdk.crypto.signer import SignFn, new_signer_from_hex
 from t0_provider_sdk.network import Protocol, new_service_client, new_service_client_sync
 from t0_provider_sdk.provider.health import HealthClient, HealthClientSync
+from tzero.v1.payment.network_connect import NetworkServiceClient, NetworkServiceClientSync
+from tzero.v1.payment.network_pb2 import UpdateQuoteRequest
+from tzero.v1.payment.provider_connect import ProviderServiceClient, ProviderServiceClientSync
+from tzero.v1.payment.provider_pb2 import ApprovePaymentQuoteRequest
 
 CROSS_TEST = Path(__file__).resolve().parents[3] / "cross_test"
 GO_HELPER = CROSS_TEST / "go_helper" / "go_helper"
@@ -38,6 +43,21 @@ PRIVATE_KEY = _VECTORS["keys"]["private_key"]
 IMPOSTOR_PRIVATE_KEY = _VECTORS["impostor_keys"]["private_key"]
 CASES = _VECTORS["client_cases"]
 PROTOCOLS = [pytest.param(Protocol.CONNECT, id="connect"), pytest.param(Protocol.GRPC, id="grpc")]
+# A case's `method`: the async client, the sync client, the client's method and its request.
+METHODS = {
+    "tzero.v1.payment.ProviderService/ApprovePaymentQuotes": (
+        ProviderServiceClient,
+        ProviderServiceClientSync,
+        "approve_payment_quotes",
+        ApprovePaymentQuoteRequest,
+    ),
+    "tzero.v1.payment.NetworkService/UpdateQuote": (
+        NetworkServiceClient,
+        NetworkServiceClientSync,
+        "update_quote",
+        UpdateQuoteRequest,
+    ),
+}
 
 
 @pytest.fixture(scope="module")
@@ -112,17 +132,33 @@ def _outcome(response: health_pb2.HealthCheckResponse) -> tuple[str, str]:
     return "not serving", str(response)
 
 
+def _method(case: dict) -> tuple:
+    if case["method"] not in METHODS:
+        pytest.fail(f"no client for method {case['method']}")
+    return METHODS[case["method"]]
+
+
 async def _call_async(base_url: str, case: dict, protocol: Protocol) -> tuple[str, str]:
-    client = new_service_client(_signer(case), HealthClient, base_url=base_url, **_options(case, protocol))
     try:
+        if "method" in case:
+            client_class, _, name, request = _method(case)
+            client = new_service_client(_signer(case), client_class, base_url=base_url, **_options(case, protocol))
+            await getattr(client, name)(request(), **_call_options(case))
+            return "ok", ""
+        client = new_service_client(_signer(case), HealthClient, base_url=base_url, **_options(case, protocol))
         return _outcome(await client.check(health_pb2.HealthCheckRequest(), **_call_options(case)))
     except ConnectError as e:
         return e.code.value, e.message
 
 
 def _call_sync(base_url: str, case: dict, protocol: Protocol) -> tuple[str, str]:
-    client = new_service_client_sync(_signer(case), HealthClientSync, base_url=base_url, **_options(case, protocol))
     try:
+        if "method" in case:
+            _, client_class, name, request = _method(case)
+            client = new_service_client_sync(_signer(case), client_class, base_url=base_url, **_options(case, protocol))
+            getattr(client, name)(request(), **_call_options(case))
+            return "ok", ""
+        client = new_service_client_sync(_signer(case), HealthClientSync, base_url=base_url, **_options(case, protocol))
         return _outcome(client.check(health_pb2.HealthCheckRequest(), **_call_options(case)))
     except ConnectError as e:
         return e.code.value, e.message

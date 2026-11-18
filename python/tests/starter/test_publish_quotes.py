@@ -1,10 +1,12 @@
 """The Python starter's quote publishers: a failed publish is logged and the next tick publishes
-again, as in the other starters (row ST-timers.b)."""
+again, as in the other starters (row ST-timers.b), and each quote expires at publish time +
+publishing interval + 35 s."""
 
 from __future__ import annotations
 
 import asyncio
 import importlib.util
+import time
 from pathlib import Path
 from types import ModuleType
 
@@ -50,3 +52,37 @@ async def test_publishing_goes_on_after_a_failure(module: str, function: str, ca
 
     assert client.calls == 3
     assert "network unavailable" in caplog.text
+
+
+class _StopAtFirstClient:
+    """Keeps the first request and stops the publisher."""
+
+    def __init__(self, shutdown: asyncio.Event) -> None:
+        self.request = None
+        self._shutdown = shutdown
+
+    async def update_quote(self, request):
+        self.request = request
+        self._shutdown.set()
+
+
+@pytest.mark.parametrize(
+    ("module", "function", "quotes"),
+    [
+        ("publish_quotes", "publish_quotes", "pay_out"),
+        ("publish_payment_intent_quotes", "publish_payment_intent_quotes", "payment_intent_quotes"),
+    ],
+)
+async def test_quote_expires_after_interval_plus_35_seconds(module: str, function: str, quotes: str) -> None:
+    publish = getattr(_load(module), function)
+    shutdown = asyncio.Event()
+    client = _StopAtFirstClient(shutdown)
+    interval_ms = 2_500
+
+    before = time.time_ns() // 1_000_000
+    await asyncio.wait_for(publish(client, shutdown, interval_ms / 1000), timeout=5)
+    after = time.time_ns() // 1_000_000
+
+    quote = getattr(client.request, quotes)[0]
+    assert before + interval_ms + 35_000 <= quote.expiration.ToMilliseconds() <= after + interval_ms + 35_000
+    assert quote.expiration.ToMilliseconds() - quote.timestamp.ToMilliseconds() == interval_ms + 35_000

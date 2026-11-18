@@ -13,17 +13,20 @@ import (
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
-func PublishQuotes(ctx context.Context, networkClient paymentconnect.NetworkServiceClient, ticker *time.Ticker) {
+func PublishQuotes(ctx context.Context, networkClient paymentconnect.NetworkServiceClient, ticker *time.Ticker, interval time.Duration) {
 	// TODO: Step 1.3 replace this with fetching quotes from your systems and publishing them into t-0 Network.
-	// We recommend publishing at least once per 5 seconds, but not more than once per second
+	// We recommend publishing at least once per 5 seconds, but not more than once per second.
+	// Each quote expires at publish time + publishing interval + 35 s: a client that gets it just
+	// before the next publish still has 30 s to use it; the 5 s cover network delay.
 
 	defer ticker.Stop()
 
 	for {
 		currency := "EUR"
 		paymentMethod := common.PaymentMethodType_PAYMENT_METHOD_TYPE_SEPA
-		expiration := timestamppb.New(time.Now().Add(30 * time.Second)) // expiration time - 30 seconds from now
-		timestamp := timestamppb.New(time.Now())                        // current timestamp
+		now := time.Now()
+		expiration := timestamppb.New(now.Add(interval + 35*time.Second)) // publish time + publishing interval + 35 s
+		timestamp := timestamppb.New(now)                                 // current timestamp
 
 		//NOTE: Every update quote request discard all previous quotes that were published before.
 		// So if you want to publish multiple quotes, you need to combine them into a single request.

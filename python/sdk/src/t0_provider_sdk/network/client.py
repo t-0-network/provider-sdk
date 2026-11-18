@@ -14,6 +14,8 @@ from connectrpc.code import Code
 from connectrpc.compat import google_protobuf_json_codec
 from connectrpc.errors import ConnectError
 from connectrpc.protocol import ProtocolType
+from google.protobuf import descriptor_pool
+from tzero.v1.common import timeout_pb2
 
 from t0_provider_sdk._messages import (
     BASE_URL_NOT_SET,
@@ -37,6 +39,8 @@ from t0_provider_sdk.network.signing import SigningClient, SigningSyncClient, _s
 
 if TYPE_CHECKING:
     from collections.abc import Callable
+
+    from connectrpc.method import MethodInfo
 
 T = TypeVar("T")
 
@@ -75,9 +79,13 @@ def new_service_client(
         base_url: Base URL of the T-0 Network API. Omitting it, None and "" raise ValueError
             ("base URL is not set"); a malformed value, or one with whitespace or a control
             character anywhere, raises ValueError ("base URL is not valid").
-        timeout: Timeout of unary calls in seconds, 15 by default.
+        timeout: Timeout of unary calls in seconds, 30 by default, for a method whose proto has no
+            timeout option (tzero.v1.common.timeout). A method with the option (most payment and
+            payment-intent methods have one) waits as long as the option says, whatever timeout
+            is: the network answers within that time.
         stream_timeout: Timeout of client- and server-streaming calls in seconds, including the
-            wait for the first request message, 300 by default.
+            wait for the first request message, 300 by default. A method's timeout option replaces
+            it too.
         wire_format: WireFormat.BINARY (default) or WireFormat.JSON.
         protocol: Protocol.CONNECT (default) or Protocol.GRPC. gRPC on an http:// base URL uses
             HTTP/2 without TLS.
@@ -89,8 +97,9 @@ def new_service_client(
     fails the call with INTERNAL "signing the request failed: <cause>".
 
     Each timeout must be greater than zero and at most MAX_TIMEOUT (2147483647 ms); one under a
-    millisecond counts as one. A call's own ``timeout_ms`` replaces the default, whether shorter or
-    longer; a ``timeout_ms`` of 0 or less fails the call with DEADLINE_EXCEEDED before it is sent.
+    millisecond counts as one. A call's own ``timeout_ms`` replaces the method's option and the
+    client's timeout, whether shorter or longer; a ``timeout_ms`` of 0 or less fails the call with
+    DEADLINE_EXCEEDED before it is sent.
 
     Returns:
         An instance of client_class configured with signing transport.
@@ -124,8 +133,10 @@ def new_service_client_sync(
         private_key: The signer: a hex-encoded private key or a SignFn; see new_service_client.
         client_class: Generated ConnectRPC sync client class (e.g. NetworkServiceClientSync).
         base_url: Base URL of the T-0 Network API; see new_service_client.
-        timeout: Timeout of unary calls in seconds, 15 by default.
-        stream_timeout: Timeout of client- and server-streaming calls in seconds, 300 by default.
+        timeout: Timeout of unary calls in seconds, 30 by default; a method's timeout option replaces
+            it, see new_service_client.
+        stream_timeout: Timeout of client- and server-streaming calls in seconds, 300 by default; a
+            method's timeout option replaces it.
         wire_format: WireFormat.BINARY (default) or WireFormat.JSON.
         protocol: Protocol.CONNECT (default) or Protocol.GRPC.
         sign_fn: A SignFn that signs each request in place of private_key.
@@ -226,7 +237,8 @@ def _timeout_ms(seconds: float, message: str) -> int:
 
 
 def _set_default_timeouts(client: object, unary_ms: int, stream_ms: int) -> None:
-    """A ConnectRPC client has one timeout_ms for every call, so each execute method fills in its own."""
+    """A ConnectRPC client has one timeout_ms for every call, so each execute method fills in its own:
+    the method's timeout option, else the client's timeout of its stream type."""
     for name, streaming in _EXECUTE_METHODS:
         execute = getattr(client, name, None)
         if execute is not None:
@@ -244,15 +256,37 @@ def _bidi_stream_unsupported(*args: Any, **kwargs: Any) -> NoReturn:
     raise ConnectError(Code.UNIMPLEMENTED, BIDI_NOT_SUPPORTED)
 
 
-def _with_default_timeout(execute: Callable[..., Any], default_ms: int) -> Callable[..., Any]:
+def _with_default_timeout(execute: Callable[..., Any], fallback_ms: int) -> Callable[..., Any]:
     @functools.wraps(execute)
     def execute_with_default_timeout(*args: Any, timeout_ms: int | None = None, **kwargs: Any) -> Any:
-        if timeout_ms is not None and timeout_ms <= 0:
+        if timeout_ms is None:
+            method: MethodInfo[Any, Any] = kwargs["method"]  # connectrpc passes it by keyword
+            timeout_ms = _method_timeout_ms(f"{method.service_name}.{method.name}") or fallback_ms
+        elif timeout_ms <= 0:
             # A deadline that has already passed: connectrpc would take 0 as no deadline at all.
             _deadline_passed()
-        return execute(*args, timeout_ms=default_ms if timeout_ms is None else timeout_ms, **kwargs)
+        return execute(*args, timeout_ms=timeout_ms, **kwargs)
 
     return execute_with_default_timeout
+
+
+@functools.cache
+def _method_timeout_ms(full_name: str) -> int | None:
+    """The timeout option (tzero.v1.common.timeout) of the method, in whole milliseconds, or None
+    when the method has none, or one that is not positive, or is not in the default pool. The
+    client's own timeout never replaces the option: the network answers within it, so a shorter wait
+    can miss an answer."""
+    try:
+        options = descriptor_pool.Default().FindMethodByName(full_name).GetOptions()
+    except KeyError:
+        return None
+    if not options.HasExtension(timeout_pb2.timeout):
+        return None
+    timeout = options.Extensions[timeout_pb2.timeout]
+    if timeout.seconds < 0 or (timeout.seconds == 0 and timeout.nanos <= 0):
+        return None
+    # At least one millisecond, as for the client's timeouts, and at most MAX_TIMEOUT.
+    return min(max(1, int(timeout.ToMilliseconds())), round(MAX_TIMEOUT * 1000))
 
 
 def _deadline_passed() -> NoReturn:

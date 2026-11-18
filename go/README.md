@@ -155,7 +155,7 @@ _, err = networkClient.GetQuote(ctx, connect.NewRequest(&networkproto.GetQuoteRe
 _, err = networkClient.CreatePayment(ctx, connect.NewRequest(&networkproto.CreatePaymentRequest{ /* ... */ }))
 ```
 
-**Client options:** `WithBaseURL` (pass `network.DefaultBaseURL`, `https://api.t-0.network`; a missing URL is "base URL is not set"), `WithTimeout` (unary calls, default: `network.DefaultTimeout`, 15s), `WithStreamTimeout` (streaming calls, default: `network.DefaultStreamTimeout`, 5 min), `WithWireFormat` (`WireFormatBinary` default, `WireFormatJSON`), `WithProtocol` (`ProtocolConnect` default, `ProtocolGRPC`), `WithSignatureFunction` (a custom signer, below), `WithHTTPTransport` (for tests: sends the signed requests through a mock `http.RoundTripper` or a test server's transport). A timeout must be positive and at most `network.MaxTimeout` (2147483647 ms).
+**Client options:** `WithBaseURL` (pass `network.DefaultBaseURL`, `https://api.t-0.network`; a missing URL is "base URL is not set"), `WithTimeout` (unary calls of methods without a timeout option, default: `network.DefaultTimeout`, 30 s), `WithStreamTimeout` (streaming calls, default: `network.DefaultStreamTimeout`, 5 min), `WithWireFormat` (`WireFormatBinary` default, `WireFormatJSON`), `WithProtocol` (`ProtocolConnect` default, `ProtocolGRPC`), `WithSignatureFunction` (a custom signer, below), `WithHTTPTransport` (for tests: sends the signed requests through a mock `http.RoundTripper` or a test server's transport). A timeout must be positive and at most `network.MaxTimeout` (2147483647 ms).
 
 #### Custom signer
 
@@ -178,7 +178,7 @@ The client checks the signer's output before it sends anything, and sends the si
 
 Client-streaming and server-streaming calls are signed over their first request message. The request goes out as soon as that message is sent, and later messages are not buffered. Bidirectional-streaming calls fail with `CodeUnimplemented` and send nothing.
 
-A unary call gets a 15 second deadline and a stream gets 5 minutes, unless the call's context has a deadline of its own, which then applies instead, shorter or longer.
+A call gets the timeout its method has in the proto (the `tzero.v1.common.timeout` option): 30 seconds for most network methods, 29 for `ApprovePaymentQuotes` and `GetPaymentDetails`. The network answers within that time, so `WithTimeout` does not shorten or lengthen it. A method without the option gets the client's timeout: `WithTimeout` (30 seconds by default) for a unary call, `WithStreamTimeout` (5 minutes by default) for a stream. A deadline on the call's context replaces both, shorter or longer.
 
 ```go
 // A client-streaming method, called through connect.NewClient; a generated client works the same way.

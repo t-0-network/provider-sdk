@@ -3,8 +3,9 @@
 from enum import Enum
 
 DEFAULT_BASE_URL = "https://api.t-0.network"
-# Timeouts are in seconds.
-DEFAULT_TIMEOUT = 15.0
+# Timeouts are in seconds. A client uses them for a method whose proto has no timeout option
+# (tzero.v1.common.timeout).
+DEFAULT_TIMEOUT = 30.0
 DEFAULT_STREAM_TIMEOUT = 300.0
 # The largest timeout and stream timeout a client accepts: 2147483647 ms.
 MAX_TIMEOUT = 2_147_483_647 / 1000

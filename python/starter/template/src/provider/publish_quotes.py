@@ -3,12 +3,15 @@
 Publishes sample PayOut (off-ramp) quotes every 5 seconds by default.
 TODO: Step 1.3 Replace this with fetching quotes from your systems and publishing them.
 We recommend publishing at least once per 5 seconds, but not more than once per second.
+Each quote expires at publish time + publishing interval + 35 s: a client that gets it just before
+the next publish still has 30 s to use it; the 5 s cover network delay.
 """
 
 from __future__ import annotations
 
 import asyncio
 import logging
+import time
 import uuid
 
 from google.protobuf.timestamp_pb2 import Timestamp
@@ -20,17 +23,10 @@ from t0_provider_sdk.api.tzero.v1.payment.network_pb2 import UpdateQuoteRequest
 logger = logging.getLogger(__name__)
 
 
-def _now_timestamp() -> Timestamp:
-    """Create a protobuf Timestamp for the current time."""
+def _timestamp(ms: int) -> Timestamp:
+    """Create a protobuf Timestamp from Unix milliseconds."""
     ts = Timestamp()
-    ts.GetCurrentTime()
-    return ts
-
-
-def _expiration_timestamp(seconds_from_now: int = 30) -> Timestamp:
-    """Create a protobuf Timestamp offset from now."""
-    ts = _now_timestamp()
-    ts.seconds += seconds_from_now
+    ts.FromMilliseconds(ms)
     return ts
 
 
@@ -47,8 +43,10 @@ async def publish_quotes(
         try:
             currency = "EUR"
             payment_method = PAYMENT_METHOD_TYPE_SEPA
-            expiration = _expiration_timestamp(30)
-            timestamp = _now_timestamp()
+            now_ms = time.time_ns() // 1_000_000
+            # publish time + publishing interval + 35 s
+            expiration = _timestamp(now_ms + round(interval_seconds * 1000) + 35_000)
+            timestamp = _timestamp(now_ms)
 
             await network_client.update_quote(
                 UpdateQuoteRequest(
