@@ -9,6 +9,7 @@ using T0.ProviderSdk.Common;
 using T0.ProviderSdk.Crypto;
 using T0.ProviderSdk.Provider;
 using PaymentApi = T0.ProviderSdk.Api.Tzero.V1.Payment;
+using PaymentIntentApi = T0.ProviderSdk.Api.Tzero.V1.PaymentIntent;
 using Grpc.Health.V1;
 
 namespace T0.ProviderSdk;
@@ -75,6 +76,34 @@ public sealed class T0ProviderServer
     {
         _registeredFqns.Add(PaymentApi.ProviderService.Descriptor.FullName);
         _builder.Services.AddSingleton(networkClient);
+        _mapActions.Add(app => app.MapGrpcService<THandler>());
+        return this;
+    }
+
+    /// <summary>
+    /// Maps a PayInProviderService handler, the pay-in provider role of the payment intent flow, and
+    /// registers its PaymentIntentServiceClient for DI.
+    /// </summary>
+    public T0ProviderServer MapPayInProviderService<THandler>(
+        PaymentIntentApi.PaymentIntentService.PaymentIntentServiceClient paymentIntentClient)
+        where THandler : PaymentIntentApi.PayInProviderService.PayInProviderServiceBase
+    {
+        _registeredFqns.Add(PaymentIntentApi.PayInProviderService.Descriptor.FullName);
+        _builder.Services.AddSingleton(paymentIntentClient);
+        _mapActions.Add(app => app.MapGrpcService<THandler>());
+        return this;
+    }
+
+    /// <summary>
+    /// Maps a BeneficiaryService handler, the beneficiary provider role of the payment intent flow, and
+    /// registers its PaymentIntentServiceClient for DI.
+    /// </summary>
+    public T0ProviderServer MapBeneficiaryService<THandler>(
+        PaymentIntentApi.PaymentIntentService.PaymentIntentServiceClient paymentIntentClient)
+        where THandler : PaymentIntentApi.BeneficiaryService.BeneficiaryServiceBase
+    {
+        _registeredFqns.Add(PaymentIntentApi.BeneficiaryService.Descriptor.FullName);
+        _builder.Services.AddSingleton(paymentIntentClient);
         _mapActions.Add(app => app.MapGrpcService<THandler>());
         return this;
     }

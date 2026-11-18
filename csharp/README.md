@@ -36,6 +36,7 @@ var options = new NetworkClientOptions
 };
 
 var client = NetworkClient.CreateNetworkServiceClient(options, signer);
+var paymentIntentClient = NetworkClient.CreatePaymentIntentServiceClient(options, signer);
 // Any generated gRPC client: NetworkClient.Create(options, signer, invoker => new XClient(invoker))
 
 // A deadline on the call replaces the default, shorter or longer.

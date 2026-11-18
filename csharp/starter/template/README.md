@@ -20,7 +20,13 @@ my-provider/
 │   ├── QuotePublisherService.cs # Periodic timer that calls QuotePublisher
 │   ├── GetQuote.cs              # Quote sample; runs after the server is listening
 │   ├── SubmitPayment.cs         # Payment submission utility
-│   └── CompleteManualAmlCheck.cs # Manual AML check completion utility
+│   ├── CompleteManualAmlCheck.cs # Manual AML check completion utility
+│   ├── PaymentIntentPayInHandler.cs       # Phase 3A: PayInProviderService handler
+│   ├── PaymentIntentQuotePublisher.cs     # Phase 3A: pay-in quote publishing
+│   ├── ConfirmFundsReceived.cs            # Phase 3A: confirm funds received
+│   ├── PaymentIntentBeneficiaryHandler.cs # Phase 3B: BeneficiaryService handler
+│   ├── GetPaymentIntentQuote.cs           # Phase 3B: indicative quote retrieval
+│   └── CreatePaymentIntent.cs             # Phase 3B: create a payment intent
 ├── Program.cs                   # Entry point
 ├── Config.cs                    # Reads the environment variables below
 ├── Listening.cs                 # Prints the listening line once the server has started
@@ -37,6 +43,8 @@ my-provider/
 |------|---------|
 | `Services/PaymentHandler.cs` | Implement your payment processing logic. Look for `TODO` comments. |
 | `Services/QuotePublisher.cs` | Replace sample quotes with your FX rate source. |
+| `Services/PaymentIntentPayInHandler.cs` | Pay-in provider role: return payment details for an end-user. |
+| `Services/PaymentIntentBeneficiaryHandler.cs` | Beneficiary provider role: handle payment intent updates. |
 
 ## Environment Variables
 
@@ -75,6 +83,26 @@ ASP.NET Core also reads configuration from the environment. `Kestrel__Endpoints_
 4. Test payment submission using the included `SubmitPayment` utility.
 5. Coordinate with the T-0 team to test end-to-end payment flows.
 6. Optional: if your `PayOut` handler responds with a manual AML check, report the outcome using the included `CompleteManualAmlCheck` utility.
+
+### Phase 3: Payment Intent Flow
+
+The payment intent flow is independent of Phase 2. It is an asynchronous pay-in flow where an end-user pays a pay-in provider in fiat (bank transfer, mobile money, etc.) and a beneficiary provider receives settlement on the crypto side. Quotes are indicative until funds are received, settlement happens periodically, and a confirmation code links the end-user's payment back to a specific payment intent.
+
+Implement **one** of the two sub-phases below depending on your role. If you participate on both sides, implement both.
+
+**Phase 3A -- Pay-In Provider role** (skip if you're a beneficiary):
+
+1. **Step 3A.1** Replace the sample pay-in quote publishing in `Services/PaymentIntentQuotePublisher.cs` with your own.
+2. **Step 3A.2** Implement `GetPaymentDetails` in `Services/PaymentIntentPayInHandler.cs` -- return bank account / mobile money details plus a payment reference the end-user will include in their transfer.
+3. **Step 3A.3** When you detect the end-user's fiat payment, call `ConfirmFundsReceived` (see `Services/ConfirmFundsReceived.cs`).
+
+**Phase 3B -- Beneficiary Provider role** (skip if you're pay-in):
+
+1. **Step 3B.1** Verify indicative quotes are returned (`Services/GetPaymentIntentQuote.cs`).
+2. **Step 3B.2** Create payment intents for your end-users via `CreatePaymentIntent` (see `Services/CreatePaymentIntent.cs`).
+3. **Step 3B.3** Implement `PaymentIntentUpdate` in `Services/PaymentIntentBeneficiaryHandler.cs` to receive notifications when funds are received.
+
+If you only play one role, delete the files for the other role. In `Program.cs`, also remove that role's handler registration, and that role's quote publishing and sample calls.
 
 ## Available Commands
 

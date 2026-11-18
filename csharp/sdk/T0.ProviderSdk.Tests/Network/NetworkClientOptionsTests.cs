@@ -37,6 +37,7 @@ public class NetworkClientOptionsTests
         var signer = Signer.FromHex(Key);
 
         Assert.NotNull(NetworkClient.CreateNetworkServiceClient("api.t-0.network", signer));
+        Assert.NotNull(NetworkClient.CreatePaymentIntentServiceClient("localhost:8080", signer));
         var ex = Assert.Throws<ArgumentException>(() => NetworkClient.CreateNetworkServiceClient("user@h", signer));
         Assert.Equal("base URL is not valid", ex.Message);
     }

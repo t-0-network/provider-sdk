@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Builder;
 using T0.ProviderSdk.Crypto;
 using T0.ProviderSdk.Network;
 using PaymentApi = T0.ProviderSdk.Api.Tzero.V1.Payment;
+using PaymentIntentApi = T0.ProviderSdk.Api.Tzero.V1.PaymentIntent;
 using StringValue = Google.Protobuf.WellKnownTypes.StringValue;
 
 namespace T0.ProviderSdk.Tests.Network;
@@ -292,8 +293,15 @@ public class DefaultDeadlineInterceptorTests
                 () => payment.UpdateQuoteAsync(new PaymentApi.UpdateQuoteRequest()).ResponseAsync);
             Assert.Equal(StatusCode.Unimplemented, ex.StatusCode);
 
-            // It reached the server at baseUrl, with the method's 30 s.
-            Assert.InRange(ParseGrpcTimeout(Assert.Single(timeouts)), TimeSpan.FromSeconds(25), TimeSpan.FromSeconds(30));
+            var paymentIntent = NetworkClient.CreatePaymentIntentServiceClient(baseUrl, signer);
+            ex = await Assert.ThrowsAsync<RpcException>(
+                () => paymentIntent.UpdateQuoteAsync(new PaymentIntentApi.UpdateQuoteRequest()).ResponseAsync);
+            Assert.Equal(StatusCode.Unimplemented, ex.StatusCode);
+
+            // Both reached the server at baseUrl, each with its method's 30 s.
+            Assert.Equal(2, timeouts.Count);
+            Assert.All(timeouts, timeout =>
+                Assert.InRange(ParseGrpcTimeout(timeout), TimeSpan.FromSeconds(25), TimeSpan.FromSeconds(30)));
         }
         finally
         {

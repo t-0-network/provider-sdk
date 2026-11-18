@@ -67,6 +67,24 @@ If a key is missing, or `PORT` is not a port number, the process prints `ERROR: 
 9. **Step 2.5** — Ask T-0 team to test payout to your provider
 10. **Step 2.6 (optional)** — Complete manual AML checks via `CompleteManualAmlCheck` if your `PayOut` handler returns `ManualAmlCheck`
 
+The payment intent flow (Phase 3) is independent of Phase 2. Implement the role that applies to you:
+
+- **Pay-in provider (3A):** publish pay-in quotes (`PaymentIntentQuotePublisher`), implement `GetPaymentDetails` (`PaymentIntentPayInHandler`), and call `ConfirmFundsReceived` when the end-user's payment arrives.
+- **Beneficiary provider (3B):** check indicative quotes (`GetPaymentIntentQuote`), create payment intents (`CreatePaymentIntent`), and implement `PaymentIntentUpdate` (`PaymentIntentBeneficiaryHandler`).
+
+## PaymentIntent Support
+
+```csharp
+var paymentIntentClient = NetworkClient.CreatePaymentIntentServiceClient(config.TZeroEndpoint, signer);
+
+// Pay-in provider role
+server.MapPayInProviderService<MyProvider.Services.PaymentIntentPayInHandler>(paymentIntentClient);
+// Beneficiary provider role
+server.MapBeneficiaryService<MyProvider.Services.PaymentIntentBeneficiaryHandler>(paymentIntentClient);
+```
+
+Each map method registers the client for dependency injection, so a handler can take it in its constructor.
+
 ## Testing Your Handler
 
 A client takes a `SignFn` delegate, so a test can pass a plain lambda instead of a key; `ISignatureVerifier` can be mocked for server tests:
