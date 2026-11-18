@@ -3,6 +3,7 @@ syntax = "proto3";
 package tzero.v1.payment;
 
 import "tzero/v1/common/common.proto";
+import "tzero/v1/common/timeout.proto";
 import "tzero/v1/common/payment_method.proto";
 import "google/protobuf/timestamp.proto";
 import "buf/validate/validate.proto";
@@ -17,6 +18,7 @@ service QuoteService {
    * GetQuote to act on one. */
   rpc GetQuotes(GetQuotesRequest) returns (GetQuotesResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
+    option (tzero.v1.common.timeout) = {seconds: 30};
   }
 }
 

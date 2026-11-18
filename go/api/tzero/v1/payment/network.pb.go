@@ -2173,7 +2173,7 @@ var File_tzero_v1_payment_network_proto protoreflect.FileDescriptor
 
 const file_tzero_v1_payment_network_proto_rawDesc = "" +
 	"\n" +
-	"\x1etzero/v1/payment/network.proto\x12\x10tzero.v1.payment\x1a\x1ctzero/v1/common/common.proto\x1a$tzero/v1/common/payment_method.proto\x1a%tzero/v1/common/payment_receipt.proto\x1a\x1divms101/v1/ivms/ivms101.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bbuf/validate/validate.proto\"\xa6\a\n" +
+	"\x1etzero/v1/payment/network.proto\x12\x10tzero.v1.payment\x1a\x1ctzero/v1/common/common.proto\x1a\x1dtzero/v1/common/timeout.proto\x1a$tzero/v1/common/payment_method.proto\x1a%tzero/v1/common/payment_receipt.proto\x1a\x1divms101/v1/ivms/ivms101.proto\x1a\x1fgoogle/protobuf/timestamp.proto\x1a\x1bbuf/validate/validate.proto\"\xa6\a\n" +
 	"\x12UpdateQuoteRequest\x12C\n" +
 	"\apay_out\x18\n" +
 	" \x03(\v2*.tzero.v1.payment.UpdateQuoteRequest.QuoteR\x06payOut\x1a\xbc\x06\n" +
@@ -2361,14 +2361,14 @@ const file_tzero_v1_payment_network_proto_rawDesc = "" +
 	"\x16FinalizePayoutResponse*@\n" +
 	"\tQuoteType\x12\x1a\n" +
 	"\x16QUOTE_TYPE_UNSPECIFIED\x10\x00\x12\x17\n" +
-	"\x13QUOTE_TYPE_REALTIME\x10\x012\x87\x05\n" +
-	"\x0eNetworkService\x12_\n" +
-	"\vUpdateQuote\x12$.tzero.v1.payment.UpdateQuoteRequest\x1a%.tzero.v1.payment.UpdateQuoteResponse\"\x03\x90\x02\x02\x12V\n" +
-	"\bGetQuote\x12!.tzero.v1.payment.GetQuoteRequest\x1a\".tzero.v1.payment.GetQuoteResponse\"\x03\x90\x02\x01\x12e\n" +
-	"\rCreatePayment\x12&.tzero.v1.payment.CreatePaymentRequest\x1a'.tzero.v1.payment.CreatePaymentResponse\"\x03\x90\x02\x02\x12h\n" +
-	"\rConfirmPayout\x12&.tzero.v1.payment.ConfirmPayoutRequest\x1a'.tzero.v1.payment.ConfirmPayoutResponse\"\x06\x88\x02\x01\x90\x02\x02\x12h\n" +
-	"\x0eFinalizePayout\x12'.tzero.v1.payment.FinalizePayoutRequest\x1a(.tzero.v1.payment.FinalizePayoutResponse\"\x03\x90\x02\x02\x12\x80\x01\n" +
-	"\x16CompleteManualAmlCheck\x12/.tzero.v1.payment.CompleteManualAmlCheckRequest\x1a0.tzero.v1.payment.CompleteManualAmlCheckResponse\"\x03\x90\x02\x02B\xd6\x01\n" +
+	"\x13QUOTE_TYPE_REALTIME\x10\x012\xab\x05\n" +
+	"\x0eNetworkService\x12e\n" +
+	"\vUpdateQuote\x12$.tzero.v1.payment.UpdateQuoteRequest\x1a%.tzero.v1.payment.UpdateQuoteResponse\"\t\xa2\xa7\x1d\x02\b\x1e\x90\x02\x02\x12\\\n" +
+	"\bGetQuote\x12!.tzero.v1.payment.GetQuoteRequest\x1a\".tzero.v1.payment.GetQuoteResponse\"\t\xa2\xa7\x1d\x02\b\x1e\x90\x02\x01\x12k\n" +
+	"\rCreatePayment\x12&.tzero.v1.payment.CreatePaymentRequest\x1a'.tzero.v1.payment.CreatePaymentResponse\"\t\xa2\xa7\x1d\x02\b\x1e\x90\x02\x02\x12n\n" +
+	"\rConfirmPayout\x12&.tzero.v1.payment.ConfirmPayoutRequest\x1a'.tzero.v1.payment.ConfirmPayoutResponse\"\f\xa2\xa7\x1d\x02\b\x1e\x88\x02\x01\x90\x02\x02\x12n\n" +
+	"\x0eFinalizePayout\x12'.tzero.v1.payment.FinalizePayoutRequest\x1a(.tzero.v1.payment.FinalizePayoutResponse\"\t\xa2\xa7\x1d\x02\b\x1e\x90\x02\x02\x12\x86\x01\n" +
+	"\x16CompleteManualAmlCheck\x12/.tzero.v1.payment.CompleteManualAmlCheckRequest\x1a0.tzero.v1.payment.CompleteManualAmlCheckResponse\"\t\xa2\xa7\x1d\x02\b\x1e\x90\x02\x02B\xd6\x01\n" +
 	"\x14com.tzero.v1.paymentB\fNetworkProtoP\x01Z;github.com/t-0-network/provider-sdk/go/api/tzero/v1/payment\xa2\x02\x03TVP\xaa\x02#T0.ProviderSdk.Api.Tzero.V1.Payment\xca\x02\x10Tzero\\V1\\Payment\xe2\x02\x1cTzero\\V1\\Payment\\GPBMetadata\xea\x02\x12Tzero::V1::Paymentb\x06proto3"
 
 var (

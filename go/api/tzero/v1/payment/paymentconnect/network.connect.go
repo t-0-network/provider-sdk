@@ -61,8 +61,8 @@ type NetworkServiceClient interface {
 	// Returns the best pay-out quote for an amount. A quote whose credit line cannot cover the amount is not picked.
 	GetQuote(context.Context, *connect.Request[payment.GetQuoteRequest]) (*connect.Response[payment.GetQuoteResponse], error)
 	// *
-	// Creates a pay-out payment. With quote_id, the payment uses that quote from GetQuote.
-	// Without it, the best quote is picked, as GetQuote does.
+	// Creates a pay-out payment. With quote_id, the payment uses that quote from GetQuote;
+	// without it, the best quote is picked, as GetQuote does.
 	CreatePayment(context.Context, *connect.Request[payment.CreatePaymentRequest]) (*connect.Response[payment.CreatePaymentResponse], error)
 	// *
 	// Reports that a payout is complete. Deprecated: use FinalizePayout.
@@ -185,8 +185,8 @@ type NetworkServiceHandler interface {
 	// Returns the best pay-out quote for an amount. A quote whose credit line cannot cover the amount is not picked.
 	GetQuote(context.Context, *connect.Request[payment.GetQuoteRequest]) (*connect.Response[payment.GetQuoteResponse], error)
 	// *
-	// Creates a pay-out payment. With quote_id, the payment uses that quote from GetQuote.
-	// Without it, the best quote is picked, as GetQuote does.
+	// Creates a pay-out payment. With quote_id, the payment uses that quote from GetQuote;
+	// without it, the best quote is picked, as GetQuote does.
 	CreatePayment(context.Context, *connect.Request[payment.CreatePaymentRequest]) (*connect.Response[payment.CreatePaymentResponse], error)
 	// *
 	// Reports that a payout is complete. Deprecated: use FinalizePayout.

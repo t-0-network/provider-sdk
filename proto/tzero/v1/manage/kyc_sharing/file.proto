@@ -18,12 +18,11 @@ service KycFileService {
   rpc UploadFile(stream UploadFileRequest) returns (UploadFileResponse);
 
   /**
-   * Server-streaming download of a previously uploaded file. The first response
-   * message carries Metadata (content type, advisory original name); the rest are
-   * Chunks of the file bytes. The file is identified by its id plus the (Payout
-   * Requester, Payout Provider, client) tuple it must belong to; access is granted
-   * to the owning requester (any state) and to the provider once the matching
-   * application is past draft.
+   * Server-streaming download of a previously uploaded file: the first response
+   * message carries Metadata (content type, advisory original name), the rest are
+   * Chunks of the file bytes. The file must belong to the Payout Requester, Payout
+   * Provider and client the request names; its requester can download it at any
+   * time, and its provider once the matching application is past draft.
    */
   rpc DownloadFile(DownloadFileRequest) returns (stream DownloadFileResponse) {
     option idempotency_level = NO_SIDE_EFFECTS;
