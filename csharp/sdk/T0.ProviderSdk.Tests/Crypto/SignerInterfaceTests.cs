@@ -30,7 +30,8 @@ public class SignerInterfaceTests
 
         Assert.Null(sign);
         var ex = Assert.Throws<ArgumentNullException>(
-            () => T0.ProviderSdk.Network.NetworkClient.CreateNetworkServiceClient("http://localhost:1", signer!));
+            () => T0.ProviderSdk.Network.NetworkClient.Create(
+                new T0.ProviderSdk.Network.NetworkClientOptions { BaseUrl = "http://localhost:1" }, signer!, invoker => invoker));
         Assert.Equal("signer must not be null", ex.Message);
     }
 

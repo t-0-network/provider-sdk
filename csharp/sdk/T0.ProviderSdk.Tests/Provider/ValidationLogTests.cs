@@ -31,7 +31,7 @@ public class ValidationLogTests
         };
         var logs = new CapturingLoggerProvider();
         var server = new T0ProviderServer(config, signer)
-            .MapPaymentService<TestPaymentHandler>(NetworkClient.CreateNetworkServiceClient("http://localhost:1", signer))
+            .MapService<TestPaymentHandler>()
             .WithSdkVersion("9.9.9-test");
         server.Services.AddSingleton<ILoggerProvider>(logs);
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));

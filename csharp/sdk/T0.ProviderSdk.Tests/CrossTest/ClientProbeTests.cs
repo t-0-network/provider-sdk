@@ -117,7 +117,7 @@ public class ClientProbeTests
                     .ApprovePaymentQuotesAsync(new PaymentApi.ApprovePaymentQuoteRequest(), deadline: deadline);
                 return ("ok", "");
             case "tzero.v1.payment.NetworkService/UpdateQuote":
-                await NetworkClient.CreateNetworkServiceClient(options, sign)
+                await NetworkClient.Create(options, sign, invoker => new PaymentApi.NetworkService.NetworkServiceClient(invoker))
                     .UpdateQuoteAsync(new PaymentApi.UpdateQuoteRequest(), deadline: deadline);
                 return ("ok", "");
             default:

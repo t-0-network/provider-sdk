@@ -1,15 +1,11 @@
 using System.Collections.Concurrent;
-using System.Reflection;
 using System.Runtime.CompilerServices;
-using Google.Protobuf.Reflection;
 using Grpc.Core;
 using Grpc.Core.Interceptors;
 using Grpc.Net.Client;
 using T0.ProviderSdk.Api.Tzero.V1.Common;
 using T0.ProviderSdk.Common;
 using T0.ProviderSdk.Crypto;
-using PaymentApi = T0.ProviderSdk.Api.Tzero.V1.Payment;
-using PaymentIntentApi = T0.ProviderSdk.Api.Tzero.V1.PaymentIntent;
 
 namespace T0.ProviderSdk.Network;
 
@@ -93,19 +89,13 @@ public static class NetworkClient
     // type that is not a generated client gets none: its calls get the client's timeout.
     internal static IReadOnlyDictionary<string, TimeSpan> MethodTimeouts(Type clientType) =>
         MethodTimeoutsCache.GetOrAdd(clientType, type =>
-        {
-            for (var t = type; t is not null; t = t.BaseType)
-            {
-                if (t.DeclaringType?.GetProperty("Descriptor", BindingFlags.Public | BindingFlags.Static)
-                        ?.GetValue(null) is ServiceDescriptor service)
-                    return service.Methods
-                        .Where(method => method.GetOptions()?.HasExtension(TimeoutExtensions.Timeout) == true)
-                        .ToDictionary(
-                            method => $"/{service.FullName}/{method.Name}",
-                            method => method.GetOptions().GetExtension(TimeoutExtensions.Timeout).ToTimeSpan());
-            }
-            return new Dictionary<string, TimeSpan>();
-        });
+            GeneratedService.DescriptorOf(type) is { } service
+                ? service.Methods
+                    .Where(method => method.GetOptions()?.HasExtension(TimeoutExtensions.Timeout) == true)
+                    .ToDictionary(
+                        method => $"/{service.FullName}/{method.Name}",
+                        method => method.GetOptions().GetExtension(TimeoutExtensions.Timeout).ToTimeSpan())
+                : new Dictionary<string, TimeSpan>());
 
     // One connection pool for the process: a client created per request would otherwise leave a
     // pool of open connections behind it, since nothing disposes a client.
@@ -133,86 +123,4 @@ public static class NetworkClient
         AllowAutoRedirect = false,
         UseCookies = false,
     };
-
-    /// <summary>
-    /// Creates a Payment NetworkService client; see
-    /// <see cref="Create{TClient}(NetworkClientOptions, SignFn, Func{CallInvoker, TClient})"/>.
-    /// </summary>
-    public static PaymentApi.NetworkService.NetworkServiceClient CreateNetworkServiceClient(
-        NetworkClientOptions options,
-        SignFn signer) =>
-        Create(options, signer, invoker => new PaymentApi.NetworkService.NetworkServiceClient(invoker));
-
-    /// <summary>
-    /// Creates a Payment NetworkService client for <paramref name="baseUrl"/> with the default timeouts;
-    /// pass <see cref="NetworkClientOptions"/> to change them.
-    /// </summary>
-    public static PaymentApi.NetworkService.NetworkServiceClient CreateNetworkServiceClient(
-        string baseUrl,
-        SignFn signer) =>
-        CreateNetworkServiceClient(new NetworkClientOptions { BaseUrl = baseUrl }, signer);
-
-    /// <summary>
-    /// Creates a PaymentIntentService client, for the payment intent flow; see
-    /// <see cref="Create{TClient}(NetworkClientOptions, SignFn, Func{CallInvoker, TClient})"/>.
-    /// </summary>
-    public static PaymentIntentApi.PaymentIntentService.PaymentIntentServiceClient CreatePaymentIntentServiceClient(
-        NetworkClientOptions options,
-        SignFn signer) =>
-        Create(options, signer, invoker => new PaymentIntentApi.PaymentIntentService.PaymentIntentServiceClient(invoker));
-
-    /// <summary>
-    /// Creates a PaymentIntentService client for <paramref name="baseUrl"/> with the default timeouts;
-    /// pass <see cref="NetworkClientOptions"/> to change them.
-    /// </summary>
-    public static PaymentIntentApi.PaymentIntentService.PaymentIntentServiceClient CreatePaymentIntentServiceClient(
-        string baseUrl,
-        SignFn signer) =>
-        CreatePaymentIntentServiceClient(new NetworkClientOptions { BaseUrl = baseUrl }, signer);
-
-    /// <summary>
-    /// Creates a Payment NetworkService client that signs with an <see cref="ISigner"/>; see
-    /// <see cref="Create{TClient}(NetworkClientOptions, ISigner, Func{CallInvoker, TClient})"/>.
-    /// </summary>
-    [Obsolete(SignerAdapter.ObsoleteMessage)]
-    [OverloadResolutionPriority(-1)]
-    public static PaymentApi.NetworkService.NetworkServiceClient CreateNetworkServiceClient(
-        NetworkClientOptions options,
-        ISigner signer) =>
-        CreateNetworkServiceClient(options, SignerAdapter.ToSignFn(signer)!);
-
-    /// <summary>
-    /// Creates a Payment NetworkService client for <paramref name="baseUrl"/> that signs with an
-    /// <see cref="ISigner"/>; see
-    /// <see cref="Create{TClient}(NetworkClientOptions, ISigner, Func{CallInvoker, TClient})"/>.
-    /// </summary>
-    [Obsolete(SignerAdapter.ObsoleteMessage)]
-    [OverloadResolutionPriority(-1)]
-    public static PaymentApi.NetworkService.NetworkServiceClient CreateNetworkServiceClient(
-        string baseUrl,
-        ISigner signer) =>
-        CreateNetworkServiceClient(baseUrl, SignerAdapter.ToSignFn(signer)!);
-
-    /// <summary>
-    /// Creates a PaymentIntentService client that signs with an <see cref="ISigner"/>; see
-    /// <see cref="Create{TClient}(NetworkClientOptions, ISigner, Func{CallInvoker, TClient})"/>.
-    /// </summary>
-    [Obsolete(SignerAdapter.ObsoleteMessage)]
-    [OverloadResolutionPriority(-1)]
-    public static PaymentIntentApi.PaymentIntentService.PaymentIntentServiceClient CreatePaymentIntentServiceClient(
-        NetworkClientOptions options,
-        ISigner signer) =>
-        CreatePaymentIntentServiceClient(options, SignerAdapter.ToSignFn(signer)!);
-
-    /// <summary>
-    /// Creates a PaymentIntentService client for <paramref name="baseUrl"/> that signs with an
-    /// <see cref="ISigner"/>; see
-    /// <see cref="Create{TClient}(NetworkClientOptions, ISigner, Func{CallInvoker, TClient})"/>.
-    /// </summary>
-    [Obsolete(SignerAdapter.ObsoleteMessage)]
-    [OverloadResolutionPriority(-1)]
-    public static PaymentIntentApi.PaymentIntentService.PaymentIntentServiceClient CreatePaymentIntentServiceClient(
-        string baseUrl,
-        ISigner signer) =>
-        CreatePaymentIntentServiceClient(baseUrl, SignerAdapter.ToSignFn(signer)!);
 }

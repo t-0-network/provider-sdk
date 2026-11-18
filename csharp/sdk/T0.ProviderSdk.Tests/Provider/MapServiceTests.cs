@@ -1,5 +1,6 @@
 using Grpc.Core;
 using Grpc.Health.V1;
+using Microsoft.Extensions.DependencyInjection;
 using T0.ProviderSdk.Api.Tzero.V1.PaymentIntent;
 using T0.ProviderSdk.Crypto;
 using T0.ProviderSdk.Network;
@@ -7,18 +8,18 @@ using T0.ProviderSdk.Network;
 namespace T0.ProviderSdk.Tests.Provider;
 
 /// <summary>
-/// MapPayInProviderService and MapBeneficiaryService serve the two roles of the payment intent flow
-/// behind the signature middleware, report them in health, and give their handlers the
-/// PaymentIntentService client.
+/// MapService serves a handler of any generated service behind the signature middleware, reports
+/// the service in health, and creates the handler from Services. Here: the two roles of the
+/// payment intent flow, whose handlers take the PaymentIntentService client.
 /// </summary>
-public class PaymentIntentServicesTests
+public class MapServiceTests
 {
     // Same dev keypair used in CrossServerTests.
     private const string PrivateKey = "0x6b30303de7b26bfb1222b317a52113357f8bb06de00160b4261a2fef9c8b9bd8";
     private const string PublicKey = "0x044fa1465c087aaf42e5ff707050b8f77d2ce92129c5f300686bdd3adfffe44567713bb7931632837c5268a832512e75599b6964f4484c9531c02e96d90384d9f0";
 
     [Fact]
-    public async Task PaymentIntentHandlers_AreServedAndReportedInHealth()
+    public async Task Handlers_AreServed_CreatedFromServices_AndReportedInHealth()
     {
         var port = TestPorts.FindFreePort();
         var signer = Signer.FromHex(PrivateKey);
@@ -29,10 +30,11 @@ public class PaymentIntentServicesTests
             Port = port,
             TZeroEndpoint = "http://localhost:1",
         };
-        var paymentIntentClient = NetworkClient.CreatePaymentIntentServiceClient("http://localhost:1", signer);
-        var server = new T0ProviderServer(config, signer)
-            .MapPayInProviderService<PayInHandler>(paymentIntentClient)
-            .MapBeneficiaryService<BeneficiaryHandler>(paymentIntentClient);
+        var server = new T0ProviderServer(config, signer);
+        server.Services.AddSingleton(NetworkClient.Create(
+            new NetworkClientOptions { BaseUrl = "http://localhost:1" }, signer,
+            invoker => new PaymentIntentService.PaymentIntentServiceClient(invoker)));
+        server.MapService<PayInHandler>().MapService<BeneficiaryHandler>();
 
         await TestServer.RunAsync(server, port, async () =>
         {
@@ -54,7 +56,6 @@ public class PaymentIntentServicesTests
         });
     }
 
-    // Takes the client that MapPayInProviderService registers.
     public sealed class PayInHandler(PaymentIntentService.PaymentIntentServiceClient paymentIntentClient)
         : PayInProviderService.PayInProviderServiceBase
     {
@@ -66,7 +67,6 @@ public class PaymentIntentServicesTests
         }
     }
 
-    // Takes the client that MapBeneficiaryService registers.
     public sealed class BeneficiaryHandler(PaymentIntentService.PaymentIntentServiceClient paymentIntentClient)
         : BeneficiaryService.BeneficiaryServiceBase
     {

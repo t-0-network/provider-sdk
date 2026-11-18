@@ -50,9 +50,7 @@ csharp/
 - `ISigner` — v1.2's signer interface, `[Obsolete]`: `Signer` implements it, the server registers it in DI, and each client factory and the `SigningDelegatingHandler` constructor has an obsolete overload taking it (`[OverloadResolutionPriority(-1)]`, so a `Signer` picks the `SignFn` one) that signs through a `SignFn` made from it
 - `SignatureVerifier` / `DefaultSignatureVerifier` (implements `ISignatureVerifier`) — Verification
 - `Keccak256` — Legacy Keccak-256 hashing (NOT NIST SHA-3)
-- `NetworkClient.CreateNetworkServiceClient()` — Auto-signing Payment gRPC client
-- `NetworkClient.CreatePaymentIntentServiceClient()` — Auto-signing PaymentIntentService gRPC client
-- `T0ProviderServer.MapPaymentService` / `MapPayInProviderService` / `MapBeneficiaryService` — Map the provider's handlers (payments, pay-in role, beneficiary role) and register their network client for DI
+- `T0ProviderServer.MapService<THandler>()` — Maps the handler of any generated service and reports the service in health; `T0ProviderServer.Services` registers what handlers and hosted services take, such as the network clients
 - `SignatureVerificationMiddleware` — ASP.NET Core middleware, verifies incoming requests
 - `ValidationInterceptor` — validates every response the server sends (rule V12)
 - `Validate.Check(message)` — the same validation inside a handler (Go `provider.Validate`, Node and Python `validate`, Java `Validate.check`): returns the message when it is valid, else throws the interceptor's `RpcException`, Internal "response validation failed: …" or "response validation error: …"
@@ -103,6 +101,7 @@ Versions: `sdk/T0.ProviderSdk/T0.ProviderSdk.csproj`.
 | `network.SigningTransport` | `SigningDelegatingHandler` |
 | `provider.NewHttpHandler()` | `T0ProviderServer` |
 | `provider.StartServer()` | `T0ProviderServer.RunAsync()` |
+| `provider.Handler()` | `T0ProviderServer.MapService<T>()` |
 
 ## Starter Template
 

@@ -35,9 +35,8 @@ var options = new NetworkClientOptions
     StreamTimeout = TimeSpan.FromMinutes(5),  // client and server streams, whole call, the default
 };
 
-var client = NetworkClient.CreateNetworkServiceClient(options, signer);
-var paymentIntentClient = NetworkClient.CreatePaymentIntentServiceClient(options, signer);
-// Any generated gRPC client: NetworkClient.Create(options, signer, invoker => new XClient(invoker))
+// Any generated gRPC client, for example PaymentIntentService.PaymentIntentServiceClient, the same way.
+var client = NetworkClient.Create(options, signer, invoker => new NetworkService.NetworkServiceClient(invoker));
 
 // A deadline on the call replaces the default, shorter or longer.
 await client.UpdateQuoteAsync(request, deadline: DateTime.UtcNow.AddMinutes(1));
@@ -57,7 +56,7 @@ SignFn sign = digest =>
     byte[] signature = hsm.Sign(digest);   // 64 bytes r‖s, or 65 bytes r‖s‖v
     return (signature, hsm.PublicKey);     // 65 bytes, uncompressed (0x04 ‖ x ‖ y)
 };
-var client = NetworkClient.CreateNetworkServiceClient(options, sign);
+var client = NetworkClient.Create(options, sign, invoker => new NetworkService.NetworkServiceClient(invoker));
 ```
 
 The client checks the output before it sends anything. A signature that is not 64 or 65 bytes, a

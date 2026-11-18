@@ -1,4 +1,6 @@
 using T0.ProviderSdk;
+using T0.ProviderSdk.Api.Tzero.V1.Payment;
+using T0.ProviderSdk.Api.Tzero.V1.PaymentIntent;
 using T0.ProviderSdk.Crypto;
 using T0.ProviderSdk.Network;
 
@@ -11,11 +13,15 @@ try
 
     // TODO: Step 1.2 Share the generated public key from .env with the T-0 team
 
-    var networkClient = NetworkClient.CreateNetworkServiceClient(config.TZeroEndpoint, signer);
-    var paymentIntentClient = NetworkClient.CreatePaymentIntentServiceClient(config.TZeroEndpoint, signer);
+    var clientOptions = new NetworkClientOptions { BaseUrl = config.TZeroEndpoint };
 
     var server = new T0ProviderServer(config, signer);
-    server.MapPaymentService<MyProvider.Services.PaymentHandler>(networkClient);
+    // The handlers and hosted services below take these clients in their constructors.
+    server.Services.AddSingleton(NetworkClient.Create(
+        clientOptions, signer, invoker => new NetworkService.NetworkServiceClient(invoker)));
+    server.Services.AddSingleton(NetworkClient.Create(
+        clientOptions, signer, invoker => new PaymentIntentService.PaymentIntentServiceClient(invoker)));
+    server.MapService<MyProvider.Services.PaymentHandler>();
     // Prints the listening line. QuotePublisher waits for it before its first publish.
     MyProvider.Listening.Port = config.Port;
     server.AddHostedService<MyProvider.Listening>();
@@ -37,12 +43,12 @@ try
     // ──────────────────────────────────────────────────────────────
 
     // Phase 3A — Pay-In Provider role. Comment out if you are only a beneficiary.
-    server.MapPayInProviderService<MyProvider.Services.PaymentIntentPayInHandler>(paymentIntentClient);
+    server.MapService<MyProvider.Services.PaymentIntentPayInHandler>();
     // TODO: Step 3A.1 Replace with your own pay-in quote publishing logic
     server.AddHostedService<MyProvider.Services.PaymentIntentQuotePublisher>();
 
     // Phase 3B — Beneficiary Provider role. Comment out if you are only a pay-in provider.
-    server.MapBeneficiaryService<MyProvider.Services.PaymentIntentBeneficiaryHandler>(paymentIntentClient);
+    server.MapService<MyProvider.Services.PaymentIntentBeneficiaryHandler>();
     // TODO: Step 3B.1 Check that indicative quotes are being returned
     server.AddHostedService<MyProvider.Services.GetPaymentIntentQuote>();
     // TODO: Step 3B.2 Create a payment intent for a real end-user when they want to pay

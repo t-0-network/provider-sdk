@@ -8,8 +8,6 @@ using Microsoft.Extensions.Logging;
 using T0.ProviderSdk.Common;
 using T0.ProviderSdk.Crypto;
 using T0.ProviderSdk.Provider;
-using PaymentApi = T0.ProviderSdk.Api.Tzero.V1.Payment;
-using PaymentIntentApi = T0.ProviderSdk.Api.Tzero.V1.PaymentIntent;
 using Grpc.Health.V1;
 
 namespace T0.ProviderSdk;
@@ -64,46 +62,21 @@ public sealed class T0ProviderServer
 #pragma warning restore CS0618
     }
 
-    // For tests: the services the server is built with.
-    internal IServiceCollection Services => _builder.Services;
+    /// <summary>
+    /// The services handlers and hosted services are created from. Register here what they take in
+    /// their constructors, for example a network client: <c>server.Services.AddSingleton(networkClient)</c>.
+    /// </summary>
+    public IServiceCollection Services => _builder.Services;
 
     /// <summary>
-    /// Maps a Payment ProviderService handler and registers its NetworkServiceClient for DI.
+    /// Maps a handler of a generated gRPC service, for example
+    /// <c>server.MapService&lt;PaymentHandler&gt;()</c>, behind the signature middleware, and reports the
+    /// service in health. The handler is created from <see cref="Services"/>.
     /// </summary>
-    public T0ProviderServer MapPaymentService<THandler>(
-        PaymentApi.NetworkService.NetworkServiceClient networkClient)
-        where THandler : PaymentApi.ProviderService.ProviderServiceBase
+    public T0ProviderServer MapService<THandler>() where THandler : class
     {
-        _registeredFqns.Add(PaymentApi.ProviderService.Descriptor.FullName);
-        _builder.Services.AddSingleton(networkClient);
-        _mapActions.Add(app => app.MapGrpcService<THandler>());
-        return this;
-    }
-
-    /// <summary>
-    /// Maps a PayInProviderService handler, the pay-in provider role of the payment intent flow, and
-    /// registers its PaymentIntentServiceClient for DI.
-    /// </summary>
-    public T0ProviderServer MapPayInProviderService<THandler>(
-        PaymentIntentApi.PaymentIntentService.PaymentIntentServiceClient paymentIntentClient)
-        where THandler : PaymentIntentApi.PayInProviderService.PayInProviderServiceBase
-    {
-        _registeredFqns.Add(PaymentIntentApi.PayInProviderService.Descriptor.FullName);
-        _builder.Services.AddSingleton(paymentIntentClient);
-        _mapActions.Add(app => app.MapGrpcService<THandler>());
-        return this;
-    }
-
-    /// <summary>
-    /// Maps a BeneficiaryService handler, the beneficiary provider role of the payment intent flow, and
-    /// registers its PaymentIntentServiceClient for DI.
-    /// </summary>
-    public T0ProviderServer MapBeneficiaryService<THandler>(
-        PaymentIntentApi.PaymentIntentService.PaymentIntentServiceClient paymentIntentClient)
-        where THandler : PaymentIntentApi.BeneficiaryService.BeneficiaryServiceBase
-    {
-        _registeredFqns.Add(PaymentIntentApi.BeneficiaryService.Descriptor.FullName);
-        _builder.Services.AddSingleton(paymentIntentClient);
+        if (GeneratedService.DescriptorOf(typeof(THandler)) is { } service)
+            _registeredFqns.Add(service.FullName);
         _mapActions.Add(app => app.MapGrpcService<THandler>());
         return this;
     }

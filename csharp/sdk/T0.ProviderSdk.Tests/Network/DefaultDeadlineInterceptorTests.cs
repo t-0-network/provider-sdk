@@ -236,10 +236,10 @@ public class DefaultDeadlineInterceptorTests
         Assert.Equal(StatusCode.DeadlineExceeded, ex.StatusCode);
     }
 
-    // UpdateQuote has a timeout option of 30 s, which Timeout does not change; Health/Check has none
-    // and gets Timeout.
+    // UpdateQuote of both network services has a timeout option of 30 s, which Timeout does not change;
+    // Health/Check has none and gets Timeout.
     [Fact]
-    public async Task Helpers_SendTheMethodsTimeoutOrTheConfiguredOne_WithoutValidatingTheRequest()
+    public async Task Clients_SendTheMethodsTimeoutOrTheConfiguredOne_WithoutValidatingTheRequest()
     {
         var timeouts = new List<string?>();
         var (app, baseUrl) = await StartTimeoutRecorderAsync(timeouts);
@@ -247,9 +247,9 @@ public class DefaultDeadlineInterceptorTests
         try
         {
             var signer = Signer.FromHex(PrivateKey);
+            var options = new NetworkClientOptions { BaseUrl = baseUrl, Timeout = TimeSpan.FromSeconds(7) };
 
-            var payment = NetworkClient.CreateNetworkServiceClient(
-                new NetworkClientOptions { BaseUrl = baseUrl, Timeout = TimeSpan.FromSeconds(7) }, signer);
+            var payment = NetworkClient.Create(options, signer, invoker => new PaymentApi.NetworkService.NetworkServiceClient(invoker));
             var ex = await Assert.ThrowsAsync<RpcException>(
                 () => payment.UpdateQuoteAsync(new PaymentApi.UpdateQuoteRequest()).ResponseAsync);
             Assert.Equal(StatusCode.Unimplemented, ex.StatusCode);
@@ -259,6 +259,12 @@ public class DefaultDeadlineInterceptorTests
                 () => payment.CreatePaymentAsync(new PaymentApi.CreatePaymentRequest()).ResponseAsync);
             Assert.Equal(StatusCode.Unimplemented, ex.StatusCode);
 
+            var paymentIntent = NetworkClient.Create(
+                options, signer, invoker => new PaymentIntentApi.PaymentIntentService.PaymentIntentServiceClient(invoker));
+            ex = await Assert.ThrowsAsync<RpcException>(
+                () => paymentIntent.UpdateQuoteAsync(new PaymentIntentApi.UpdateQuoteRequest()).ResponseAsync);
+            Assert.Equal(StatusCode.Unimplemented, ex.StatusCode);
+
             var health = NetworkClient.Create(
                 new NetworkClientOptions { BaseUrl = baseUrl, Timeout = TimeSpan.FromSeconds(9) }, signer,
                 invoker => new Health.HealthClient(invoker));
@@ -266,42 +272,10 @@ public class DefaultDeadlineInterceptorTests
                 () => health.CheckAsync(new HealthCheckRequest()).ResponseAsync);
             Assert.Equal(StatusCode.Unimplemented, ex.StatusCode);
 
-            Assert.Equal(3, timeouts.Count);
+            Assert.Equal(4, timeouts.Count);
             Assert.InRange(ParseGrpcTimeout(timeouts[0]), TimeSpan.FromSeconds(25), TimeSpan.FromSeconds(30));
-            Assert.InRange(ParseGrpcTimeout(timeouts[2]), TimeSpan.FromSeconds(4), TimeSpan.FromSeconds(9));
-        }
-        finally
-        {
-            await app.StopAsync();
-            await app.DisposeAsync();
-        }
-    }
-
-    // The form master's docs and starter use: a base URL string and the default timeouts.
-    [Fact]
-    public async Task BaseUrlOverloads_UseTheBaseUrlAndTheDefaultTimeout()
-    {
-        var timeouts = new List<string?>();
-        var (app, baseUrl) = await StartTimeoutRecorderAsync(timeouts);
-
-        try
-        {
-            var signer = Signer.FromHex(PrivateKey);
-
-            var payment = NetworkClient.CreateNetworkServiceClient(baseUrl, signer);
-            var ex = await Assert.ThrowsAsync<RpcException>(
-                () => payment.UpdateQuoteAsync(new PaymentApi.UpdateQuoteRequest()).ResponseAsync);
-            Assert.Equal(StatusCode.Unimplemented, ex.StatusCode);
-
-            var paymentIntent = NetworkClient.CreatePaymentIntentServiceClient(baseUrl, signer);
-            ex = await Assert.ThrowsAsync<RpcException>(
-                () => paymentIntent.UpdateQuoteAsync(new PaymentIntentApi.UpdateQuoteRequest()).ResponseAsync);
-            Assert.Equal(StatusCode.Unimplemented, ex.StatusCode);
-
-            // Both reached the server at baseUrl, each with its method's 30 s.
-            Assert.Equal(2, timeouts.Count);
-            Assert.All(timeouts, timeout =>
-                Assert.InRange(ParseGrpcTimeout(timeout), TimeSpan.FromSeconds(25), TimeSpan.FromSeconds(30)));
+            Assert.InRange(ParseGrpcTimeout(timeouts[2]), TimeSpan.FromSeconds(25), TimeSpan.FromSeconds(30));
+            Assert.InRange(ParseGrpcTimeout(timeouts[3]), TimeSpan.FromSeconds(4), TimeSpan.FromSeconds(9));
         }
         finally
         {

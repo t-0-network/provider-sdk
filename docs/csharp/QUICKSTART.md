@@ -20,21 +20,25 @@ The initializer generates a complete project with:
 
 ```csharp
 using T0.ProviderSdk;
+using T0.ProviderSdk.Api.Tzero.V1.Payment;
 using T0.ProviderSdk.Crypto;
 using T0.ProviderSdk.Network;
 
 MyProvider.Config.LoadEnv();
 var config = MyProvider.Config.FromEnvironment();
 var signer = Signer.FromHex(config.ProviderPrivateKey);
-var networkClient = NetworkClient.CreateNetworkServiceClient(config.TZeroEndpoint, signer);
 
 var server = new T0ProviderServer(config, signer);
-server.MapPaymentService<MyProvider.Services.PaymentHandler>(networkClient);
+// PaymentHandler and QuotePublisher take the client in their constructors.
+server.Services.AddSingleton(NetworkClient.Create(
+    new NetworkClientOptions { BaseUrl = config.TZeroEndpoint }, signer,
+    invoker => new NetworkService.NetworkServiceClient(invoker)));
+server.MapService<MyProvider.Services.PaymentHandler>();
 server.AddHostedService<MyProvider.Services.QuotePublisher>();
 await server.RunAsync();
 ```
 
-The overload that takes `NetworkClientOptions` in place of the base URL also sets `Timeout` (unary calls, default 30 s) and `StreamTimeout` (client and server streams, default 5 min), for methods without a timeout option in the proto; see [Streaming and timeouts](../../csharp/README.md#streaming-and-timeouts).
+`NetworkClient.Create` takes the client of any generated service. `NetworkClientOptions` also sets `Timeout` (unary calls, default 30 s) and `StreamTimeout` (client and server streams, default 5 min), for methods without a timeout option in the proto; see [Streaming and timeouts](../../csharp/README.md#streaming-and-timeouts). `MapService` maps the handler of any generated service and reports the service in health.
 
 ## Environment Variables
 
@@ -75,15 +79,15 @@ The payment intent flow (Phase 3) is independent of Phase 2. Implement the role 
 ## PaymentIntent Support
 
 ```csharp
-var paymentIntentClient = NetworkClient.CreatePaymentIntentServiceClient(config.TZeroEndpoint, signer);
+server.Services.AddSingleton(NetworkClient.Create(
+    new NetworkClientOptions { BaseUrl = config.TZeroEndpoint }, signer,
+    invoker => new PaymentIntentService.PaymentIntentServiceClient(invoker)));
 
 // Pay-in provider role
-server.MapPayInProviderService<MyProvider.Services.PaymentIntentPayInHandler>(paymentIntentClient);
+server.MapService<MyProvider.Services.PaymentIntentPayInHandler>();
 // Beneficiary provider role
-server.MapBeneficiaryService<MyProvider.Services.PaymentIntentBeneficiaryHandler>(paymentIntentClient);
+server.MapService<MyProvider.Services.PaymentIntentBeneficiaryHandler>();
 ```
-
-Each map method registers the client for dependency injection, so a handler can take it in its constructor.
 
 ## Testing Your Handler
 

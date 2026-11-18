@@ -74,7 +74,7 @@ The middleware runs before gRPC deserialization. If signature verification fails
 
 Uses a two-phase build pattern because ASP.NET Core requires service registration before `Build()`:
 
-1. **Configuration phase**: Constructor + `MapPaymentService()` / `MapPayInProviderService()` / `MapBeneficiaryService()` / `AddHostedService()` register services on `WebApplicationBuilder`
+1. **Configuration phase**: Constructor + `Services` / `MapService<THandler>()` / `AddHostedService()` register services on `WebApplicationBuilder`. `MapService` takes the handler of any generated service and reports the service in health
 2. **Run phase**: `RunAsync()` calls `Build()`, wires middleware, maps endpoints, and starts the server
 
 ### Pluggable Crypto
@@ -122,7 +122,7 @@ headers = {
 | `network.SigningTransport` | `SigningDelegatingHandler` |
 | `provider.NewHttpHandler()` | `T0ProviderServer` |
 | `provider.StartServer()` | `T0ProviderServer.RunAsync()` |
-| `provider.Handler()` | `T0ProviderServer.MapPaymentService<T>()`, `MapPayInProviderService<T>()`, `MapBeneficiaryService<T>()` |
+| `provider.Handler()` | `T0ProviderServer.MapService<T>()` |
 
 ## Dependencies
 

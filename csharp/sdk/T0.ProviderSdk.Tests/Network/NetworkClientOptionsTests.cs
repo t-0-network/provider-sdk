@@ -30,18 +30,6 @@ public class NetworkClientOptionsTests
         Assert.Equal("https://api.t-0.network:443", new NetworkClientOptions { BaseUrl = "api.t-0.network:443" }.BaseUrl);
     }
 
-    // The base URL overloads of the helpers apply the same reading.
-    [Fact]
-    public void BaseUrlOverloads_ReadAValueWithoutSchemeAsHttps()
-    {
-        var signer = Signer.FromHex(Key);
-
-        Assert.NotNull(NetworkClient.CreateNetworkServiceClient("api.t-0.network", signer));
-        Assert.NotNull(NetworkClient.CreatePaymentIntentServiceClient("localhost:8080", signer));
-        var ex = Assert.Throws<ArgumentException>(() => NetworkClient.CreateNetworkServiceClient("user@h", signer));
-        Assert.Equal("base URL is not valid", ex.Message);
-    }
-
     // Internal, not Unavailable (which callers retry), with the signer's error as the cause; nothing is sent.
     [Fact]
     public async Task SignerFailure_IsInternal_WithItsCause()
@@ -56,7 +44,7 @@ public class NetworkClientOptionsTests
 
         foreach (var (signer, cause) in signers)
         {
-            var client = NetworkClient.CreateNetworkServiceClient("http://127.0.0.1:1", signer);
+            var client = NetworkServiceClient("http://127.0.0.1:1", signer);
             var ex = await Assert.ThrowsAsync<RpcException>(
                 () => client.UpdateQuoteAsync(new PaymentApi.UpdateQuoteRequest()).ResponseAsync);
 
@@ -113,8 +101,7 @@ public class NetworkClientOptionsTests
 
         try
         {
-            var client = NetworkClient.CreateNetworkServiceClient(
-                new NetworkClientOptions { BaseUrl = redirectorUrl }, Signer.FromHex(Key));
+            var client = NetworkServiceClient(redirectorUrl, Signer.FromHex(Key));
 
             await Assert.ThrowsAsync<RpcException>(
                 () => client.UpdateQuoteAsync(new PaymentApi.UpdateQuoteRequest()).ResponseAsync);
@@ -143,8 +130,7 @@ public class NetworkClientOptionsTests
 
         try
         {
-            var client = NetworkClient.CreateNetworkServiceClient(
-                new NetworkClientOptions { BaseUrl = url }, Signer.FromHex(Key));
+            var client = NetworkServiceClient(url, Signer.FromHex(Key));
             for (var i = 0; i < 2; i++)
                 await Assert.ThrowsAsync<RpcException>(
                     () => client.UpdateQuoteAsync(new PaymentApi.UpdateQuoteRequest()).ResponseAsync);
@@ -180,4 +166,8 @@ public class NetworkClientOptionsTests
             () => other.GetAsync($"http://127.0.0.1:{TestPorts.FindFreePort()}/"));
         Assert.IsType<HttpRequestException>(ex);
     }
+
+    private static PaymentApi.NetworkService.NetworkServiceClient NetworkServiceClient(string baseUrl, SignFn signer) =>
+        NetworkClient.Create(new NetworkClientOptions { BaseUrl = baseUrl }, signer,
+            invoker => new PaymentApi.NetworkService.NetworkServiceClient(invoker));
 }
