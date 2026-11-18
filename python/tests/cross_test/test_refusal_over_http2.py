@@ -4,6 +4,9 @@ The refused call is still uploading when it is answered. hypercorn 0.18 stops re
 connection when data arrives for a stream whose response has ended (pgjones/hypercorn#389), and every
 other call on that connection then hangs. So the middleware ends the response to a refused call only
 after it has read the rest of the body, over HTTP/2 as over HTTP/1.1 (_AnswerThenDrain).
+
+It sits with the cross tests because they run hypercorn, a dev dependency of this workspace. It does
+not need the Go helper.
 """
 
 from __future__ import annotations
