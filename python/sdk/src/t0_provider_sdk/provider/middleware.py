@@ -167,8 +167,8 @@ def signature_verification_middleware(
     bytes) and verifies the signature over it, all before the app reads anything. An accepted
     request goes on with its body; a rejected one goes on with an empty body, and the signature
     interceptor, which connectrpc runs before it reads the body, answers it with the rejection's code
-    and message (signature_error_var). That answer is sent at once, without waiting for the rest of
-    the body.
+    and message (signature_error_var). That answer is sent at once. The response ends when the rest
+    of the body has been read, or at the drain limits (_AnswerThenDrain).
 
     A request whose method is not POST is refused first, before its headers are checked, and never
     reaches the app: the middleware answers it itself, Unimplemented as a Connect unary error.
@@ -187,7 +187,7 @@ def signature_verification_middleware(
         if scope.get("method") != "POST":
             # The answer goes out at once; what the caller is still sending is read after it.
             reader = _BodyReader(receive)
-            await _refuse_method(_AnswerThenDrain(scope, send, reader, _DRAIN_LIMIT_FACTOR * max_body_size))
+            await _refuse_method(_AnswerThenDrain(send, reader, _DRAIN_LIMIT_FACTOR * max_body_size))
             return
 
         headers = _parse_scope_headers(scope)
@@ -204,7 +204,7 @@ def signature_verification_middleware(
             if not reader.done:
                 # The answer goes out at once, never after the rest of the body; what the caller
                 # is still sending is read after it (_AnswerThenDrain).
-                send = _AnswerThenDrain(scope, send, reader, _DRAIN_LIMIT_FACTOR * max_body_size)
+                send = _AnswerThenDrain(send, reader, _DRAIN_LIMIT_FACTOR * max_body_size)
                 # The rest of the body is read there, not by the app, which is told the client
                 # has gone.
                 receive = _client_gone
@@ -401,28 +401,32 @@ class _BodyReader:
 class _AnswerThenDrain:
     """The send of a rejected request whose body may still be arriving.
 
-    The answer goes out at once, all of it. Only the message that ends the response waits until
-    what is left of the body is drained: an ASGI server stops reading the body when the response
-    ends, and then an HTTP/1.1 client may find the connection reset under its upload before it
-    reads the answer, and hypercorn fails the whole HTTP/2 connection on the stream's late data.
+    The answer goes out at once, all of it. Only the message that ends the response waits while the
+    rest of the body is read and discarded, up to the drain limits.
 
-    A gRPC answer is its trailers, sent at once with more_trailers. An answer without trailers is
-    held over HTTP/1.x only, and given a Content-Length, so that the client knows where it ends
-    before the response ends. An HTTP/2 client waits for the end of the stream, so there the
-    response ends at once and nothing is drained.
+    Servers differ when a response ends before its request body. uvicorn reads and discards the
+    rest itself. hypercorn and granian close an HTTP/1.1 connection at once, and the client may then
+    get a reset instead of the answer. Over HTTP/2, hypercorn 0.18 fails on data for a stream that
+    has ended: it stops reading the connection, and the other calls on it hang
+    (pgjones/hypercorn#389).
+
+    An answer without trailers is held back and sent whole, with a Content-Length, on every HTTP
+    version, so that the client knows where it ends before the response ends. Over HTTP/2 the
+    client sees the end of the stream only after the drain. A gRPC answer is its trailers, sent at
+    once with more_trailers. hypercorn ends the HTTP/2 stream at these trailers, but it keeps
+    reading the stream's data until the response ends.
     """
 
-    def __init__(self, scope: Scope, send: ASGISend, reader: _BodyReader, limit: int) -> None:
+    def __init__(self, send: ASGISend, reader: _BodyReader, limit: int) -> None:
         self._send = send
         self._reader = reader
         self._limit = limit
-        self._hold_body = scope.get("http_version", "1.1") in ("1.0", "1.1")
         self._start: dict[str, Any] | None = None
         self._body = bytearray()
 
     async def __call__(self, message: dict[str, Any]) -> None:
         kind = message.get("type")
-        if kind == "http.response.start" and self._hold_body and not message.get("trailers", False):
+        if kind == "http.response.start" and not message.get("trailers", False):
             self._start = message  # sent with the whole body, to give it a Content-Length
             return
         if kind == "http.response.body" and self._start is not None:
