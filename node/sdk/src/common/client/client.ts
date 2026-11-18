@@ -33,11 +33,10 @@ export function createClient<T extends DescService>(signer: string | Buffer | ((
     const unaryTransport = createTransport(transportOptions(sign, baseUrl, unaryTimeoutMs, wireFormat));
     const streamTransport = createTransport(transportOptions(sign, baseUrl, streamTimeoutMs, wireFormat));
     // A call's own timeout, else its method's timeout option, else the transport's (the client's) timeout.
-    const methodTimeouts = new Map<DescMethod, number | undefined>(svc.methods.map((method) => [method, methodTimeoutMs(method)]));
 
     const client = createConnectClient(svc, {
         unary: async (method, signal, timeoutMs, header, input, contextValues) =>
-            unaryTransport.unary(method, signal, callTimeout(timeoutMs) ?? methodTimeouts.get(method), header, input, contextValues),
+            unaryTransport.unary(method, signal, callTimeout(timeoutMs) ?? methodTimeoutMs(method), header, input, contextValues),
         stream: (method, signal, timeoutMs, header, input, contextValues) => {
             // async: a refused call fails where the call's result is awaited, and nothing is sent.
             const response = (async () => {
@@ -45,7 +44,7 @@ export function createClient<T extends DescService>(signer: string | Buffer | ((
                 if (method.methodKind === "bidi_streaming") {
                     throw new ConnectError(BIDI_NOT_SUPPORTED, Code.Unimplemented);
                 }
-                return streamTransport.stream(method, signal, callTimeout(timeoutMs) ?? methodTimeouts.get(method), header, input, contextValues);
+                return streamTransport.stream(method, signal, callTimeout(timeoutMs) ?? methodTimeoutMs(method), header, input, contextValues);
             })();
             // A stream is awaited only once its iteration starts; until then a failure must not count
             // as an unhandled rejection. The caller still gets it from the first next().
@@ -127,20 +126,16 @@ function timeout(message: string, ms: number | undefined): number | undefined {
 }
 
 /**
- * The timeout option (tzero.v1.common.timeout) of method in whole ms, rounded up and cut to
- * MAX_TIMEOUT_MS, or undefined when the method has none, or one that is not greater than 0. The
+ * The timeout option (tzero.v1.common.timeout) of method in ms, or undefined when it has none. The
  * client's timeout never replaces the option: the network answers within it, so a shorter wait can
  * miss an answer.
- *
- * @internal
  */
-export function methodTimeoutMs(method: DescMethod): number | undefined {
+function methodTimeoutMs(method: DescMethod): number | undefined {
     if (!hasOption(method, timeoutOption)) {
         return undefined;
     }
     const {seconds, nanos} = getOption(method, timeoutOption);
-    const ms = Number(seconds) * 1000 + nanos / 1_000_000;
-    return ms > 0 ? Math.min(Math.ceil(ms), MAX_TIMEOUT_MS) : undefined;
+    return Number(seconds) * 1000 + nanos / 1_000_000;
 }
 
 /**

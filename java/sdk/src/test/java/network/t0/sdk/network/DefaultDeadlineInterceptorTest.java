@@ -1,12 +1,5 @@
 package network.t0.sdk.network;
 
-import com.google.protobuf.DescriptorProtos.FileDescriptorProto;
-import com.google.protobuf.DescriptorProtos.MethodDescriptorProto;
-import com.google.protobuf.DescriptorProtos.MethodOptions;
-import com.google.protobuf.DescriptorProtos.ServiceDescriptorProto;
-import com.google.protobuf.Descriptors;
-import com.google.protobuf.Empty;
-import com.google.protobuf.EmptyProto;
 import com.google.protobuf.StringValue;
 import io.grpc.CallOptions;
 import io.grpc.Channel;
@@ -28,13 +21,11 @@ import io.grpc.health.v1.HealthCheckRequest;
 import io.grpc.health.v1.HealthCheckResponse;
 import io.grpc.health.v1.HealthGrpc;
 import io.grpc.netty.shaded.io.grpc.netty.NettyServerBuilder;
-import io.grpc.protobuf.ProtoMethodDescriptorSupplier;
 import io.grpc.protobuf.ProtoUtils;
 import io.grpc.stub.MetadataUtils;
 import io.grpc.stub.StreamObserver;
 import network.t0.sdk.common.Messages;
 import network.t0.sdk.crypto.Signer;
-import network.t0.sdk.proto.tzero.v1.common.TimeoutProto;
 import network.t0.sdk.proto.tzero.v1.payment.NetworkServiceGrpc;
 import network.t0.sdk.proto.tzero.v1.payment.ProviderServiceGrpc;
 import org.junit.jupiter.api.DisplayName;
@@ -193,35 +184,6 @@ class DefaultDeadlineInterceptorTest {
                     Duration.ofSeconds(10), Duration.ofMinutes(5), CallOptions.DEFAULT.withDeadline(own));
 
             assertThat(options.getDeadline()).isSameAs(own);
-        }
-
-        @Test
-        @DisplayName("Counts as none when it is missing, zero or negative; is capped at 2147483647 ms")
-        void readFromTheDescriptor() throws Exception {
-            Duration timeout = Duration.ofSeconds(10);
-            Duration streamTimeout = Duration.ofMinutes(5);
-            com.google.protobuf.Duration ninety = com.google.protobuf.Duration.newBuilder().setSeconds(90).build();
-
-            assertThat(remainingMs(optionsFor(methodWithOption("none", MethodType.UNARY, null),
-                    timeout, streamTimeout, CallOptions.DEFAULT))).isBetween(9_000L, 10_000L);
-            assertThat(remainingMs(optionsFor(methodWithOption("zero", MethodType.UNARY,
-                    com.google.protobuf.Duration.getDefaultInstance()),
-                    timeout, streamTimeout, CallOptions.DEFAULT))).isBetween(9_000L, 10_000L);
-            assertThat(remainingMs(optionsFor(methodWithOption("negative", MethodType.UNARY,
-                    com.google.protobuf.Duration.newBuilder().setSeconds(-1).build()),
-                    timeout, streamTimeout, CallOptions.DEFAULT))).isBetween(9_000L, 10_000L);
-            assertThat(remainingMs(optionsFor(methodWithOption("nanos", MethodType.UNARY,
-                    com.google.protobuf.Duration.newBuilder().setSeconds(1).setNanos(500_000_000).build()),
-                    timeout, streamTimeout, CallOptions.DEFAULT))).isBetween(1_000L, 1_500L);
-            assertThat(remainingMs(optionsFor(methodWithOption("longer", MethodType.UNARY, ninety),
-                    timeout, streamTimeout, CallOptions.DEFAULT))).isBetween(89_000L, 90_000L);
-            // A stream reads the option the same way, in place of the stream timeout.
-            assertThat(remainingMs(optionsFor(methodWithOption("stream", MethodType.SERVER_STREAMING, ninety),
-                    timeout, streamTimeout, CallOptions.DEFAULT))).isBetween(89_000L, 90_000L);
-            assertThat(remainingMs(optionsFor(methodWithOption("huge", MethodType.UNARY,
-                    com.google.protobuf.Duration.newBuilder().setSeconds(315_576_000_000L).build()),
-                    timeout, streamTimeout, CallOptions.DEFAULT)))
-                    .isBetween(NetworkClient.MAX_TIMEOUT.toMillis() - 1_000, NetworkClient.MAX_TIMEOUT.toMillis());
         }
     }
 
@@ -476,55 +438,6 @@ class DefaultDeadlineInterceptorTest {
     private static long remainingMs(CallOptions options) {
         assertThat(options.getDeadline()).isNotNull();
         return options.getDeadline().timeRemaining(TimeUnit.MILLISECONDS);
-    }
-
-    /**
-     * Method M of a service built for the test, in its own package, with option as its timeout option, or
-     * none when option is null.
-     */
-    private static MethodDescriptor<Empty, Empty> methodWithOption(String name, MethodType type,
-                                                                   com.google.protobuf.Duration option)
-            throws Descriptors.DescriptorValidationException {
-        MethodOptions.Builder options = MethodOptions.newBuilder();
-        if (option != null) {
-            options.setExtension(TimeoutProto.timeout, option);
-        }
-        Descriptors.FileDescriptor file = Descriptors.FileDescriptor.buildFrom(FileDescriptorProto.newBuilder()
-                .setName("timeout_" + name + ".proto")
-                .setPackage("timeouttest." + name)
-                .setSyntax("proto3")
-                .addDependency("google/protobuf/empty.proto")
-                .addService(ServiceDescriptorProto.newBuilder()
-                        .setName("S")
-                        .addMethod(MethodDescriptorProto.newBuilder()
-                                .setName("M")
-                                .setInputType(".google.protobuf.Empty")
-                                .setOutputType(".google.protobuf.Empty")
-                                .setOptions(options)))
-                .build(), new Descriptors.FileDescriptor[] {EmptyProto.getDescriptor()});
-        Descriptors.MethodDescriptor descriptor = file.getServices().get(0).getMethods().get(0);
-        return MethodDescriptor.<Empty, Empty>newBuilder()
-                .setType(type)
-                .setFullMethodName(MethodDescriptor.generateFullMethodName(descriptor.getService().getFullName(), "M"))
-                .setRequestMarshaller(ProtoUtils.marshaller(Empty.getDefaultInstance()))
-                .setResponseMarshaller(ProtoUtils.marshaller(Empty.getDefaultInstance()))
-                .setSchemaDescriptor(new ProtoMethodDescriptorSupplier() {
-                    @Override
-                    public Descriptors.MethodDescriptor getMethodDescriptor() {
-                        return descriptor;
-                    }
-
-                    @Override
-                    public Descriptors.ServiceDescriptor getServiceDescriptor() {
-                        return descriptor.getService();
-                    }
-
-                    @Override
-                    public Descriptors.FileDescriptor getFileDescriptor() {
-                        return file;
-                    }
-                })
-                .build();
     }
 
     private static MethodDescriptor<StringValue, StringValue> method(MethodType type) {

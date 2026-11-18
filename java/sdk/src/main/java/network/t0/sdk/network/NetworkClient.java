@@ -14,7 +14,6 @@ import io.grpc.MethodDescriptor;
 import io.grpc.Status;
 import io.grpc.okhttp.OkHttpChannelBuilder;
 import io.grpc.protobuf.ProtoMethodDescriptorSupplier;
-import com.google.protobuf.Descriptors;
 import network.t0.sdk.common.Headers;
 import network.t0.sdk.crypto.Keccak256;
 import network.t0.sdk.crypto.SignResult;
@@ -30,9 +29,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.Clock;
 import java.time.Duration;
-import java.util.Map;
 import java.util.Optional;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
@@ -690,8 +687,6 @@ public abstract class NetworkClient implements Closeable {
 
         private final Duration timeout;
         private final Duration streamTimeout;
-        // The timeout option of each generated method called so far, by full method name; empty for none.
-        private final Map<String, Optional<Duration>> methodTimeouts = new ConcurrentHashMap<>();
 
         /**
          * Creates a new default-deadline interceptor.
@@ -721,25 +716,15 @@ public abstract class NetworkClient implements Closeable {
         }
 
         /**
-         * The timeout option of a generated method, at most {@link #MAX_TIMEOUT}; empty when the method has
-         * no proto descriptor, no option, or one that is not positive.
+         * The timeout option of a generated method; empty when the method has no proto descriptor or no option.
          */
-        private Optional<Duration> timeoutOption(MethodDescriptor<?, ?> method) {
-            if (!(method.getSchemaDescriptor() instanceof ProtoMethodDescriptorSupplier supplier)) {
+        private static Optional<Duration> timeoutOption(MethodDescriptor<?, ?> method) {
+            if (!(method.getSchemaDescriptor() instanceof ProtoMethodDescriptorSupplier supplier)
+                    || !supplier.getMethodDescriptor().getOptions().hasExtension(TimeoutProto.timeout)) {
                 return Optional.empty();
             }
-            return methodTimeouts.computeIfAbsent(method.getFullMethodName(), name -> {
-                Descriptors.MethodDescriptor descriptor = supplier.getMethodDescriptor();
-                if (descriptor == null || !descriptor.getOptions().hasExtension(TimeoutProto.timeout)) {
-                    return Optional.empty();
-                }
-                com.google.protobuf.Duration option = descriptor.getOptions().getExtension(TimeoutProto.timeout);
-                Duration value = Duration.ofSeconds(option.getSeconds(), option.getNanos());
-                if (value.isNegative() || value.isZero()) {
-                    return Optional.empty();
-                }
-                return Optional.of(value.compareTo(MAX_TIMEOUT) > 0 ? MAX_TIMEOUT : value);
-            });
+            com.google.protobuf.Duration option = supplier.getMethodDescriptor().getOptions().getExtension(TimeoutProto.timeout);
+            return Optional.of(Duration.ofSeconds(option.getSeconds(), option.getNanos()));
         }
     }
 }

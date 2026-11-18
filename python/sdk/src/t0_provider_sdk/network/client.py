@@ -272,21 +272,16 @@ def _with_default_timeout(execute: Callable[..., Any], fallback_ms: int) -> Call
 
 @functools.cache
 def _method_timeout_ms(full_name: str) -> int | None:
-    """The timeout option (tzero.v1.common.timeout) of the method, in whole milliseconds, or None
-    when the method has none, or one that is not positive, or is not in the default pool. The
-    client's own timeout never replaces the option: the network answers within it, so a shorter wait
-    can miss an answer."""
+    """The timeout option (tzero.v1.common.timeout) of the method in milliseconds, or None when the
+    method has none or is not in the default pool. The client's own timeout never replaces the
+    option: the network answers within it, so a shorter wait can miss an answer."""
     try:
         options = descriptor_pool.Default().FindMethodByName(full_name).GetOptions()
     except KeyError:
         return None
     if not options.HasExtension(timeout_pb2.timeout):
         return None
-    timeout = options.Extensions[timeout_pb2.timeout]
-    if timeout.seconds < 0 or (timeout.seconds == 0 and timeout.nanos <= 0):
-        return None
-    # At least one millisecond, as for the client's timeouts, and at most MAX_TIMEOUT.
-    return min(max(1, int(timeout.ToMilliseconds())), round(MAX_TIMEOUT * 1000))
+    return options.Extensions[timeout_pb2.timeout].ToMilliseconds()
 
 
 def _deadline_passed() -> NoReturn:

@@ -1801,6 +1801,15 @@
       }
     },
     {
+      "name": "method-timeout-short-client-timeout",
+      "method": "tzero.v1.payment.ProviderService/ApprovePaymentQuotes",
+      "method_timeout_ms": 29000,
+      "client_timeout_ms": 10000,
+      "expect": {
+        "code": "ok"
+      }
+    },
+    {
       "name": "method-timeout-call-timeout",
       "method": "tzero.v1.payment.ProviderService/ApprovePaymentQuotes",
       "method_timeout_ms": 29000,

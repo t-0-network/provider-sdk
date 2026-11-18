@@ -23,14 +23,10 @@ public class DefaultDeadlineInterceptorTests
     private static Method<StringValue, StringValue> NewMethod(MethodType type) =>
         new(type, "test.v1.StreamTest", type.ToString(), Marshaller, Marshaller);
 
-    private static DateTime? DeadlineOf(
-        MethodType type,
-        NetworkClientOptions options,
-        CallOptions callOptions = default,
-        IReadOnlyDictionary<string, TimeSpan>? methodTimeouts = null)
+    private static DateTime? DeadlineOf(MethodType type, NetworkClientOptions options, CallOptions callOptions = default)
     {
         var inner = new CapturingInvoker();
-        var invoker = inner.Intercept(new DefaultDeadlineInterceptor(options, methodTimeouts ?? NoMethodTimeouts));
+        var invoker = inner.Intercept(new DefaultDeadlineInterceptor(options, NoMethodTimeouts));
         var method = NewMethod(type);
         var request = new StringValue { Value = "x" };
 
@@ -136,10 +132,17 @@ public class DefaultDeadlineInterceptorTests
         var network = NetworkClient.MethodTimeouts(typeof(PaymentApi.NetworkService.NetworkServiceClient));
         Assert.Equal(TimeSpan.FromSeconds(30), network["/tzero.v1.payment.NetworkService/UpdateQuote"]);
 
+        // A subclass of a generated client has the options of its service.
+        var subclass = NetworkClient.MethodTimeouts(typeof(SubclassedProviderClient));
+        Assert.Equal(TimeSpan.FromSeconds(29), subclass["/tzero.v1.payment.ProviderService/ApprovePaymentQuotes"]);
+
         // A service without the option, and a type that is not a generated client.
         Assert.Empty(NetworkClient.MethodTimeouts(typeof(Health.HealthClient)));
         Assert.Empty(NetworkClient.MethodTimeouts(typeof(CallInvoker)));
     }
+
+    private sealed class SubclassedProviderClient(CallInvoker invoker)
+        : PaymentApi.ProviderService.ProviderServiceClient(invoker);
 
     [Theory]
     [InlineData(10)]
@@ -162,19 +165,6 @@ public class DefaultDeadlineInterceptorTests
         var shorter = DateTime.UtcNow.AddSeconds(1);
         client.ApprovePaymentQuotesAsync(new PaymentApi.ApprovePaymentQuoteRequest(), deadline: shorter);
         Assert.Equal(shorter, inner.Options.Deadline);
-    }
-
-    [Theory]
-    [InlineData(MethodType.Unary)]
-    [InlineData(MethodType.ServerStreaming)]
-    [InlineData(MethodType.ClientStreaming)]
-    public void MethodOption_ReplacesTheTimeoutOfEveryCallType(MethodType type)
-    {
-        var options = new NetworkClientOptions { Timeout = TimeSpan.FromSeconds(7), StreamTimeout = TimeSpan.FromMinutes(2) };
-        var methodTimeouts = new Dictionary<string, TimeSpan> { [NewMethod(type).FullName] = TimeSpan.FromSeconds(90) };
-        var before = DateTime.UtcNow;
-
-        AssertDeadlineIn(DeadlineOf(type, options, methodTimeouts: methodTimeouts), before, TimeSpan.FromSeconds(90));
     }
 
     [Fact]

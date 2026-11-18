@@ -259,22 +259,14 @@ func (c callTimeouts) WrapStreamingClient(next connect.StreamingClientFunc) conn
 }
 
 // timeoutOf is the timeout option (tzero.v1.common.timeout) of the method spec describes, or
-// fallback when the method has none, or one that is not positive. The client's own timeout never
-// replaces the option: the network answers within it, so a shorter wait can miss an answer.
+// fallback when the method has none. The client's own timeout never replaces the option: the
+// network answers within it, so a shorter wait can miss an answer.
 func timeoutOf(spec connect.Spec, fallback time.Duration) time.Duration {
 	method, ok := spec.Schema.(protoreflect.MethodDescriptor)
-	if !ok {
+	if !ok || !proto.HasExtension(method.Options(), commonv1.E_Timeout) {
 		return fallback
 	}
-	options := method.Options()
-	if options == nil || !proto.HasExtension(options, commonv1.E_Timeout) {
-		return fallback
-	}
-	timeout, _ := proto.GetExtension(options, commonv1.E_Timeout).(*durationpb.Duration)
-	if d := timeout.AsDuration(); d > 0 {
-		return min(d, MaxTimeout)
-	}
-	return fallback
+	return proto.GetExtension(method.Options(), commonv1.E_Timeout).(*durationpb.Duration).AsDuration()
 }
 
 func (callTimeouts) WrapStreamingHandler(next connect.StreamingHandlerFunc) connect.StreamingHandlerFunc {

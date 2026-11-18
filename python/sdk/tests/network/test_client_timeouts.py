@@ -15,8 +15,6 @@ from connectrpc.code import Code
 from connectrpc.compat import google_protobuf_binary_codec
 from connectrpc.errors import ConnectError
 from connectrpc.method import IdempotencyLevel, MethodInfo, StreamType
-from google.protobuf import descriptor_pb2, descriptor_pool, empty_pb2
-from google.protobuf.duration_pb2 import Duration
 from google.protobuf.wrappers_pb2 import StringValue
 from t0_provider_sdk._messages import STREAM_TIMEOUT_NOT_VALID, TIMEOUT_NOT_VALID
 from t0_provider_sdk.network import (
@@ -27,7 +25,6 @@ from t0_provider_sdk.network import (
     new_service_client_sync,
 )
 from t0_provider_sdk.network.client import _method_timeout_ms
-from tzero.v1.common import timeout_pb2
 from tzero.v1.payment.network_connect import NetworkServiceClient  # noqa: F401  # NetworkService in the pool
 from tzero.v1.payment.provider_connect import ProviderServiceClient, ProviderServiceClientSync
 from tzero.v1.payment.provider_pb2 import ApprovePaymentQuoteRequest
@@ -288,27 +285,8 @@ class TestSyncClientTimeouts:
         assert recorder.timeout_header is None
 
 
-def _method_with_timeout(name: str, timeout: Duration | None) -> str:
-    """The full name of method M of a service added to the default pool for the test, with timeout as
-    its timeout option, or no option when timeout is None."""
-    file = descriptor_pb2.FileDescriptorProto(
-        name=f"timeout_{name}.proto",
-        package=f"timeouttest.{name}",
-        syntax="proto3",
-        dependency=[empty_pb2.DESCRIPTOR.name],
-    )
-    method = file.service.add(name="S").method.add(
-        name="M", input_type=".google.protobuf.Empty", output_type=".google.protobuf.Empty"
-    )
-    if timeout is not None:
-        method.options.Extensions[timeout_pb2.timeout].CopyFrom(timeout)
-    descriptor_pool.Default().AddSerializedFile(file.SerializeToString())
-    return f"timeouttest.{name}.S.M"
-
-
 class TestMethodTimeoutOption:
-    """The option is read from the generated descriptors; one that is absent or not positive counts
-    as absent."""
+    """The option is read from the generated descriptors."""
 
     @pytest.mark.parametrize(
         ("method", "want"),
@@ -321,21 +299,6 @@ class TestMethodTimeoutOption:
     )
     def test_generated_methods(self, method: str, want: int | None) -> None:
         assert _method_timeout_ms(method) == want
-
-    @pytest.mark.parametrize(
-        ("name", "timeout", "want"),
-        [
-            ("none", None, None),
-            ("zero", Duration(), None),
-            ("negative", Duration(seconds=-1), None),
-            ("longer", Duration(seconds=90), 90_000),
-            ("nanos", Duration(seconds=1, nanos=500_000_000), 1_500),
-            ("under_a_millisecond", Duration(nanos=400_000), 1),
-            ("over_the_maximum", Duration(seconds=3_000_000), round(MAX_TIMEOUT * 1000)),
-        ],
-    )
-    def test_option_values(self, name: str, timeout: Duration | None, want: int | None) -> None:
-        assert _method_timeout_ms(_method_with_timeout(name, timeout)) == want
 
 
 @pytest.mark.asyncio
