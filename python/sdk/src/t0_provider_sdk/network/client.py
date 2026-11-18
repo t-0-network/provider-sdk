@@ -14,6 +14,7 @@ from connectrpc.code import Code
 from connectrpc.compat import google_protobuf_json_codec
 from connectrpc.errors import ConnectError
 from connectrpc.protocol import ProtocolType
+from connectrpc.request import RequestContext
 
 from t0_provider_sdk._messages import (
     BASE_URL_NOT_SET,
@@ -101,7 +102,6 @@ def new_service_client(
     signing_client = SigningClient(_signer(private_key, sign_fn), transport=transport)
     client = client_class(base_url, http_client=signing_client, **_client_kwargs(wire_format, protocol))  # type: ignore[call-arg]
     _set_default_timeouts(client, unary_ms, stream_ms)
-    _reject_bidi_streams(client)
     return client
 
 
@@ -139,7 +139,6 @@ def new_service_client_sync(
     signing_client = SigningSyncClient(_signer(private_key, sign_fn), transport=transport)
     client = client_class(base_url, http_client=signing_client, **_client_kwargs(wire_format, protocol))  # type: ignore[call-arg]
     _set_default_timeouts(client, unary_ms, stream_ms)
-    _reject_bidi_streams(client)
     return client
 
 
@@ -198,6 +197,7 @@ def _client_kwargs(wire_format: WireFormat, protocol: Protocol) -> dict[str, Any
         "send_compression": None,
         # Each call gets its default from _set_default_timeouts.
         "timeout_ms": None,
+        "interceptors": (_REJECT_BIDI,),
     }
     if wire_format is WireFormat.JSON:
         # The generated classes use google.protobuf messages; binary is their own default codec.
@@ -221,7 +221,7 @@ def _timeout_ms(seconds: float, message: str) -> int:
     if isinstance(seconds, bool) or not 0 < seconds <= MAX_TIMEOUT:
         raise ValueError(message)
     # Whole milliseconds, as connectrpc writes the value into the timeout header; at least one, since
-    # 0 would mean no deadline.
+    # connectrpc fails a call whose timeout is 0 at once.
     return max(1, round(seconds * 1000))
 
 
@@ -233,22 +233,31 @@ def _set_default_timeouts(client: object, unary_ms: int, stream_ms: int) -> None
             setattr(client, name, _with_default_timeout(execute, stream_ms if streaming else unary_ms))
 
 
-def _reject_bidi_streams(client: object) -> None:
-    """A policy, not a signing limit: the network does not accept bidirectional streams (#370)."""
-    if getattr(client, "execute_bidi_stream", None) is not None:
-        setattr(client, "execute_bidi_stream", _bidi_stream_unsupported)  # noqa: B010
+class _RejectBidi:
+    """A client interceptor that refuses every bidirectional stream before anything is sent, as Go's
+    rejectBidi. A policy, not a signing limit: the network does not accept bidirectional streams (#370).
+
+    It is a BidiStreamInterceptor for the async client and a BidiStreamInterceptorSync for the sync
+    one. Both methods are plain functions, so the call itself raises, before the response iterator
+    exists, for the async client too.
+    """
+
+    def intercept_bidi_stream(self, call_next: Any, request: Any, ctx: RequestContext) -> NoReturn:
+        raise ConnectError(Code.UNIMPLEMENTED, BIDI_NOT_SUPPORTED)
+
+    def intercept_bidi_stream_sync(self, call_next: Any, request: Any, ctx: RequestContext) -> NoReturn:
+        raise ConnectError(Code.UNIMPLEMENTED, BIDI_NOT_SUPPORTED)
 
 
-def _bidi_stream_unsupported(*args: Any, **kwargs: Any) -> NoReturn:
-    # Raised at the call for the async client too: its execute_bidi_stream is a plain def.
-    raise ConnectError(Code.UNIMPLEMENTED, BIDI_NOT_SUPPORTED)
+_REJECT_BIDI = _RejectBidi()
 
 
 def _with_default_timeout(execute: Callable[..., Any], default_ms: int) -> Callable[..., Any]:
     @functools.wraps(execute)
     def execute_with_default_timeout(*args: Any, timeout_ms: int | None = None, **kwargs: Any) -> Any:
         if timeout_ms is not None and timeout_ms <= 0:
-            # A deadline that has already passed: connectrpc would take 0 as no deadline at all.
+            # A deadline that has already passed. connectrpc would refuse it too, with its own
+            # message ("Request timed out"); this gives the message every SDK uses.
             _deadline_passed()
         return execute(*args, timeout_ms=default_ms if timeout_ms is None else timeout_ms, **kwargs)
 

@@ -217,8 +217,8 @@ class TestAsyncClientTimeouts:
     @pytest.mark.parametrize("timeout_ms", [0, -1])
     @pytest.mark.parametrize("kind", KINDS)
     async def test_call_timeout_not_greater_than_zero_fails_unsent(self, kind: str, timeout_ms: int) -> None:
-        """A deadline that has already passed: DEADLINE_EXCEEDED, and nothing is sent (connectrpc
-        alone would take 0 as no deadline)."""
+        """A deadline that has already passed: DEADLINE_EXCEEDED with the shared message, and nothing
+        is sent (connectrpc alone would answer "Request timed out")."""
         client, recorder = _async_client()
         message = await _call(client, kind, timeout_ms=timeout_ms, code=Code.DEADLINE_EXCEEDED)
         assert message == "the operation timed out"

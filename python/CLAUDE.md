@@ -66,12 +66,12 @@ Versions: `sdk/pyproject.toml`.
 
 ## ConnectRPC Python Specifics
 
-- `Interceptor` is a **Union type**, not a base class. Implement `UnaryInterceptor` Protocol with `intercept_unary(self, call_next, request, ctx)`.
+- `Interceptor` is a **Union type**, not a base class: implement one of its Protocols. A `UnaryInterceptor` (`intercept_unary(self, call_next, request, ctx)`) runs for unary methods only. A `MetadataInterceptor` (`on_start(ctx)`, `on_end(token, ctx, error)`; sync: `on_start_sync`, `on_end_sync`) runs for every kind of method and sees only the headers. On a server, the metadata interceptors at the front of the list run before the request body is read.
 - Generated code imports as `tzero.v1.payment.provider_pb2` (not `t0_provider_sdk.api.tzero...`). The `api/` directory is on `sys.path` via package layout.
 - Client constructors accept `http_client: pyqwest.Client | None` — we wrap pyqwest with `SigningClient` (not subclass).
 - ConnectRPC calls exactly 3 methods on the client: `get()`, `post()`, `stream()`.
 - `stream()` carries every client-/server-streaming call and every gRPC call (unary included), and its `content` is an (async) iterator yielding one envelope per message, not bytes. `post()` carries Connect unary calls; `get()` (Connect GET) is refused.
-- A `ConnectClient` has one `timeout_ms` for all calls, so `new_service_client()` wraps the instance's `execute_*` methods to apply `timeout` (unary) or `stream_timeout` (streams, 5 minutes by default) where a call sets no `timeout_ms`, and makes `execute_bidi_stream` raise `UNIMPLEMENTED`. The factories pass `protocol`, `send_compression=None` and, for `WireFormat.JSON`, the JSON codec to the generated class.
+- A `ConnectClient` has one `timeout_ms` for all calls, so `new_service_client()` wraps the instance's `execute_*` methods to apply `timeout` (unary) or `stream_timeout` (streams, 5 minutes by default) where a call sets no `timeout_ms`. The factories pass `protocol`, `send_compression=None`, the client interceptor `_RejectBidi` and, for `WireFormat.JSON`, the JSON codec to the generated class. `_RejectBidi` makes a bidirectional call raise `UNIMPLEMENTED` when it is made, before anything is sent, as Go's `rejectBidi` does.
 
 ## Proto Code Generation
 
@@ -108,7 +108,7 @@ Runtime version: `_version.py` (`__version__`). Full details: [`docs/VERSIONING.
 ## Architectural Invariants
 
 - **Raw bytes:** Signature verification and signing always use original wire bytes, never re-serialized protobuf (see critical requirement above)
-- **Two-phase verification:** ASGI/WSGI middleware (raw bytes) → `contextvars.ContextVar` → ConnectRPC interceptor (error codes). Do not collapse into a single layer.
+- **Two-phase verification:** ASGI/WSGI middleware (raw bytes) → `contextvars.ContextVar` → ConnectRPC interceptor (error codes). Do not collapse into a single layer. The interceptor is a metadata interceptor at the front of the list, so connectrpc runs it before it reads the body: a rejected request goes on with an empty body, and the interceptor answers it without reading or decoding anything. On WSGI that empty input is also what connectrpc drains after the answer.
 - **Fail closed:** `signature_error_var` defaults to `NOT_VERIFIED` and the middleware resets it when the app returns, so a call it did not verify gets `INTERNAL` ("no signature result in context"). `handler()`/`handler_sync()` put the signature interceptor first after the options run, so no `HandlerOption` can remove it.
 - **Wrapper pattern:** `SigningClient` wraps `pyqwest.Client` via delegation, not a subclass: ConnectRPC calls only `get()`, `post()` and `stream()` on it, and each of them is signed or refused in the wrapper.
 - **What is signed is chosen by entry point, not by content type:** `stream()` (Connect streams and every gRPC call) over its first envelope as sent; `post()` (Connect unary) over the whole body.
