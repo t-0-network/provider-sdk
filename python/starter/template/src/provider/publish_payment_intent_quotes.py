@@ -2,12 +2,16 @@
 
 Pay-In Provider role — Step 3A.1. Publishes sample pay-in quotes every 5 seconds by default.
 Replace the hardcoded values with quotes from your own pricing systems.
+We recommend publishing at least once per 5 seconds, but not more than once per second.
+Each quote expires at publish time + publishing interval + 35 s: a client that gets it just before
+the next publish still has 30 s to use it; the 5 s cover network delay.
 """
 
 from __future__ import annotations
 
 import asyncio
 import logging
+import time
 import uuid
 
 from google.protobuf.timestamp_pb2 import Timestamp
@@ -19,15 +23,9 @@ from t0_provider_sdk.api.tzero.v1.payment_intent.network_pb2 import UpdateQuoteR
 logger = logging.getLogger(__name__)
 
 
-def _now_timestamp() -> Timestamp:
+def _timestamp(ms: int) -> Timestamp:
     ts = Timestamp()
-    ts.GetCurrentTime()
-    return ts
-
-
-def _expiration_timestamp(seconds_from_now: int = 30) -> Timestamp:
-    ts = _now_timestamp()
-    ts.seconds += seconds_from_now
+    ts.FromMilliseconds(ms)
     return ts
 
 
@@ -43,14 +41,16 @@ async def publish_payment_intent_quotes(
     """
     while not shutdown_event.is_set():
         try:
+            now_ms = time.time_ns() // 1_000_000
             await payment_intent_client.update_quote(
                 UpdateQuoteRequest(
                     payment_intent_quotes=[
                         UpdateQuoteRequest.Quote(
                             currency="EUR",
                             payment_method=PAYMENT_METHOD_TYPE_SEPA,
-                            expiration=_expiration_timestamp(30),
-                            timestamp=_now_timestamp(),
+                            # publish time + publishing interval + 35 s
+                            expiration=_timestamp(now_ms + round(interval_seconds * 1000) + 35_000),
+                            timestamp=_timestamp(now_ms),
                             bands=[
                                 UpdateQuoteRequest.Quote.Band(
                                     client_quote_id=str(uuid.uuid4()),

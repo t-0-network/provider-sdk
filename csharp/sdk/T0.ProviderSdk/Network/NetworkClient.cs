@@ -1,11 +1,11 @@
+using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
 using Grpc.Core;
 using Grpc.Core.Interceptors;
 using Grpc.Net.Client;
+using T0.ProviderSdk.Api.Tzero.V1.Common;
 using T0.ProviderSdk.Common;
 using T0.ProviderSdk.Crypto;
-using PaymentApi = T0.ProviderSdk.Api.Tzero.V1.Payment;
-using PaymentIntentApi = T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.Provider;
 
 namespace T0.ProviderSdk.Network;
 
@@ -13,10 +13,11 @@ namespace T0.ProviderSdk.Network;
 /// Factory for auto-signing gRPC clients of the T-0 Network.
 /// </summary>
 /// <remarks>
-/// Every client signs its requests and gives a call without a deadline of its own
-/// <see cref="NetworkClientOptions.Timeout"/> (unary) or <see cref="NetworkClientOptions.StreamTimeout"/>
-/// (client and server streams). Bidirectional streams are refused (see docs/STREAMING.md). All
-/// clients share one connection pool, so a client is cheap to create and needs no disposing.
+/// Every client signs its requests and gives a call without a deadline of its own the timeout option
+/// (tzero.v1.common.timeout) of its method, else <see cref="NetworkClientOptions.Timeout"/> (unary) or
+/// <see cref="NetworkClientOptions.StreamTimeout"/> (client and server streams). Bidirectional streams
+/// are refused (see docs/STREAMING.md). All clients share one connection pool, so a client is cheap
+/// to create and needs no disposing.
 /// </remarks>
 public static class NetworkClient
 {
@@ -58,7 +59,8 @@ public static class NetworkClient
 
         try
         {
-            return newClient(channel.Intercept(new DefaultDeadlineInterceptor(options)));
+            return newClient(channel.Intercept(
+                new DefaultDeadlineInterceptor(options, MethodTimeouts(typeof(TClient)))));
         }
         catch
         {
@@ -79,6 +81,21 @@ public static class NetworkClient
         ISigner signer,
         Func<CallInvoker, TClient> newClient) =>
         Create(options, SignerAdapter.ToSignFn(signer)!, newClient);
+
+    private static readonly ConcurrentDictionary<Type, IReadOnlyDictionary<string, TimeSpan>> MethodTimeoutsCache = new();
+
+    // The timeout option (tzero.v1.common.timeout) of each method of the service whose generated
+    // client is clientType or a base type of it, by the method's full name ("/pkg.Service/Method"). A
+    // type that is not a generated client gets none: its calls get the client's timeout.
+    internal static IReadOnlyDictionary<string, TimeSpan> MethodTimeouts(Type clientType) =>
+        MethodTimeoutsCache.GetOrAdd(clientType, type =>
+            GeneratedService.DescriptorOf(type) is { } service
+                ? service.Methods
+                    .Where(method => method.GetOptions()?.HasExtension(TimeoutExtensions.Timeout) == true)
+                    .ToDictionary(
+                        method => $"/{service.FullName}/{method.Name}",
+                        method => method.GetOptions().GetExtension(TimeoutExtensions.Timeout).ToTimeSpan())
+                : new Dictionary<string, TimeSpan>());
 
     // One connection pool for the process: a client created per request would otherwise leave a
     // pool of open connections behind it, since nothing disposes a client.
@@ -106,86 +123,4 @@ public static class NetworkClient
         AllowAutoRedirect = false,
         UseCookies = false,
     };
-
-    /// <summary>
-    /// Creates a Payment NetworkService client; see
-    /// <see cref="Create{TClient}(NetworkClientOptions, SignFn, Func{CallInvoker, TClient})"/>.
-    /// </summary>
-    public static PaymentApi.NetworkService.NetworkServiceClient CreateNetworkServiceClient(
-        NetworkClientOptions options,
-        SignFn signer) =>
-        Create(options, signer, invoker => new PaymentApi.NetworkService.NetworkServiceClient(invoker));
-
-    /// <summary>
-    /// Creates a Payment NetworkService client for <paramref name="baseUrl"/> with the default timeouts;
-    /// pass <see cref="NetworkClientOptions"/> to change them.
-    /// </summary>
-    public static PaymentApi.NetworkService.NetworkServiceClient CreateNetworkServiceClient(
-        string baseUrl,
-        SignFn signer) =>
-        CreateNetworkServiceClient(new NetworkClientOptions { BaseUrl = baseUrl }, signer);
-
-    /// <summary>
-    /// Creates a PaymentIntent NetworkService client; see
-    /// <see cref="Create{TClient}(NetworkClientOptions, SignFn, Func{CallInvoker, TClient})"/>.
-    /// </summary>
-    public static PaymentIntentApi.NetworkService.NetworkServiceClient CreatePaymentIntentNetworkServiceClient(
-        NetworkClientOptions options,
-        SignFn signer) =>
-        Create(options, signer, invoker => new PaymentIntentApi.NetworkService.NetworkServiceClient(invoker));
-
-    /// <summary>
-    /// Creates a PaymentIntent NetworkService client for <paramref name="baseUrl"/> with the default
-    /// timeouts; pass <see cref="NetworkClientOptions"/> to change them.
-    /// </summary>
-    public static PaymentIntentApi.NetworkService.NetworkServiceClient CreatePaymentIntentNetworkServiceClient(
-        string baseUrl,
-        SignFn signer) =>
-        CreatePaymentIntentNetworkServiceClient(new NetworkClientOptions { BaseUrl = baseUrl }, signer);
-
-    /// <summary>
-    /// Creates a Payment NetworkService client that signs with an <see cref="ISigner"/>; see
-    /// <see cref="Create{TClient}(NetworkClientOptions, ISigner, Func{CallInvoker, TClient})"/>.
-    /// </summary>
-    [Obsolete(SignerAdapter.ObsoleteMessage)]
-    [OverloadResolutionPriority(-1)]
-    public static PaymentApi.NetworkService.NetworkServiceClient CreateNetworkServiceClient(
-        NetworkClientOptions options,
-        ISigner signer) =>
-        CreateNetworkServiceClient(options, SignerAdapter.ToSignFn(signer)!);
-
-    /// <summary>
-    /// Creates a Payment NetworkService client for <paramref name="baseUrl"/> that signs with an
-    /// <see cref="ISigner"/>; see
-    /// <see cref="Create{TClient}(NetworkClientOptions, ISigner, Func{CallInvoker, TClient})"/>.
-    /// </summary>
-    [Obsolete(SignerAdapter.ObsoleteMessage)]
-    [OverloadResolutionPriority(-1)]
-    public static PaymentApi.NetworkService.NetworkServiceClient CreateNetworkServiceClient(
-        string baseUrl,
-        ISigner signer) =>
-        CreateNetworkServiceClient(baseUrl, SignerAdapter.ToSignFn(signer)!);
-
-    /// <summary>
-    /// Creates a PaymentIntent NetworkService client that signs with an <see cref="ISigner"/>; see
-    /// <see cref="Create{TClient}(NetworkClientOptions, ISigner, Func{CallInvoker, TClient})"/>.
-    /// </summary>
-    [Obsolete(SignerAdapter.ObsoleteMessage)]
-    [OverloadResolutionPriority(-1)]
-    public static PaymentIntentApi.NetworkService.NetworkServiceClient CreatePaymentIntentNetworkServiceClient(
-        NetworkClientOptions options,
-        ISigner signer) =>
-        CreatePaymentIntentNetworkServiceClient(options, SignerAdapter.ToSignFn(signer)!);
-
-    /// <summary>
-    /// Creates a PaymentIntent NetworkService client for <paramref name="baseUrl"/> that signs with
-    /// an <see cref="ISigner"/>; see
-    /// <see cref="Create{TClient}(NetworkClientOptions, ISigner, Func{CallInvoker, TClient})"/>.
-    /// </summary>
-    [Obsolete(SignerAdapter.ObsoleteMessage)]
-    [OverloadResolutionPriority(-1)]
-    public static PaymentIntentApi.NetworkService.NetworkServiceClient CreatePaymentIntentNetworkServiceClient(
-        string baseUrl,
-        ISigner signer) =>
-        CreatePaymentIntentNetworkServiceClient(baseUrl, SignerAdapter.ToSignFn(signer)!);
 }

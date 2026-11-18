@@ -341,7 +341,7 @@ public class CrossTestVectors
             string outcome;
             try
             {
-                NetworkClient.CreateNetworkServiceClient(vec.GetProperty("input").GetString()!, signer);
+                NetworkClient.Create(new NetworkClientOptions { BaseUrl = vec.GetProperty("input").GetString()! }, signer, invoker => invoker);
                 outcome = "valid";
             }
             catch (ArgumentException e)

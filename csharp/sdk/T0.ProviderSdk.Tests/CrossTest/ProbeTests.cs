@@ -27,8 +27,7 @@ public class ProbeTests
         var signer = Signer.FromHex("0x" + new string('2', 64));
         var config = new T0Config { ProviderPrivateKey = "", NetworkPublicKey = networkPublicKey, Port = port };
         using var stop = new CancellationTokenSource();
-        var server = new T0ProviderServer(config, signer).MapPaymentService<InvalidResponsesHandler>(
-            NetworkClient.CreateNetworkServiceClient("http://localhost:1", signer));
+        var server = new T0ProviderServer(config, signer).MapService<InvalidResponsesHandler>();
         var run = server.RunAsync(stop.Token);
         try
         {

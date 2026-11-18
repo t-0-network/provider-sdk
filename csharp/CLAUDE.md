@@ -50,14 +50,13 @@ csharp/
 - `ISigner` — v1.2's signer interface, `[Obsolete]`: `Signer` implements it, the server registers it in DI, and each client factory and the `SigningDelegatingHandler` constructor has an obsolete overload taking it (`[OverloadResolutionPriority(-1)]`, so a `Signer` picks the `SignFn` one) that signs through a `SignFn` made from it
 - `SignatureVerifier` / `DefaultSignatureVerifier` (implements `ISignatureVerifier`) — Verification
 - `Keccak256` — Legacy Keccak-256 hashing (NOT NIST SHA-3)
-- `NetworkClient.CreateNetworkServiceClient()` — Auto-signing Payment gRPC client
-- `NetworkClient.CreatePaymentIntentNetworkServiceClient()` — Auto-signing PaymentIntent gRPC client
+- `T0ProviderServer.MapService<THandler>()` — Maps the handler of any generated service and reports the service in health; `T0ProviderServer.Services` registers what handlers and hosted services take, such as the network clients
 - `SignatureVerificationMiddleware` — ASP.NET Core middleware, verifies incoming requests
 - `ValidationInterceptor` — validates every response the server sends (rule V12)
 - `Validate.Check(message)` — the same validation inside a handler (Go `provider.Validate`, Node and Python `validate`, Java `Validate.check`): returns the message when it is valid, else throws the interceptor's `RpcException`, Internal "response validation failed: …" or "response validation error: …"
 - `SigningDelegatingHandler` — HttpClient handler, signs outgoing requests
 - `NetworkClient.Create(options, signer, invoker => new XClient(invoker))` — Auto-signing client for any generated gRPC client
-- `NetworkClientOptions` — `BaseUrl`, `Timeout` (unary, 15 s), `StreamTimeout` (streams, 5 min); each timeout is at most `MaxTimeout` (2147483647 ms)
+- `NetworkClientOptions` — `BaseUrl`, `Timeout` (unary, 30 s), `StreamTimeout` (streams, 5 min), both for methods without a `tzero.v1.common.timeout` option; each timeout is at most `MaxTimeout` (2147483647 ms)
 
 ## Architecture Notes
 
@@ -65,7 +64,7 @@ csharp/
 - **Raw bytes signing**: `SignatureVerificationMiddleware` reads body bytes BEFORE gRPC deserialization
 - **DelegatingHandler pattern**: `SigningDelegatingHandler` wraps HttpClient to auto-sign outgoing requests
 - **First-envelope signing**: for `application/grpc`, `application/grpc+*` and `application/connect+*` the handler signs only the first envelope as sent and pipes the rest unbuffered (`FirstFrameThenPipeContent`); a client stream goes out once its first message is written
-- **Deadlines, not HttpClient.Timeout**: every `NetworkClient` factory installs the internal `DefaultDeadlineInterceptor`, which gives a call without its own deadline the default for its kind and refuses bidirectional streams
+- **Deadlines, not HttpClient.Timeout**: every `NetworkClient` factory installs the internal `DefaultDeadlineInterceptor`, which gives a call without its own deadline its method's `tzero.v1.common.timeout` option, else the client's timeout for its kind, and refuses bidirectional streams. `NetworkClient.Create` reads the options once per client type from the static `Descriptor` of the generated client's service class
 - **Transport**: one process-wide `SocketsHttpHandler` shared by every client (each client has its own `SigningDelegatingHandler` on top), with no HTTP/2 keepalive pings, no cookies kept and no redirect following (a redirect would re-send the signed request elsewhere); clients need no disposing; no client-side request validation
 - Streaming rules: [`docs/STREAMING.md`](../docs/STREAMING.md)
 - **Custom signers**: a client takes a `SignFn` delegate, so a test or an HSM signer is a lambda
@@ -102,6 +101,7 @@ Versions: `sdk/T0.ProviderSdk/T0.ProviderSdk.csproj`.
 | `network.SigningTransport` | `SigningDelegatingHandler` |
 | `provider.NewHttpHandler()` | `T0ProviderServer` |
 | `provider.StartServer()` | `T0ProviderServer.RunAsync()` |
+| `provider.Handler()` | `T0ProviderServer.MapService<T>()` |
 
 ## Starter Template
 

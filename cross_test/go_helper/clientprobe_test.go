@@ -21,8 +21,15 @@ import (
 	"connectrpc.com/connect"
 	"connectrpc.com/grpchealth"
 	"github.com/decred/dcrd/dcrec/secp256k1/v4"
+	commonv1 "github.com/t-0-network/provider-sdk/go/api/tzero/v1/common"
+	"github.com/t-0-network/provider-sdk/go/api/tzero/v1/payment"
+	"github.com/t-0-network/provider-sdk/go/api/tzero/v1/payment/paymentconnect"
 	"github.com/t-0-network/provider-sdk/go/crypto"
 	"github.com/t-0-network/provider-sdk/go/network"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/reflect/protoregistry"
+	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 // TestMain runs the helper's main instead of the tests when a test starts this binary as the
@@ -146,7 +153,7 @@ func TestClientProbe_Command(t *testing.T) {
 }
 
 // goClientCall makes the call of client case c with the Go SDK's client and returns how it ended:
-// ok for a SERVING reply, else the error code.
+// ok for a SERVING reply, or a successful reply of the case's method, else the error code.
 func goClientCall(v *vectors, baseURL string, c clientCase, protocol network.Protocol) (string, error) {
 	privateKey, opts, err := goSigner(v, c)
 	if err != nil {
@@ -156,24 +163,73 @@ func goClientCall(v *vectors, baseURL string, c clientCase, protocol network.Pro
 	if c.ClientTimeoutMs != nil {
 		opts = append(opts, network.WithTimeout(time.Duration(*c.ClientTimeoutMs)*time.Millisecond))
 	}
-	client, err := network.NewServiceClient(privateKey, grpchealth.NewClient, opts...)
-	if err != nil {
-		return "", err
-	}
 	ctx := context.Background()
 	if c.CallTimeoutMs != nil {
 		var cancel context.CancelFunc
 		ctx, cancel = context.WithTimeout(ctx, time.Duration(*c.CallTimeoutMs)*time.Millisecond)
 		defer cancel()
 	}
-	resp, err := client.Check(ctx, &grpchealth.CheckRequest{})
-	if err != nil {
-		return connect.CodeOf(err).String(), err
-	}
-	if resp.Status != grpchealth.StatusServing {
-		return "", fmt.Errorf("status %v", resp.Status)
+	switch "/" + c.Method {
+	case "/":
+		client, err := network.NewServiceClient(privateKey, grpchealth.NewClient, opts...)
+		if err != nil {
+			return "", err
+		}
+		resp, err := client.Check(ctx, &grpchealth.CheckRequest{})
+		if err != nil {
+			return connect.CodeOf(err).String(), err
+		}
+		if resp.Status != grpchealth.StatusServing {
+			return "", fmt.Errorf("status %v", resp.Status)
+		}
+	case paymentconnect.ProviderServiceApprovePaymentQuotesProcedure:
+		client, err := network.NewServiceClient(privateKey, paymentconnect.NewProviderServiceClient, opts...)
+		if err != nil {
+			return "", err
+		}
+		if _, err := client.ApprovePaymentQuotes(ctx, connect.NewRequest(&payment.ApprovePaymentQuoteRequest{})); err != nil {
+			return connect.CodeOf(err).String(), err
+		}
+	case paymentconnect.NetworkServiceUpdateQuoteProcedure:
+		client, err := network.NewServiceClient(privateKey, paymentconnect.NewNetworkServiceClient, opts...)
+		if err != nil {
+			return "", err
+		}
+		if _, err := client.UpdateQuote(ctx, connect.NewRequest(&payment.UpdateQuoteRequest{})); err != nil {
+			return connect.CodeOf(err).String(), err
+		}
+	default:
+		return "", fmt.Errorf("no client for method %s", c.Method)
 	}
 	return "ok", nil
+}
+
+// A case's method_timeout_ms is the timeout option its method has in the proto, and the probe
+// serves the method; a case without a method has no method_timeout_ms.
+func TestClientProbe_MethodTimeouts(t *testing.T) {
+	v := testVectors(t)
+	methods := clientProbeMethods()
+	for _, c := range v.ClientCases {
+		if c.Method == "" {
+			if c.MethodTimeoutMs != nil {
+				t.Errorf("%s: method_timeout_ms without a method", c.Name)
+			}
+			continue
+		}
+		if _, ok := methods["/"+c.Method]; !ok {
+			t.Errorf("%s: the probe does not serve %s", c.Name, c.Method)
+		}
+		desc, err := protoregistry.GlobalFiles.FindDescriptorByName(protoreflect.FullName(strings.Replace(c.Method, "/", ".", 1)))
+		if err != nil {
+			t.Fatalf("%s: %v", c.Name, err)
+		}
+		options := desc.(protoreflect.MethodDescriptor).Options()
+		timeout, _ := proto.GetExtension(options, commonv1.E_Timeout).(*durationpb.Duration)
+		if !proto.HasExtension(options, commonv1.E_Timeout) || c.MethodTimeoutMs == nil ||
+			timeout.AsDuration() != time.Duration(*c.MethodTimeoutMs)*time.Millisecond {
+			t.Errorf("%s: method_timeout_ms %v, the proto's option %v", c.Name, c.MethodTimeoutMs, timeout.AsDuration())
+		}
+	}
 }
 
 // The probe's checks refuse what a client must not send.
@@ -188,7 +244,7 @@ func TestClientProbe_Checks(t *testing.T) {
 		}
 		h := http.Header{}
 		h.Set("Content-Type", "application/grpc")
-		h.Set("Grpc-Timeout", "14999000u")
+		h.Set("Grpc-Timeout", "29999000u")
 		h.Set("X-Public-Key", "0x"+v.Keys.PublicKey)
 		if privateKey == v.ImpostorKeys.PrivateKey {
 			h.Set("X-Public-Key", "0x"+v.ImpostorKeys.PublicKey)
@@ -214,6 +270,15 @@ func TestClientProbe_Checks(t *testing.T) {
 		b := s.Bytes()
 		return "0x" + hex.EncodeToString(sig[:32]) + hex.EncodeToString(b[:]) + hex.EncodeToString([]byte{sig[64] ^ 1})
 	}
+	timeouts := func(method, client, call int64) clientCase {
+		var c clientCase
+		for value, field := range map[int64]**int64{method: &c.MethodTimeoutMs, client: &c.ClientTimeoutMs, call: &c.CallTimeoutMs} {
+			if value != 0 {
+				*field = &value
+			}
+		}
+		return c
+	}
 	notSent := false
 	tests := []struct {
 		name   string
@@ -227,12 +292,16 @@ func TestClientProbe_Checks(t *testing.T) {
 		{name: "connect", header: signed(v.Keys.PrivateKey, body, plain), edit: func(h http.Header) {
 			h.Set("Content-Type", "application/proto")
 			h.Del("Grpc-Timeout")
-			h.Set("Connect-Timeout-Ms", "15000")
+			h.Set("Connect-Timeout-Ms", "30000")
 		}, ok: true},
 		{name: "json body", header: signed(v.Keys.PrivateKey, body, plain), edit: func(h http.Header) { h.Set("Content-Type", "application/json") }},
 		{name: "no deadline", header: signed(v.Keys.PrivateKey, body, plain), edit: func(h http.Header) { h.Del("Grpc-Timeout") }},
-		{name: "deadline over the timeout", header: signed(v.Keys.PrivateKey, body, plain), edit: func(h http.Header) { h.Set("Grpc-Timeout", "16S") }},
-		{name: "deadline far under the timeout", header: signed(v.Keys.PrivateKey, body, plain), edit: func(h http.Header) { h.Set("Grpc-Timeout", "9000m") }},
+		{name: "deadline over the timeout", header: signed(v.Keys.PrivateKey, body, plain), edit: func(h http.Header) { h.Set("Grpc-Timeout", "31S") }},
+		{name: "deadline far under the timeout", header: signed(v.Keys.PrivateKey, body, plain), edit: func(h http.Header) { h.Set("Grpc-Timeout", "24000m") }},
+		{name: "method timeout", header: signed(v.Keys.PrivateKey, body, plain), edit: func(h http.Header) { h.Set("Grpc-Timeout", "28999000u") }, c: timeouts(29000, 0, 0), ok: true},
+		{name: "default timeout for a method with a timeout", header: signed(v.Keys.PrivateKey, body, plain), c: timeouts(29000, 0, 0)},
+		{name: "client timeout for a method with a timeout", header: signed(v.Keys.PrivateKey, body, plain), edit: func(h http.Header) { h.Set("Grpc-Timeout", "44999000u") }, c: timeouts(29000, 45000, 0)},
+		{name: "call timeout for a method with a timeout", header: signed(v.Keys.PrivateKey, body, plain), edit: func(h http.Header) { h.Set("Grpc-Timeout", "59999000u") }, c: timeouts(29000, 45000, 60000), ok: true},
 		{name: "a call that must not be sent", header: signed(v.Keys.PrivateKey, body, plain), c: func() clientCase {
 			var c clientCase
 			c.Expect.Sent = &notSent
@@ -293,7 +362,7 @@ func TestClientProbe_RedirectFollowerGetsOK(t *testing.T) {
 		t.Fatal(err)
 	}
 	req.Header.Set("Content-Type", "application/proto")
-	req.Header.Set("Connect-Timeout-Ms", "15000")
+	req.Header.Set("Connect-Timeout-Ms", "30000")
 	req.Header.Set("X-Public-Key", "0x"+v.Keys.PublicKey)
 	req.Header.Set("X-Signature", "0x"+hex.EncodeToString(sig))
 	req.Header.Set("X-Signature-Timestamp", strconv.FormatInt(timestamp, 10))

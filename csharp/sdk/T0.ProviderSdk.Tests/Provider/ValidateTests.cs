@@ -86,7 +86,7 @@ public class ValidateTests
             Port = port,
         };
         var server = new T0ProviderServer(config, signer)
-            .MapPaymentService<CheckingHandler>(NetworkClient.CreateNetworkServiceClient("http://localhost:1", signer));
+            .MapService<CheckingHandler>();
         using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
         var serverTask = server.RunAsync(cts.Token);
 

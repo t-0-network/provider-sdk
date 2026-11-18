@@ -13,7 +13,8 @@ import {
     STREAM_TIMEOUT_NOT_VALID,
     TIMEOUT_NOT_VALID,
 } from "../messages.js";
-import {DescService} from "@bufbuild/protobuf";
+import {getOption, hasOption, type DescMethod, type DescService} from "@bufbuild/protobuf";
+import {timeout as timeoutOption} from "../gen/tzero/v1/common/timeout_pb.js";
 
 /**
  * Creates a Connect client for a T-0 Network service that signs every request: a unary call over
@@ -31,10 +32,11 @@ export function createClient<T extends DescService>(signer: string | Buffer | ((
     const sign: SignerFunction = typeof signer === "function" ? signer : CreateSigner(signer);
     const unaryTransport = createTransport(transportOptions(sign, baseUrl, unaryTimeoutMs, wireFormat));
     const streamTransport = createTransport(transportOptions(sign, baseUrl, streamTimeoutMs, wireFormat));
+    // A call's own timeout, else its method's timeout option, else the transport's (the client's) timeout.
 
     const client = createConnectClient(svc, {
         unary: async (method, signal, timeoutMs, header, input, contextValues) =>
-            unaryTransport.unary(method, signal, callTimeout(timeoutMs), header, input, contextValues),
+            unaryTransport.unary(method, signal, callTimeout(timeoutMs) ?? methodTimeoutMs(method), header, input, contextValues),
         stream: (method, signal, timeoutMs, header, input, contextValues) => {
             // async: a refused call fails where the call's result is awaited, and nothing is sent.
             const response = (async () => {
@@ -42,7 +44,7 @@ export function createClient<T extends DescService>(signer: string | Buffer | ((
                 if (method.methodKind === "bidi_streaming") {
                     throw new ConnectError(BIDI_NOT_SUPPORTED, Code.Unimplemented);
                 }
-                return streamTransport.stream(method, signal, callTimeout(timeoutMs), header, input, contextValues);
+                return streamTransport.stream(method, signal, callTimeout(timeoutMs) ?? methodTimeoutMs(method), header, input, contextValues);
             })();
             // A stream is awaited only once its iteration starts; until then a failure must not count
             // as an unhandled rejection. The caller still gets it from the first next().
@@ -105,9 +107,9 @@ export function transportOptions(signer: SignerFunction, baseUrl: string, timeou
     };
 }
 
-/** The deadline of a unary call when the client is given no timeout, in ms. */
-export const DEFAULT_TIMEOUT_MS = 15_000;
-/** The deadline of a streaming call when the client is given no stream timeout, in ms. */
+/** The deadline of a unary call when the client is given no timeout and its method has no timeout option, in ms. */
+export const DEFAULT_TIMEOUT_MS = 30_000;
+/** The deadline of a streaming call when the client is given no stream timeout and its method has no timeout option, in ms. */
 export const DEFAULT_STREAM_TIMEOUT_MS = 300_000;
 /** The largest timeout and stream timeout a client takes, in ms: also the limit of Node's timers. */
 export const MAX_TIMEOUT_MS = 2 ** 31 - 1;
@@ -121,6 +123,19 @@ function timeout(message: string, ms: number | undefined): number | undefined {
         throw new RangeError(message);
     }
     return ms;
+}
+
+/**
+ * The timeout option (tzero.v1.common.timeout) of method in ms, or undefined when it has none. The
+ * client's timeout never replaces the option: the network answers within it, so a shorter wait can
+ * miss an answer.
+ */
+function methodTimeoutMs(method: DescMethod): number | undefined {
+    if (!hasOption(method, timeoutOption)) {
+        return undefined;
+    }
+    const {seconds, nanos} = getOption(method, timeoutOption);
+    return Number(seconds) * 1000 + nanos / 1_000_000;
 }
 
 /**
@@ -144,14 +159,18 @@ function callTimeout(ms: number | undefined): number | undefined {
  */
 export interface ClientOptions {
     /**
-     * Deadline of each unary call in ms: greater than 0, at most 2^31 − 1. A call's own `timeoutMs`
-     * replaces it; a call's `timeoutMs` of 0 or less fails the call at once with
-     * `deadline_exceeded`. Default: 15_000.
+     * Deadline in ms of each unary call whose method has no timeout option in its proto
+     * (tzero.v1.common.timeout): greater than 0, at most 2^31 − 1. A method with the option, as most
+     * payment and payment-intent methods have, waits as long as the option says, whatever this is:
+     * the network answers within that time. A call's own `timeoutMs` replaces both, shorter or
+     * longer; a call's `timeoutMs` of 0 or less fails the call at once with `deadline_exceeded`.
+     * Default: 30_000.
      */
     timeoutMs?: number;
     /**
-     * Deadline of each client- or server-streaming call in ms, including the wait for the first
-     * request message: greater than 0, at most 2^31 − 1. A call's own `timeoutMs` replaces it.
+     * Deadline in ms of each client- or server-streaming call whose method has no timeout option in
+     * its proto, including the wait for the first request message: greater than 0, at most
+     * 2^31 − 1. A method's option replaces it, and a call's own `timeoutMs` replaces both.
      * Default: 300_000 (5 minutes).
      */
     streamTimeoutMs?: number;

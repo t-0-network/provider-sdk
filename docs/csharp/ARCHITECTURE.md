@@ -20,7 +20,7 @@ csharp/
 │   ├── Network/                      # Client-side (outbound calls)
 │   │   ├── NetworkClient.cs          # Factory for auto-signing gRPC clients
 │   │   ├── NetworkClientOptions.cs   # Client configuration (BaseUrl, Timeout, StreamTimeout)
-│   │   ├── DefaultDeadlineInterceptor.cs # Default deadline per call type (internal)
+│   │   ├── DefaultDeadlineInterceptor.cs # Default deadline per method and call type (internal)
 │   │   ├── SigningDelegatingHandler.cs # HTTP message signing
 │   │   └── FirstFrameThenPipeContent.cs # Sends the signed first envelope, then pipes the rest
 │   ├── Provider/                     # Server-side (incoming requests)
@@ -57,7 +57,7 @@ csharp/
 
 ### Deadlines
 
-Timeouts are gRPC call deadlines: a call without its own deadline gets `NetworkClientOptions.Timeout` (unary, 15 s) or `StreamTimeout` (client and server streams, 5 min), and the caller's own deadline replaces the default. Every `NetworkClient` factory applies both through an interceptor, which also refuses bidirectional streams; `HttpClient.Timeout` is infinite. All clients share one transport (connection pool), so a client is cheap to create and needs no disposing; the transport sends no keepalive pings, keeps no cookies and does not follow redirects, which would re-send the signed request to another server. The client does not validate requests; the network does. See [STREAMING.md](../STREAMING.md#stream-timeout).
+Timeouts are gRPC call deadlines: a call without its own deadline gets its method's timeout option from the proto (`tzero.v1.common.timeout`), else `NetworkClientOptions.Timeout` (unary, 30 s) or `StreamTimeout` (client and server streams, 5 min), and the caller's own deadline replaces the default. `NetworkClient.Create` reads the options once per client type, from the static `Descriptor` of the generated client's service class; a client type without one gets the client's timeouts. Every `NetworkClient` factory applies both through an interceptor, which also refuses bidirectional streams; `HttpClient.Timeout` is infinite. All clients share one transport (connection pool), so a client is cheap to create and needs no disposing; the transport sends no keepalive pings, keeps no cookies and does not follow redirects, which would re-send the signed request to another server. The client does not validate requests; the network does. See [STREAMING.md](../STREAMING.md#stream-timeout).
 
 ### Two-Phase Server Architecture
 
@@ -74,7 +74,7 @@ The middleware runs before gRPC deserialization. If signature verification fails
 
 Uses a two-phase build pattern because ASP.NET Core requires service registration before `Build()`:
 
-1. **Configuration phase**: Constructor + `MapPaymentService()` / `MapPaymentIntentService()` / `AddHostedService()` register services on `WebApplicationBuilder`
+1. **Configuration phase**: Constructor + `Services` / `MapService<THandler>()` / `AddHostedService()` register services on `WebApplicationBuilder`. `MapService` takes the handler of any generated service and reports the service in health
 2. **Run phase**: `RunAsync()` calls `Build()`, wires middleware, maps endpoints, and starts the server
 
 ### Pluggable Crypto
@@ -122,7 +122,7 @@ headers = {
 | `network.SigningTransport` | `SigningDelegatingHandler` |
 | `provider.NewHttpHandler()` | `T0ProviderServer` |
 | `provider.StartServer()` | `T0ProviderServer.RunAsync()` |
-| `provider.Handler()` | `T0ProviderServer.MapPaymentService<T>()` |
+| `provider.Handler()` | `T0ProviderServer.MapService<T>()` |
 
 ## Dependencies
 

@@ -10,10 +10,16 @@ public sealed class NetworkClientOptions
     /// <summary>The network host a caller passes. The SDK does not apply it.</summary>
     public const string DefaultBaseUrl = "https://api.t-0.network";
 
-    /// <summary>The unary timeout a client uses when it is given none: 15 seconds.</summary>
-    public static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(15);
+    /// <summary>
+    /// The unary timeout a client uses when it is given none, for a method whose proto sets no
+    /// timeout option: 30 seconds.
+    /// </summary>
+    public static readonly TimeSpan DefaultTimeout = TimeSpan.FromSeconds(30);
 
-    /// <summary>The stream timeout a client uses when it is given none: 5 minutes.</summary>
+    /// <summary>
+    /// The stream timeout a client uses when it is given none, for a method whose proto sets no
+    /// timeout option: 5 minutes.
+    /// </summary>
     public static readonly TimeSpan DefaultStreamTimeout = TimeSpan.FromMinutes(5);
 
     /// <summary>The largest <see cref="Timeout"/> and <see cref="StreamTimeout"/>: 2147483647 ms.</summary>
@@ -45,7 +51,10 @@ public sealed class NetworkClientOptions
     }
 
     /// <summary>
-    /// Deadline of a unary call that sets none of its own. Defaults to 15 seconds.
+    /// Deadline of a unary call that sets none of its own, for a method without a timeout option in
+    /// its proto (tzero.v1.common.timeout). A method with the option, such as most methods of the
+    /// network's services, waits as long as the option says, whatever this is: the network answers
+    /// within that time. A deadline on the call replaces both, shorter or longer. Defaults to 30 seconds.
     /// </summary>
     /// <exception cref="ArgumentOutOfRangeException">
     /// The value is not positive or is over <see cref="MaxTimeout"/>.
@@ -58,7 +67,9 @@ public sealed class NetworkClientOptions
 
     /// <summary>
     /// Deadline of a client- or server-streaming call that sets none of its own, for the whole call
-    /// including the wait for its first message. Defaults to 5 minutes. See docs/STREAMING.md.
+    /// including the wait for its first message, for a method without a timeout option in its proto.
+    /// A method's option replaces it, and a deadline on the call replaces both, shorter or longer.
+    /// Defaults to 5 minutes. See docs/STREAMING.md.
     /// </summary>
     /// <exception cref="ArgumentOutOfRangeException">
     /// The value is not positive or is over <see cref="MaxTimeout"/>.

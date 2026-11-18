@@ -1,4 +1,5 @@
-"""Tests for the unary and stream default timeouts of the client factories.
+"""Tests for the unary and stream default timeouts of the client factories, and the timeout option
+(tzero.v1.common.timeout) of a method, which replaces them.
 
 Calls go through the real ConnectRPC client and signing transport to a fake pyqwest client, which
 records the timeout header (and the sync pyqwest timeout) and fails the call.
@@ -23,6 +24,10 @@ from t0_provider_sdk.network import (
     new_service_client,
     new_service_client_sync,
 )
+from t0_provider_sdk.network.client import _method_timeout_ms
+from tzero.v1.payment.network_connect import NetworkServiceClient  # noqa: F401  # NetworkService in the pool
+from tzero.v1.payment.provider_connect import ProviderServiceClient, ProviderServiceClientSync
+from tzero.v1.payment.provider_pb2 import ApprovePaymentQuoteRequest
 
 PRIVATE_KEY = "0x6b30303de7b26bfb1222b317a52113357f8bb06de00160b4261a2fef9c8b9bd8"
 BASE_URL = "http://example.test"
@@ -176,7 +181,7 @@ class TestAsyncClientTimeouts:
     async def test_unary_gets_the_unary_default(self) -> None:
         client, recorder = _async_client()
         await _call(client, "unary")
-        assert recorder.timeout_header == "15000"
+        assert recorder.timeout_header == "30000"
 
     async def test_unary_timeout_option(self) -> None:
         client, recorder = _async_client(timeout=2.5, stream_timeout=30)
@@ -187,7 +192,7 @@ class TestAsyncClientTimeouts:
         """gRPC unary goes out through stream(), but it is still a unary call."""
         client, recorder = _async_client(protocol=Protocol.GRPC, stream_timeout=30)
         await _call(client, "unary")
-        assert recorder.timeout_header == "15000m"
+        assert recorder.timeout_header == "30000m"
 
     @pytest.mark.parametrize("kind", STREAMS)
     async def test_streams_get_five_minutes_by_default(self, kind: str) -> None:
@@ -234,17 +239,17 @@ class TestSyncClientTimeouts:
     def test_unary_gets_the_unary_default(self) -> None:
         client, recorder = _sync_client()
         _call_sync(client, "unary")
-        assert recorder.timeout_header == "15000"
+        assert recorder.timeout_header == "30000"
         # connectrpc passes what is left of the call's deadline.
         assert recorder.timeout is not None
-        assert 14.0 < recorder.timeout <= 15.0
+        assert 29.0 < recorder.timeout <= 30.0
 
     def test_grpc_unary_gets_the_unary_default(self) -> None:
         client, recorder = _sync_client(protocol=Protocol.GRPC, stream_timeout=30)
         _call_sync(client, "unary")
-        assert recorder.timeout_header == "15000m"
+        assert recorder.timeout_header == "30000m"
         assert recorder.timeout is not None
-        assert 14.0 < recorder.timeout <= 15.0
+        assert 29.0 < recorder.timeout <= 30.0
 
     @pytest.mark.parametrize("kind", STREAMS)
     def test_streams_get_five_minutes_by_default(self, kind: str) -> None:
@@ -278,6 +283,76 @@ class TestSyncClientTimeouts:
         message = _call_sync(client, kind, timeout_ms=timeout_ms, code=Code.DEADLINE_EXCEEDED)
         assert message == "the operation timed out"
         assert recorder.timeout_header is None
+
+
+class TestMethodTimeoutOption:
+    """The option is read from the generated descriptors."""
+
+    @pytest.mark.parametrize(
+        ("method", "want"),
+        [
+            ("tzero.v1.payment.ProviderService.ApprovePaymentQuotes", 29_000),
+            ("tzero.v1.payment.NetworkService.UpdateQuote", 30_000),
+            ("grpc.health.v1.Health.Check", None),
+            ("test.v1.StreamTest.Unary", None),
+        ],
+    )
+    def test_generated_methods(self, method: str, want: int | None) -> None:
+        assert _method_timeout_ms(method) == want
+
+
+@pytest.mark.asyncio
+class TestAsyncMethodTimeouts:
+    """ApprovePaymentQuotes has the option 29 s: it replaces the client's timeout, shorter or longer,
+    and a call's own timeout_ms replaces the option."""
+
+    @pytest.mark.parametrize("timeout", [10, 45])
+    async def test_option_replaces_the_client_timeout(self, timeout: float) -> None:
+        client, recorder = _async_client(ProviderServiceClient, timeout=timeout)
+        with pytest.raises(ConnectError):
+            await client.approve_payment_quotes(ApprovePaymentQuoteRequest())
+        assert recorder.timeout_header == "29000"
+
+    async def test_grpc_option_replaces_the_client_timeout(self) -> None:
+        client, recorder = _async_client(ProviderServiceClient, protocol=Protocol.GRPC, timeout=45)
+        with pytest.raises(ConnectError):
+            await client.approve_payment_quotes(ApprovePaymentQuoteRequest())
+        assert recorder.timeout_header == "29000m"
+
+    @pytest.mark.parametrize("timeout_ms", [700, 60_000])
+    async def test_call_timeout_replaces_the_option(self, timeout_ms: int) -> None:
+        client, recorder = _async_client(ProviderServiceClient, timeout=45)
+        with pytest.raises(ConnectError):
+            await client.approve_payment_quotes(ApprovePaymentQuoteRequest(), timeout_ms=timeout_ms)
+        assert recorder.timeout_header == str(timeout_ms)
+
+    async def test_method_without_the_option_gets_the_client_timeout(self) -> None:
+        client, recorder = _async_client(timeout=45)
+        await _call(client, "unary")
+        assert recorder.timeout_header == "45000"
+
+
+class TestSyncMethodTimeouts:
+    @pytest.mark.parametrize(("protocol", "header"), [(Protocol.CONNECT, "29000"), (Protocol.GRPC, "29000m")])
+    def test_option_replaces_the_client_timeout(self, protocol: Protocol, header: str) -> None:
+        client, recorder = _sync_client(ProviderServiceClientSync, protocol=protocol, timeout=45)
+        with pytest.raises(ConnectError):
+            client.approve_payment_quotes(ApprovePaymentQuoteRequest())
+        assert recorder.timeout_header == header
+        assert recorder.timeout is not None
+        assert 28.0 < recorder.timeout <= 29.0
+
+    @pytest.mark.parametrize("timeout_ms", [700, 60_000])
+    def test_call_timeout_replaces_the_option(self, timeout_ms: int) -> None:
+        client, recorder = _sync_client(ProviderServiceClientSync, timeout=45)
+        with pytest.raises(ConnectError):
+            client.approve_payment_quotes(ApprovePaymentQuoteRequest(), timeout_ms=timeout_ms)
+        assert recorder.timeout_header == str(timeout_ms)
+
+    def test_method_without_the_option_gets_the_client_timeout(self) -> None:
+        client, recorder = _sync_client(timeout=45)
+        _call_sync(client, "unary")
+        assert recorder.timeout_header == "45000"
 
 
 OPTION_MESSAGES = {"timeout": TIMEOUT_NOT_VALID, "stream_timeout": STREAM_TIMEOUT_NOT_VALID}

@@ -217,7 +217,10 @@ const endpoint = process.env.TZERO_ENDPOINT || "https://api-sandbox.t-0.network"
 
 const networkClient = createClient(privateKey, endpoint, NetworkService);
 
-// Publish quotes
+// Publish quotes, at least once per 5 seconds. Each quote expires at publish time + publishing
+// interval + 35 s: a client that gets it just before the next publish still has 30 s to use it.
+const publishingIntervalMs = 5_000;
+const now = Date.now();
 await networkClient.updateQuote({
   payOut: [
     {
@@ -226,8 +229,8 @@ await networkClient.updateQuote({
       paymentMethod: PaymentMethodType.SEPA,
       // Decimal: unscaled * 10^exponent, so 0.92 is { unscaled: 92n, exponent: -2 }
       bands: [{ clientQuoteId: "q1", maxAmount: { unscaled: 10000n, exponent: 0 }, rate: { unscaled: 92n, exponent: -2 } }],
-      expiration: { seconds: BigInt(Math.floor(Date.now() / 1000) + 30) },
-      timestamp: { seconds: BigInt(Math.floor(Date.now() / 1000)) },
+      expiration: { seconds: BigInt(Math.floor((now + publishingIntervalMs + 35_000) / 1000)) },
+      timestamp: { seconds: BigInt(Math.floor(now / 1000)) },
     },
   ],
 });
@@ -259,14 +262,12 @@ const kmsClient = createClient(kmsSigner, endpoint, NetworkService);
 
 ### Streaming and timeouts
 
-Client- and server-streaming calls are signed over their first request message only, and the request goes out as soon as that message is available. Unary calls get a default deadline of 15 seconds (`DEFAULT_TIMEOUT_MS`) and streaming calls one of 5 minutes (`DEFAULT_STREAM_TIMEOUT_MS`), which includes the wait for the first message. A call's own `timeoutMs` replaces the default, shorter or longer; one of 0 or less fails the call at once with `deadline_exceeded`, and nothing is sent. A configured `timeoutMs` or `streamTimeoutMs` is greater than 0 and at most 2147483647 ms (`MAX_TIMEOUT_MS`), the limit of Node's timers. Bidirectional streams are refused with `unimplemented` before anything is sent.
+Client- and server-streaming calls are signed over their first request message only, and the request goes out as soon as that message is available. A call gets the timeout its method has in the proto (the `tzero.v1.common.timeout` option): 30 seconds for most network methods, 29 for `ApprovePaymentQuotes` and `GetPaymentDetails`. The network answers within that time, so the client's `timeoutMs` and `streamTimeoutMs` do not shorten or lengthen it. A method without the option gets the client's timeout: `timeoutMs` (30 seconds by default, `DEFAULT_TIMEOUT_MS`) for a unary call, `streamTimeoutMs` (5 minutes by default, `DEFAULT_STREAM_TIMEOUT_MS`) for a streaming call, which includes the wait for the first message. A call's own `timeoutMs` replaces both, shorter or longer; one of 0 or less fails the call at once with `deadline_exceeded`, and nothing is sent. A configured `timeoutMs` or `streamTimeoutMs` is greater than 0 and at most 2147483647 ms (`MAX_TIMEOUT_MS`), the limit of Node's timers. Bidirectional streams are refused with `unimplemented` before anything is sent.
 
 ```ts
 import { createClient, NetworkService, WireFormat } from "@t-0/provider-sdk";
 
 const client = createClient(privateKey, endpoint, NetworkService, {
-  timeoutMs: 30_000,             // unary calls
-  streamTimeoutMs: 30 * 60_000,  // streaming calls
   wireFormat: WireFormat.Binary, // the default; WireFormat.Json for Connect JSON
 });
 await client.updateQuote(request, { timeoutMs: 120_000 }); // this call only

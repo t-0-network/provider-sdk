@@ -1,11 +1,12 @@
 using Google.Protobuf;
 using Grpc.Core;
 using Grpc.Core.Interceptors;
+using Grpc.Health.V1;
 using Microsoft.AspNetCore.Builder;
 using T0.ProviderSdk.Crypto;
 using T0.ProviderSdk.Network;
 using PaymentApi = T0.ProviderSdk.Api.Tzero.V1.Payment;
-using PaymentIntentApi = T0.ProviderSdk.Api.Tzero.V1.PaymentIntent.Provider;
+using PaymentIntentApi = T0.ProviderSdk.Api.Tzero.V1.PaymentIntent;
 using StringValue = Google.Protobuf.WellKnownTypes.StringValue;
 
 namespace T0.ProviderSdk.Tests.Network;
@@ -17,13 +18,15 @@ public class DefaultDeadlineInterceptorTests
     private static readonly Marshaller<StringValue> Marshaller =
         Marshallers.Create(value => value.ToByteArray(), StringValue.Parser.ParseFrom);
 
+    private static readonly Dictionary<string, TimeSpan> NoMethodTimeouts = [];
+
     private static Method<StringValue, StringValue> NewMethod(MethodType type) =>
         new(type, "test.v1.StreamTest", type.ToString(), Marshaller, Marshaller);
 
     private static DateTime? DeadlineOf(MethodType type, NetworkClientOptions options, CallOptions callOptions = default)
     {
         var inner = new CapturingInvoker();
-        var invoker = inner.Intercept(new DefaultDeadlineInterceptor(options));
+        var invoker = inner.Intercept(new DefaultDeadlineInterceptor(options, NoMethodTimeouts));
         var method = NewMethod(type);
         var request = new StringValue { Value = "x" };
 
@@ -52,10 +55,10 @@ public class DefaultDeadlineInterceptorTests
     }
 
     [Fact]
-    public void Defaults_Are15SecondsForUnaryAnd5MinutesForStreams()
+    public void Defaults_Are30SecondsForUnaryAnd5MinutesForStreams()
     {
         var options = new NetworkClientOptions();
-        Assert.Equal(TimeSpan.FromSeconds(15), options.Timeout);
+        Assert.Equal(TimeSpan.FromSeconds(30), options.Timeout);
         Assert.Equal(TimeSpan.FromMinutes(5), options.StreamTimeout);
     }
 
@@ -75,7 +78,7 @@ public class DefaultDeadlineInterceptorTests
         var inner = new CapturingInvoker();
         var before = DateTime.UtcNow;
 
-        inner.Intercept(new DefaultDeadlineInterceptor(options))
+        inner.Intercept(new DefaultDeadlineInterceptor(options, NoMethodTimeouts))
             .BlockingUnaryCall(NewMethod(MethodType.Unary), null, default, new StringValue());
 
         AssertDeadlineIn(inner.Options.Deadline, before, options.Timeout);
@@ -117,11 +120,58 @@ public class DefaultDeadlineInterceptorTests
         Assert.Equal(shorter, DeadlineOf(type, options, new CallOptions(deadline: shorter)));
     }
 
+    // The generated descriptors carry the tzero.v1.common.timeout option, an extension from an
+    // imported file: the lookup must find it, not fall back to the client's timeout.
+    [Fact]
+    public void MethodTimeouts_ComeFromTheGeneratedDescriptors()
+    {
+        var provider = NetworkClient.MethodTimeouts(typeof(PaymentApi.ProviderService.ProviderServiceClient));
+        Assert.Equal(TimeSpan.FromSeconds(29), provider["/tzero.v1.payment.ProviderService/ApprovePaymentQuotes"]);
+        Assert.Equal(TimeSpan.FromSeconds(30), provider["/tzero.v1.payment.ProviderService/PayOut"]);
+
+        var network = NetworkClient.MethodTimeouts(typeof(PaymentApi.NetworkService.NetworkServiceClient));
+        Assert.Equal(TimeSpan.FromSeconds(30), network["/tzero.v1.payment.NetworkService/UpdateQuote"]);
+
+        // A subclass of a generated client has the options of its service.
+        var subclass = NetworkClient.MethodTimeouts(typeof(SubclassedProviderClient));
+        Assert.Equal(TimeSpan.FromSeconds(29), subclass["/tzero.v1.payment.ProviderService/ApprovePaymentQuotes"]);
+
+        // A service without the option, and a type that is not a generated client.
+        Assert.Empty(NetworkClient.MethodTimeouts(typeof(Health.HealthClient)));
+        Assert.Empty(NetworkClient.MethodTimeouts(typeof(CallInvoker)));
+    }
+
+    private sealed class SubclassedProviderClient(CallInvoker invoker)
+        : PaymentApi.ProviderService.ProviderServiceClient(invoker);
+
+    [Theory]
+    [InlineData(10)]
+    [InlineData(45)]
+    public void MethodOption_ReplacesTheClientTimeout_LongerOrShorter(int timeoutSeconds)
+    {
+        var options = new NetworkClientOptions { Timeout = TimeSpan.FromSeconds(timeoutSeconds) };
+        var inner = new CapturingInvoker();
+        var client = new PaymentApi.ProviderService.ProviderServiceClient(inner.Intercept(new DefaultDeadlineInterceptor(
+            options, NetworkClient.MethodTimeouts(typeof(PaymentApi.ProviderService.ProviderServiceClient)))));
+        var before = DateTime.UtcNow;
+
+        client.ApprovePaymentQuotesAsync(new PaymentApi.ApprovePaymentQuoteRequest());
+        AssertDeadlineIn(inner.Options.Deadline, before, TimeSpan.FromSeconds(29));
+
+        // A deadline on the call replaces the option, longer or shorter.
+        var longer = DateTime.UtcNow.AddMinutes(1);
+        client.ApprovePaymentQuotesAsync(new PaymentApi.ApprovePaymentQuoteRequest(), deadline: longer);
+        Assert.Equal(longer, inner.Options.Deadline);
+        var shorter = DateTime.UtcNow.AddSeconds(1);
+        client.ApprovePaymentQuotesAsync(new PaymentApi.ApprovePaymentQuoteRequest(), deadline: shorter);
+        Assert.Equal(shorter, inner.Options.Deadline);
+    }
+
     [Fact]
     public void DuplexStream_IsRejected_WithoutReachingTheInvoker()
     {
         var inner = new CapturingInvoker();
-        var invoker = inner.Intercept(new DefaultDeadlineInterceptor(new NetworkClientOptions()));
+        var invoker = inner.Intercept(new DefaultDeadlineInterceptor(new NetworkClientOptions(), NoMethodTimeouts));
 
         var ex = Assert.Throws<RpcException>(
             () => invoker.AsyncDuplexStreamingCall(NewMethod(MethodType.DuplexStreaming), null, default));
@@ -146,7 +196,7 @@ public class DefaultDeadlineInterceptorTests
         ex = Assert.Throws<ArgumentOutOfRangeException>(() => options.StreamTimeout = timeout);
         Assert.Equal("stream timeout must be a positive duration of at most 2147483647 ms", ex.Message);
 
-        Assert.Equal(TimeSpan.FromSeconds(15), options.Timeout);
+        Assert.Equal(TimeSpan.FromSeconds(30), options.Timeout);
         Assert.Equal(TimeSpan.FromMinutes(5), options.StreamTimeout);
     }
 
@@ -186,8 +236,10 @@ public class DefaultDeadlineInterceptorTests
         Assert.Equal(StatusCode.DeadlineExceeded, ex.StatusCode);
     }
 
+    // UpdateQuote of both network services has a timeout option of 30 s, which Timeout does not change;
+    // Health/Check has none and gets Timeout.
     [Fact]
-    public async Task Helpers_SendTheConfiguredTimeout_WithoutValidatingTheRequest()
+    public async Task Clients_SendTheMethodsTimeoutOrTheConfiguredOne_WithoutValidatingTheRequest()
     {
         var timeouts = new List<string?>();
         var (app, baseUrl) = await StartTimeoutRecorderAsync(timeouts);
@@ -195,56 +247,35 @@ public class DefaultDeadlineInterceptorTests
         try
         {
             var signer = Signer.FromHex(PrivateKey);
+            var options = new NetworkClientOptions { BaseUrl = baseUrl, Timeout = TimeSpan.FromSeconds(7) };
 
-            var payment = NetworkClient.CreateNetworkServiceClient(
-                new NetworkClientOptions { BaseUrl = baseUrl, Timeout = TimeSpan.FromSeconds(7) }, signer);
+            var payment = NetworkClient.Create(options, signer, invoker => new PaymentApi.NetworkService.NetworkServiceClient(invoker));
             var ex = await Assert.ThrowsAsync<RpcException>(
                 () => payment.UpdateQuoteAsync(new PaymentApi.UpdateQuoteRequest()).ResponseAsync);
             Assert.Equal(StatusCode.Unimplemented, ex.StatusCode);
 
-            // Fails buf.validate (payment_intent_id 0), and is sent all the same: the network validates.
-            var paymentIntent = NetworkClient.CreatePaymentIntentNetworkServiceClient(
-                new NetworkClientOptions { BaseUrl = baseUrl, Timeout = TimeSpan.FromSeconds(9) }, signer);
+            // Fails buf.validate (payment_client_id empty), and is sent all the same: the network validates.
             ex = await Assert.ThrowsAsync<RpcException>(
-                () => paymentIntent.ConfirmPaymentAsync(new PaymentIntentApi.ConfirmPaymentRequest()).ResponseAsync);
+                () => payment.CreatePaymentAsync(new PaymentApi.CreatePaymentRequest()).ResponseAsync);
             Assert.Equal(StatusCode.Unimplemented, ex.StatusCode);
 
-            Assert.Equal(2, timeouts.Count);
-            Assert.InRange(ParseGrpcTimeout(timeouts[0]), TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(7));
-            Assert.InRange(ParseGrpcTimeout(timeouts[1]), TimeSpan.FromSeconds(4), TimeSpan.FromSeconds(9));
-        }
-        finally
-        {
-            await app.StopAsync();
-            await app.DisposeAsync();
-        }
-    }
-
-    // The form master's docs and starter use: a base URL string and the default timeouts.
-    [Fact]
-    public async Task BaseUrlOverloads_UseTheBaseUrlAndTheDefaultTimeout()
-    {
-        var timeouts = new List<string?>();
-        var (app, baseUrl) = await StartTimeoutRecorderAsync(timeouts);
-
-        try
-        {
-            var signer = Signer.FromHex(PrivateKey);
-
-            var payment = NetworkClient.CreateNetworkServiceClient(baseUrl, signer);
-            var ex = await Assert.ThrowsAsync<RpcException>(
-                () => payment.UpdateQuoteAsync(new PaymentApi.UpdateQuoteRequest()).ResponseAsync);
-            Assert.Equal(StatusCode.Unimplemented, ex.StatusCode);
-
-            var paymentIntent = NetworkClient.CreatePaymentIntentNetworkServiceClient(baseUrl, signer);
+            var paymentIntent = NetworkClient.Create(
+                options, signer, invoker => new PaymentIntentApi.PaymentIntentService.PaymentIntentServiceClient(invoker));
             ex = await Assert.ThrowsAsync<RpcException>(
-                () => paymentIntent.ConfirmPaymentAsync(new PaymentIntentApi.ConfirmPaymentRequest()).ResponseAsync);
+                () => paymentIntent.UpdateQuoteAsync(new PaymentIntentApi.UpdateQuoteRequest()).ResponseAsync);
             Assert.Equal(StatusCode.Unimplemented, ex.StatusCode);
 
-            // Both reached the server at baseUrl, each with the 15 s default.
-            Assert.Equal(2, timeouts.Count);
-            Assert.All(timeouts, timeout =>
-                Assert.InRange(ParseGrpcTimeout(timeout), TimeSpan.FromSeconds(10), TimeSpan.FromSeconds(15)));
+            var health = NetworkClient.Create(
+                new NetworkClientOptions { BaseUrl = baseUrl, Timeout = TimeSpan.FromSeconds(9) }, signer,
+                invoker => new Health.HealthClient(invoker));
+            ex = await Assert.ThrowsAsync<RpcException>(
+                () => health.CheckAsync(new HealthCheckRequest()).ResponseAsync);
+            Assert.Equal(StatusCode.Unimplemented, ex.StatusCode);
+
+            Assert.Equal(4, timeouts.Count);
+            Assert.InRange(ParseGrpcTimeout(timeouts[0]), TimeSpan.FromSeconds(25), TimeSpan.FromSeconds(30));
+            Assert.InRange(ParseGrpcTimeout(timeouts[2]), TimeSpan.FromSeconds(25), TimeSpan.FromSeconds(30));
+            Assert.InRange(ParseGrpcTimeout(timeouts[3]), TimeSpan.FromSeconds(4), TimeSpan.FromSeconds(9));
         }
         finally
         {

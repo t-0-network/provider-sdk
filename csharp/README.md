@@ -31,16 +31,18 @@ var signer = Signer.FromHex(privateKeyHex);
 var options = new NetworkClientOptions
 {
     BaseUrl = "https://api.t-0.network",      // the default
-    Timeout = TimeSpan.FromSeconds(15),       // unary calls, the default
+    Timeout = TimeSpan.FromSeconds(30),       // unary calls, the default
     StreamTimeout = TimeSpan.FromMinutes(5),  // client and server streams, whole call, the default
 };
 
-var client = NetworkClient.CreateNetworkServiceClient(options, signer);
-// Any generated gRPC client: NetworkClient.Create(options, signer, invoker => new XClient(invoker))
+// Any generated gRPC client, for example PaymentIntentService.PaymentIntentServiceClient, the same way.
+var client = NetworkClient.Create(options, signer, invoker => new NetworkService.NetworkServiceClient(invoker));
 
 // A deadline on the call replaces the default, shorter or longer.
 await client.UpdateQuoteAsync(request, deadline: DateTime.UtcNow.AddMinutes(1));
 ```
+
+A call gets the timeout its method has in the proto (the `tzero.v1.common.timeout` option): 30 seconds for most network methods, 29 for `ApprovePaymentQuotes` and `GetPaymentDetails`. The network answers within that time, so `Timeout` does not shorten or lengthen it. A method without the option gets the client's timeout: `Timeout` for a unary call, `StreamTimeout` for a stream. A deadline on the call replaces both, shorter or longer.
 
 ## Custom signer
 
@@ -54,7 +56,7 @@ SignFn sign = digest =>
     byte[] signature = hsm.Sign(digest);   // 64 bytes r‖s, or 65 bytes r‖s‖v
     return (signature, hsm.PublicKey);     // 65 bytes, uncompressed (0x04 ‖ x ‖ y)
 };
-var client = NetworkClient.CreateNetworkServiceClient(options, sign);
+var client = NetworkClient.Create(options, sign, invoker => new NetworkService.NetworkServiceClient(invoker));
 ```
 
 The client checks the output before it sends anything. A signature that is not 64 or 65 bytes, a

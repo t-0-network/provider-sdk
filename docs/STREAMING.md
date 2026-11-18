@@ -59,7 +59,9 @@ supported", before anything is sent. The network does not accept them.
 ## Stream timeout
 
 Client and server streaming calls use the stream timeout, 5 minutes by default, in place of the
-unary timeout.
+unary timeout. As for a unary call, a timeout option of the method in the proto
+(`tzero.v1.common.timeout`) replaces it; no streaming method has one today. See C1 in
+[`CROSS_SDK_RULES.md`](CROSS_SDK_RULES.md).
 
 - It is the deadline of the whole call, including the wait for the first message, and it is sent to
   the server. A stream that runs longer ends with `deadline exceeded` unless the caller passes a

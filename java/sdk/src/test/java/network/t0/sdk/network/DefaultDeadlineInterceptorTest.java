@@ -26,11 +26,14 @@ import io.grpc.stub.MetadataUtils;
 import io.grpc.stub.StreamObserver;
 import network.t0.sdk.common.Messages;
 import network.t0.sdk.crypto.Signer;
+import network.t0.sdk.proto.tzero.v1.payment.NetworkServiceGrpc;
+import network.t0.sdk.proto.tzero.v1.payment.ProviderServiceGrpc;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
+import org.junit.jupiter.params.provider.ValueSource;
 
 import java.time.Duration;
 import java.util.Map;
@@ -149,11 +152,47 @@ class DefaultDeadlineInterceptorTest {
     }
 
     @Nested
+    @DisplayName("A method's timeout option")
+    class MethodTimeoutOption {
+
+        @ParameterizedTest(name = "client timeout {0} s")
+        @ValueSource(longs = {10, 45})
+        @DisplayName("Replaces the client's timeout, shorter or longer: ApprovePaymentQuotes gets 29 s")
+        void replacesTheClientTimeout(long clientTimeoutSeconds) {
+            CallOptions options = optionsFor(ProviderServiceGrpc.getApprovePaymentQuotesMethod(),
+                    Duration.ofSeconds(clientTimeoutSeconds), Duration.ofMinutes(5), CallOptions.DEFAULT);
+
+            assertThat(remainingMs(options)).isBetween(28_000L, 29_000L);
+        }
+
+        @Test
+        @DisplayName("Gives the network's UpdateQuote 30 s over a client timeout of 45 s")
+        void networkMethodGetsItsOption() {
+            CallOptions options = optionsFor(NetworkServiceGrpc.getUpdateQuoteMethod(),
+                    Duration.ofSeconds(45), Duration.ofMinutes(5), CallOptions.DEFAULT);
+
+            assertThat(remainingMs(options)).isBetween(29_000L, 30_000L);
+        }
+
+        @ParameterizedTest(name = "{0} s")
+        @ValueSource(longs = {2, 60})
+        @DisplayName("Is replaced by a deadline the call already has, shorter or longer")
+        void callDeadlineReplacesIt(long seconds) {
+            Deadline own = Deadline.after(seconds, TimeUnit.SECONDS);
+
+            CallOptions options = optionsFor(ProviderServiceGrpc.getApprovePaymentQuotesMethod(),
+                    Duration.ofSeconds(10), Duration.ofMinutes(5), CallOptions.DEFAULT.withDeadline(own));
+
+            assertThat(options.getDeadline()).isSameAs(own);
+        }
+    }
+
+    @Nested
     @DisplayName("Through the clients")
     class ThroughTheClients {
 
         @Test
-        @DisplayName("The default create() sends unary calls a 15 s deadline and server streams 5 min")
+        @DisplayName("The default create() sends unary calls a 30 s deadline and server streams 5 min")
         void defaultCreateDeadlinesReachTheServer() throws Exception {
             Map<String, Optional<Long>> remainingMs = new ConcurrentHashMap<>();
             Server server = deadlineRecordingHealthServer(remainingMs);
@@ -166,7 +205,7 @@ class DefaultDeadlineInterceptorTest {
                 server.shutdownNow();
             }
 
-            assertThat(remainingMs.get("Check")).hasValueSatisfying(ms -> assertThat(ms).isBetween(14_000L, 15_000L));
+            assertThat(remainingMs.get("Check")).hasValueSatisfying(ms -> assertThat(ms).isBetween(29_000L, 30_000L));
             assertThat(remainingMs.get("Watch")).hasValueSatisfying(ms -> assertThat(ms).isBetween(299_000L, 300_000L));
         }
 
@@ -262,7 +301,7 @@ class DefaultDeadlineInterceptorTest {
                 server.shutdownNow();
             }
 
-            // Longer than the 15 s unary default, and shorter than the 5 min stream default.
+            // Longer than the 30 s unary default, and shorter than the 5 min stream default.
             assertThat(remainingMs.get("unary-longer")).isBetween(55_000L, 60_000L);
             assertThat(remainingMs.get("stream-shorter")).isBetween(25_000L, 30_000L);
         }
@@ -385,10 +424,20 @@ class DefaultDeadlineInterceptorTest {
 
     private static CallOptions optionsFor(MethodType type, Duration timeout, Duration streamTimeout,
                                           CallOptions callOptions) {
+        return optionsFor(method(type), timeout, streamTimeout, callOptions);
+    }
+
+    private static CallOptions optionsFor(MethodDescriptor<?, ?> method, Duration timeout, Duration streamTimeout,
+                                          CallOptions callOptions) {
         CapturingChannel channel = new CapturingChannel();
         ClientInterceptors.intercept(channel, new NetworkClient.DefaultDeadlineInterceptor(timeout, streamTimeout))
-                .newCall(method(type), callOptions);
+                .newCall(method, callOptions);
         return channel.options;
+    }
+
+    private static long remainingMs(CallOptions options) {
+        assertThat(options.getDeadline()).isNotNull();
+        return options.getDeadline().timeRemaining(TimeUnit.MILLISECONDS);
     }
 
     private static MethodDescriptor<StringValue, StringValue> method(MethodType type) {

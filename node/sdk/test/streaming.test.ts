@@ -359,7 +359,7 @@ describe('createClient routes unary and streaming calls to their own transport',
       await byDefault.clientStream(stringValues('c'), { timeoutMs: 1_000 });
 
       assert.deepEqual(srv.checks.map((c) => [c.procedure.split('/').pop(), c.timeoutMs]), [
-        ['Unary', '15000'], ['ClientStream', '300000'],
+        ['Unary', '30000'], ['ClientStream', '300000'],
         ['Unary', '4321'], ['ClientStream', '8765'], ['ServerStream', '8765'],
         ['Unary', '20000'], ['ClientStream', '1000'],
       ]);

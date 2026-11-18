@@ -5,9 +5,12 @@ import {timestampFromDate} from "@bufbuild/protobuf/wkt";
 
 export default async function publishQuotes(networkClient: Client<typeof NetworkService>, quotePublishingInterval: number, publishing: Publishing): Promise<void> {
   // TODO: Step 1.3 replace this with receiving quotes from you systems and publishing them into t-0 Network. We recommend publishing at least once per 5 seconds, but not more than once per second
+  // Each quote expires at publish time + publishing interval + 35 s: a client that gets it just
+  // before the next publish still has 30 s to use it; the 5 s cover network delay.
   const sampleRate = decimalFromString("0.873");
   const sampleMaxAmount = decimalFromString("25000");
   const tick =  async () => {
+    const now = Date.now();
     try {
       //NOTE: Every update quote request discard all previous quotes that were published before.
       // So if you want to publish multiple quotes, you need to combine them into a single request.
@@ -23,9 +26,9 @@ export default async function publishQuotes(networkClient: Client<typeof Network
             // fix: decimalFromString("5"), // $5 fixed charge
           }],
           currency: 'EUR',
-          expiration: timestampFromDate(new Date(Date.now() + 30 * 1000)), // expiration time (30 seconds from now)
+          expiration: timestampFromDate(new Date(now + quotePublishingInterval + 35_000)), // publish time + publishing interval + 35 s
           paymentMethod: PaymentMethodType.SEPA,
-          timestamp: timestampFromDate(new Date()), // Current timestamp
+          timestamp: timestampFromDate(new Date(now)), // Current timestamp
         }]
       })
     } catch (error) {

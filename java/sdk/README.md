@@ -57,7 +57,7 @@ Handles outbound requests to the t-0 Network with automatic request signing.
 
 **Key Features:**
 - Automatic request signing via `SigningClientInterceptor`
-- Default deadlines per call type: 15 seconds for unary calls, 5 minutes for streaming calls (configurable per client and per stub)
+- Default deadlines: each method's timeout option from the proto (30 seconds for most payment and payment-intent methods); a method without one gets 30 seconds for a unary call and 5 minutes for a streaming call (configurable per client). A deadline on the stub replaces both
 - Streaming calls: only the first request message is signed
 - Endpoint parsing (supports `https://host`, `http://host:port`, `host:port`)
 - Graceful shutdown with 5-second timeout
@@ -216,10 +216,10 @@ The interceptor tries the unframed payload first, then reconstructs the gRPC fra
 
 ## Streaming and timeouts
 
-Client- and server-streaming calls are signed over their first request message only, and the call goes out as soon as that message is sent. Unary calls get a default deadline of 15 seconds and streaming calls one of 5 minutes, counted from when the call is created. A deadline that passes before the first message fails the call when that message, or the half-close, comes. A deadline set on the stub or on the caller's `Context` replaces the default, shorter or longer. Bidirectional streams and calls with a non-identity compressor are refused with `UNIMPLEMENTED` before anything is sent.
+Client- and server-streaming calls are signed over their first request message only, and the call goes out as soon as that message is sent. Each call gets a deadline when it is created: the timeout its method has in the proto (the `tzero.v1.common.timeout` option), 30 seconds for most payment and payment-intent methods and 29 for `ApprovePaymentQuotes` and `GetPaymentDetails`. The network answers within that time, so the client's timeout does not shorten or lengthen it. A method without the option gets the client's timeout: 30 seconds by default for a unary call, 5 minutes for a streaming call. A deadline that passes before the first message fails the call when that message, or the half-close, comes. A deadline set on the stub or on the caller's `Context` replaces both, shorter or longer. Bidirectional streams and calls with a non-identity compressor are refused with `UNIMPLEMENTED` before anything is sent.
 
 ```java
-// 30 s for unary calls, 30 min for streaming calls
+// Methods without a timeout option: 30 s for unary calls, 30 min for streaming calls
 try (var client = AsyncNetworkClient.create("https://api.t-0.network", signer,
         NetworkServiceGrpc::newStub, Duration.ofSeconds(30), Duration.ofMinutes(30))) {
     client.stub(2, TimeUnit.MINUTES).updateQuote(request, responseObserver); // this call only
@@ -471,15 +471,15 @@ Results are reported in operations per millisecond.
 
 **Symptom**: `DEADLINE_EXCEEDED` status
 
-**Solution**: Increase the default deadline when creating the client (unary calls get 15 seconds by default, streaming calls 5 minutes):
+**Solution**: Set a longer deadline on the call. A method with a timeout option in the proto, as most payment and payment-intent methods have, waits as long as the option says, whatever the client's timeout is:
+```java
+client.stub(60, TimeUnit.SECONDS).updateQuote(request);
+```
+
+A method without the option gets the client's timeouts (unary calls 30 seconds by default, streaming calls 5 minutes):
 ```java
 // Deadlines for unary and streaming calls: each a positive duration of at most 2147483647 ms
 BlockingNetworkClient.create(endpoint, signer, stubFactory, Duration.ofSeconds(60), Duration.ofMinutes(10));
-```
-
-Or per-call:
-```java
-client.stub(60, TimeUnit.SECONDS).updateQuote(request);
 ```
 
 ### Hex Encoding Errors

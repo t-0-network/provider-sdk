@@ -32,8 +32,6 @@ public class HealthServiceImplTests
     {
         var port = TestPorts.FindFreePort();
         var signer = Signer.FromHex(PrivateKey);
-        var dummyNetworkClient = NetworkClient.CreateNetworkServiceClient(
-            new NetworkClientOptions { BaseUrl = "http://localhost:1" }, signer);
 
         var config = new T0Config
         {
@@ -45,7 +43,7 @@ public class HealthServiceImplTests
 
         var server = new T0ProviderServer(config, signer,
             new[] { "--Kestrel:EndpointDefaults:Protocols=Http2" });
-        server.MapPaymentService<TestPaymentHandler>(dummyNetworkClient);
+        server.MapService<TestPaymentHandler>();
         return (server, port);
     }
 

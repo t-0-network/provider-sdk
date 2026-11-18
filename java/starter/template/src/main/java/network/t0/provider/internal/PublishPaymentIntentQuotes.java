@@ -20,18 +20,22 @@ import java.util.UUID;
  *
  * <p>TODO: Step 3A.1 replace this with fetching pay-in quotes from your systems
  * and publishing them into t-0 Network. We recommend publishing at least once per
- * 5 seconds, but not more than once per second.
+ * 5 seconds, but not more than once per second. Each quote expires at publish time +
+ * publishing interval + 35 s: a client that gets it just before the next publish still
+ * has 30 s to use it; the 5 s cover network delay.
  */
 public class PublishPaymentIntentQuotes {
 
     private static final Logger log = LoggerFactory.getLogger(PublishPaymentIntentQuotes.class);
 
-    public static void publish(PaymentIntentServiceGrpc.PaymentIntentServiceBlockingStub paymentIntentClient) {
+    public static void publish(PaymentIntentServiceGrpc.PaymentIntentServiceBlockingStub paymentIntentClient,
+                               long intervalMs) {
         try {
             Instant now = Instant.now();
+            Instant expiresAt = now.plusMillis(intervalMs + 35_000); // publish time + publishing interval + 35 s
             Timestamp expiration = Timestamp.newBuilder()
-                    .setSeconds(now.plusSeconds(30).getEpochSecond())
-                    .setNanos(now.plusSeconds(30).getNano())
+                    .setSeconds(expiresAt.getEpochSecond())
+                    .setNanos(expiresAt.getNano())
                     .build();
             Timestamp timestamp = Timestamp.newBuilder()
                     .setSeconds(now.getEpochSecond())

@@ -102,10 +102,7 @@ func NewHttpHandlerWithOptions(
 	if sdkVer == "" {
 		sdkVer = sdkversion.Version
 	}
-	defaultOptions, err := newDefaultHandlerOptions(resolve, scratch.logger, sdkVer)
-	if err != nil {
-		return nil, err
-	}
+	defaultOptions := newDefaultHandlerOptions(resolve, scratch.logger, sdkVer)
 
 	mux := http.NewServeMux()
 	registered := make([]string, 0, len(buildHandlers)+1)

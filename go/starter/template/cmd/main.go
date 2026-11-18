@@ -50,7 +50,7 @@ func main() {
 	paymentIntentTicker := time.NewTicker(config.QuotePublishingInterval)
 
 	// TODO: Step 1.3 Replace publishQuotes with your own quote publishing logic
-	go internal.PublishQuotes(ctx, networkClient, quoteTicker)
+	go internal.PublishQuotes(ctx, networkClient, quoteTicker, config.QuotePublishingInterval)
 
 	// TODO: Step 1.4 Verify that quotes for target currency are successfully received
 	go internal.GetQuote(ctx, networkClient)
@@ -71,7 +71,7 @@ func main() {
 
 	// Phase 3A — Pay-In Provider role. Comment out if you are only a beneficiary.
 	// TODO: Step 3A.1 Replace with your own pay-in quote publishing logic
-	go internal.PublishPaymentIntentQuotes(ctx, paymentIntentClient, paymentIntentTicker)
+	go internal.PublishPaymentIntentQuotes(ctx, paymentIntentClient, paymentIntentTicker, config.QuotePublishingInterval)
 
 	// Phase 3B — Beneficiary Provider role. Comment out if you are only a pay-in provider.
 	// TODO: Step 3B.1 Check that indicative quotes are being returned

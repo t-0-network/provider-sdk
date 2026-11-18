@@ -239,7 +239,7 @@ func TestStartServer_ShutdownTimeout(t *testing.T) {
 	defer cancel()
 
 	start := time.Now()
-	err = shutdownFn(ctx)
+	_ = shutdownFn(ctx) // succeeds or times out; only the duration is checked
 	duration := time.Since(start)
 
 	// The shutdown should complete quickly due to our short shutdown timeout
@@ -301,7 +301,7 @@ func TestServerOptions_Defaults(t *testing.T) {
 
 	assert.Equal(t, ":8080", server.Addr)
 	assert.Equal(t, 10*time.Second, server.ReadTimeout)
-	assert.Equal(t, 10*time.Second, server.WriteTimeout)
+	assert.Equal(t, 35*time.Second, server.WriteTimeout)
 	assert.Equal(t, 10*time.Second, server.ReadHeaderTimeout)
 	assert.Nil(t, server.TLSConfig)
 	assert.NotNil(t, server.Handler)
@@ -311,7 +311,7 @@ func TestServerConstants(t *testing.T) {
 	// Test that all constants have reasonable values
 	assert.Equal(t, ":8080", DefaultAddr)
 	assert.Equal(t, 10*time.Second, DefaultReadTimeout)
-	assert.Equal(t, 10*time.Second, DefaultWriteTimeout)
+	assert.Equal(t, 35*time.Second, DefaultWriteTimeout)
 	assert.Equal(t, 10*time.Second, DefaultReadHeaderTimeout)
 	assert.Equal(t, 15*time.Second, DefaultShutdownTimeout)
 	assert.Equal(t, 5*time.Second, ServerStartupTimeout)
@@ -516,7 +516,7 @@ func TestStartServerShutdownRespectsCaller_Context(t *testing.T) {
 	defer cancel()
 
 	start := time.Now()
-	err = shutdownFn(ctx)
+	_ = shutdownFn(ctx) // succeeds or times out; only the duration is checked
 	duration := time.Since(start)
 
 	// Should respect caller's short timeout, not server's long timeout

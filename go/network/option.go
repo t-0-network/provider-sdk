@@ -14,10 +14,11 @@ import (
 
 // DefaultBaseURL is the network host a caller passes with WithBaseURL. The SDK does not apply it.
 // DefaultTimeout and DefaultStreamTimeout are what a client uses when it is given no unary timeout
-// or stream timeout, and MaxTimeout is the largest of either it accepts. The same values in every SDK.
+// or stream timeout, for a method whose proto sets no timeout option, and MaxTimeout is the largest
+// of either it accepts. The same values in every SDK.
 const (
 	DefaultBaseURL       = "https://api.t-0.network"
-	DefaultTimeout       = 15 * time.Second
+	DefaultTimeout       = 30 * time.Second
 	DefaultStreamTimeout = 5 * time.Minute
 	MaxTimeout           = 2147483647 * time.Millisecond
 )
@@ -121,11 +122,14 @@ func WithSignatureFunction(fn crypto.SignFn) ClientOption {
 	}
 }
 
-// WithTimeout sets the deadline of each unary call whose context has none; streams use
-// WithStreamTimeout. A deadline on the call's context replaces it, shorter or longer.
-// It must be positive and at most MaxTimeout (2147483647 ms).
+// WithTimeout sets the deadline of each unary call whose context has none and whose method has no
+// timeout option in its proto (tzero.v1.common.timeout); streams use WithStreamTimeout. A method
+// with the option, as most payment and payment-intent methods have, waits as long as the option
+// says, whatever WithTimeout sets: the network answers within that time. A deadline on the call's
+// context replaces both, shorter or longer. It must be positive and at most MaxTimeout
+// (2147483647 ms).
 //
-// Default: DefaultTimeout (15 seconds).
+// Default: DefaultTimeout (30 seconds).
 func WithTimeout(t time.Duration) ClientOption {
 	return func(c *clientOptions) {
 		c.timeout = t
@@ -133,7 +137,8 @@ func WithTimeout(t time.Duration) ClientOption {
 }
 
 // WithStreamTimeout sets the deadline of each client- and server-streaming call whose context has
-// none, including the wait for its first message. A deadline on the call's context replaces it,
+// none and whose method has no timeout option in its proto, including the wait for its first
+// message. A method's option replaces it, and a deadline on the call's context replaces both,
 // shorter or longer. It must be positive and at most MaxTimeout (2147483647 ms).
 //
 // Default: DefaultStreamTimeout (5 minutes).

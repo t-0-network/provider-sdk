@@ -7,15 +7,17 @@ namespace MyProvider.Services;
 
 // TODO: Step 1.3 Replace this with fetching quotes from your systems and publishing them into the T-0 Network.
 // Recommended: publish at least once per 5 seconds, but not more than once per second.
+// Each quote expires at publish time + publishing interval + 35 s: a client that gets it just
+// before the next publish still has 30 s to use it; the 5 s cover network delay.
 public class QuotePublisher(NetworkService.NetworkServiceClient client)
-    : QuotePublisherService(TimeSpan.FromMilliseconds(int.TryParse(Environment.GetEnvironmentVariable("QUOTE_PUBLISHING_INTERVAL"), out var ms) && ms > 0 ? ms : 5000))
+    : QuotePublisherService(ConfiguredInterval)
 {
     protected override Task PublishQuotesAsync(CancellationToken ct)
     {
         var currency = "EUR";
         var paymentMethod = PaymentMethodType.Sepa;
         var now = DateTimeOffset.UtcNow;
-        var expiration = Timestamp.FromDateTimeOffset(now.AddSeconds(30));
+        var expiration = Timestamp.FromDateTimeOffset(now + Interval + TimeSpan.FromSeconds(35));
         var timestamp = Timestamp.FromDateTimeOffset(now);
 
         // NOTE: Every UpdateQuote request discards all previous quotes.

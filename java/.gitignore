@@ -1,6 +1,8 @@
 # Gradle
 .gradle/
 build/
+# buf generate output when run by hand in sdk/ (the build generates into build/)
+sdk/gen/
 !gradle/wrapper/gradle-wrapper.jar
 
 # IntelliJ IDEA

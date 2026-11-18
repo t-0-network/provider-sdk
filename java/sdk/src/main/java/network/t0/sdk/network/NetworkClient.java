@@ -13,10 +13,12 @@ import io.grpc.Metadata;
 import io.grpc.MethodDescriptor;
 import io.grpc.Status;
 import io.grpc.okhttp.OkHttpChannelBuilder;
+import io.grpc.protobuf.ProtoMethodDescriptorSupplier;
 import network.t0.sdk.common.Headers;
 import network.t0.sdk.crypto.Keccak256;
 import network.t0.sdk.crypto.SignResult;
 import network.t0.sdk.crypto.DigestSigner;
+import network.t0.sdk.proto.tzero.v1.common.TimeoutProto;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,6 +29,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.time.Clock;
 import java.time.Duration;
+import java.util.Optional;
 import java.util.concurrent.Executor;
 import java.util.concurrent.TimeUnit;
 
@@ -61,12 +64,15 @@ import java.util.concurrent.TimeUnit;
  * quickly and does not block on network I/O (it runs while the call's lock is held); {@code Signer}
  * holds the key in memory.
  *
- * <p>Unary calls get a default deadline of 15 seconds, client- and server-streaming calls one of
- * 5 minutes, counted from when the call is created. A call starts with its first message, so a deadline
- * that passed before then fails the call when that message, or the half-close, comes. A deadline the
- * caller sets on a call or on its {@link Context} replaces the default, shorter or longer. Streaming
- * calls are signed over their first request message only; bidirectional streams and calls with a
- * non-identity compressor fail with {@code UNIMPLEMENTED}. See {@code docs/STREAMING.md}.
+ * <p>Each call gets a deadline when it is created: the timeout its method has in the proto (the
+ * {@code tzero.v1.common.timeout} option), 30 seconds for most payment and payment-intent methods and 29 for
+ * {@code ApprovePaymentQuotes} and {@code GetPaymentDetails}. The network answers within that time, so the
+ * client's timeout does not shorten or lengthen it. A method without the option gets the client's timeout:
+ * 30 seconds by default for unary calls, 5 minutes for client- and server-streaming calls. A deadline the
+ * caller sets on a call or on its {@link Context} replaces both, shorter or longer. A call starts with its
+ * first message, so a deadline that passed before then fails the call when that message, or the half-close,
+ * comes. Streaming calls are signed over their first request message only; bidirectional streams and calls
+ * with a non-identity compressor fail with {@code UNIMPLEMENTED}. See {@code docs/STREAMING.md}.
  *
  * <p><b>Thread Safety:</b> Client instances are thread-safe. The underlying gRPC channel
  * and stubs support concurrent use from multiple threads. The signing interceptor creates
@@ -92,12 +98,13 @@ public abstract class NetworkClient implements Closeable {
     protected static final String DEFAULT_ENDPOINT = DEFAULT_BASE_URL;
 
     /**
-     * Default deadline for unary calls.
+     * Default deadline for unary calls whose method has no timeout option in the proto.
      */
-    public static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(15);
+    public static final Duration DEFAULT_TIMEOUT = Duration.ofSeconds(30);
 
     /**
-     * Default deadline for client- and server-streaming calls, counted from when the call is created.
+     * Default deadline for client- and server-streaming calls whose method has no timeout option in the
+     * proto, counted from when the call is created.
      */
     public static final Duration DEFAULT_STREAM_TIMEOUT = Duration.ofMinutes(5);
 
@@ -139,8 +146,8 @@ public abstract class NetworkClient implements Closeable {
      * @param endpoint      the T-0 Network endpoint (e.g., "https://api.t-0.network" or "api.t-0.network:443"); {@code null} is "base URL is not set";
      *                      a path in it prefixes every call (see {@link #parseBaseUrl(String)})
      * @param signer        the signer to use for signing requests
-     * @param timeout       the default deadline for unary calls
-     * @param streamTimeout the default deadline for client- and server-streaming calls
+     * @param timeout       the deadline for unary calls whose method has no timeout option
+     * @param streamTimeout the deadline for client- and server-streaming calls whose method has no timeout option
      * @return a ChannelPair containing the managed channel and intercepted channel
      * @throws IllegalArgumentException if the endpoint or signer is invalid, or a timeout is not a positive
      *                                  duration of at most 2147483647 ms
@@ -671,9 +678,10 @@ public abstract class NetworkClient implements Closeable {
 
     /**
      * gRPC client interceptor that gives each call a deadline when it is created, unless the caller set
-     * one on the call or on its {@link Context}: the timeout for unary calls, the stream timeout for all
-     * others. The caller's own deadline replaces the default, shorter or longer.
-     * See {@code docs/STREAMING.md}.
+     * one on the call or on its {@link Context}: the timeout option of its method in the proto
+     * ({@code tzero.v1.common.timeout}), else the timeout for unary calls and the stream timeout for all
+     * others. The network answers within a method's option, so the client's timeouts never replace it.
+     * The caller's own deadline replaces both, shorter or longer. See {@code docs/STREAMING.md}.
      */
     static final class DefaultDeadlineInterceptor implements ClientInterceptor {
 
@@ -683,8 +691,8 @@ public abstract class NetworkClient implements Closeable {
         /**
          * Creates a new default-deadline interceptor.
          *
-         * @param timeout       the deadline for unary calls
-         * @param streamTimeout the deadline for client- and server-streaming calls
+         * @param timeout       the deadline for unary calls whose method has no timeout option
+         * @param streamTimeout the deadline for client- and server-streaming calls whose method has no timeout option
          * @throws IllegalArgumentException if a timeout is not a positive duration of at most 2147483647 ms
          */
         DefaultDeadlineInterceptor(Duration timeout, Duration streamTimeout) {
@@ -700,10 +708,23 @@ public abstract class NetworkClient implements Closeable {
             // grpc applies the earlier of the two deadlines, so a default set next to a longer Context
             // deadline would cut the caller's deadline short.
             if (callOptions.getDeadline() == null && Context.current().getDeadline() == null) {
-                Duration deadline = method.getType() == MethodDescriptor.MethodType.UNARY ? timeout : streamTimeout;
+                Duration deadline = timeoutOption(method).orElse(
+                        method.getType() == MethodDescriptor.MethodType.UNARY ? timeout : streamTimeout);
                 callOptions = callOptions.withDeadlineAfter(deadline.toNanos(), TimeUnit.NANOSECONDS);
             }
             return next.newCall(method, callOptions);
+        }
+
+        /**
+         * The timeout option of a generated method; empty when the method has no proto descriptor or no option.
+         */
+        private static Optional<Duration> timeoutOption(MethodDescriptor<?, ?> method) {
+            if (!(method.getSchemaDescriptor() instanceof ProtoMethodDescriptorSupplier supplier)
+                    || !supplier.getMethodDescriptor().getOptions().hasExtension(TimeoutProto.timeout)) {
+                return Optional.empty();
+            }
+            com.google.protobuf.Duration option = supplier.getMethodDescriptor().getOptions().getExtension(TimeoutProto.timeout);
+            return Optional.of(Duration.ofSeconds(option.getSeconds(), option.getNanos()));
         }
     }
 }

@@ -76,7 +76,7 @@ The sync variant uses `payment_sync.py` -- implement the same RPC methods as reg
 
 ## Streaming and timeouts
 
-`new_service_client()` and `new_service_client_sync()` sign every request. A streaming call is signed over its first message and sent as soon as that message exists, so send a message (or close the stream) before waiting for a response. Unary calls time out after 15 seconds and streaming calls after 5 minutes; a call's own `timeout_ms` replaces either default, and a `timeout_ms` of 0 or less fails the call with `DEADLINE_EXCEEDED` before it is sent. A timeout option is at most `MAX_TIMEOUT` (2147483647 ms).
+`new_service_client()` and `new_service_client_sync()` sign every request. A streaming call is signed over its first message and sent as soon as that message exists, so send a message (or close the stream) before waiting for a response. A call waits as long as its method's timeout option in the proto (`tzero.v1.common.timeout`) says; most payment and payment-intent methods have one; KYC and health methods have none. A method without it waits `timeout` if unary (30 seconds by default) and `stream_timeout` if streaming (5 minutes by default). A call's own `timeout_ms` replaces all of them, shorter or longer, and a `timeout_ms` of 0 or less fails the call with `DEADLINE_EXCEEDED` before it is sent. `timeout` and `stream_timeout` are at most `MAX_TIMEOUT` (2147483647 ms).
 
 ```python
 from provider.config import load_config
@@ -88,7 +88,7 @@ network_client = new_service_client(
     config.provider_private_key,
     NetworkServiceClient,
     base_url=config.tzero_endpoint,
-    timeout=15.0,  # unary calls, seconds
+    timeout=30.0,  # unary calls of methods without a timeout option in the proto, seconds
     stream_timeout=600.0,  # streaming calls, seconds (default 300)
     wire_format=WireFormat.BINARY,  # or WireFormat.JSON
     protocol=Protocol.CONNECT,  # or Protocol.GRPC

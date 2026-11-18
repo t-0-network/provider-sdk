@@ -3,10 +3,14 @@ package network.t0.sdk.integration;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
+import io.grpc.Channel;
 import io.grpc.StatusRuntimeException;
 import io.grpc.health.v1.HealthCheckRequest;
 import io.grpc.health.v1.HealthCheckResponse;
 import io.grpc.health.v1.HealthGrpc;
+import io.grpc.stub.AbstractAsyncStub;
+import io.grpc.stub.AbstractBlockingStub;
+import io.grpc.stub.AbstractFutureStub;
 import io.grpc.stub.StreamObserver;
 import network.t0.sdk.common.HexUtils;
 import network.t0.sdk.crypto.DigestSigner;
@@ -16,6 +20,12 @@ import network.t0.sdk.network.AsyncNetworkClient;
 import network.t0.sdk.network.BlockingNetworkClient;
 import network.t0.sdk.network.FutureNetworkClient;
 import network.t0.sdk.network.NetworkClient;
+import network.t0.sdk.proto.tzero.v1.payment.ApprovePaymentQuoteRequest;
+import network.t0.sdk.proto.tzero.v1.payment.ApprovePaymentQuoteResponse;
+import network.t0.sdk.proto.tzero.v1.payment.NetworkServiceGrpc;
+import network.t0.sdk.proto.tzero.v1.payment.ProviderServiceGrpc;
+import network.t0.sdk.proto.tzero.v1.payment.UpdateQuoteRequest;
+import network.t0.sdk.proto.tzero.v1.payment.UpdateQuoteResponse;
 import org.assertj.core.api.SoftAssertions;
 import org.junit.jupiter.api.Timeout;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -33,8 +43,11 @@ import java.util.Locale;
 import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.function.BiConsumer;
+import java.util.function.Function;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
@@ -125,7 +138,7 @@ class ClientProbeTest {
         return log.lines().filter(line -> line.startsWith(prefix)).toList();
     }
 
-    /** How a call ended: "ok" for a SERVING reply, else the error code; and its message. */
+    /** How a call ended: "ok" for a successful reply, else the error code; and its message. */
     private record Outcome(String code, String detail) {}
 
     /** A custom signer: the impostor key's signature and key, changed as the case says. */
@@ -154,80 +167,130 @@ class ClientProbeTest {
         };
     }
 
+    // The methods a case can call, by their full names, besides Health/Check.
+    private static final String APPROVE_PAYMENT_QUOTES = "tzero.v1.payment.ProviderService/ApprovePaymentQuotes";
+    private static final String UPDATE_QUOTE = "tzero.v1.payment.NetworkService/UpdateQuote";
+
     /**
-     * Each client the Java SDK ships, making one unary Health/Check as the case says: built with the case's
-     * client timeout through the client's public factory, and with its per-call deadline on the stub.
+     * Each client the Java SDK ships, making the case's one unary call: Health/Check, or the case's method
+     * with an empty request on a client of its service. The client is built with the case's client timeout
+     * through its public factory, and the case's per-call deadline is set on the stub.
      */
     enum Client {
         BLOCKING {
             @Override
             Outcome call(String baseUrl, DigestSigner signer, JsonObject c) {
-                BlockingNetworkClient<HealthGrpc.HealthBlockingStub> client = c.has("client_timeout_ms")
-                        ? BlockingNetworkClient.create(baseUrl, signer, HealthGrpc::newBlockingStub,
-                                clientTimeout(c), NetworkClient.DEFAULT_STREAM_TIMEOUT)
-                        : BlockingNetworkClient.create(baseUrl, signer, HealthGrpc::newBlockingStub);
-                try (client) {
-                    HealthGrpc.HealthBlockingStub stub = c.has("call_timeout_ms")
-                            ? client.stub(callTimeoutMs(c), TimeUnit.MILLISECONDS)
-                            : client.stub();
-                    return outcome(() -> stub.check(HealthCheckRequest.getDefaultInstance()));
-                }
+                return switch (method(c)) {
+                    case "" -> blocking(baseUrl, signer, c, HealthGrpc::newBlockingStub,
+                            stub -> stub.check(HealthCheckRequest.getDefaultInstance()));
+                    case APPROVE_PAYMENT_QUOTES -> blocking(baseUrl, signer, c, ProviderServiceGrpc::newBlockingStub,
+                            stub -> stub.approvePaymentQuotes(ApprovePaymentQuoteRequest.getDefaultInstance()));
+                    case UPDATE_QUOTE -> blocking(baseUrl, signer, c, NetworkServiceGrpc::newBlockingStub,
+                            stub -> stub.updateQuote(UpdateQuoteRequest.getDefaultInstance()));
+                    default -> throw unknownMethod(c);
+                };
             }
         },
         ASYNC {
             @Override
             Outcome call(String baseUrl, DigestSigner signer, JsonObject c) {
-                AsyncNetworkClient<HealthGrpc.HealthStub> client = c.has("client_timeout_ms")
-                        ? AsyncNetworkClient.create(baseUrl, signer, HealthGrpc::newStub,
-                                clientTimeout(c), NetworkClient.DEFAULT_STREAM_TIMEOUT)
-                        : AsyncNetworkClient.create(baseUrl, signer, HealthGrpc::newStub);
-                // The wait stays inside the try: closing the client cancels a call still in flight.
-                try (client) {
-                    HealthGrpc.HealthStub stub = c.has("call_timeout_ms")
-                            ? client.stub(callTimeoutMs(c), TimeUnit.MILLISECONDS)
-                            : client.stub();
-                    return outcome(() -> {
-                        CompletableFuture<HealthCheckResponse> reply = new CompletableFuture<>();
-                        stub.check(HealthCheckRequest.getDefaultInstance(), new StreamObserver<>() {
-                            @Override
-                            public void onNext(HealthCheckResponse response) {
-                                reply.complete(response);
-                            }
-
-                            @Override
-                            public void onError(Throwable t) {
-                                reply.completeExceptionally(t);
-                            }
-
-                            @Override
-                            public void onCompleted() {
-                                reply.completeExceptionally(new AssertionError("completed without a reply"));
-                            }
-                        });
-                        return reply.get(WAIT_SECONDS, TimeUnit.SECONDS);
-                    });
-                }
+                return switch (method(c)) {
+                    case "" -> async(baseUrl, signer, c, HealthGrpc::newStub,
+                            (HealthGrpc.HealthStub stub, StreamObserver<HealthCheckResponse> reply) ->
+                                    stub.check(HealthCheckRequest.getDefaultInstance(), reply));
+                    case APPROVE_PAYMENT_QUOTES -> async(baseUrl, signer, c, ProviderServiceGrpc::newStub,
+                            (ProviderServiceGrpc.ProviderServiceStub stub,
+                             StreamObserver<ApprovePaymentQuoteResponse> reply) ->
+                                    stub.approvePaymentQuotes(ApprovePaymentQuoteRequest.getDefaultInstance(), reply));
+                    case UPDATE_QUOTE -> async(baseUrl, signer, c, NetworkServiceGrpc::newStub,
+                            (NetworkServiceGrpc.NetworkServiceStub stub, StreamObserver<UpdateQuoteResponse> reply) ->
+                                    stub.updateQuote(UpdateQuoteRequest.getDefaultInstance(), reply));
+                    default -> throw unknownMethod(c);
+                };
             }
         },
         FUTURE {
             @Override
             Outcome call(String baseUrl, DigestSigner signer, JsonObject c) {
-                FutureNetworkClient<HealthGrpc.HealthFutureStub> client = c.has("client_timeout_ms")
-                        ? FutureNetworkClient.create(baseUrl, signer, HealthGrpc::newFutureStub,
-                                clientTimeout(c), NetworkClient.DEFAULT_STREAM_TIMEOUT)
-                        : FutureNetworkClient.create(baseUrl, signer, HealthGrpc::newFutureStub);
-                // The wait stays inside the try: closing the client cancels a call still in flight.
-                try (client) {
-                    HealthGrpc.HealthFutureStub stub = c.has("call_timeout_ms")
-                            ? client.stub(callTimeoutMs(c), TimeUnit.MILLISECONDS)
-                            : client.stub();
-                    return outcome(() -> stub.check(HealthCheckRequest.getDefaultInstance())
-                            .get(WAIT_SECONDS, TimeUnit.SECONDS));
-                }
+                return switch (method(c)) {
+                    case "" -> future(baseUrl, signer, c, HealthGrpc::newFutureStub,
+                            stub -> stub.check(HealthCheckRequest.getDefaultInstance()));
+                    case APPROVE_PAYMENT_QUOTES -> future(baseUrl, signer, c, ProviderServiceGrpc::newFutureStub,
+                            stub -> stub.approvePaymentQuotes(ApprovePaymentQuoteRequest.getDefaultInstance()));
+                    case UPDATE_QUOTE -> future(baseUrl, signer, c, NetworkServiceGrpc::newFutureStub,
+                            stub -> stub.updateQuote(UpdateQuoteRequest.getDefaultInstance()));
+                    default -> throw unknownMethod(c);
+                };
             }
         };
 
         abstract Outcome call(String baseUrl, DigestSigner signer, JsonObject c);
+
+        private static <S extends AbstractBlockingStub<S>> Outcome blocking(
+                String baseUrl, DigestSigner signer, JsonObject c, Function<Channel, S> factory, Function<S, ?> call) {
+            BlockingNetworkClient<S> client = c.has("client_timeout_ms")
+                    ? BlockingNetworkClient.create(baseUrl, signer, factory, clientTimeout(c),
+                            NetworkClient.DEFAULT_STREAM_TIMEOUT)
+                    : BlockingNetworkClient.create(baseUrl, signer, factory);
+            try (client) {
+                S stub = c.has("call_timeout_ms") ? client.stub(callTimeoutMs(c), TimeUnit.MILLISECONDS) : client.stub();
+                return outcome(() -> call.apply(stub));
+            }
+        }
+
+        private static <S extends AbstractAsyncStub<S>, R> Outcome async(String baseUrl, DigestSigner signer,
+                JsonObject c, Function<Channel, S> factory, BiConsumer<S, StreamObserver<R>> call) {
+            AsyncNetworkClient<S> client = c.has("client_timeout_ms")
+                    ? AsyncNetworkClient.create(baseUrl, signer, factory, clientTimeout(c),
+                            NetworkClient.DEFAULT_STREAM_TIMEOUT)
+                    : AsyncNetworkClient.create(baseUrl, signer, factory);
+            // The wait stays inside the try: closing the client cancels a call still in flight.
+            try (client) {
+                S stub = c.has("call_timeout_ms") ? client.stub(callTimeoutMs(c), TimeUnit.MILLISECONDS) : client.stub();
+                return outcome(() -> {
+                    CompletableFuture<R> reply = new CompletableFuture<>();
+                    call.accept(stub, new StreamObserver<>() {
+                        @Override
+                        public void onNext(R response) {
+                            reply.complete(response);
+                        }
+
+                        @Override
+                        public void onError(Throwable t) {
+                            reply.completeExceptionally(t);
+                        }
+
+                        @Override
+                        public void onCompleted() {
+                            reply.completeExceptionally(new AssertionError("completed without a reply"));
+                        }
+                    });
+                    return reply.get(WAIT_SECONDS, TimeUnit.SECONDS);
+                });
+            }
+        }
+
+        private static <S extends AbstractFutureStub<S>> Outcome future(String baseUrl, DigestSigner signer,
+                JsonObject c, Function<Channel, S> factory, Function<S, ? extends Future<?>> call) {
+            FutureNetworkClient<S> client = c.has("client_timeout_ms")
+                    ? FutureNetworkClient.create(baseUrl, signer, factory, clientTimeout(c),
+                            NetworkClient.DEFAULT_STREAM_TIMEOUT)
+                    : FutureNetworkClient.create(baseUrl, signer, factory);
+            // The wait stays inside the try: closing the client cancels a call still in flight.
+            try (client) {
+                S stub = c.has("call_timeout_ms") ? client.stub(callTimeoutMs(c), TimeUnit.MILLISECONDS) : client.stub();
+                return outcome(() -> call.apply(stub).get(WAIT_SECONDS, TimeUnit.SECONDS));
+            }
+        }
+
+        /** The case's method, or "" for Health/Check. */
+        private static String method(JsonObject c) {
+            return c.has("method") ? c.get("method").getAsString() : "";
+        }
+
+        private static AssertionError unknownMethod(JsonObject c) {
+            return new AssertionError("no client for method " + method(c) + " of case " + c.get("name").getAsString());
+        }
 
         private static Duration clientTimeout(JsonObject c) {
             return Duration.ofMillis(c.get("client_timeout_ms").getAsLong());
@@ -239,16 +302,18 @@ class ClientProbeTest {
     }
 
     /**
-     * How the call ended. A blocking call throws its StatusRuntimeException; an async or future call ends with
-     * it as the cause of the ExecutionException. Any other end is reported as it is, so it fails every case.
+     * How the call ended: "ok" for a SERVING Health reply or any reply of another method. A blocking call throws
+     * its StatusRuntimeException; an async or future call ends with it as the cause of the ExecutionException.
+     * Any other end is reported as it is, so it fails every case.
      */
-    private static Outcome outcome(Callable<HealthCheckResponse> call) {
+    private static Outcome outcome(Callable<?> call) {
         Throwable error;
         try {
-            HealthCheckResponse response = call.call();
-            return response.getStatus() == HealthCheckResponse.ServingStatus.SERVING
-                    ? new Outcome("ok", "")
-                    : new Outcome(response.getStatus().name(), "");
+            Object response = call.call();
+            return response instanceof HealthCheckResponse health
+                    && health.getStatus() != HealthCheckResponse.ServingStatus.SERVING
+                    ? new Outcome(health.getStatus().name(), "")
+                    : new Outcome("ok", "");
         } catch (ExecutionException e) {
             error = e.getCause();
         } catch (TimeoutException e) {

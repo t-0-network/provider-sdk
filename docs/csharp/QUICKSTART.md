@@ -20,21 +20,25 @@ The initializer generates a complete project with:
 
 ```csharp
 using T0.ProviderSdk;
+using T0.ProviderSdk.Api.Tzero.V1.Payment;
 using T0.ProviderSdk.Crypto;
 using T0.ProviderSdk.Network;
 
 MyProvider.Config.LoadEnv();
 var config = MyProvider.Config.FromEnvironment();
 var signer = Signer.FromHex(config.ProviderPrivateKey);
-var networkClient = NetworkClient.CreateNetworkServiceClient(config.TZeroEndpoint, signer);
 
 var server = new T0ProviderServer(config, signer);
-server.MapPaymentService<MyProvider.Services.PaymentHandler>(networkClient);
+// PaymentHandler and QuotePublisher take the client in their constructors.
+server.Services.AddSingleton(NetworkClient.Create(
+    new NetworkClientOptions { BaseUrl = config.TZeroEndpoint }, signer,
+    invoker => new NetworkService.NetworkServiceClient(invoker)));
+server.MapService<MyProvider.Services.PaymentHandler>();
 server.AddHostedService<MyProvider.Services.QuotePublisher>();
 await server.RunAsync();
 ```
 
-The overload that takes `NetworkClientOptions` in place of the base URL also sets `Timeout` (unary calls, default 15 s) and `StreamTimeout` (client and server streams, default 5 min); see [Streaming and timeouts](../../csharp/README.md#streaming-and-timeouts).
+`NetworkClient.Create` takes the client of any generated service. `NetworkClientOptions` also sets `Timeout` (unary calls, default 30 s) and `StreamTimeout` (client and server streams, default 5 min), for methods without a timeout option in the proto; see [Streaming and timeouts](../../csharp/README.md#streaming-and-timeouts). `MapService` maps the handler of any generated service and reports the service in health.
 
 ## Environment Variables
 
@@ -67,15 +71,22 @@ If a key is missing, or `PORT` is not a port number, the process prints `ERROR: 
 9. **Step 2.5** — Ask T-0 team to test payout to your provider
 10. **Step 2.6 (optional)** — Complete manual AML checks via `CompleteManualAmlCheck` if your `PayOut` handler returns `ManualAmlCheck`
 
+The payment intent flow (Phase 3) is independent of Phase 2. Implement the role that applies to you:
+
+- **Pay-in provider (3A):** publish pay-in quotes (`PaymentIntentQuotePublisher`), implement `GetPaymentDetails` (`PaymentIntentPayInHandler`), and call `ConfirmFundsReceived` when the end-user's payment arrives.
+- **Beneficiary provider (3B):** check indicative quotes (`GetPaymentIntentQuote`), create payment intents (`CreatePaymentIntent`), and implement `PaymentIntentUpdate` (`PaymentIntentBeneficiaryHandler`).
+
 ## PaymentIntent Support
 
-For providers handling payment intents, map an additional service:
-
 ```csharp
-var intentNetworkClient = NetworkClient.CreatePaymentIntentNetworkServiceClient(
-    config.TZeroEndpoint, signer);
+server.Services.AddSingleton(NetworkClient.Create(
+    new NetworkClientOptions { BaseUrl = config.TZeroEndpoint }, signer,
+    invoker => new PaymentIntentService.PaymentIntentServiceClient(invoker)));
 
-server.MapPaymentIntentService<MyProvider.Services.PaymentIntentHandler>(intentNetworkClient);
+// Pay-in provider role
+server.MapService<MyProvider.Services.PaymentIntentPayInHandler>();
+// Beneficiary provider role
+server.MapService<MyProvider.Services.PaymentIntentBeneficiaryHandler>();
 ```
 
 ## Testing Your Handler

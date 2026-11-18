@@ -5,6 +5,7 @@ using Grpc.Core;
 using Grpc.Health.V1;
 using T0.ProviderSdk.Crypto;
 using T0.ProviderSdk.Network;
+using PaymentApi = T0.ProviderSdk.Api.Tzero.V1.Payment;
 
 namespace T0.ProviderSdk.Tests.CrossTest;
 
@@ -64,16 +65,13 @@ public class ClientProbeTests
                     : null;
                 // C# has no hex-key form: the default and `signer` factory both take Signer.FromHex.
                 SignFn sign = c.TryGetProperty("custom_signer", out var custom) ? CustomSigner(impostor, custom) : signer;
-                var client = NetworkClient.Create(options, sign, invoker => new Health.HealthClient(invoker));
+                var method = c.TryGetProperty("method", out var m) ? m.GetString() : null;
 
                 var logged = Logged().Length;
                 string code, detail;
                 try
                 {
-                    var reply = await client.CheckAsync(new HealthCheckRequest(), deadline: deadline);
-                    (code, detail) = reply.Status == HealthCheckResponse.Types.ServingStatus.Serving
-                        ? ("ok", "")
-                        : ("not serving", reply.Status.ToString());
+                    (code, detail) = await CallAsync(method, options, sign, deadline);
                 }
                 catch (RpcException e)
                 {
@@ -99,6 +97,32 @@ public class ClientProbeTests
             failures.Add($"client-probe logged:\n{string.Join("\n", fails)}");
         Assert.True(failures.Count == 0,
             string.Join("\n", failures) + "\nclient-probe log:\n" + string.Join("\n", Logged()));
+    }
+
+    // Calls the case's method with an empty request, on a client of its service that the SDK's usual
+    // factory builds, or Health/Check when the case names none.
+    private static async Task<(string Code, string Detail)> CallAsync(
+        string? method, NetworkClientOptions options, SignFn sign, DateTime? deadline)
+    {
+        switch (method)
+        {
+            case null:
+                var reply = await NetworkClient.Create(options, sign, invoker => new Health.HealthClient(invoker))
+                    .CheckAsync(new HealthCheckRequest(), deadline: deadline);
+                return reply.Status == HealthCheckResponse.Types.ServingStatus.Serving
+                    ? ("ok", "")
+                    : ("not serving", reply.Status.ToString());
+            case "tzero.v1.payment.ProviderService/ApprovePaymentQuotes":
+                await NetworkClient.Create(options, sign, invoker => new PaymentApi.ProviderService.ProviderServiceClient(invoker))
+                    .ApprovePaymentQuotesAsync(new PaymentApi.ApprovePaymentQuoteRequest(), deadline: deadline);
+                return ("ok", "");
+            case "tzero.v1.payment.NetworkService/UpdateQuote":
+                await NetworkClient.Create(options, sign, invoker => new PaymentApi.NetworkService.NetworkServiceClient(invoker))
+                    .UpdateQuoteAsync(new PaymentApi.UpdateQuoteRequest(), deadline: deadline);
+                return ("ok", "");
+            default:
+                throw new ArgumentException($"client case names an unknown method: {method}");
+        }
     }
 
     // The FAIL lines of case name ("FAIL <name>: <reason>"), or every FAIL line when name is null.

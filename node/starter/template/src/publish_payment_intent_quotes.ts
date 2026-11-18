@@ -10,9 +10,12 @@ export default async function publishPaymentIntentQuotes(
 ): Promise<void> {
   // TODO: Step 3A.1 replace this with fetching pay-in quotes from your systems and publishing them into t-0 Network.
   // We recommend publishing at least once per 5 seconds, but not more than once per second.
+  // Each quote expires at publish time + publishing interval + 35 s: a client that gets it just
+  // before the next publish still has 30 s to use it; the 5 s cover network delay.
   const sampleMaxAmount = decimalFromString("1000");
   const sampleRate = decimalFromString("0.92");
   const tick = async () => {
+    const now = Date.now();
     try {
       // NOTE: Every updateQuote request discards all previous payment intent quotes
       // that were published before. Combine multiple quotes into a single request.
@@ -20,8 +23,8 @@ export default async function publishPaymentIntentQuotes(
         paymentIntentQuotes: [{
           currency: 'EUR',
           paymentMethod: PaymentMethodType.SEPA,
-          expiration: timestampFromDate(new Date(Date.now() + 30 * 1000)), // 30 seconds from now
-          timestamp: timestampFromDate(new Date()),
+          expiration: timestampFromDate(new Date(now + quotePublishingInterval + 35_000)), // publish time + publishing interval + 35 s
+          timestamp: timestampFromDate(new Date(now)),
           bands: [{
             clientQuoteId: randomUUID(),
             maxAmount: sampleMaxAmount, // max 1000 USD for this band

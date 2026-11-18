@@ -13,10 +13,14 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
+	commonv1 "github.com/t-0-network/provider-sdk/go/api/tzero/v1/common"
 	"github.com/t-0-network/provider-sdk/go/common"
 	"github.com/t-0-network/provider-sdk/go/crypto"
 	"github.com/t-0-network/provider-sdk/go/internal/contract"
 	"github.com/t-0-network/provider-sdk/go/internal/envelope"
+	"google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/types/known/durationpb"
 )
 
 // SigningTransportOption configures a SigningTransport.
@@ -226,8 +230,9 @@ func closeRequestBody(req *http.Request) {
 	}
 }
 
-// callTimeouts gives each call whose context has no deadline the timeout of its stream type. It is
-// an interceptor because the transport cannot tell gRPC unary from gRPC server-streaming requests.
+// callTimeouts gives each call whose context has no deadline a timeout: the timeout option
+// (tzero.v1.common.timeout) of its method, else the client's timeout of its stream type. It is an
+// interceptor because the transport cannot tell gRPC unary from gRPC server-streaming requests.
 type callTimeouts struct {
 	unary, stream time.Duration
 }
@@ -237,7 +242,7 @@ func (c callTimeouts) WrapUnary(next connect.UnaryFunc) connect.UnaryFunc {
 		if _, ok := ctx.Deadline(); ok {
 			return next(ctx, req)
 		}
-		ctx, cancel := context.WithTimeout(ctx, c.unary)
+		ctx, cancel := context.WithTimeout(ctx, timeoutOf(req.Spec(), c.unary))
 		defer cancel()
 		return next(ctx, req)
 	}
@@ -248,9 +253,20 @@ func (c callTimeouts) WrapStreamingClient(next connect.StreamingClientFunc) conn
 		if _, ok := ctx.Deadline(); ok {
 			return next(ctx, spec)
 		}
-		ctx, cancel := context.WithTimeout(ctx, c.stream)
+		ctx, cancel := context.WithTimeout(ctx, timeoutOf(spec, c.stream))
 		return &cancelOnCloseConn{StreamingClientConn: next(ctx, spec), cancel: cancel}
 	}
+}
+
+// timeoutOf is the timeout option (tzero.v1.common.timeout) of the method spec describes, or
+// fallback when the method has none. The client's own timeout never replaces the option: the
+// network answers within it, so a shorter wait can miss an answer.
+func timeoutOf(spec connect.Spec, fallback time.Duration) time.Duration {
+	method, ok := spec.Schema.(protoreflect.MethodDescriptor)
+	if !ok || !proto.HasExtension(method.Options(), commonv1.E_Timeout) {
+		return fallback
+	}
+	return proto.GetExtension(method.Options(), commonv1.E_Timeout).(*durationpb.Duration).AsDuration()
 }
 
 func (callTimeouts) WrapStreamingHandler(next connect.StreamingHandlerFunc) connect.StreamingHandlerFunc {

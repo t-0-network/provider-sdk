@@ -16,6 +16,8 @@ import java.util.UUID;
  *
  * <p>TODO: Step 1.3 replace this with fetching quotes from your systems and publishing them into t-0 Network.
  * We recommend publishing at least once per 5 seconds, but not more than once per second.
+ * Each quote expires at publish time + publishing interval + 35 s: a client that gets it just
+ * before the next publish still has 30 s to use it; the 5 s cover network delay.
  */
 public class PublishQuotes {
 
@@ -25,16 +27,18 @@ public class PublishQuotes {
      * Publishes quotes to the T-0 Network.
      *
      * @param networkClient the network service client
+     * @param intervalMs    the publishing interval, in milliseconds
      */
-    public static void publish(NetworkServiceGrpc.NetworkServiceBlockingStub networkClient) {
+    public static void publish(NetworkServiceGrpc.NetworkServiceBlockingStub networkClient, long intervalMs) {
         try {
             String currency = "EUR";
             PaymentMethodType paymentMethod = PaymentMethodType.PAYMENT_METHOD_TYPE_SEPA;
 
             Instant now = Instant.now();
+            Instant expiresAt = now.plusMillis(intervalMs + 35_000); // publish time + publishing interval + 35 s
             Timestamp expiration = Timestamp.newBuilder()
-                    .setSeconds(now.plusSeconds(30).getEpochSecond())
-                    .setNanos(now.plusSeconds(30).getNano())
+                    .setSeconds(expiresAt.getEpochSecond())
+                    .setNanos(expiresAt.getNano())
                     .build();
             Timestamp timestamp = Timestamp.newBuilder()
                     .setSeconds(now.getEpochSecond())

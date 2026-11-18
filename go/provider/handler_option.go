@@ -27,7 +27,7 @@ type providerHandlerOptions struct {
 	sdkVersion                 string
 }
 
-func newDefaultHandlerOptions(resolve signature.KeyResolver, logger *slog.Logger, sdkVersion string) (providerHandlerOptions, error) {
+func newDefaultHandlerOptions(resolve signature.KeyResolver, logger *slog.Logger, sdkVersion string) providerHandlerOptions {
 	if logger == nil {
 		logger = slog.Default()
 	}
@@ -38,7 +38,7 @@ func newDefaultHandlerOptions(resolve signature.KeyResolver, logger *slog.Logger
 		},
 		resolve: resolve,
 		logger:  logger,
-	}, nil
+	}
 }
 
 type HandlerOption func(*providerHandlerOptions)
