@@ -74,9 +74,11 @@ class _RecordingClient:
 
 
 class TestBidiStreamsAreRejected:
+    @pytest.mark.parametrize("timeout_ms", [None, 0], ids=["default timeout", "timeout 0"])
     @pytest.mark.parametrize("protocol", [Protocol.CONNECT, Protocol.GRPC])
-    def test_async_client(self, protocol: Protocol) -> None:
-        """The async execute_bidi_stream returns the response iterator, so the call itself fails."""
+    def test_async_client(self, protocol: Protocol, timeout_ms: int | None) -> None:
+        """The async execute_bidi_stream returns the response iterator, so the call itself fails. The
+        refusal comes before any deadline check, as Go's rejectBidi runs before its call timeouts."""
         read: list[str] = []
 
         async def messages():
@@ -87,7 +89,7 @@ class TestBidiStreamsAreRejected:
         recorder = client._http_client._inner = _RecordingClient()
 
         with pytest.raises(ConnectError) as exc_info:
-            client.bidi_stream(messages())
+            client.bidi_stream(messages(), timeout_ms=timeout_ms)
         assert exc_info.value.code == Code.UNIMPLEMENTED
         assert exc_info.value.message == "bidirectional streams are not supported"
         assert recorder.calls == []

@@ -31,7 +31,6 @@ from t0_provider_sdk.provider.middleware import (
     _body_limit,
     _check_headers,
     _declared_length,
-    _rejection_body,
     _verify_body,
     signature_error_var,
 )
@@ -50,11 +49,11 @@ def signature_verification_middleware_wsgi(
 
     The same rules as signature_verification_middleware (ASGI): the signature headers are checked,
     then the body is read (at most max_body_size bytes) and the signature verified over it, before
-    the app reads anything. A rejected request goes on with an empty request message in place of
-    its body, and the interceptor answers it with the rejection's code and message. A request whose
-    method is not POST is refused first, before its headers are checked, and never reaches the app:
-    the middleware answers it itself, Unimplemented as a Connect unary error. verify_fn is taken as
-    by signature_verification_middleware.
+    the app reads anything. A rejected request goes on with an empty body, and the signature
+    interceptor, which connectrpc runs before it reads the body, answers it with the rejection's code
+    and message. A request whose method is not POST is refused first, before its headers are
+    checked, and never reaches the app: the middleware answers it itself, Unimplemented as a Connect
+    unary error. verify_fn is taken as by signature_verification_middleware.
     """
     max_body_size = _body_limit(max_body_size)
 
@@ -75,14 +74,14 @@ def signature_verification_middleware_wsgi(
             _verify_body(verify_fn, headers, body, signed)
         except SignatureVerificationError as e:
             error = e
-            body = _rejection_body(headers)
-            # The replayed body is neither compressed nor of the sent length.
-            for key in ("HTTP_CONTENT_ENCODING", "HTTP_CONNECT_CONTENT_ENCODING", "HTTP_GRPC_ENCODING"):
-                environ.pop(key, None)
+            # Nothing the caller sent goes on to the app. The empty input matters: after an error,
+            # connectrpc reads what is left of the input over HTTP/1, up to CONTENT_LENGTH.
+            body = b""
 
-        # Replay body to downstream. A unary call has passed the interceptor by the time the app
-        # returns, so the result is reset then: the thread serves other requests in this context,
-        # and the response iterable, which may run later, never needs it.
+        # Replay body to downstream. Every call has passed the interceptor, which runs before the
+        # body is read, by the time the app returns, so the result is reset then: the thread serves
+        # other requests in this context, and the response iterable, which may run later, never
+        # needs it.
         environ["wsgi.input"] = io.BytesIO(body)
         environ["CONTENT_LENGTH"] = str(len(body))
         token = signature_error_var.set(error)

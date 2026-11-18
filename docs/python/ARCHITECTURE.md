@@ -347,7 +347,7 @@ The SDK requires **Python 3.13+** and uses **Hatchling** as the build backend.
 
 The server-side signature verification uses a **two-phase architecture** to bridge the gap between raw HTTP processing and ConnectRPC's application-level interceptor system.
 
-**Why two phases?** Signature verification MUST operate on raw HTTP body bytes (before Protobuf deserialization), but ConnectRPC's interceptor system only runs after deserialization. A single-layer approach is impossible without modifying ConnectRPC internals.
+**Why two phases?** Signature verification MUST operate on raw HTTP body bytes, and no ConnectRPC interceptor sees them: interceptors see the decoded message or, for a metadata interceptor, only the headers. So the middleware verifies the raw bytes, and the interceptor turns its result into the error code. The interceptor is a metadata interceptor at the front of the list, which ConnectRPC runs before it reads the body (since connectrpc 0.12), so a rejected call is answered before anything the caller sent is read or decoded.
 
 ```mermaid
 sequenceDiagram
@@ -370,7 +370,7 @@ sequenceDiagram
         MW->>CV: Store None
     end
 
-    MW->>MW: Create synthetic receive<br/>(replay buffered body)
+    MW->>MW: Create synthetic receive<br/>(replay buffered body; empty if rejected)
     MW->>INT: Forward to ConnectRPC app
 
     INT->>CV: Read stored error
@@ -387,10 +387,10 @@ sequenceDiagram
 - Both variants check the signature headers first (V10 in `docs/CROSS_SDK_RULES.md`: presence and format, the window, the network key, the signature length), then read the body (at most the limit; a declared `Content-Length` over it is refused unread), then verify the signature over the raw bytes, and store any error in a `contextvars.ContextVar`
 - **ASGI:** reads the body through the raw `receive` callable and replays it with a synthetic `receive`, which after the body is the server's own, so the app learns of a disconnect when the client disconnects, not before; for a rejected request it first reads and discards what the caller is still sending (bounded), so the caller reads the answer instead of a reset connection
 - **WSGI:** reads the body from `environ["wsgi.input"]` and replaces it with a `BytesIO`
-- A rejected request goes on with an empty request message in place of its body (and without its encoding headers), so ConnectRPC decodes nothing the caller sent and reaches the interceptor, which answers with the rejection whatever the body held
+- A rejected request goes on with an empty body. The interceptor answers it before ConnectRPC reads the body, so the answer is the rejection whatever the body and its encoding headers hold. On WSGI the empty input matters after the answer too: ConnectRPC then reads what is left of the input over HTTP/1, up to `CONTENT_LENGTH`
 
 **Phase 2 -- ConnectRPC Interceptor:**
-- Runs inside ConnectRPC's request pipeline, after Protobuf deserialization
+- A ConnectRPC metadata interceptor, first in the list, so it runs before the request body is read or decoded, for every kind of method (unary and streaming)
 - Reads the error (if any) from `contextvars`
 - Raises a properly typed `ConnectError` with the appropriate status code
 - If no error is present, proceeds to the service handler
@@ -699,7 +699,7 @@ def new_service_client_sync(
 
 The functions check the base URL (rule C2 in [`docs/CROSS_SDK_RULES.md`](../CROSS_SDK_RULES.md)) and the key, create a `SignFn` from the private key (unless `sign_fn` is given), wrap it in `SigningClient`/`SigningSyncClient`, and pass it as the `http_client` parameter to the generated ConnectRPC client constructor, together with the protocol, the codec for `WireFormat.JSON` and `send_compression=None` (requests go out uncompressed). `Protocol.GRPC` on an `http://` base URL gets an HTTP/2 transport without TLS.
 
-`timeout` (15 s) is the default of unary calls and `stream_timeout` (300 s) that of client- and server-streaming calls; a per-call `timeout_ms` replaces it, shorter or longer. A `timeout` or `stream_timeout` that is not greater than zero raises `ValueError`; a per-call `timeout_ms` goes to connectrpc as is. Bidirectional calls raise `ConnectError(Code.UNIMPLEMENTED)` before anything is sent. See [docs/STREAMING.md](../STREAMING.md#stream-timeout).
+`timeout` (15 s) is the default of unary calls and `stream_timeout` (300 s) that of client- and server-streaming calls; a per-call `timeout_ms` replaces it, shorter or longer. A `timeout` or `stream_timeout` that is not greater than zero raises `ValueError`; a per-call `timeout_ms` goes to connectrpc as is. Bidirectional calls raise `ConnectError(Code.UNIMPLEMENTED)` before anything is sent: the factories give the client an interceptor (`_RejectBidi`) that refuses them when they are called, as Go's `rejectBidi` does. See [docs/STREAMING.md](../STREAMING.md#stream-timeout).
 
 #### 4.3.3 `options.py`
 
@@ -756,7 +756,7 @@ The most complex modules in the SDK. Implement Phase 1 of the [two-phase verific
 1. Checks the headers with `_check_headers()`
 2. Reads the body with `_BodyReader.read()` (enforcing the size limit)
 3. Verifies the signature with `_verify_body()`
-4. Stores the result (an error, or `None`) in `signature_error_var`; for an error, replaces the body with `_rejection_body()`. If the caller is still sending, the answer goes out at once and only the message that ends the response waits while the rest of the body is read (`_AnswerThenDrain`), at most 4× the body limit and 1 s, so an HTTP/1.1 client reads the answer instead of a reset under its upload. HTTP/2 without trailers ends at once, without a drain
+4. Stores the result (an error, or `None`) in `signature_error_var`; for an error, replaces the body with an empty one, which the app never reads. If the caller is still sending, the answer goes out at once and only the message that ends the response waits while the rest of the body is read (`_AnswerThenDrain`), at most 4× the body limit and 1 s, so an HTTP/1.1 client reads the answer instead of a reset under its upload. HTTP/2 without trailers ends at once, without a drain
 5. Forwards to the downstream ASGI app with a `receive` that replays the body and is then the server's own, and resets `signature_error_var` when it returns
 
 `verify_fn` is the `VerifySignatureFn` built by `new_verify_signature`, or, as in 1.2.1, a `CustomVerifyFn` of the caller's own, called after the header checks and before the body is decoded; such a function decides the signature itself. `new_asgi_app` and `new_wsgi_app` always use the network key.
@@ -773,7 +773,6 @@ The most complex modules in the SDK. Implement Phase 1 of the [two-phase verific
 | `_parse_timestamp(headers)` | Parses the timestamp header (ASCII digits, below 2^63), returns `(ms_int, LE_8bytes)` |
 | `_BodyReader` | Reads the ASGI body with size enforcement, and drains a rejected one after its answer |
 | `_AnswerThenDrain` | Wraps `send` for a rejected call: sends the answer at once, then reads the rest of the body (bounded by bytes and time) before ending the response |
-| `_rejection_body(headers)` | The empty request message replayed in place of a rejected body |
 | `_replay_receive(body, receive)` | Returns an ASGI `receive` that gives the body, then whatever `receive` gives: the server's own, or `_client_gone` while `_AnswerThenDrain` is still reading a rejected body |
 
 #### 4.4.3 `interceptor.py` -- ConnectRPC Error Conversion
@@ -782,17 +781,21 @@ Implements Phase 2 of the two-phase verification. Provides both async and sync i
 
 ```python
 class SignatureErrorInterceptor:
-    """Async interceptor. Implements UnaryInterceptor Protocol."""
-    async def intercept_unary(self, call_next, request, ctx) -> Any: ...
+    """Async interceptor. Implements the MetadataInterceptor Protocol."""
+    async def on_start(self, ctx) -> None: ...
+    async def on_end(self, token, ctx, error, /) -> None: ...
 
 class SignatureErrorInterceptorSync:
-    """Sync interceptor."""
-    def intercept_unary_sync(self, call_next, request, ctx) -> Any: ...
+    """Sync interceptor. Implements the MetadataInterceptorSync Protocol."""
+    def on_start_sync(self, ctx) -> None: ...
+    def on_end_sync(self, token, ctx, error, /) -> None: ...
 ```
 
-Both interceptors call `_raise_if_signature_error()` which reads from `signature_error_var` and raises `ConnectError` with the appropriate code, or `INTERNAL` ("no signature result in context") when the value is still `NOT_VERIFIED`.
+Both interceptors call `_raise_if_signature_error()` in their start hook. It reads from `signature_error_var` and raises `ConnectError` with the appropriate code, or `INTERNAL` ("no signature result in context") when the value is still `NOT_VERIFIED`. The end hook does nothing.
 
-> **ConnectRPC Python specifics:** `Interceptor` is a **Union type**, not a base class. Async interceptors implement the `UnaryInterceptor` Protocol with `intercept_unary(self, call_next, request, ctx)`. Sync interceptors implement `UnaryInterceptorSync` with `intercept_unary_sync(self, call_next, request, ctx)`.
+ConnectRPC runs the metadata interceptors at the front of the list before it reads the request body. `handler()` and `handler_sync()` put the signature interceptor first, so a rejected call is answered without reading or decoding its body, and no handler runs, unary or streaming.
+
+> **ConnectRPC Python specifics:** `Interceptor` is a **Union type**, not a base class: an interceptor implements one of its Protocols. A `UnaryInterceptor` (`intercept_unary`) runs for unary methods only, and the streaming ones likewise for their own kind. A `MetadataInterceptor` (`on_start`, `on_end`; sync: `on_start_sync`, `on_end_sync`) runs for every kind of method and sees only the headers.
 
 #### 4.4.4 `handler.py` -- Handler Registration and ASGI/WSGI Composition
 
@@ -887,7 +890,7 @@ The starter template in `starter/template/` is a complete, runnable application.
 ### 4.7 Testing Architecture
 
 - **Unit tests** (`sdk/tests/`) follow the SDK's module layout and need no Go helper. The shared vectors in `cross_test/test_vectors.json` drive the crypto code and both signing wrappers.
-- **Integration tests** (`sdk/tests/integration/`) sign through the client transport and verify through the ASGI and WSGI middleware in one process.
+- **Integration tests** (`sdk/tests/integration/`) sign through the client transport and verify through the ASGI and WSGI middleware in one process. `test_in_memory.py` makes real calls without a port: `SigningClient` and `SigningSyncClient` over `pyqwest.testing`'s `ASGITransport` and `WSGITransport`, to `new_asgi_app` and `new_wsgi_app`, over Connect and gRPC. It includes a handler that awaits before it answers.
 - **Cross-language tests** (`tests/cross_test/`) run against the shared Go helper (`cross_test/go_helper/`): signing and verifying in both directions, server-to-server calls in both directions, and streaming calls to the helper's `test.v1.StreamTest`, whose replies name the framing it verified and whose errors give the reason for a refusal. In CI they fail, not skip, when the helper binary is missing.
 
 ```bash

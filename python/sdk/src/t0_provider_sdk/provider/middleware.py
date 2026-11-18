@@ -165,10 +165,10 @@ def signature_verification_middleware(
 
     The middleware checks the signature headers, then reads the body (at most max_body_size
     bytes) and verifies the signature over it, all before the app reads anything. An accepted
-    request goes on with its body; a rejected one goes on with an empty request message in place of
-    its body, so the RPC library decodes nothing the caller sent, and the interceptor answers it
-    with the rejection's code and message (signature_error_var). That answer is sent at once, without
-    waiting for the rest of the body.
+    request goes on with its body; a rejected one goes on with an empty body, and the signature
+    interceptor, which connectrpc runs before it reads the body, answers it with the rejection's code
+    and message (signature_error_var). That answer is sent at once, without waiting for the rest of
+    the body.
 
     A request whose method is not POST is refused first, before its headers are checked, and never
     reaches the app: the middleware answers it itself, Unimplemented as a Connect unary error.
@@ -199,8 +199,8 @@ def signature_verification_middleware(
             _verify_body(verify_fn, headers, body, signed)
         except SignatureVerificationError as e:
             error = e
-            body = _rejection_body(headers)
-            scope = _rejection_scope(scope, len(body))
+            # Nothing the caller sent goes on to the app.
+            body = b""
             if not reader.done:
                 # The answer goes out at once, never after the rest of the body; what the caller
                 # is still sending is read after it (_AnswerThenDrain).
@@ -324,30 +324,6 @@ def _call_custom_verify_fn(verify_fn: CustomVerifyFn, headers: dict[str, str], b
 def _is_grpc(headers: dict[str, str]) -> bool:
     content_type = headers.get("content-type", "").lower()
     return content_type == "application/grpc" or content_type.startswith(("application/grpc+", "application/grpc;"))
-
-
-def _rejection_body(headers: dict[str, str]) -> bytes:
-    """The body replayed in place of a rejected one: it decodes to an empty request message, so the
-    RPC library reaches the interceptor, which answers with the rejection, whatever the caller sent."""
-    content_type = headers.get("content-type", "").lower()
-    if content_type.startswith(("application/grpc+json", "application/connect+json")):
-        return b"\x00\x00\x00\x00\x02{}"  # one uncompressed frame holding {}
-    if _is_grpc(headers) or content_type.startswith("application/connect+"):
-        return b"\x00\x00\x00\x00\x00"  # one uncompressed frame holding an empty message
-    if content_type.startswith("application/json"):
-        return b"{}"
-    return b""
-
-
-# Request headers that describe the body as sent; the replayed rejection body is neither compressed
-# nor of the sent length.
-_BODY_HEADERS = (b"content-length", b"content-encoding", b"connect-content-encoding", b"grpc-encoding")
-
-
-def _rejection_scope(scope: Scope, length: int) -> Scope:
-    headers = [(k, v) for k, v in scope.get("headers", []) if k.lower() not in _BODY_HEADERS]
-    headers.append((b"content-length", str(length).encode("latin-1")))
-    return {**scope, "headers": headers}
 
 
 def _grpc_frame_payload(headers: dict[str, str], body: bytes) -> bytes | None:

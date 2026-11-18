@@ -1,13 +1,12 @@
 """ConnectRPC interceptor that converts signature errors to proper ConnectError responses.
 
-Reads the error stored by the ASGI or WSGI middleware via contextvars and raises
-ConnectError with the appropriate code before the RPC handler executes.
+Reads the error stored by the ASGI or WSGI middleware via contextvars and raises ConnectError with
+the appropriate code. It is a metadata interceptor, and handler() puts it first, so connectrpc runs
+it before it reads the request body: a rejected call is answered before anything the caller sent
+is decoded, and no handler runs, unary or streaming.
 """
 
 from __future__ import annotations
-
-from collections.abc import Awaitable, Callable
-from typing import Any
 
 from connectrpc.code import Code
 from connectrpc.errors import ConnectError
@@ -43,32 +42,28 @@ def _raise_if_signature_error() -> None:
 
 
 class SignatureErrorInterceptor:
-    """Async ConnectRPC unary interceptor that converts signature verification errors.
+    """Async ConnectRPC metadata interceptor that converts signature verification errors.
 
-    Implements the UnaryInterceptor protocol (connectrpc._interceptor_async.UnaryInterceptor).
+    Implements the MetadataInterceptor protocol (connectrpc._interceptor_async.MetadataInterceptor).
+    At the front of the interceptor list, its on_start runs before the request body is read.
     """
 
-    async def intercept_unary(
-        self,
-        call_next: Callable[[Any, RequestContext], Awaitable[Any]],
-        request: Any,
-        ctx: RequestContext,
-    ) -> Any:
+    async def on_start(self, ctx: RequestContext) -> None:
         _raise_if_signature_error()
-        return await call_next(request, ctx)
+
+    async def on_end(self, token: None, ctx: RequestContext, error: Exception | None, /) -> None:
+        return
 
 
 class SignatureErrorInterceptorSync:
-    """Sync ConnectRPC unary interceptor that converts signature verification errors.
+    """Sync ConnectRPC metadata interceptor that converts signature verification errors.
 
-    Implements the UnaryInterceptorSync protocol (connectrpc._interceptor_sync.UnaryInterceptorSync).
+    Implements the MetadataInterceptorSync protocol (connectrpc._interceptor_sync.MetadataInterceptorSync).
+    At the front of the interceptor list, its on_start_sync runs before the request body is read.
     """
 
-    def intercept_unary_sync(
-        self,
-        call_next: Callable[[Any, RequestContext], Any],
-        request: Any,
-        ctx: RequestContext,
-    ) -> Any:
+    def on_start_sync(self, ctx: RequestContext) -> None:
         _raise_if_signature_error()
-        return call_next(request, ctx)
+
+    def on_end_sync(self, token: None, ctx: RequestContext, error: Exception | None, /) -> None:
+        return
