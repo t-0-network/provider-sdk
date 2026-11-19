@@ -91,13 +91,8 @@ def _metadata() -> UploadFileRequest.Metadata:
     )
 
 
-def _download(file_id: int, client_id: str = "applicant-1") -> DownloadFileRequest:
-    return DownloadFileRequest(
-        file_id=file_id,
-        payout_requester_id=3,
-        payout_provider_id=7,
-        client_id=client_id,
-    )
+def _download(file_id: int) -> DownloadFileRequest:
+    return DownloadFileRequest(file_id=file_id)
 
 
 async def _round_trip_async(base_url: str, protocol: str) -> None:

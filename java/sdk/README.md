@@ -243,8 +243,8 @@ var files = BlockingNetworkClient.create(kybUrl, signer, KycFileServiceGrpc::new
 long fileId = KycFiles.uploadFile(files.stub(), UploadFileRequest.Metadata.newBuilder()
         .setPayoutProviderId(pid).setClientId(cid).setFileName("passport.pdf").build(),
         Files.readAllBytes(path));
-DownloadedFile file = KycFiles.downloadFile(files.stub(), DownloadFileRequest.newBuilder()
-        .setFileId(fileId).setPayoutRequesterId(rid).setPayoutProviderId(pid).setClientId(cid).build());
+DownloadedFile file = KycFiles.downloadFile(files.stub(),
+        DownloadFileRequest.newBuilder().setFileId(fileId).build());
 ```
 
 A download holds up to twice the file in memory: the chunks and the joined bytes. A 50 MiB file can take 100 MiB. One transfer uses the stream timeout (5 minutes) unless the caller sets a longer deadline on the stub (`withDeadlineAfter`), or a longer stream timeout on the client.

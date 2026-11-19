@@ -119,10 +119,7 @@ file_id = await upload_file(
     UploadFileRequest.Metadata(payout_provider_id=pid, client_id=cid, file_name="passport.pdf"),
     Path("passport.pdf").read_bytes(),
 )
-metadata, data = await download_file(
-    files,
-    DownloadFileRequest(file_id=file_id, payout_requester_id=rid, payout_provider_id=pid, client_id=cid),
-)
+metadata, data = await download_file(files, DownloadFileRequest(file_id=file_id))
 ```
 
 A download holds up to twice the file in memory: the chunks and the joined bytes. A 50 MiB file can take 100 MiB. One transfer uses the stream timeout (5 minutes) unless the caller sets a longer `timeout_ms` on the call, or a longer `stream_timeout` on the client.

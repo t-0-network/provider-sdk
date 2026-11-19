@@ -120,12 +120,7 @@ class CrossServerTests {
     }
 
     private static DownloadFileRequest download(long fileId) {
-        return DownloadFileRequest.newBuilder()
-                .setFileId(fileId)
-                .setPayoutRequesterId(3)
-                .setPayoutProviderId(7)
-                .setClientId("applicant-1")
-                .build();
+        return DownloadFileRequest.newBuilder().setFileId(fileId).build();
     }
 
     private static byte[] patterned(int n) {
