@@ -84,10 +84,7 @@ long fileId = await KycFiles.UploadFileAsync(files, new UploadFileRequest.Types.
 {
     PayoutProviderId = pid, ClientId = cid, FileName = "passport.pdf",
 }, await File.ReadAllBytesAsync(path));
-var (metadata, data) = await KycFiles.DownloadFileAsync(files, new DownloadFileRequest
-{
-    FileId = fileId, PayoutRequesterId = rid, PayoutProviderId = pid, ClientId = cid,
-});
+var (metadata, data) = await KycFiles.DownloadFileAsync(files, new DownloadFileRequest { FileId = fileId });
 ```
 
 A download holds up to twice the file in memory: the chunks and the joined bytes. A 50 MiB file can take 100 MiB. One transfer uses the stream timeout (5 minutes) unless the caller sets a longer `deadline` on the call, or a longer `StreamTimeout` on the client.

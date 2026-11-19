@@ -218,9 +218,7 @@ fileID, err := kycsharing.UploadFile(ctx, files, &kyc_sharing.UploadFileRequest_
     PayoutProviderId: providerID, ClientId: clientID, FileName: proto.String("passport.pdf"),
 }, data)
 
-md, data, err := kycsharing.DownloadFile(ctx, files, &kyc_sharing.DownloadFileRequest{
-    FileId: fileID, PayoutRequesterId: requesterID, PayoutProviderId: providerID, ClientId: clientID,
-})
+md, data, err := kycsharing.DownloadFile(ctx, files, &kyc_sharing.DownloadFileRequest{FileId: fileID})
 ```
 
 A download holds up to twice the file in memory: the chunks and the joined bytes. A 50 MiB file can take 100 MiB. One transfer uses the stream timeout (5 minutes) unless the caller sets a longer deadline on the context, or a longer stream timeout on the client.

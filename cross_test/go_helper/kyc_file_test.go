@@ -45,9 +45,7 @@ func TestKycFiles(t *testing.T) {
 				if fileID < 1 {
 					t.Fatalf("file id %d", fileID)
 				}
-				gotMeta, got, err := kycsharing.DownloadFile(ctx, client, &kyc.DownloadFileRequest{
-					FileId: fileID, PayoutRequesterId: 3, PayoutProviderId: 7, ClientId: "applicant-1",
-				})
+				gotMeta, got, err := kycsharing.DownloadFile(ctx, client, &kyc.DownloadFileRequest{FileId: fileID})
 				if err != nil {
 					t.Fatal(err)
 				}
@@ -60,9 +58,7 @@ func TestKycFiles(t *testing.T) {
 			})
 
 			t.Run("unknown file", func(t *testing.T) {
-				_, got, err := kycsharing.DownloadFile(ctx, client, &kyc.DownloadFileRequest{
-					FileId: 42, PayoutRequesterId: 3, PayoutProviderId: 7, ClientId: "applicant-1",
-				})
+				_, got, err := kycsharing.DownloadFile(ctx, client, &kyc.DownloadFileRequest{FileId: 42})
 				if connect.CodeOf(err) != connect.CodeNotFound {
 					t.Fatalf("got %v, want not found", err)
 				}
@@ -72,9 +68,7 @@ func TestKycFiles(t *testing.T) {
 			})
 
 			t.Run("download shape", func(t *testing.T) {
-				_, got, err := kycsharing.DownloadFile(ctx, client, &kyc.DownloadFileRequest{
-					FileId: 9223372036854775807, PayoutRequesterId: 3, PayoutProviderId: 7, ClientId: "applicant-1",
-				})
+				_, got, err := kycsharing.DownloadFile(ctx, client, &kyc.DownloadFileRequest{FileId: 9223372036854775807})
 				var connectErr *connect.Error
 				if !errors.As(err, &connectErr) || connectErr.Code() != connect.CodeInvalidArgument ||
 					connectErr.Message() != "download stream must be one metadata message followed by chunks" {

@@ -41,4 +41,6 @@ The proto files are in [`proto/tzero/v1/manage/kyc_sharing/`](../proto/tzero/v1/
 | `KycApplicantProviderService` | `applicant_provider.proto` | A Payout Provider. It reads, approves, rejects and lists submitted applicants. |
 | `KycFileService` | `file.proto` | Both. The requester uploads applicant files, and both sides download them. |
 
+A file is downloaded by its id alone. Its Payout Requester can download it at any time. Its Payout Provider can download it once the applicant is past draft. Any other caller gets the same error as for a missing file, and so does the provider while the applicant is still a draft.
+
 `common.proto` and `form.proto` hold the messages these services share. A Payout Provider sets up its forms in the T-0 dashboard. The SDK helpers for `KycFileService` are described in each SDK's README, in the section "KYC files".

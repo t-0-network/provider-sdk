@@ -293,9 +293,7 @@ const files = createClient(privateKey, kybUrl, KycSharing.KycFileService);
 const fileId = await KycSharing.uploadFile(files, {
   payoutProviderId, clientId, fileName: "passport.pdf",
 }, await readFile("passport.pdf"));
-const { metadata, data } = await KycSharing.downloadFile(files, {
-  fileId, payoutRequesterId, payoutProviderId, clientId,
-});
+const { metadata, data } = await KycSharing.downloadFile(files, { fileId });
 ```
 
 A download holds up to twice the file in memory: the chunks and the joined bytes. A 50 MiB file can take 100 MiB. One transfer uses the stream timeout (5 minutes) unless the caller sets a longer `timeoutMs` on the call, or a longer `streamTimeoutMs` on the client.

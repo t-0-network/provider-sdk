@@ -74,13 +74,7 @@ public class KycFileCrossServerTests
 
     private static CallOptions Deadline() => new(deadline: DateTime.UtcNow.AddSeconds(30));
 
-    private static DownloadFileRequest Download(long fileId) => new()
-    {
-        FileId = fileId,
-        PayoutRequesterId = 3,
-        PayoutProviderId = 7,
-        ClientId = "applicant-1",
-    };
+    private static DownloadFileRequest Download(long fileId) => new() { FileId = fileId };
 
     private static byte[] Patterned(int n)
     {

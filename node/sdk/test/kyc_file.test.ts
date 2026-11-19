@@ -89,9 +89,7 @@ describe('KYC file helpers: Node client → Go server', { skip: !goAvailable() ?
       uploadId: 'upload-1',
     }, data, options);
     assert.ok(fileId > 0n);
-    const downloaded = await KycSharing.downloadFile(client, {
-      fileId, payoutRequesterId: 3, payoutProviderId: 7, clientId: 'applicant-1',
-    }, options);
+    const downloaded = await KycSharing.downloadFile(client, { fileId }, options);
     assert.equal(downloaded.metadata.contentType, 'application/pdf');
     assert.equal(downloaded.metadata.fileName, 'passport.pdf');
     assert.deepEqual(downloaded.data, data);
@@ -100,7 +98,7 @@ describe('KYC file helpers: Node client → Go server', { skip: !goAvailable() ?
   it('download of an unknown id fails with not found', async () => {
     const client = createClient(CLIENT_PRIVATE_KEY, url, KycSharing.KycFileService);
     await assert.rejects(
-      KycSharing.downloadFile(client, { fileId: 42n, payoutRequesterId: 3, payoutProviderId: 7, clientId: 'applicant-1' }, options),
+      KycSharing.downloadFile(client, { fileId: 42n }, options),
       (err: unknown) => err instanceof ConnectError && err.code === Code.NotFound,
     );
   });
@@ -108,9 +106,7 @@ describe('KYC file helpers: Node client → Go server', { skip: !goAvailable() ?
   it('a chunk before metadata fails with the shared shape message', async () => {
     const client = createClient(CLIENT_PRIVATE_KEY, url, KycSharing.KycFileService);
     await assert.rejects(
-      KycSharing.downloadFile(client, {
-        fileId: 9223372036854775807n, payoutRequesterId: 3, payoutProviderId: 7, clientId: 'applicant-1',
-      }, options),
+      KycSharing.downloadFile(client, { fileId: 9223372036854775807n }, options),
       (err: unknown) => err instanceof ConnectError && err.code === Code.InvalidArgument && err.rawMessage === SHAPE,
     );
   });
