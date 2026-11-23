@@ -47,7 +47,7 @@ jobs:
           python-version: "3.13"
 
       - name: Setup uv
-        uses: astral-sh/setup-uv@v10.3.3
+        uses: astral-sh/setup-uv@v10.4.0
 
       - name: Install Python codegen plugin
         run: uv sync --project python --all-packages
