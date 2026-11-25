@@ -41,9 +41,16 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # `requires-python` has no upper bound, so every Python released since 3.13 has to
+  # work. A dependency with a native extension and no wheel for a new Python (coincurve
+  # on 3.14) fails to install there, and only a job on that Python shows it.
   python:
-    name: Python
+    name: Python ${{ matrix.python-version }}
     runs-on: blacksmith-4vcpu-ubuntu-2404
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.13", "3.14", "3.15"]
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -51,6 +58,8 @@ jobs:
           show-progress: false
 
       - uses: ./.github/actions/test-python
+        with:
+          python-version: ${{ matrix.python-version }}
 
       # The template is not a workspace member, so it runs as a generated project
       # would, from a copy. `uv add <wheel>` makes it use the SDK wheel built above
@@ -78,8 +87,12 @@ jobs:
   # before a client reported it. This job installs the built wheel exactly the
   # way a fresh `pip install t0-provider-sdk` would and runs the suite on that.
   python-latest-deps:
-    name: Python (unlocked latest deps)
+    name: Python ${{ matrix.python-version }} (unlocked latest deps)
     runs-on: blacksmith-4vcpu-ubuntu-2404
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.13", "3.14", "3.15"]
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -89,7 +102,7 @@ jobs:
       - name: Setup Python
         uses: actions/setup-python@v7
         with:
-          python-version: "3.13"
+          python-version: ${{ matrix.python-version }}
 
       - name: Install uv
         uses: astral-sh/setup-uv@v10.3.3
@@ -103,7 +116,7 @@ jobs:
       - name: Install wheel with latest resolvable dependencies
         working-directory: python
         run: |
-          uv venv --python 3.13 .venv-latest
+          uv venv --python ${{ matrix.python-version }} .venv-latest
           uv pip install --python .venv-latest/bin/python --resolution highest \
             dist/t0_provider_sdk-*.whl pytest pytest-asyncio uvicorn
 

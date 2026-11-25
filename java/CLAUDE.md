@@ -91,7 +91,7 @@ Runtime version: `META-INF/sdk-version.properties` (classpath resource, so it su
 
 ## Key Technical Details
 
-- **Java 17+** for SDK users: the SDK compiles with `--release 17`. Building `java/` needs JDK 21, because the starter template compiles for 21. CI builds on 21
+- **Java 17+** for SDK users: the SDK compiles with `--release 17`. Building `java/` needs JDK 21, because the starter template compiles for 21. CI builds on 21 and 25
 - **Protobuf**: Generated code lives in `sdk/build/generated/` (not committed)
 - **Dockerfile**: Uses `eclipse-temurin:21-jre-noble` (not alpine — ARM64 support needed)
 - **Gradle application plugin**: `applicationName = "provider"` ensures `build/install/provider/` path is stable regardless of `rootProject.name`
