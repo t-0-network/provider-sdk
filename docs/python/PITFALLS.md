@@ -253,16 +253,18 @@ ConnectRPC calls exactly 3 methods: `get()`, `post()`, `stream()`. Only these ne
 
 ---
 
-## 11. Signature Byte Format: coincurve vs Go
+## 11. Signature Byte Format: pycryptodome vs Go
 
 | SDK | Format | Layout |
 |-----|--------|--------|
 | Go (`btcec.SignCompact`) | `[v+27, r(32), s(32)]` → rearranged to `[r(32), s(32), v-27]` | 65 bytes |
-| Python (`coincurve.sign_recoverable`) | `[r(32), s(32), v]` | 65 bytes |
+| Python (`DSS.sign`) | `[r(32), s(32)]`, then `v` appended by the signer | 65 bytes |
 
 Both produce the same final format: `r(32) || s(32) || v(1)` where `v ∈ {0, 1}`.
 
-Go's `VerifySignature()` uses only `signature[:64]` (strips v). Python verification must handle both 64-byte (try v=0 and v=1) and 65-byte signatures.
+Go's `VerifySignature()` uses only `signature[:64]` (strips v), and so does Python's `verify_signature`.
+
+DSS takes a hash object, not bytes, and its deterministic mode builds the RFC 6979 HMAC from that object. A Keccak object would make the nonce come from HMAC-Keccak and give signatures no other SDK makes. The signer passes `_Prehashed(digest)`, whose `new` is SHA-256's (rule S6).
 
 ---
 

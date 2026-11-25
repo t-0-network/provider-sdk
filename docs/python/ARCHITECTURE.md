@@ -293,8 +293,8 @@ ConnectRPC was chosen over gRPC for its HTTP/1.1 compatibility, simpler deployme
 | RPC Framework | connectrpc | `connectrpc>=0.13.0` | `connectrpc` | Official ConnectRPC Python runtime (renamed from `connect-python` at v0.10.0). Floor is 0.13.0, the version the stubs are generated with. The generated stubs use `connectrpc.compat` so the runtime's protobuf-py default codec is bypassed in favour of the shipped `google.protobuf` messages, and they pass `stream_type` to `MethodInfo`, which 0.13 requires and 0.12 rejects |
 | HTTP Client | pyqwest | `pyqwest>=0.11.0` | `pyqwest` | Rust-backed HTTP client of connectrpc; the signing wrappers turn off redirects, and 0.11 aborts an upload whose source fails instead of ending it normally |
 | Protobuf | protobuf | `protobuf>=7.34.1` | `google.protobuf` | Standard Protocol Buffers runtime |
-| ECDSA Crypto | coincurve | `coincurve>=21.0` | `coincurve` | Python bindings for libsecp256k1 |
-| Keccak Hash | pycryptodome | `pycryptodome>=3.23` | `Crypto.Hash.keccak` | Legacy Keccak-256 implementation. Not `pysha3` (incompatible with Python 3.13) and not `hashlib.sha3_256` (NIST SHA-3, different padding) |
+| ECDSA Crypto | pycryptodome | `pycryptodome>=4.6.0` | `Crypto.PublicKey.ECC`, `Crypto.Signature.DSS` | secp256k1 keys and ECDSA, from 4.4. The floor is 4.6, which refuses the point at infinity (`04` and 64 zero bytes) as a public key |
+| Keccak Hash | pycryptodome | `pycryptodome>=4.6.0` | `Crypto.Hash.keccak` | Legacy Keccak-256 implementation. Not `pysha3` (incompatible with Python 3.13) and not `hashlib.sha3_256` (NIST SHA-3, different padding) |
 | Validation | protovalidate | `protovalidate>=2.1` | `protovalidate` | Checks provider responses against the `buf.validate` rules in the protos. The SDK reads 2.0's error types and field paths, and the floor is 2.1 because 2.0 fails to import with protobuf-py 0.7, which connectrpc 0.13 allows |
 | Health | grpcio-health-checking | `grpcio-health-checking>=1.60` | `grpc_health.v1` | The `grpc.health.v1` messages of the health service |
 | Env Loading | python-dotenv | `python-dotenv>=1.0` | `dotenv` | Template .env file handling (template dependency) |
@@ -583,14 +583,16 @@ Uses `Crypto.Hash.keccak` with `digest_bits=256`. This is the pre-NIST Keccak va
 
 #### 4.1.2 `keys.py` -- Key Conversion Utilities
 
-All functions use `coincurve.PrivateKey` and `coincurve.PublicKey`. Hex strings support the `0x` prefix.
+Keys are pycryptodome `EccKey` objects on secp256k1, private or public. Hex strings support the `0x` prefix.
 
 | Function | Signature | Notes |
 |----------|-----------|-------|
-| `private_key_from_hex` | `(hex_key: str) -> PrivateKey` | 64 hex digits after an optional `0x`/`0X`, value in [1, n-1]; `ValueError` otherwise |
-| `public_key_from_hex` | `(hex_key: str) -> PublicKey` | Deprecated (not used by the SDK). Optional `0x`/`0X`, strict hex, compressed (33B) or uncompressed (65B) |
-| `public_key_to_bytes` | `(key: PublicKey) -> bytes` | Returns 65-byte uncompressed: `04 ∥ x(32) ∥ y(32)` |
-| `public_key_from_bytes` | `(data: bytes) -> PublicKey` | Deprecated (not used by the SDK). Compressed or uncompressed |
+| `private_key_from_hex` | `(hex_key: str) -> EccKey` | 64 hex digits after an optional `0x`/`0X`, value in [1, n-1]; `ValueError` otherwise |
+| `public_key_from_hex` | `(hex_key: str) -> EccKey` | Deprecated (not used by the SDK). Optional `0x`/`0X`, strict hex, compressed (33B) or uncompressed (65B) |
+| `public_key_to_bytes` | `(key: EccKey) -> bytes` | Returns 65-byte uncompressed: `04 ∥ x(32) ∥ y(32)` |
+| `public_key_from_bytes` | `(data: bytes) -> EccKey` | Deprecated (not used by the SDK). Compressed or uncompressed |
+
+A public key is parsed with `ECC.import_key(data, curve_name="secp256k1")` after its form is checked: `import_key` also takes DER, PEM and OpenSSH keys, which rule V2 refuses.
 
 #### 4.1.3 `signer.py` -- ECDSA Signing
 
@@ -605,29 +607,29 @@ class SignFn(Protocol):
 
 | Function | Signature | Notes |
 |----------|-----------|-------|
-| `new_signer` | `(private_key: PrivateKey) -> SignFn` | Creates a signing closure |
+| `new_signer` | `(private_key: EccKey) -> SignFn` | Creates a signing closure |
 | `new_signer_from_hex` | `(hex_key: str) -> SignFn` | Convenience: hex key → signer |
 
 Key implementation details:
-- Uses `coincurve.PrivateKey.sign_recoverable(digest, hasher=None)`
-- `hasher=None` means the digest is pre-hashed (no double-hashing)
+- Uses `DSS.new(key, "deterministic-rfc6979", low_s=True).sign(_Prehashed(digest))`: RFC 6979 and a low s, as libsecp256k1 signs
+- `_Prehashed` (`crypto/hash.py`) hands DSS the digest as it is (no double-hashing), with SHA-256's `new`, so the nonce comes from HMAC-SHA256 (rule S6) and not from a hash of the digest's own algorithm
+- DSS returns r and s only. `v` is the parity of y of R = (e/s)·G + (r/s)·Q, computed from public values as a verifier does
 - Returns `r(32) ∥ s(32) ∥ v(1)` = 65 bytes (Ethereum wire format)
 - The public key is computed once in the factory and captured in the closure
 
 #### 4.1.4 `verifier.py` -- Signature Verification
 
-Uses recovery-based verification: recovers the public key from the signature and compares it to the expected key.
+Verifies with pycryptodome's DSS.
 
 ```python
-def verify_signature(public_key: PublicKey, digest: bytes, signature: bytes) -> bool:
+def verify_signature(public_key: EccKey, digest: bytes, signature: bytes) -> bool:
     """Verify ECDSA signature. Accepts 64-byte (r+s) or 65-byte (r+s+v) signatures."""
 ```
 
 - Uses only r and s: a 65-byte signature is verified as its first 64 bytes, so its recovery byte is ignored (rule V5)
-- Tries both recovery ids, `v=0` and `v=1`, and succeeds if either recovers the expected key (this also accepts a high s)
-- Uses `PublicKey.from_signature_and_message(sig, digest, hasher=None)`
-- Compares recovered key to expected key in uncompressed format (65 bytes)
-- Returns `False` for any exception during recovery (invalid signature data)
+- Uses `DSS.new(public_key, "deterministic-rfc6979").verify(_Prehashed(digest), signature[:64])`; every DSS mode verifies alike
+- `low_s` is off, so a high s verifies; r and s must be in [1, n-1]
+- Returns `False` when DSS refuses the signature (`ValueError`)
 
 ### 4.2 Shared Constants (`common/`)
 

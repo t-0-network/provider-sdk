@@ -56,8 +56,7 @@ python/
 | connectrpc | `connectrpc` | ConnectRPC runtime (renamed from `connect-python` at v0.10.0; v0.11 switched its default codec to protobuf-py) |
 | pyqwest | `pyqwest` | HTTP client (Rust-backed); the minimum in `sdk/pyproject.toml` ensures a cancelled request source aborts its upload instead of completing a partial body. The SDK builds its own transports with `follow_redirects=False` and `tls_include_system_certs=True` (without it a transport built this way trusts no CA and every https:// call fails) |
 | protobuf | `google.protobuf` | Message serialization |
-| coincurve | `coincurve` | secp256k1 ECDSA |
-| pycryptodome | `Crypto.Hash.keccak` | Keccak256 |
+| pycryptodome | `Crypto.Hash.keccak`, `Crypto.PublicKey.ECC`, `Crypto.Signature.DSS` | Keccak256 and secp256k1 ECDSA. The floor is 4.6: secp256k1 is in pycryptodome from 4.4, and 4.4 and 4.5 accept the point at infinity (`04` and 64 zero bytes) as a public key |
 | protovalidate | `protovalidate` | Response validation against the `buf.validate` rules; 2.1 or newer, since the SDK reads 2.0's error types and field paths and 2.0 fails to import with protobuf-py 0.7 |
 
 Versions: `sdk/pyproject.toml`.

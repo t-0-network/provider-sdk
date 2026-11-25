@@ -11,11 +11,12 @@ import socket
 
 import pytest
 import uvicorn
-from coincurve import PrivateKey
 from connectrpc.client import ConnectClient
 from connectrpc.compat import google_protobuf_binary_codec
 from connectrpc.method import IdempotencyLevel, MethodInfo, StreamType
+from Crypto.PublicKey import ECC
 from grpc_health.v1 import health_pb2
+from t0_provider_sdk.crypto.keys import public_key_from_private_key
 from t0_provider_sdk.network.client import new_service_client
 from t0_provider_sdk.provider.handler import new_asgi_app
 from t0_provider_sdk.provider.health import HEALTH_SERVICE_FQN
@@ -80,8 +81,8 @@ async def _wait_for_port(port: int, timeout: float = 5.0) -> None:
 @pytest.mark.asyncio
 @pytest.mark.parametrize("path", ["/prefix", "/prefix/", "/sda/payments/t0"])
 async def test_base_url_path_prefixes_calls(path: str) -> None:
-    priv = PrivateKey()
-    public_key_hex = "0x" + priv.public_key.format(compressed=False).hex()
+    private_key_hex = f"0x{ECC.generate(curve='secp256k1').d:064x}"
+    public_key_hex = public_key_from_private_key(private_key_hex)
     prefix = path.removesuffix("/")
     paths: list[str] = []
     port = _find_free_port()
@@ -91,9 +92,7 @@ async def test_base_url_path_prefixes_calls(path: str) -> None:
     task = asyncio.create_task(server.serve())
     await _wait_for_port(port)
     try:
-        client = new_service_client(
-            "0x" + priv.secret.hex(), _CheckOnlyClient, base_url=f"http://127.0.0.1:{port}{path}"
-        )
+        client = new_service_client(private_key_hex, _CheckOnlyClient, base_url=f"http://127.0.0.1:{port}{path}")
 
         # SERVING only after the app's middleware has verified the signature.
         response = await client.check(health_pb2.HealthCheckRequest(service=HEALTH_SERVICE_FQN))
