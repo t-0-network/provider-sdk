@@ -1,13 +1,18 @@
 name: Test Python SDK
 description: Build and test the Python SDK including cross-language server-to-server tests
 
+inputs:
+  python-version:
+    description: The Python version to test on. The release workflow takes the default.
+    default: "3.13"
+
 runs:
   using: composite
   steps:
     - name: Setup Python
       uses: actions/setup-python@v7
       with:
-        python-version: "3.13"
+        python-version: ${{ inputs.python-version }}
 
     - name: Install uv
       uses: astral-sh/setup-uv@v10.3.3
@@ -24,7 +29,7 @@ runs:
     - name: Install dependencies
       shell: bash
       working-directory: python
-      run: uv sync --locked --all-packages
+      run: uv sync --locked --all-packages --python ${{ inputs.python-version }}
 
     - name: Build packages
       shell: bash
