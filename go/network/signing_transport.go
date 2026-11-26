@@ -13,13 +13,13 @@ import (
 	"time"
 
 	"connectrpc.com/connect"
-	commonv1 "github.com/t-0-network/provider-sdk/go/api/tzero/v1/common"
 	"github.com/t-0-network/provider-sdk/go/common"
 	"github.com/t-0-network/provider-sdk/go/crypto"
 	"github.com/t-0-network/provider-sdk/go/internal/contract"
 	"github.com/t-0-network/provider-sdk/go/internal/envelope"
 	"google.golang.org/protobuf/proto"
 	"google.golang.org/protobuf/reflect/protoreflect"
+	"google.golang.org/protobuf/reflect/protoregistry"
 	"google.golang.org/protobuf/types/known/durationpb"
 )
 
@@ -263,10 +263,20 @@ func (c callTimeouts) WrapStreamingClient(next connect.StreamingClientFunc) conn
 // network answers within it, so a shorter wait can miss an answer.
 func timeoutOf(spec connect.Spec, fallback time.Duration) time.Duration {
 	method, ok := spec.Schema.(protoreflect.MethodDescriptor)
-	if !ok || !proto.HasExtension(method.Options(), commonv1.E_Timeout) {
+	if !ok {
 		return fallback
 	}
-	return proto.GetExtension(method.Options(), commonv1.E_Timeout).(*durationpb.Duration).AsDuration()
+	// Found by name, as registered by the generated code the binary links in. Importing the SDK's
+	// generated package would register its proto files again next to a caller's own stubs: a panic.
+	option, err := protoregistry.GlobalTypes.FindExtensionByName("tzero.v1.common.timeout")
+	if err != nil || !proto.HasExtension(method.Options(), option) {
+		return fallback
+	}
+	timeout, ok := proto.GetExtension(method.Options(), option).(*durationpb.Duration)
+	if !ok {
+		return fallback
+	}
+	return timeout.AsDuration()
 }
 
 func (callTimeouts) WrapStreamingHandler(next connect.StreamingHandlerFunc) connect.StreamingHandlerFunc {
