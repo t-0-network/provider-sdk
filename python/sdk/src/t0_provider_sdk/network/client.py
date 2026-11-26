@@ -16,7 +16,6 @@ from connectrpc.errors import ConnectError
 from connectrpc.protocol import ProtocolType
 from connectrpc.request import RequestContext
 from google.protobuf import descriptor_pool
-from tzero.v1.common import timeout_pb2
 
 from t0_provider_sdk._messages import (
     BASE_URL_NOT_SET,
@@ -284,13 +283,18 @@ def _method_timeout_ms(full_name: str) -> int | None:
     """The timeout option (tzero.v1.common.timeout) of the method in milliseconds, or None when the
     method has none or is not in the default pool. The client's own timeout never replaces the
     option: the network answers within it, so a shorter wait can miss an answer."""
+    pool = descriptor_pool.Default()
     try:
-        options = descriptor_pool.Default().FindMethodByName(full_name).GetOptions()
+        options = pool.FindMethodByName(full_name).GetOptions()
+        # By name: importing the SDK's generated module would clash with a caller's own stubs.
+        option = pool.FindExtensionByName("tzero.v1.common.timeout")
     except KeyError:
         return None
-    if not options.HasExtension(timeout_pb2.timeout):
+    if option.message_type is None or option.message_type.full_name != "google.protobuf.Duration":
         return None
-    return options.Extensions[timeout_pb2.timeout].ToMilliseconds()
+    if not options.HasExtension(option):
+        return None
+    return options.Extensions[option].ToMilliseconds()
 
 
 def _deadline_passed() -> NoReturn:
