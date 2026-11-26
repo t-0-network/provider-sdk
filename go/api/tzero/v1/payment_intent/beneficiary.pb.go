@@ -174,7 +174,6 @@ type PaymentIntentUpdateRequest_FundsReceived struct {
 	TransactionReference string `protobuf:"bytes,50,opt,name=transaction_reference,json=transactionReference,proto3" json:"transaction_reference,omitempty"`
 	// *
 	// Travel rule data of the Collection Provider's legal entity that received the funds.
-	// Present when the Collection Provider has registered travel rule data.
 	TravelRuleData *PaymentIntentUpdateRequest_FundsReceived_TravelRuleData `protobuf:"bytes,60,opt,name=travel_rule_data,json=travelRuleData,proto3" json:"travel_rule_data,omitempty"`
 	// *
 	// Flat USD surcharge retained by the Collection Provider per transfer.

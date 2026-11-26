@@ -64,7 +64,7 @@ type PaymentIntentServiceClient interface {
 	GetQuote(context.Context, *connect.Request[payment_intent.GetQuoteRequest]) (*connect.Response[payment_intent.GetQuoteResponse], error)
 	// * Lists the active pay-in quotes the caller can collect against, grouped by currency, then
 	// payment method: for each, the Collection Providers permitted to the caller and their tiered rate
-	// bands. Indicative — request a priced quote via GetQuote to act on one.
+	// bands. Indicative — request the quotes for an amount via GetQuote to act on one.
 	GetQuotes(context.Context, *connect.Request[payment_intent.GetQuotesRequest]) (*connect.Response[payment_intent.GetQuotesResponse], error)
 	// *
 	// Creates a payment intent and returns the pay-in options to present to the end-user.
@@ -173,7 +173,7 @@ type PaymentIntentServiceHandler interface {
 	GetQuote(context.Context, *connect.Request[payment_intent.GetQuoteRequest]) (*connect.Response[payment_intent.GetQuoteResponse], error)
 	// * Lists the active pay-in quotes the caller can collect against, grouped by currency, then
 	// payment method: for each, the Collection Providers permitted to the caller and their tiered rate
-	// bands. Indicative — request a priced quote via GetQuote to act on one.
+	// bands. Indicative — request the quotes for an amount via GetQuote to act on one.
 	GetQuotes(context.Context, *connect.Request[payment_intent.GetQuotesRequest]) (*connect.Response[payment_intent.GetQuotesResponse], error)
 	// *
 	// Creates a payment intent and returns the pay-in options to present to the end-user.

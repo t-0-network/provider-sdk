@@ -41,7 +41,8 @@ const (
 type QuoteServiceClient interface {
 	// * Lists the active pay-out quotes the caller can transact against, grouped by currency, then
 	// payment method: for each, the payout providers it holds a credit line with, the caller's
-	// balance with each, and the tiered rate bands for each. Indicative — request a priced quote via
+	// balance with each, and the tiered rate bands for each, at the attribute values agreed for the
+	// caller, else each payout provider's own default. Indicative — request the quote for an amount via
 	// GetQuote to act on one.
 	GetQuotes(context.Context, *connect.Request[payment.GetQuotesRequest]) (*connect.Response[payment.GetQuotesResponse], error)
 }
@@ -81,7 +82,8 @@ func (c *quoteServiceClient) GetQuotes(ctx context.Context, req *connect.Request
 type QuoteServiceHandler interface {
 	// * Lists the active pay-out quotes the caller can transact against, grouped by currency, then
 	// payment method: for each, the payout providers it holds a credit line with, the caller's
-	// balance with each, and the tiered rate bands for each. Indicative — request a priced quote via
+	// balance with each, and the tiered rate bands for each, at the attribute values agreed for the
+	// caller, else each payout provider's own default. Indicative — request the quote for an amount via
 	// GetQuote to act on one.
 	GetQuotes(context.Context, *connect.Request[payment.GetQuotesRequest]) (*connect.Response[payment.GetQuotesResponse], error)
 }

@@ -552,7 +552,7 @@ type CreatePaymentIntentRequest struct {
 	// *
 	// Provider-supplied unique identifier for this payment intent.
 	// Used for idempotency - subsequent requests with the same external_reference
-	// return the existing payment_intent_id instead of creating a new one.
+	// return the first response; another currency or amount fails with ALREADY_EXISTS.
 	// Should be unique per Collection Requester.
 	ExternalReference string `protobuf:"bytes,10,opt,name=external_reference,json=externalReference,proto3" json:"external_reference,omitempty"`
 	// *
@@ -734,10 +734,10 @@ type ConfirmFundsReceivedRequest struct {
 	state protoimpl.MessageState `protogen:"open.v1"`
 	// *
 	// The payment intent ID being confirmed.
-	// Must be a valid, pending payment intent.
+	// Must be a valid payment intent.
 	PaymentIntentId uint64 `protobuf:"varint,10,opt,name=payment_intent_id,json=paymentIntentId,proto3" json:"payment_intent_id,omitempty"`
 	// *
-	// Confirmation code received in the GetPaymentDetails response along with the payment_intent_id.
+	// Confirmation code received in GetPaymentDetailsRequest along with the payment_intent_id.
 	// Guards against confirming the wrong payment intent; a mismatch is rejected with
 	// REJECT_REASON_CONFIRMATION_CODE_MISMATCH.
 	ConfirmationCode string `protobuf:"bytes,20,opt,name=confirmation_code,json=confirmationCode,proto3" json:"confirmation_code,omitempty"`
@@ -901,7 +901,7 @@ type ConfirmFundsReceivedResponse_Accept_ struct {
 
 type ConfirmFundsReceivedResponse_Reject_ struct {
 	// *
-	// Funds receipt rejected. No settlement will occur.
+	// Funds receipt rejected.
 	Reject *ConfirmFundsReceivedResponse_Reject `protobuf:"bytes,20,opt,name=reject,proto3,oneof"`
 }
 
