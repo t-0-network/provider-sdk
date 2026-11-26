@@ -99,7 +99,7 @@ class TestCrossPublicKey:
         """Both SDKs derive the same public key from a private key."""
         # Python
         pk = private_key_from_hex(private_key)
-        python_pub = "0x" + public_key_to_bytes(pk.public_key).hex()
+        python_pub = "0x" + public_key_to_bytes(pk.public_key()).hex()
 
         # Go
         go_pub = _go_helper("pubkey", private_key)
@@ -141,7 +141,7 @@ class TestCrossSign:
 
         # Python verifies Go's signature
         pk = private_key_from_hex(PRIVATE_KEY)
-        result = verify_signature(pk.public_key, digest, go_signature)
+        result = verify_signature(pk.public_key(), digest, go_signature)
         assert result, "Python failed to verify Go's signature"
 
         # Also verify using the Go-provided public key bytes
@@ -164,7 +164,7 @@ class TestCrossSign:
         sig_64 = go_signature[:64]
 
         pk = private_key_from_hex(PRIVATE_KEY)
-        result = verify_signature(pk.public_key, digest, sig_64)
+        result = verify_signature(pk.public_key(), digest, sig_64)
         assert result, "Python failed to verify Go's 64-byte signature"
 
     def test_python_sign_go_verify_second_key(self):

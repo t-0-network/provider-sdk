@@ -1,8 +1,10 @@
 """Tests for key conversion utilities, using Go SDK test vectors."""
 
 import pytest
-from coincurve import PrivateKey, PublicKey
+from Crypto.PublicKey.ECC import EccKey
+from t0_provider_sdk._messages import PUBLIC_KEY_NOT_A_POINT
 from t0_provider_sdk.crypto.keys import (
+    _parse_public_key,
     private_key_from_hex,
     public_key_from_bytes,
     public_key_from_hex,
@@ -20,27 +22,27 @@ PUBLIC_KEY_HEX_2 = "0x049bb924680bfba3f64d924bf9040c45dcc215b124b5b9ee73ca8e32c0
 class TestPrivateKeyFromHex:
     def test_with_0x_prefix(self):
         key = private_key_from_hex(PRIVATE_KEY_HEX_1)
-        assert isinstance(key, PrivateKey)
+        assert key.d == int(PRIVATE_KEY_HEX_1, 16)
 
     def test_without_0x_prefix(self):
         key = private_key_from_hex(PRIVATE_KEY_HEX_1.removeprefix("0x"))
-        assert isinstance(key, PrivateKey)
+        assert key.d == int(PRIVATE_KEY_HEX_1, 16)
 
     def test_with_upper_case_0x_prefix(self):
         key = private_key_from_hex("0X" + PRIVATE_KEY_HEX_1.removeprefix("0x"))
-        assert key.secret == private_key_from_hex(PRIVATE_KEY_HEX_1).secret
+        assert key.d == int(PRIVATE_KEY_HEX_1, 16)
 
     def test_derives_correct_public_key_1(self):
         """Verify private key derives the expected public key (Go test vector 1)."""
         key = private_key_from_hex(PRIVATE_KEY_HEX_1)
-        pub_bytes = key.public_key.format(compressed=False)
+        pub_bytes = public_key_to_bytes(key.public_key())
         expected = bytes.fromhex(PUBLIC_KEY_HEX_1.removeprefix("0x"))
         assert pub_bytes == expected
 
     def test_derives_correct_public_key_2(self):
         """Verify private key derives the expected public key (Go test vector 2)."""
         key = private_key_from_hex(PRIVATE_KEY_HEX_2)
-        pub_bytes = key.public_key.format(compressed=False)
+        pub_bytes = public_key_to_bytes(key.public_key())
         expected = bytes.fromhex(PUBLIC_KEY_HEX_2.removeprefix("0x"))
         assert pub_bytes == expected
 
@@ -100,13 +102,13 @@ class TestPublicKeyFromHex:
     def test_from_uncompressed_hex(self):
         with pytest.deprecated_call():
             key = public_key_from_hex(PUBLIC_KEY_HEX_1)
-        assert isinstance(key, PublicKey)
-        assert key.format(compressed=False) == bytes.fromhex(PUBLIC_KEY_HEX_1.removeprefix("0x"))
+        assert isinstance(key, EccKey)
+        assert public_key_to_bytes(key) == bytes.fromhex(PUBLIC_KEY_HEX_1.removeprefix("0x"))
 
     def test_without_0x_prefix(self):
         with pytest.deprecated_call():
             key = public_key_from_hex(PUBLIC_KEY_HEX_1.removeprefix("0x"))
-        assert key.format(compressed=False) == bytes.fromhex(PUBLIC_KEY_HEX_1.removeprefix("0x"))
+        assert public_key_to_bytes(key) == bytes.fromhex(PUBLIC_KEY_HEX_1.removeprefix("0x"))
 
 
 @pytest.mark.parametrize(
@@ -121,19 +123,28 @@ def test_public_key_helper_warns_that_it_is_deprecated(helper, key):
 
 class TestPublicKeyRoundTrip:
     def test_to_bytes_and_back(self):
-        original = private_key_from_hex(PRIVATE_KEY_HEX_1).public_key
+        original = private_key_from_hex(PRIVATE_KEY_HEX_1).public_key()
         raw = public_key_to_bytes(original)
         assert len(raw) == 65  # Uncompressed: 04 || x(32) || y(32)
         assert raw[0] == 0x04
         with pytest.deprecated_call():
             recovered = public_key_from_bytes(raw)
-        assert recovered.format(compressed=False) == original.format(compressed=False)
+        assert recovered.pointQ == original.pointQ
 
     def test_from_compressed_bytes(self):
         """Compressed format (33 bytes) should also work."""
-        original = private_key_from_hex(PRIVATE_KEY_HEX_1).public_key
-        compressed = original.format(compressed=True)
+        original = private_key_from_hex(PRIVATE_KEY_HEX_1).public_key()
+        compressed = original.export_key(format="SEC1", compress=True)
         assert len(compressed) == 33
         with pytest.deprecated_call():
             recovered = public_key_from_bytes(compressed)
-        assert recovered.format(compressed=False) == original.format(compressed=False)
+        assert recovered.pointQ == original.pointQ
+
+
+@pytest.mark.parametrize("encoding", ["DER", "PEM"])
+def test_key_in_another_encoding_is_refused(encoding):
+    """pycryptodome's parser also imports these encodings; rule V2 takes only the SEC1 point forms."""
+    encoded = private_key_from_hex(PRIVATE_KEY_HEX_1).public_key().export_key(format=encoding)
+    data = encoded.encode() if isinstance(encoded, str) else encoded
+    with pytest.raises(ValueError, match=f"^{PUBLIC_KEY_NOT_A_POINT}$"):
+        _parse_public_key(data.hex())

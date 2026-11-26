@@ -15,8 +15,9 @@ dependencies = [
     # finish it normally after a partial body, as well as disabling signed-request redirects.
     "pyqwest>=0.11.0",
     "protobuf>=7.34.1",
-    "coincurve>=21.0",
-    "pycryptodome>=3.23",
+    # Keccak-256, and secp256k1 ECDSA from 4.4. 4.6 refuses the point at infinity as a public key
+    # (GH#968): 4.4 and 4.5 accept `04` and 64 zero bytes, for which a signature can be forged.
+    "pycryptodome>=4.6.0",
     # 2.0 imports `FieldOptions` from `protobuf.wkt`, which protobuf-py 0.7 no longer re-exports.
     "protovalidate>=2.1",
     # grpc.health.v1 messages. Upstream publishes them under the top-level
@@ -34,7 +35,7 @@ Organization = "https://pypi.org/org/t0-network/"
 dev = [
     "pytest>=9.2.0",
     "pytest-asyncio>=1.5.0",
-    "ruff>=0.17.2",
+    "ruff>=0.17.6",
     "mypy>=1.13",
 ]
 

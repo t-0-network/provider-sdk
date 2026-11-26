@@ -8,10 +8,9 @@ import struct
 import time
 
 import pytest
-from coincurve import PublicKey
 from t0_provider_sdk._messages import TIMESTAMP_NOT_DECIMAL
 from t0_provider_sdk.crypto.hash import legacy_keccak256
-from t0_provider_sdk.crypto.keys import private_key_from_hex
+from t0_provider_sdk.crypto.keys import _public_key_from_bytes_strict, private_key_from_hex
 from t0_provider_sdk.crypto.signer import new_signer
 from t0_provider_sdk.provider.errors import (
     InvalidHeaderEncodingError,
@@ -385,7 +384,7 @@ class TestNewVerifySignature:
 
     def test_either_form_of_the_network_key(self):
         signature, public_key = _sign(self.MESSAGE)
-        compressed = PublicKey(public_key).format(compressed=True)
+        compressed = _public_key_from_bytes_strict(public_key).export_key(format="SEC1", compress=True)
         assert new_verify_signature(PUBLIC_KEY)(compressed, self.MESSAGE, signature) is None
         assert new_verify_signature(f"0x{compressed.hex()}")(public_key, self.MESSAGE, signature) is None
 

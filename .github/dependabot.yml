@@ -17,7 +17,7 @@
 #       golang.org/x/crypto, golang.org/x/net, connectrpc.com/connect,
 #       github.com/btcsuite/*, github.com/decred/*,
 #       @noble/*, @connectrpc/connect, @connectrpc/connect-node,
-#       coincurve, pycryptodome,
+#       pycryptodome,
 #       org.bouncycastle:*, BouncyCastle.Cryptography
 #     @connectrpc/connect and @connectrpc/connect-node are pinned exactly in
 #     node/sdk/package.json and must move together (connect-node peer-depends on

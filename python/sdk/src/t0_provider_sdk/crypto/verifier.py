@@ -1,15 +1,16 @@
-"""Signature verification using secp256k1 public key recovery.
+"""Signature verification with secp256k1.
 
-Uses the recovery-based approach: recover the public key from r and s with each
-recovery id and compare it to the expected key. This uses only public coincurve API
-and, unlike libsecp256k1's verify, accepts a high s as every SDK does. A 65-byte
-signature (r+s+v) is verified as its first 64 bytes: v is ignored, as in every SDK.
+A high s verifies, as in every SDK. A 65-byte signature (r+s+v) is verified as its first
+64 bytes: v is ignored, as in every SDK.
 """
 
-from coincurve import PublicKey
+from Crypto.PublicKey.ECC import EccKey
+from Crypto.Signature import DSS
+
+from t0_provider_sdk.crypto.hash import _Prehashed
 
 
-def verify_signature(public_key: PublicKey, digest: bytes, signature: bytes) -> bool:
+def verify_signature(public_key: EccKey, digest: bytes, signature: bytes) -> bool:
     """Verify an ECDSA signature against a public key.
 
     Args:
@@ -25,18 +26,10 @@ def verify_signature(public_key: PublicKey, digest: bytes, signature: bytes) -> 
         return False
     if len(signature) not in (64, 65):
         return False
-
-    expected = public_key.format(compressed=False)
-    rs = signature[:64]
-
-    # Try both recovery ids: the one in a 65-byte signature is not trusted.
-    return any(_verify_recoverable(expected, digest, rs + bytes([v])) for v in (0, 1))
-
-
-def _verify_recoverable(expected_uncompressed: bytes, digest: bytes, sig_65: bytes) -> bool:
-    """Attempt to verify by recovering the public key from a 65-byte signature."""
+    # Verifying is the same in every DSS mode. low_s is off, so a high s verifies; r and s must be in
+    # [1, n-1].
     try:
-        recovered = PublicKey.from_signature_and_message(sig_65, digest, hasher=None)
-        return recovered.format(compressed=False) == expected_uncompressed
-    except Exception:
+        DSS.new(public_key, "deterministic-rfc6979").verify(_Prehashed(digest), signature[:64])
+    except ValueError:
         return False
+    return True

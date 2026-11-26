@@ -43,7 +43,7 @@ class TestNewSigner:
         sign_fn = new_signer(key)
         digest = legacy_keccak256(b"round trip test")
         signature, _ = sign_fn(digest)
-        assert verify_signature(key.public_key, digest, signature)
+        assert verify_signature(key.public_key(), digest, signature)
 
     def test_signature_verifiable_with_64_bytes(self):
         """Verify works when v byte is stripped (64-byte signature)."""
@@ -51,7 +51,7 @@ class TestNewSigner:
         sign_fn = new_signer(key)
         digest = legacy_keccak256(b"strip v byte")
         signature, _ = sign_fn(digest)
-        assert verify_signature(key.public_key, digest, signature[:64])
+        assert verify_signature(key.public_key(), digest, signature[:64])
 
     def test_different_messages_different_signatures(self):
         sign_fn = new_signer_from_hex(PRIVATE_KEY_HEX)

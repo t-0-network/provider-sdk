@@ -23,7 +23,7 @@ from typing import Any
 
 import pytest
 import uvicorn
-from coincurve import PrivateKey
+from Crypto.PublicKey import ECC
 from t0_provider_sdk.network.client import new_service_client
 from tzero.v1.payment import provider_pb2
 from tzero.v1.payment.provider_connect import ProviderServiceASGIApplication, ProviderServiceClient
@@ -110,7 +110,7 @@ async def test_generated_client_round_trips_through_generated_server():
     task = asyncio.create_task(server.serve())
     await _wait_for_port(port)
     try:
-        private_key_hex = "0x" + PrivateKey().secret.hex()
+        private_key_hex = f"0x{ECC.generate(curve='secp256k1').d:064x}"
         client = new_service_client(private_key_hex, ProviderServiceClient, base_url=f"http://127.0.0.1:{port}")
         request = provider_pb2.PayoutRequest(payment_id=4242, payout_id=7, currency="EUR")
 

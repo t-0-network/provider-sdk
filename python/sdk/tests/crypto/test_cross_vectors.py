@@ -18,6 +18,7 @@ from t0_provider_sdk.crypto.keys import (
     public_key_from_bytes,
     public_key_from_hex,
     public_key_from_private_key,
+    public_key_to_bytes,
 )
 from t0_provider_sdk.crypto.signer import new_signer_from_hex
 from t0_provider_sdk.crypto.verifier import verify_signature
@@ -130,7 +131,7 @@ class TestCrossVectorsPublicKeyParsing:
     @pytest.mark.parametrize("vec", VECTORS["public_key_parsing"], ids=lambda vec: vec["name"])
     def test_case(self, vec):
         if vec["valid"]:
-            assert _parse_public_key(vec["input"]).format(compressed=False).hex() == vec["uncompressed"]
+            assert public_key_to_bytes(_parse_public_key(vec["input"])).hex() == vec["uncompressed"]
         else:
             with pytest.raises(ValueError, match=_exactly(vec["error"])):
                 _parse_public_key(vec["input"])
@@ -139,7 +140,7 @@ class TestCrossVectorsPublicKeyParsing:
     def test_public_key_from_hex(self, vec):
         with pytest.deprecated_call():
             if vec["valid"]:
-                assert public_key_from_hex(vec["input"]).format(compressed=False).hex() == vec["uncompressed"]
+                assert public_key_to_bytes(public_key_from_hex(vec["input"])).hex() == vec["uncompressed"]
             else:
                 with pytest.raises(ValueError, match=_exactly(vec["error"])):
                     public_key_from_hex(vec["input"])
@@ -153,7 +154,7 @@ class TestCrossVectorsPublicKeyParsing:
         data = _decode_hex_strict(vec["input"])
         with pytest.deprecated_call():
             if vec["valid"]:
-                assert public_key_from_bytes(data).format(compressed=False).hex() == vec["uncompressed"]
+                assert public_key_to_bytes(public_key_from_bytes(data)).hex() == vec["uncompressed"]
             else:
                 with pytest.raises(ValueError, match=_exactly(vec["error"])):
                     public_key_from_bytes(data)
@@ -197,7 +198,7 @@ class TestCrossVectorsPrivateKeyParsing:
     def test_case(self, vec):
         if vec["valid"]:
             key = private_key_from_hex(vec["input"])
-            assert key.public_key.format(compressed=False).hex() == vec["public_key"]
+            assert public_key_to_bytes(key.public_key()).hex() == vec["public_key"]
         else:
             with pytest.raises(ValueError, match=f"^{re.escape(vec['error'])}$"):
                 private_key_from_hex(vec["input"])
@@ -345,6 +346,12 @@ class TestCrossVectorsPublicKeyFromPrivateKey:
                 public_key_from_private_key(vec["input"])
 
 
+# The approved exception to S6 (docs/CROSS_SDK_RULES.md): pycryptodome refuses to sign a digest that is
+# 0 mod n (Legrandin/pycryptodome#976). The case fails once a release signs it: then raise the floor in
+# sdk/pyproject.toml to that release, and remove the exception.
+_PYCRYPTODOME_976 = "digest-equals-n"
+
+
 class TestCrossVectorsSignerCases:
     """new_signer_from_hex's signer over fixed digests: 65 bytes r || s || v and the 65-byte
     uncompressed key, or the error for a digest that is not 32 bytes (signer_cases)."""
@@ -355,6 +362,9 @@ class TestCrossVectorsSignerCases:
         digest = bytes.fromhex(vec["digest"])
         if "error" in vec:
             with pytest.raises(ValueError, match=f"^{re.escape(vec['error'])}$"):
+                sign(digest)
+        elif vec["name"] == _PYCRYPTODOME_976:
+            with pytest.raises(AssertionError):
                 sign(digest)
         else:
             signature, public_key = sign(digest)

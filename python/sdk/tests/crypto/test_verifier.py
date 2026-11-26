@@ -18,7 +18,7 @@ class TestVerifySignature:
         sign_fn = new_signer(key)
         digest = legacy_keccak256(b"valid 65")
         signature, _ = sign_fn(digest)
-        assert verify_signature(key.public_key, digest, signature)
+        assert verify_signature(key.public_key(), digest, signature)
 
     def test_valid_64_byte_signature(self):
         """Verify works with just r+s (no recovery byte)."""
@@ -26,7 +26,7 @@ class TestVerifySignature:
         sign_fn = new_signer(key)
         digest = legacy_keccak256(b"valid 64")
         signature, _ = sign_fn(digest)
-        assert verify_signature(key.public_key, digest, signature[:64])
+        assert verify_signature(key.public_key(), digest, signature[:64])
 
     def test_wrong_public_key_fails(self):
         key1 = private_key_from_hex(PRIVATE_KEY_HEX_1)
@@ -42,7 +42,7 @@ class TestVerifySignature:
         digest = legacy_keccak256(b"original")
         wrong_digest = legacy_keccak256(b"tampered")
         signature, _ = sign_fn(digest)
-        assert not verify_signature(key.public_key, wrong_digest, signature)
+        assert not verify_signature(key.public_key(), wrong_digest, signature)
 
     def test_corrupted_signature_fails(self):
         key = private_key_from_hex(PRIVATE_KEY_HEX_1)
@@ -52,22 +52,22 @@ class TestVerifySignature:
         # Flip a byte in the signature
         corrupted = bytearray(signature)
         corrupted[0] ^= 0xFF
-        assert not verify_signature(key.public_key, digest, bytes(corrupted))
+        assert not verify_signature(key.public_key(), digest, bytes(corrupted))
 
     def test_too_short_signature_fails(self):
         key = private_key_from_hex(PRIVATE_KEY_HEX_1)
         digest = legacy_keccak256(b"short")
-        assert not verify_signature(key.public_key, digest, b"\x00" * 63)
+        assert not verify_signature(key.public_key(), digest, b"\x00" * 63)
 
     def test_too_long_signature_fails(self):
         key = private_key_from_hex(PRIVATE_KEY_HEX_1)
         digest = legacy_keccak256(b"long")
-        assert not verify_signature(key.public_key, digest, b"\x00" * 66)
+        assert not verify_signature(key.public_key(), digest, b"\x00" * 66)
 
     def test_wrong_digest_length_fails(self):
         key = private_key_from_hex(PRIVATE_KEY_HEX_1)
-        assert not verify_signature(key.public_key, b"\x00" * 31, b"\x00" * 64)
-        assert not verify_signature(key.public_key, b"\x00" * 33, b"\x00" * 64)
+        assert not verify_signature(key.public_key(), b"\x00" * 31, b"\x00" * 64)
+        assert not verify_signature(key.public_key(), b"\x00" * 33, b"\x00" * 64)
 
     def test_cross_key_verification(self):
         """Sign with key1, verify with both keys — only key1 should pass."""
@@ -76,8 +76,8 @@ class TestVerifySignature:
         sign_fn = new_signer(key1)
         digest = legacy_keccak256(b"cross key test")
         signature, _ = sign_fn(digest)
-        assert verify_signature(key1.public_key, digest, signature)
-        assert not verify_signature(key2.public_key, digest, signature)
+        assert verify_signature(key1.public_key(), digest, signature)
+        assert not verify_signature(key2.public_key(), digest, signature)
 
     def test_multiple_messages_independently_verifiable(self):
         key = private_key_from_hex(PRIVATE_KEY_HEX_1)
@@ -85,5 +85,5 @@ class TestVerifySignature:
         for i in range(10):
             digest = legacy_keccak256(f"msg-{i}".encode())
             sig, _ = sign_fn(digest)
-            assert verify_signature(key.public_key, digest, sig)
-            assert verify_signature(key.public_key, digest, sig[:64])
+            assert verify_signature(key.public_key(), digest, sig)
+            assert verify_signature(key.public_key(), digest, sig[:64])

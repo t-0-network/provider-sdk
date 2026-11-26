@@ -25,7 +25,7 @@ from dataclasses import dataclass
 from http import HTTPStatus
 from typing import Any
 
-from coincurve import PublicKey
+from Crypto.PublicKey.ECC import EccKey
 
 from t0_provider_sdk._messages import (
     GET_NOT_SUPPORTED,
@@ -81,7 +81,7 @@ class VerifySignatureFn:
     Built by new_verify_signature, the only way to build one that the middleware accepts.
     """
 
-    network_public_key: PublicKey
+    network_public_key: EccKey
 
     def __call__(self, public_key_bytes: bytes, message: bytes, signature: bytes) -> None:
         """Verify signature, raising appropriate errors on failure.
@@ -94,7 +94,7 @@ class VerifySignatureFn:
             raise SignatureFailedError()
 
 
-def _check_signer(network_public_key: PublicKey, public_key_bytes: bytes, signature: bytes) -> None:
+def _check_signer(network_public_key: EccKey, public_key_bytes: bytes, signature: bytes) -> None:
     """What the server checks between the timestamp window and the body (rule V10): that the X-Public-Key
     bytes are the network key, then that the signature is 64 or 65 bytes. VerifySignatureFn runs the
     same checks, so the two refuse a request alike."""
@@ -104,13 +104,13 @@ def _check_signer(network_public_key: PublicKey, public_key_bytes: bytes, signat
         # Bytes that are not a key cannot be the network key either.
         raise UnknownPublicKeyError()
     # Compared as points: the compressed and the uncompressed form of the network key both match.
-    if signer_public_key.format(compressed=False) != network_public_key.format(compressed=False):
+    if signer_public_key.pointQ != network_public_key.pointQ:
         raise UnknownPublicKeyError()
     if len(signature) not in (64, 65):
         raise SignatureFailedError()
 
 
-def _verifies(network_public_key: PublicKey, message: bytes, signature: bytes) -> bool:
+def _verifies(network_public_key: EccKey, message: bytes, signature: bytes) -> bool:
     """Whether the signature, without its recovery byte, is the network key's over Keccak-256(message)."""
     return verify_signature(network_public_key, legacy_keccak256(message), signature[:64])
 

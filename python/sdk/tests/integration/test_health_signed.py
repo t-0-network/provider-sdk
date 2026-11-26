@@ -17,15 +17,16 @@ import socket
 
 import pytest
 import uvicorn
-from coincurve import PrivateKey
 from connectrpc.client import ConnectClient
 from connectrpc.code import Code
 from connectrpc.compat import google_protobuf_binary_codec
 from connectrpc.errors import ConnectError
 from connectrpc.method import IdempotencyLevel, MethodInfo, StreamType
 from connectrpc.request import Headers, RequestContext
+from Crypto.PublicKey import ECC
 from grpc_health.v1 import health_pb2
 from t0_provider_sdk._version import __version__
+from t0_provider_sdk.crypto.keys import public_key_from_private_key
 from t0_provider_sdk.network.client import new_service_client
 from t0_provider_sdk.provider.handler import handler, new_asgi_app
 from t0_provider_sdk.provider.health import (
@@ -60,11 +61,8 @@ async def _wait_for_port(port: int, timeout: float = 5.0) -> None:
 
 
 def _new_keypair() -> tuple[str, str]:
-    priv = PrivateKey()
-    return (
-        "0x" + priv.secret.hex(),
-        "0x" + priv.public_key.format(compressed=False).hex(),
-    )
+    private_key_hex = f"0x{ECC.generate(curve='secp256k1').d:064x}"
+    return private_key_hex, public_key_from_private_key(private_key_hex)
 
 
 class _StubProviderService:
