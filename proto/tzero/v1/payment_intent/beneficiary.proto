@@ -92,7 +92,6 @@ message PaymentIntentUpdateRequest {
 
     /**
      * Travel rule data of the Collection Provider's legal entity that received the funds.
-     * Present when the Collection Provider has registered travel rule data.
      */
     TravelRuleData travel_rule_data = 60 [(buf.validate.field).required = true];
 

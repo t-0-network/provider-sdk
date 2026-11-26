@@ -6,6 +6,7 @@ import "tzero/v1/common/common.proto";
 import "tzero/v1/common/timeout.proto";
 import "tzero/v1/common/payment_method.proto";
 import "tzero/v1/common/payment_receipt.proto";
+import "tzero/v1/payment/provider.proto";
 import "ivms101/v1/ivms/ivms101.proto";
 import "google/protobuf/timestamp.proto";
 import "buf/validate/validate.proto";
@@ -137,6 +138,16 @@ message UpdateQuoteRequest {
 
 message UpdateQuoteResponse {}
 
+/**
+ * Attributes of a payment. An attribute left unset takes the value agreed for the Payout Requester,
+ * else each Payout Provider's own. The Payout Requester confirms that each value it sends, and each value
+ * agreed for it, is correct; the Payout Provider checks it against the payment data and can reject the pay-out.
+ */
+message PaymentAttributes {
+  optional FlowType flow_type = 10 [(buf.validate.field).enum = {defined_only: true, not_in: [0]}];
+  optional PartyRelationship party_relationship = 20 [(buf.validate.field).enum = {defined_only: true, not_in: [0]}];
+}
+
 message GetQuoteRequest {
   PaymentAmount amount = 20 [(buf.validate.field).required = true]; // payment amount - must be either pay-out amount or settlement amount
 
@@ -145,6 +156,9 @@ message GetQuoteRequest {
   tzero.v1.common.PaymentMethodType pay_out_method = 50 [(buf.validate.field).required = true]; // payment method to use for the payout, e.g. bank transfer, card, etc.
 
   QuoteType quote_type = 60 [(buf.validate.field).required = true]; // type of the quote, e.g. real-time
+
+  // Attribute values the quote's rate is adjusted for.
+  PaymentAttributes attributes = 80;
 }
 
 message GetQuoteResponse {
@@ -188,7 +202,8 @@ message GetQuoteResponse {
 
     enum Reason {
       REASON_UNSPECIFIED = 0;
-      // No quote fits the currency, payment method and amount, or no credit line exists.
+      // No quote fits the currency, payment method and amount, no credit line exists, or no Payout Provider
+      // takes the payment's attribute values.
       REASON_QUOTE_NOT_FOUND = 10;
       // Quotes exist, but no credit line covers the amount.
       // all_quotes shows the prefunding each provider needs.
@@ -238,7 +253,8 @@ message GetQuoteResponse {
 message CreatePaymentRequest{
   /**
    * Client id of the payment. To retry, resend the same id, also with a new amount or quote.
-   * Once accepted, the id returns that payment, or AlreadyExists if the amount or currency differs.
+   * Once accepted, the id returns that payment, or AlreadyExists if the amount, the currency,
+   * the originator_provider_legal_entity_id or an attribute value the payment's rate was adjusted for differs.
    * A retry of a `failure` under a new id can pay the payment out twice.
    */
   string payment_client_id = 10 [(buf.validate.field).string = {
@@ -251,6 +267,10 @@ message CreatePaymentRequest{
   string currency = 40 [(buf.validate.field).string = {len: 3, pattern: "^[A-Z]{3}$"}]; // pay-out currency
   tzero.v1.common.PaymentDetails payment_details = 50 [(buf.validate.field).required = true]; // pay-out payment details
   optional QuoteId quote_id = 60; // a quote from GetQuote; without it, the best quote is picked
+
+  // Attribute values the payment's rate is adjusted for, also when quote_id is set. After the pay-out fails with
+  // REASON_REJECTED_BY_BENEFICIARY for a wrong value, send the corrected payment under a new payment_client_id.
+  PaymentAttributes attributes = 80;
 
   TravelRuleData travel_rule_data = 100 [(buf.validate.field).required = true]; // travel rule data
 
@@ -319,7 +339,8 @@ message CreatePaymentResponse {
 
     enum Reason {
       REASON_UNSPECIFIED = 0;
-      // No quote fits the currency, payment method and amount, or no credit line exists.
+      // No quote fits the currency, payment method and amount, no credit line exists, or no Payout Provider
+      // takes the payment's attribute values.
       REASON_QUOTE_NOT_FOUND = 10;
       // Quotes exist, but no credit line covers the amount.
       // GetQuote shows the prefunding each provider needs.
@@ -378,19 +399,21 @@ message CompleteManualAmlCheckResponse {
   }
 
   message Approved {
-    /**
-    * updated amount based on updated quote approved by the Payout Requester
-     */
+    // Pay-out amount in the pay-out currency after the approval: the amount to pay out to the recipient.
     tzero.v1.common.Decimal pay_out_amount = 10 [(buf.validate.field).required = true];
 
-    /* updated settlement amount based on updated quote approved by the Payout Requester */
+    // Settlement amount of the payment in USD after the approval: the amount that the Payout Requester owes
+    // the Payout Provider for this pay-out.
     tzero.v1.common.Decimal settlement_amount = 20 [(buf.validate.field).required = true];
 
-    /* unique identifier of the updated pay-out quote */
+    // Unique identifier of the updated pay-out quote.
     int64 pay_out_quote_id = 30 [(buf.validate.field).int64.gt = 0];
 
-    /* client_quote_id of the updated pay-out quote assigned by the Payout Provider */
+    // `client_quote_id` of the updated pay-out quote.
     string pay_out_client_quote_id = 40 [(buf.validate.field).string.max_len = 64];
+
+    // Rate and fix for the updated pay-out quote, with the adjustments of `PayoutRequest.payout_rate`.
+    PayoutRate payout_rate = 60 [(buf.validate.field).required = true];
   }
 
   // Rejected means that the updated quotes were rejected by the Payout Requester, and the Payout Provider should not proceed
