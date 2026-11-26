@@ -7,6 +7,7 @@ import "tzero/v1/common/payment_receipt.proto";
 import "tzero/v1/common/common.proto";
 import "tzero/v1/common/timeout.proto";
 import "ivms101/v1/ivms/ivms101.proto";
+import "google/protobuf/descriptor.proto";
 import "google/protobuf/timestamp.proto";
 import "buf/validate/validate.proto";
 
@@ -221,8 +222,8 @@ message PayoutRequest {
    */
   string currency = 30 [(buf.validate.field).string = {len: 3, pattern: "^[A-Z]{3}$"}];
   /**
-   * client quote id of the quote used for this payout (the provider provides the quote IDs in the UpdateQuote rpc)
-   * This is the identifier of the quote that was used to calculate the payout amount.
+   * Client quote id of this pay-out's quote (the provider provides the quote IDs in the UpdateQuote rpc).
+   * The quote's rate equals `payout_rate.rate` when `payout_rate.attributes` is empty; with attributes the two can differ.
    */
   string client_quote_id = 40 [(buf.validate.field).string = {min_len: 1, max_len: 64}];
   /**
@@ -247,6 +248,12 @@ message PayoutRequest {
    */
   uint32 pay_in_provider_id = 80 [(buf.validate.field).uint32.gt = 0];
 
+  // Rate and fix for this pay-out, and the adjustment for each attribute value of the payment. Set on every pay-out.
+  // Compare each value with the default for its attribute when the payment was created. A value other than that
+  // default was declared for this payment: check it against the payment data. A value equal to that default may be
+  // the default itself, which the payment did not declare.
+  PayoutRate payout_rate = 100;
+
   TravelRuleData travel_rule_data = 200 [(buf.validate.field).required = true];
 
   message TravelRuleData {
@@ -266,6 +273,44 @@ message PayoutRequest {
      * Taken from the originator entity in the corresponding CreatePaymentRequest.
      */
     optional ivms101.Person originator_provider = 30;
+  }
+}
+
+/**
+ * Rate and fix for a pay-out, and the adjustment for each attribute value of the payment.
+ */
+message PayoutRate {
+  // Rate for the pay-out after the adjustments in `attributes`, pay-out currency per USD.
+  // Without attributes it is the rate of the quote.
+  tzero.v1.common.Decimal rate = 10 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).cel = {
+      message: "rate must be greater than zero"
+      expression: "this.unscaled > 0"
+    }
+  ];
+  // Fixed charge of the quote, in USD. Attributes do not change it.
+  tzero.v1.common.Decimal fix = 20 [
+    (buf.validate.field).required = true,
+    (buf.validate.field).cel = {
+      message: "fix must be non-negative"
+      expression: "this.unscaled >= 0"
+    }
+  ];
+  // One entry per attribute the rate was computed with, including those at 0 %; empty when there is none.
+  repeated Attribute attributes = 30;
+
+  // One attribute value of the payment and the adjustment for it.
+  message Attribute {
+    // Percent of the rate: above zero a surcharge, below zero a discount, zero no change.
+    // No sign rule: every sign is valid.
+    tzero.v1.common.Decimal percent = 10 [(buf.validate.field).required = true];
+    // The attribute and its value.
+    oneof value {
+      option (buf.validate.oneof).required = true;
+      FlowType flow_type = 20 [(buf.validate.field).enum = {defined_only: true, not_in: [0]}];
+      PartyRelationship party_relationship = 30 [(buf.validate.field).enum = {defined_only: true, not_in: [0]}];
+    }
   }
 }
 
@@ -303,6 +348,7 @@ message PayoutResponse {
 
   message Failed {
     Reason reason = 10;
+    // For a wrong attribute value in `PayoutRequest.payout_rate.attributes`, name the attribute.
     optional string details = 20 [(buf.validate.field).string.max_len = 1024];
 
     enum Reason {
@@ -440,7 +486,7 @@ message UpdateLimitRequest {
 
   message Limit {
     /**
-       * Incrementally growing for the provider - same as in Ledger.
+       * Version of the limit with this counterpart. It can go down.
        */
     int64 version = 10 [(buf.validate.field).int64.gte = 0];
     /**
@@ -474,7 +520,7 @@ message UpdateLimitRequest {
 message UpdateLimitResponse {}
 
 message ApprovePaymentQuoteRequest {
-  /** Payment id assigned by the network, identifying the payment being re-priced. */
+  /** Payment id assigned by the network, identifying the payment being re-quoted. */
   uint64 payment_id = 10 [(buf.validate.field).uint64.gt = 0];
 
   /** Updated pay-out quote id the approval applies to. */
@@ -526,4 +572,39 @@ message ApprovePaymentQuoteResponse {
   }
   message Accepted {}
   message Rejected {}
+}
+
+// payment_attribute_id marks an enum as a payment attribute and gives the attribute its id.
+// An id is never changed and never given to another enum. No request or response carries it.
+extend google.protobuf.EnumOptions {
+  int32 payment_attribute_id = 60030;
+}
+
+// The originator type and then the beneficiary type of a payment. Each is a business (B) or a consumer (C);
+// a consumer is a private person.
+// A value never changes its meaning; a new meaning gets a new value.
+enum FlowType {
+  option (payment_attribute_id) = 1000;
+
+  FLOW_TYPE_UNSPECIFIED = 0;
+  // The originator is a business and the beneficiary is a business.
+  FLOW_TYPE_B2B = 10;
+  // The originator is a business and the beneficiary is a consumer.
+  FLOW_TYPE_B2C = 20;
+  // The originator is a consumer and the beneficiary is a business.
+  FLOW_TYPE_C2B = 30;
+  // The originator is a consumer and the beneficiary is a consumer.
+  FLOW_TYPE_C2C = 40;
+}
+
+// Whether the originator and the beneficiary of a payment are the same entity.
+// A value never changes its meaning; a new meaning gets a new value.
+enum PartyRelationship {
+  option (payment_attribute_id) = 2000;
+
+  PARTY_RELATIONSHIP_UNSPECIFIED = 0;
+  // The originator and the beneficiary are the same entity.
+  PARTY_RELATIONSHIP_FIRST_PARTY = 10;
+  // The originator and the beneficiary are different entities.
+  PARTY_RELATIONSHIP_THIRD_PARTY = 20;
 }
